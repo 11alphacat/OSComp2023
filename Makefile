@@ -85,8 +85,8 @@ qemu-gdb: _kernel .gdbinit fs.img
 qemu: _kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
-fs.img: $(SCRIPTS)/mkfs README user 
-	@$(SCRIPTS)/mkfs fs.img README $(addprefix $(FSIMG)/, $(shell ls ./user/fsimg))
+fs.img: $(SCRIPTS)/mkfs README.md user 
+	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./user/fsimg))
 
 $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs.h include/param.h
 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
