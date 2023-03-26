@@ -1,0 +1,1 @@
+DIRS-y += src/atomic src/fs src/kernel src/mm src/driver
