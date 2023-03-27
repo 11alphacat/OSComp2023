@@ -20,3 +20,6 @@ user/build
 user/fsimg
 *.a
 include/syscall_gen
+compile_commands.json
+settings.json
+c_cpp_properties.json

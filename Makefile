@@ -1,5 +1,6 @@
 .DEFAULT_GOAL=qemu
 PLATFORM ?= qemu
+DEBUG ?= 0
 FSIMG = user/fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -28,6 +29,10 @@ AS = $(TOOLPREFIX)gcc
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
+
+ifeq ($(DEBUG), 1)
+CFLAGS += -D__DEBUG__
+endif
 
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -MD
@@ -86,7 +91,7 @@ qemu-gdb: _kernel .gdbinit fs.img
 
 # target =================================================================================
 format:
-	@clang-format-8 -i $(filter %.c, $(SRCS))
+	@clang-format -i $(filter %.c, $(SRCS))
 
 
 qemu: _kernel fs.img
@@ -110,7 +115,7 @@ clean-all: clean
 clean: 
 	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf
 
-.PHONY: qemu clean user clean-all format
+.PHONY: qemu clean user clean-all format test
 
 include $(SCRIPTS)/build.mk
 include $(SCRIPTS)/colors.mk
