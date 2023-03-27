@@ -85,6 +85,10 @@ qemu-gdb: _kernel .gdbinit fs.img
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 # target =================================================================================
+format:
+	@clang-format-8 -i $(filter %.c, $(SRCS))
+
+
 qemu: _kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
@@ -106,7 +110,7 @@ clean-all: clean
 clean: 
 	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf
 
-.PHONY: qemu clean user clean-all
+.PHONY: qemu clean user clean-all format
 
 include $(SCRIPTS)/build.mk
 include $(SCRIPTS)/colors.mk
