@@ -1,0 +1,28 @@
+# proc
+10  getpid          sys_getpid
+0   fork            sys_fork
+1   exit            sys_exit
+2   wait            sys_wait
+5   kill            sys_kill
+6   exec            sys_exec
+11  sbrk            sys_sbrk
+
+
+# fs
+7   fstat           sys_fstat
+14  open            sys_open
+15  write           sys_write
+4   read            sys_read
+20  close           sys_close
+19  mkdir           sys_mkdir
+8   chdir           sys_chdir
+18  link            sys_link
+17  unlink          sys_unlink
+16  mknod           sys_mknod
+9   dup             sys_dup
+3   pipe            sys_pipe
+
+
+# misc
+13  uptime          sys_uptime
+12  sleep           sys_sleep

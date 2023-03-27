@@ -12,6 +12,11 @@ initcode
 initcode.out
 kernelmemfs
 mkfs
-kernel/kernel
-user/usys.S
 .gdbinit
+
+_kernel
+build
+user/build
+user/fsimg
+*.a
+include/syscall_gen

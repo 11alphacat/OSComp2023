@@ -4,6 +4,9 @@ FSIMG = user/fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
 
+GENINC=include/syscall_gen
+$(shell mkdir -p $(GENINC))
+
 # Try to infer the correct TOOLPREFIX if not set
 ifndef TOOLPREFIX
 TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
@@ -85,8 +88,8 @@ qemu-gdb: _kernel .gdbinit fs.img
 qemu: _kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
-fs.img: $(SCRIPTS)/mkfs README.md user 
-	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./user/fsimg))
+fs.img: $(SCRIPTS)/mkfs README user 
+	@$(SCRIPTS)/mkfs fs.img README $(addprefix $(FSIMG)/, $(shell ls ./user/fsimg))
 
 $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs.h include/param.h
 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
@@ -101,7 +104,7 @@ clean-all: clean
 	-@make -C user/ clean
 
 clean: 
-	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img -rf
+	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf
 
 .PHONY: qemu clean user clean-all
 

@@ -4,7 +4,7 @@
 #include "user.h"
 #include "fs.h"
 #include "fcntl.h"
-#include "syscall.h"
+#include "syscall_gen/syscall_num.h"
 #include "memlayout.h"
 #include "riscv.h"
 
