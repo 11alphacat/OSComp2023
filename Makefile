@@ -91,7 +91,7 @@ qemu-gdb: _kernel .gdbinit fs.img
 
 # target =================================================================================
 format:
-	@clang-format -i $(filter %.c, $(SRCS))
+	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 
 qemu: _kernel fs.img
