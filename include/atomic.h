@@ -3,27 +3,43 @@
 
 // 原子操作数据结构
 typedef struct {
-	volatile int counter;
+    volatile int counter;
 } atomic_t;
 
 // 初始化
 #define ATOMIC_INITIALIZER { 0 }
-#define ATOMIC_INIT(i)	  { (i) }
+#define ATOMIC_INIT(i)   { (i) }
 
-// 加、自增、自减、获取、counter
-#define atomic_add(ptr, i) __atomic_add(ptr, i)
-#define atomic_inc(ptr) __atomic_add(ptr, 1)
-#define atomic_dec(ptr) __atomic_add(ptr, -1)
-#define atomic_get(ptr) ((ptr)->counter)
+// 原子读取
+#define WRITE_ONCE(var, val) \
+	(*((volatile typeof(val) *)(&(var))) = (val))
+#define READ_ONCE(var) (*((volatile typeof(var) *)(&(var))))
 
-// 原子性的加
-static inline int __atomic_add(atomic_t *v, int i) {
-    register int ret;						
-	__asm__ __volatile__ (					
-		"	amoadd.w.aqrl  %1, %2, %0"	
-		: "+A" (v->counter), "=r" (ret)	
-		: "r" (i)
-		: "memory");
-	return ret;					
+// 在
+#define atomic_read(v)		READ_ONCE((v)->counter)
+#define atomic_set(v, i)	WRITE_ONCE(((v)->counter), (i))
+
+// 自增
+static inline int atomic_inc_return(atomic_t *v)
+{
+	return  __sync_fetch_and_add(&v->counter, 1);
+}
+
+// 自减
+static inline int atomic_dec_return(atomic_t *v)
+{
+	return  __sync_fetch_and_sub(&v->counter, 1);
+}
+
+// 增加
+static inline int atomic_add_return(atomic_t *v, int i)
+{
+	return  __sync_fetch_and_add(&v->counter, i);
+}
+
+// 减少
+static inline int atomic_sub_return(atomic_t *v, int i)
+{
+	return  __sync_fetch_and_sub(&v->counter, i);
 }
 #endif
