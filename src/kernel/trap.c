@@ -5,6 +5,9 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sbi.h"
+
+#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 
 struct spinlock tickslock;
 uint ticks;
@@ -23,6 +26,9 @@ void trapinit(void) {
 // set up to take exceptions and traps while in the kernel.
 void trapinithart(void) {
     w_stvec((uint64)kernelvec);
+    // start timer
+    w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
+    SET_TIMER();
 }
 
 //
@@ -186,17 +192,12 @@ int devintr() {
             plic_complete(irq);
 
         return 1;
-    } else if (scause == 0x8000000000000001L) {
-        // software interrupt from a machine-mode timer interrupt,
-        // forwarded by timervec in kernelvec.S.
 
+    } else if (scause == 0x8000000000000005L) {
         if (cpuid() == 0) {
             clockintr();
         }
-
-        // acknowledge the software interrupt by clearing
-        // the SSIP bit in sip.
-        w_sip(r_sip() & ~2);
+        SET_TIMER();
 
         return 2;
     } else {
