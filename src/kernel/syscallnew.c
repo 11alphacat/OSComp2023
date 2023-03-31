@@ -1,5 +1,7 @@
 #include "types.h"
+#include "riscv.h"
 #include "debug.h"
+
 uint64 sys_mkdirat(void) {
     ASSERT(0);
     return 0;
