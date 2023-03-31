@@ -9,7 +9,7 @@ OBJS+=$(_OBJS)
 include $(SCRIPTS)/rules.mk
 
 syscall_gen:
-	@bash ./$(ENTRY)/syscalltbl.sh $(ENTRY)/syscall.tbl $(GENINC)/syscall_num.h $(GENINC)/syscall_func.h
+	@sh ./$(ENTRY)/syscalltbl.sh $(ENTRY)/syscall.tbl $(GENINC)/syscall_num.h $(GENINC)/syscall_func.h $(GENINC)/syscall_def.h
 
 _kernel: syscall_gen $(OBJS) $(SCRIPTS)/kernel.ld
 	@$(LD) $(LDFLAGS) -T $(SCRIPTS)/kernel.ld -o _kernel $(OBJS) -e _entry 

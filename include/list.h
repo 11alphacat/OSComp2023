@@ -6,7 +6,7 @@
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
+        (type *)( (char *)__mptr - offsetof(type,member) ); })
 #endif
 
 // 返回包含list_head父类型的结构体
@@ -17,28 +17,26 @@
  * @member:	the name of the list_head within the struct.
  */
 #define list_entry(ptr, type, member) \
-	container_of(ptr, type, member)
-
+    container_of(ptr, type, member)
 
 // 链表数据结构
-struct list_head{
-  struct list_head *next, *prev;
+struct list_head {
+    struct list_head *next, *prev;
 };
 typedef struct list_head list_head_t;
 
 // 链表初始化
-static inline void INIT_LIST_HEAD(struct list_head *list)
-{
+static inline void INIT_LIST_HEAD(struct list_head *list) {
     list->next = list;
-	list->prev = list;
+    list->prev = list;
 }
 
 // 链表头
-#define LIST_HEAD_INIT(name) { &(name), &(name) }
+#define LIST_HEAD_INIT(name) \
+    { &(name), &(name) }
 #define LIST_HEAD(name) \
-	struct list_head name = LIST_HEAD_INIT(name)
+    struct list_head name = LIST_HEAD_INIT(name)
 // 初始化一个结构体
-
 
 // 给链表增加一个节点
 /*
@@ -47,12 +45,11 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
  * the prev/next entries already!
  */
 static inline void __list_add(struct list_head *pnew,
-			      struct list_head *prev,
-			      struct list_head *next)
-{
-	next->prev = pnew;
-	pnew->next = next;
-	pnew->prev = prev;
+                              struct list_head *prev,
+                              struct list_head *next) {
+    next->prev = pnew;
+    pnew->next = next;
+    pnew->prev = prev;
     prev->next = pnew;
 }
 /**
@@ -62,11 +59,9 @@ static inline void __list_add(struct list_head *pnew,
  * Insert a new entry after the specified head.
  * This is good for implementing stacks.
  */
-static inline void list_add(struct list_head *pnew, struct list_head *head)
-{
-	__list_add(pnew, head, head->next);
+static inline void list_add(struct list_head *pnew, struct list_head *head) {
+    __list_add(pnew, head, head->next);
 }
-
 
 // 从链表中删除一个节点
 /*
@@ -75,10 +70,9 @@ static inline void list_add(struct list_head *pnew, struct list_head *head)
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-static inline void __list_del(struct list_head * prev, struct list_head * next)
-{
-	next->prev = prev;
-	prev->next = next;
+static inline void __list_del(struct list_head *prev, struct list_head *next) {
+    next->prev = prev;
+    prev->next = next;
 }
 /**
  * list_del - deletes entry from list.
@@ -86,18 +80,15 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
  * Note: list_empty() on entry does not return true after this, the entry is
  * in an undefined state.
  */
-static inline void __list_del_entry(struct list_head *entry)
-{
-	__list_del(entry->prev, entry->next);
+static inline void __list_del_entry(struct list_head *entry) {
+    __list_del(entry->prev, entry->next);
 }
 
-static inline void list_del(struct list_head *entry)
-{
-	__list_del_entry(entry);
-	entry->next = (list_head_t *)NULL;
-	entry->prev = (list_head_t *)NULL;
+static inline void list_del(struct list_head *entry) {
+    __list_del_entry(entry);
+    entry->next = (list_head_t *)NULL;
+    entry->prev = (list_head_t *)NULL;
 }
-
 
 // 将节点从一个链表中移动到另一个链表
 /**
@@ -105,10 +96,9 @@ static inline void list_del(struct list_head *entry)
  * @list: the entry to move
  * @head: the head that will precede our entry
  */
-static inline void list_move(struct list_head *list, struct list_head *head)
-{
-	__list_del_entry(list);
-	list_add(list, head);
+static inline void list_move(struct list_head *list, struct list_head *head) {
+    __list_del_entry(list);
+    list_add(list, head);
 }
 
 // 将一个节点从一个链表的尾部移动到另一个链表
@@ -119,9 +109,8 @@ static inline void list_move(struct list_head *list, struct list_head *head)
  * Insert a pnew entry before the specified head.
  * This is useful for implementing queues.
  */
-static inline void list_add_tail(struct list_head *pnew, struct list_head *head)
-{
-	__list_add(pnew, head->prev, head);
+static inline void list_add_tail(struct list_head *pnew, struct list_head *head) {
+    __list_add(pnew, head->prev, head);
 }
 /**
  * list_move_tail - delete from one list and add as another's tail
@@ -129,10 +118,9 @@ static inline void list_add_tail(struct list_head *pnew, struct list_head *head)
  * @head: the head that will follow our entry
  */
 static inline void list_move_tail(struct list_head *list,
-				  struct list_head *head)
-{
-	__list_del_entry(list);
-	list_add_tail(list, head);
+                                  struct list_head *head) {
+    __list_del_entry(list);
+    list_add_tail(list, head);
 }
 
 // 检测链表是否为空
@@ -140,34 +128,31 @@ static inline void list_move_tail(struct list_head *list,
  * list_empty - tests whether a list is empty
  * @head: the list to test.
  */
-static inline int list_empty(const struct list_head *head)
-{
-	return head->next == head;
+static inline int list_empty(const struct list_head *head) {
+    return head->next == head;
 }
 
 // 将两个链表合并
 static inline void __list_splice(struct list_head *list,
-				 struct list_head *head)
-{
-	struct list_head *first = list->next;
-	struct list_head *last = list->prev;
-	struct list_head *at = head->next;
+                                 struct list_head *head) {
+    struct list_head *first = list->next;
+    struct list_head *last = list->prev;
+    struct list_head *at = head->next;
 
-	first->prev = head;
-	head->next = first;
+    first->prev = head;
+    head->next = first;
 
-	last->next = at;
-	at->prev = last;
+    last->next = at;
+    at->prev = last;
 }
 /**
  * list_splice - join two lists
  * @list: the new list to add.
  * @head: the place to add it in the first list.
  */
-static inline void list_splice(struct list_head *list, struct list_head *head)
-{
-	if (!list_empty(list))
-		__list_splice(list, head);
+static inline void list_splice(struct list_head *list, struct list_head *head) {
+    if (!list_empty(list))
+        __list_splice(list, head);
 }
 
 // 遍历链表
@@ -180,14 +165,14 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  * Note, that list is expected to be not empty.
  */
 #define list_first_entry(ptr, type, member) \
-	list_entry((ptr)->next, type, member)
+    list_entry((ptr)->next, type, member)
 /**
  * list_next_entry - get the next element in list
  * @pos:	the type * to cursor
  * @member:	the name of the list_head within the struct.
  */
 #define list_next_entry(pos, member) \
-	list_entry((pos)->member.next, typeof(*(pos)), member)
+    list_entry((pos)->member.next, typeof(*(pos)), member)
 
 /**
  * list_last_entry - get the last element from a list
@@ -198,15 +183,14 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  * Note, that list is expected to be not empty.
  */
 #define list_last_entry(ptr, type, member) \
-	list_entry((ptr)->prev, type, member)
+    list_entry((ptr)->prev, type, member)
 /**
  * list_prev_entry - get the prev element in list
  * @pos:	the type * to cursor
  * @member:	the name of the list_head within the struct.
  */
 #define list_prev_entry(pos, member) \
-	list_entry((pos)->member.prev, typeof(*(pos)), member)
-
+    list_entry((pos)->member.prev, typeof(*(pos)), member)
 
 /**
  * list_for_each	-	iterate over a list
@@ -214,7 +198,7 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  * @head:	the head for your list.
  */
 #define list_for_each(pos, head) \
-	for (pos = (head)->next; pos != (head); pos = pos->next)
+    for (pos = (head)->next; pos != (head); pos = pos->next)
 
 /**
  * list_entry - get the struct for this entry
@@ -223,17 +207,17 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  * @member:	the name of the list_head within the struct.
  */
 #define list_entry(ptr, type, member) \
-	container_of(ptr, type, member)
+    container_of(ptr, type, member)
 /**
  * list_for_each_entry	-	iterate over list of given type
  * @pos:	the type * to use as a loop cursor.
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  */
-#define list_for_each_entry(pos, head, member)				\
-	for (pos = list_first_entry(head, typeof(*pos), member);	\
-	     &pos->member != (head);					\
-	     pos = list_next_entry(pos, member))
+#define list_for_each_entry(pos, head, member)               \
+    for (pos = list_first_entry(head, typeof(*pos), member); \
+         &pos->member != (head);                             \
+         pos = list_next_entry(pos, member))
 
 // 反向遍历链表
 /**
@@ -242,10 +226,10 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  */
-#define list_for_each_entry_reverse(pos, head, member)			\
-	for (pos = list_last_entry(head, typeof(*pos), member);		\
-	     &pos->member != (head); 					\
-	     pos = list_prev_entry(pos, member))
+#define list_for_each_entry_reverse(pos, head, member)      \
+    for (pos = list_last_entry(head, typeof(*pos), member); \
+         &pos->member != (head);                            \
+         pos = list_prev_entry(pos, member))
 
 // 正向安全遍历链表（遍历的同时删除节点）
 /**
@@ -255,21 +239,18 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  * @head:	the head for your list.
  * @member:	the name of the list_head within the struct.
  */
-#define list_for_each_entry_safe(pos, n, head, member)			\
-	for (pos = list_first_entry(head, typeof(*pos), member),	\
-		n = list_next_entry(pos, member);			\
-	     &pos->member != (head); 					\
-	     pos = n, n = list_next_entry(n, member))
-
+#define list_for_each_entry_safe(pos, n, head, member)       \
+    for (pos = list_first_entry(head, typeof(*pos), member), \
+        n = list_next_entry(pos, member);                    \
+         &pos->member != (head);                             \
+         pos = n, n = list_next_entry(n, member))
 
 // 正向安全遍历链表（反向遍历的同时删除节点）
 
-#define list_for_each_entry_safe_reverse(pos, n, head, member)		\
-	for (pos = list_last_entry(head, typeof(*pos), member),		\
-		n = list_prev_entry(pos, member);			\
-	     &pos->member != (head); 					\
-	     pos = n, n = list_prev_entry(n, member))
-
-
+#define list_for_each_entry_safe_reverse(pos, n, head, member) \
+    for (pos = list_last_entry(head, typeof(*pos), member),    \
+        n = list_prev_entry(pos, member);                      \
+         &pos->member != (head);                               \
+         pos = n, n = list_prev_entry(n, member))
 
 #endif
