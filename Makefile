@@ -1,7 +1,7 @@
 .DEFAULT_GOAL=qemu
 PLATFORM ?= qemu
 DEBUG ?= 0
-FSIMG = user/fsimg
+FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
 
@@ -97,25 +97,33 @@ format:
 qemu: _kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 
-fs.img: $(SCRIPTS)/mkfs README user 
-	@$(SCRIPTS)/mkfs fs.img README $(addprefix $(FSIMG)/, $(shell ls ./user/fsimg))
+fs.img: $(SCRIPTS)/mkfs user README.md
+	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
 
 $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs.h include/param.h
 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
 
-export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS
-U=user
-user:
+export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
+xv6U=xv6_user
+oscompU=user
+FILE=brk
+TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
+user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
-	@make -C $U
+	@make -C $(xv6U)
+
+oscomp:
+	@make -C $(oscompU) -e all CHAPTER=7
+	@cp $(TESTFILE) $(FSIMG)/
 
 clean-all: clean
-	-@make -C user/ clean
+	-@make -C $(xv6U)/ clean
+	-@make -C $(oscompU)/ clean
 
 clean: 
-	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf
+	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf $(FSIMG)/*
 
-.PHONY: qemu clean user clean-all format test
+.PHONY: qemu clean user clean-all format test oscomp
 
 include $(SCRIPTS)/build.mk
 include $(SCRIPTS)/colors.mk

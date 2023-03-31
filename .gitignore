@@ -15,9 +15,8 @@ mkfs
 .gdbinit
 
 _kernel
-build
-user/build
-user/fsimg
+build/
+fsimg
 *.a
 include/syscall_gen
 compile_commands.json

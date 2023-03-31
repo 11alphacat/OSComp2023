@@ -130,8 +130,8 @@ main(int argc, char *argv[])
   for(i = 2; i < argc; i++){
     // get rid of "user/"
     char *shortname;
-    if(strncmp(argv[i], "user/fsimg/", 11) == 0)
-      shortname = argv[i] + 11;
+    if(strncmp(argv[i], "fsimg/", 6) == 0)
+      shortname = argv[i] + 6;
     else
       shortname = argv[i];
     
