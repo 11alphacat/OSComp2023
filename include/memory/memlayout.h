@@ -1,6 +1,13 @@
 #ifndef __MEMLAYOUT_H__
 #define __MEMLAYOUT_H__
 
+/*
+                    Sv39 Virtual Address
++--------+-------------+-------------+-------------+--------+
+| (zero) | level-2 idx | level-1 idx | level-0 idx | offset |
+| 63..39 |   38..30    |   29..21    |    20..12   |  11..0 |
++--------+-------------+-------------+-------------+--------+
+*/
 // Physical memory layout
 
 // qemu -machine virt is set up like this,

@@ -5,7 +5,7 @@
 #include "atomic/sleeplock.h"
 #include "kernel/proc.h"
 #include "fs/inode/fs.h"
-#include "fs/buf.h"
+#include "fs/bio.h"
 
 // Simple logging that allows concurrent FS system calls.
 //
@@ -68,10 +68,10 @@ install_trans(int recovering) {
     int tail;
 
     for (tail = 0; tail < log.lh.n; tail++) {
-        struct buf *lbuf = bread(log.dev, log.start + tail + 1); // read log block
-        struct buf *dbuf = bread(log.dev, log.lh.block[tail]);   // read dst
-        memmove(dbuf->data, lbuf->data, BSIZE);                  // copy block to dst
-        bwrite(dbuf);                                            // write dst to disk
+        struct buffer_head *lbuf = bread(log.dev, log.start + tail + 1); // read log block
+        struct buffer_head *dbuf = bread(log.dev, log.lh.block[tail]);   // read dst
+        memmove(dbuf->data, lbuf->data, BSIZE);                          // copy block to dst
+        bwrite(dbuf);                                                    // write dst to disk
         if (recovering == 0)
             bunpin(dbuf);
         brelse(lbuf);
@@ -82,7 +82,7 @@ install_trans(int recovering) {
 // Read the log header from disk into the in-memory log header
 static void
 read_head(void) {
-    struct buf *buf = bread(log.dev, log.start);
+    struct buffer_head *buf = bread(log.dev, log.start);
     struct logheader *lh = (struct logheader *)(buf->data);
     int i;
     log.lh.n = lh->n;
@@ -97,7 +97,7 @@ read_head(void) {
 // current transaction commits.
 static void
 write_head(void) {
-    struct buf *buf = bread(log.dev, log.start);
+    struct buffer_head *buf = bread(log.dev, log.start);
     struct logheader *hb = (struct logheader *)(buf->data);
     int i;
     hb->n = log.lh.n;
@@ -170,8 +170,8 @@ write_log(void) {
     int tail;
 
     for (tail = 0; tail < log.lh.n; tail++) {
-        struct buf *to = bread(log.dev, log.start + tail + 1); // log block
-        struct buf *from = bread(log.dev, log.lh.block[tail]); // cache block
+        struct buffer_head *to = bread(log.dev, log.start + tail + 1); // log block
+        struct buffer_head *from = bread(log.dev, log.lh.block[tail]); // cache block
         memmove(to->data, from->data, BSIZE);
         bwrite(to); // write the log
         brelse(from);
@@ -199,7 +199,7 @@ commit() {
 //   modify bp->data[]
 //   log_write(bp)
 //   brelse(bp)
-void log_write(struct buf *b) {
+void log_write(struct buffer_head *b) {
     int i;
 
     acquire(&log.lock);

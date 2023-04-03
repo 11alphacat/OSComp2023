@@ -8,7 +8,7 @@
 #include "fs_macro.h"
 
 struct inode;
-struct buf;
+struct buffer_head;
 struct stat;
 
 // Disk layout:
@@ -63,7 +63,7 @@ void itrunc(struct inode *);
 
 // log layer
 void initlog(int, struct superblock *);
-void log_write(struct buf *);
+void log_write(struct buffer_head *);
 void begin_op(void);
 void end_op(void);
 #endif

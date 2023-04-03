@@ -18,6 +18,7 @@
 #include "memory/list_alloc.h"
 #include "kernel/pipe.h"
 #include "memory/vm.h"
+#include "kernel/trap.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.

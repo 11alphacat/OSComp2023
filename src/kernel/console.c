@@ -22,6 +22,7 @@
 #include "kernel/proc.h"
 #include "driver/uart.h"
 
+void uartinit(void);
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x
 

@@ -19,49 +19,47 @@
 #include "atomic/sleeplock.h"
 #include "riscv.h"
 #include "fs/inode/fs.h"
-#include "fs/buf.h"
+#include "fs/bio.h"
 #include "driver/virtio.h"
+#include "list.h"
 
 struct {
     struct spinlock lock;
-    struct buf buf[NBUF];
+    struct buffer_head buf[NBUF];
 
-    // Linked list of all buffers, through prev/next.
-    // Sorted by how recently the buffer was used.
-    // head.next is most recent, head.prev is least.
-    struct buf head;
+    list_head_t head;
 } bcache;
 
+#define DISK_WRITE 1 // write disk
+#define DISK_READ 0  // read disk
+#define BLOCK_OLD 0  // buffer header
+#define BLOCK_NEW 1  // bio
+
 void binit(void) {
-    struct buf *b;
+    struct buffer_head *b;
 
     initlock(&bcache.lock, "bcache");
 
-    // Create linked list of buffers
-    bcache.head.prev = &bcache.head;
-    bcache.head.next = &bcache.head;
+    INIT_LIST_HEAD(&bcache.head);
     for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-        b->next = bcache.head.next;
-        b->prev = &bcache.head;
         initsleeplock(&b->lock, "buffer");
-        bcache.head.next->prev = b;
-        bcache.head.next = b;
+        list_add(&b->lru, &bcache.head);
     }
 }
 
 // Look through buffer cache for block on device dev.
 // If not found, allocate a buffer.
 // In either case, return locked buffer.
-static struct buf *
+static struct buffer_head *
 bget(uint dev, uint blockno) {
-    struct buf *b;
+    struct buffer_head *b;
 
     acquire(&bcache.lock);
 
     // Is the block already cached?
-    for (b = bcache.head.next; b != &bcache.head; b = b->next) {
+    list_for_each_entry(b, &bcache.head, lru) {
         if (b->dev == dev && b->blockno == blockno) {
-            b->refcnt++;
+            atomic_inc_return(&b->refcnt);
             release(&bcache.lock);
             acquiresleep(&b->lock);
             return b;
@@ -70,12 +68,13 @@ bget(uint dev, uint blockno) {
 
     // Not cached.
     // Recycle the least recently used (LRU) unused buffer.
-    for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {
-        if (b->refcnt == 0) {
+    // for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {
+    list_for_each_entry_reverse(b, &bcache.head, lru) {
+        if (atomic_read(&b->refcnt) == 0) {
             b->dev = dev;
             b->blockno = blockno;
             b->valid = 0;
-            b->refcnt = 1;
+            atomic_set(&b->refcnt, 1);
             release(&bcache.lock);
             acquiresleep(&b->lock);
             return b;
@@ -85,56 +84,67 @@ bget(uint dev, uint blockno) {
 }
 
 // Return a locked buf with the contents of the indicated block.
-struct buf *
+struct buffer_head *
 bread(uint dev, uint blockno) {
-    struct buf *b;
+    struct buffer_head *b;
 
     b = bget(dev, blockno);
     if (!b->valid) {
-        virtio_disk_rw(b, 0);
+        virtio_disk_rw(b, DISK_READ);
         b->valid = 1;
+        b->dirty = 0;
     }
     return b;
 }
 
 // Write b's contents to disk.  Must be locked.
-void bwrite(struct buf *b) {
+void bwrite(struct buffer_head *b) {
     if (!holdingsleep(&b->lock))
         panic("bwrite");
-    virtio_disk_rw(b, 1);
+    // virtio_disk_rw(b, 1);
+    b->dirty = 1;
 }
 
 // Release a locked buffer.
 // Move to the head of the most-recently-used list.
-void brelse(struct buf *b) {
+void brelse(struct buffer_head *b) {
     if (!holdingsleep(&b->lock))
         panic("brelse");
-
+    if (b->dirty == 1) {
+        virtio_disk_rw(b, DISK_WRITE);
+        b->dirty = 0;
+    }
     releasesleep(&b->lock);
 
     acquire(&bcache.lock);
-    b->refcnt--;
-    if (b->refcnt == 0) {
-        // no one is waiting for it.
-        b->next->prev = b->prev;
-        b->prev->next = b->next;
-        b->next = bcache.head.next;
-        b->prev = &bcache.head;
-        bcache.head.next->prev = b;
-        bcache.head.next = b;
+    atomic_dec_return(&b->refcnt);
+    if (atomic_read(&b->refcnt) == 0) {
+        list_del(&b->lru);
+        list_add(&b->lru, &bcache.head);
     }
 
     release(&bcache.lock);
 }
 
-void bpin(struct buf *b) {
-    acquire(&bcache.lock);
-    b->refcnt++;
-    release(&bcache.lock);
+int bpin(struct buffer_head *b) {
+    int inc_ret = atomic_inc_return(&b->refcnt);
+    return inc_ret;
 }
 
-void bunpin(struct buf *b) {
-    acquire(&bcache.lock);
-    b->refcnt--;
-    release(&bcache.lock);
+int bunpin(struct buffer_head *b) {
+    int dec_ret = atomic_dec_return(&b->refcnt);
+    return dec_ret;
+}
+
+int submit_bio(int rw, struct bio *bio) {
+    bio->bi_rw |= rw;
+    return 0;
+}
+
+int init_bio() {
+    return 0;
+}
+
+int free_bio(struct bio *bio) {
+    return 0;
 }

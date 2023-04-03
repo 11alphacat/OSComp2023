@@ -20,6 +20,7 @@ void userinit(void);
 void kinit(void);
 void iinit();
 void fileinit(void);
+void fat32_fs_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
@@ -28,22 +29,43 @@ void main() {
     if (cpuid() == 0) {
         consoleinit();
         printfinit();
-        printf("\n");
-        printf("xv6 kernel is booting\n");
-        printf("\n");
-        kinit();            // physical page allocator
-        kvminit();          // create kernel page table
-        kvminithart();      // turn on paging
-        procinit();         // process table
-        trapinit();         // trap vectors
-        trapinithart();     // install kernel trap vector
-        plicinit();         // set up interrupt controller
-        plicinithart();     // ask PLIC for device interrupts
-        binit();            // buffer cache
-        iinit();            // inode table
-        fileinit();         // file table
+
+        printf("\nxv6 kernel is booting\n\n");
+
+        // // buddy and slab
+        // phy_mm_init();
+
+        // KVM
+        kinit();       // physical page allocator
+        kvminit();     // create kernel page table
+        kvminithart(); // turn on paging
+
+        // Proc management
+        procinit(); // process table
+
+        // Trap
+        trapinit();     // trap vectors
+        trapinithart(); // install kernel trap vector
+
+        // PLIC
+        plicinit();     // set up interrupt controller
+        plicinithart(); // ask PLIC for device interrupts
+
+        // File System
+        binit(); // buffer cache
+
+        // origin
+        iinit();    // inode table
+        fileinit(); // file table
+
+        // fat32
+        fat32_fs_init();
+
+        // virtual disk
         virtio_disk_init(); // emulated hard disk
-        userinit();         // first user process
+
+        // First user process
+        userinit(); // first user process
         __sync_synchronize();
         started = 1;
     } else {

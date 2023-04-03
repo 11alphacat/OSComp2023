@@ -14,7 +14,9 @@ typedef unsigned char uint8;
 typedef unsigned short uint16;
 typedef unsigned int uint32;
 typedef unsigned long uint64;
+typedef long int64;
 typedef unsigned long uintptr_t;
+typedef unsigned long size_t;
 
 #define NULL ((void *)0)
 

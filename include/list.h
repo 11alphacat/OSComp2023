@@ -4,6 +4,9 @@
 #include "common.h"
 
 // 一个给定变量偏移
+typedef uint64 uintptr_t;
+typedef uintptr_t size_t;
+#define offsetof(TYPE, MEMBER) ((size_t) & ((TYPE *)0)->MEMBER)
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \

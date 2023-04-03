@@ -17,7 +17,7 @@
 #include "kernel/proc.h"
 #include "atomic/sleeplock.h"
 #include "fs/inode/fs.h"
-#include "fs/buf.h"
+#include "fs/bio.h"
 #include "fs/inode/file.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -28,7 +28,7 @@ struct superblock sb;
 // Read the super block.
 static void
 readsb(int dev, struct superblock *sb) {
-    struct buf *bp;
+    struct buffer_head *bp;
 
     bp = bread(dev, 1);
     memmove(sb, bp->data, sizeof(*sb));
@@ -46,7 +46,7 @@ void fsinit(int dev) {
 // Zero a block.
 static void
 bzero(int dev, int bno) {
-    struct buf *bp;
+    struct buffer_head *bp;
 
     bp = bread(dev, bno);
     memset(bp->data, 0, BSIZE);
@@ -61,7 +61,7 @@ bzero(int dev, int bno) {
 static uint
 balloc(uint dev) {
     int b, bi, m;
-    struct buf *bp;
+    struct buffer_head *bp;
 
     bp = 0;
     for (b = 0; b < sb.size; b += BPB) {
@@ -85,7 +85,7 @@ balloc(uint dev) {
 // Free a disk block.
 static void
 bfree(int dev, uint b) {
-    struct buf *bp;
+    struct buffer_head *bp;
     int bi, m;
 
     bp = bread(dev, BBLOCK(b, sb));
@@ -190,7 +190,7 @@ static struct inode *iget(uint dev, uint inum);
 struct inode *
 ialloc(uint dev, short type) {
     int inum;
-    struct buf *bp;
+    struct buffer_head *bp;
     struct dinode *dip;
 
     for (inum = 1; inum < sb.ninodes; inum++) {
@@ -214,7 +214,7 @@ ialloc(uint dev, short type) {
 // that lives on disk.
 // Caller must hold ip->lock.
 void iupdate(struct inode *ip) {
-    struct buf *bp;
+    struct buffer_head *bp;
     struct dinode *dip;
 
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
@@ -277,7 +277,7 @@ idup(struct inode *ip) {
 // Lock the given inode.
 // Reads the inode from disk if necessary.
 void ilock(struct inode *ip) {
-    struct buf *bp;
+    struct buffer_head *bp;
     struct dinode *dip;
 
     if (ip == 0 || ip->ref < 1)
@@ -361,7 +361,7 @@ void iunlockput(struct inode *ip) {
 static uint
 bmap(struct inode *ip, uint bn) {
     uint addr, *a;
-    struct buf *bp;
+    struct buffer_head *bp;
 
     if (bn < NDIRECT) {
         if ((addr = ip->addrs[bn]) == 0) {
@@ -402,7 +402,7 @@ bmap(struct inode *ip, uint bn) {
 // Caller must hold ip->lock.
 void itrunc(struct inode *ip) {
     int i, j;
-    struct buf *bp;
+    struct buffer_head *bp;
     uint *a;
 
     for (i = 0; i < NDIRECT; i++) {
@@ -444,7 +444,7 @@ void stati(struct inode *ip, struct stat *st) {
 // otherwise, dst is a kernel address.
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
     uint tot, m;
-    struct buf *bp;
+    struct buffer_head *bp;
 
     if (off > ip->size || off + n < off)
         return 0;
@@ -476,7 +476,7 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
 // there was an error of some kind.
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
     uint tot, m;
-    struct buf *bp;
+    struct buffer_head *bp;
 
     if (off > ip->size || off + n < off)
         return -1;

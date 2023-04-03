@@ -389,7 +389,7 @@ int wait(uint64 addr) {
         }
 
         // Wait for a child to exit.
-        sleep(p, &wait_lock); //DOC: wait-sleep
+        sleep(p, &wait_lock); // DOC: wait-sleep
     }
 }
 
@@ -476,6 +476,7 @@ void forkret(void) {
         // be run from main().
         first = 0;
         fsinit(ROOTDEV);
+        // fat32_mount(ROOTDEV, )
         char *argv[] = {"init", 0};
         myproc()->trapframe->a0 = exec("/init", argv);
     }
@@ -495,7 +496,7 @@ void sleep(void *chan, struct spinlock *lk) {
     // (wakeup locks p->lock),
     // so it's okay to release lk.
 
-    acquire(&p->lock); //DOC: sleeplock1
+    acquire(&p->lock); // DOC: sleeplock1
     release(lk);
 
     // Go to sleep.

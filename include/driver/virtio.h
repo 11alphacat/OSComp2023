@@ -2,9 +2,9 @@
 #define __VIRTIO_H__
 
 #include "common.h"
-struct buf;
+struct buffer_head;
 
-void virtio_disk_rw(struct buf *, int);
+void virtio_disk_rw(struct buffer_head *, int);
 void virtio_disk_intr(void);
 
 //

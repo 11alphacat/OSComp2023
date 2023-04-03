@@ -2,9 +2,10 @@
 #define __FAT_FAT32_H__
 
 #include "common.h"
+#include "atomic/spinlock.h"
 
 /*
-    FAT32 
+    FAT32
     +---------------------------+
     |       Boot Sector         |
     +---------------------------+
@@ -101,13 +102,20 @@
 // FAT32 Boot Record
 struct FAT32_BootRecord {
     /*FAT common field*/
-    uchar Jmpboot[3];
-    uchar OEMName[8];
-    uchar BytsPerSec[2];
-    uchar SecPerClus[1];
-    uchar RsvdSecCnt[2];
-    uchar NumFATs[1];
-    uchar RootEntCnt[2];
+
+    uchar Jmpboot[3]; // Jump instruction to boot code.
+    // 0xEB 0x?? 0x??
+    uchar OEMName[8]; // OEM Name Identifier.
+    // Can be set by a FAT implementation to any desired value.
+    uchar BytsPerSec[2]; // Count of bytes per sector(*)
+    // 512 1024 2048 4096
+    uchar SecPerClus[1]; // Number of sectors per allocation unit.
+    // 1 2 4 8 16 32 64 128
+    uchar RsvdSecCnt[2]; // Number of reserved sectors in the reserved region
+    // of the volume starting at the first sector of the volume.
+    uchar NumFATs[1]; // The count of file allocation tables (FATs) on the volume.
+    // 1 or 2
+    uchar RootEntCnt[2]; // for FAT32 , set to 0
     uchar TotSec16[2];
     uchar Media[1];
     uchar FATSz16[2];
@@ -132,10 +140,9 @@ struct FAT32_BootRecord {
     uchar FilSysType[8];
     uchar BootCode32[420];
     uchar BootSign[2];
-
-    /*access window*/
-    uchar win[FF_MAX_SS];
 } __attribute__((packed));
+
+typedef struct FAT32_BootRecord fat_bpb_t;
 
 // FAT32 Fsinfo
 struct FAT32_Fsinfo {
@@ -146,9 +153,9 @@ struct FAT32_Fsinfo {
     uchar Nxt_Free[4];
     uchar Reserved2[12];
     uchar TrailSig[4];
-    /*access window*/
-    uchar win[FF_MAX_SS];
 } __attribute__((packed));
+
+typedef struct FAT32_Fsinfo fsinfo_t;
 
 // Date
 typedef struct __date_t {
@@ -181,6 +188,7 @@ struct Short_Dir_t {
     uchar DIR_FstClusLO[2];    // Low word of first data cluster number
     uchar DIR_FileSize[4];     // 32-bit quantity containing size
 } __attribute__((packed));
+typedef struct Short_Dir_t dirent_s_t;
 
 // Directory Structure (long name)
 struct Long_Dir_t {
@@ -193,6 +201,7 @@ struct Long_Dir_t {
     uchar LDIR_FstClusLO[2]; // Must be set to 0
     uchar LDIR_Name3[4];     // characters 12 and 13
 } __attribute__((packed));
+typedef struct Long_Dirt_t dirent_l_t;
 
 /* File function return code (FRESULT) */
 typedef enum {
@@ -217,5 +226,44 @@ typedef enum {
     FR_TOO_MANY_OPEN_FILES, /* (18) Number of open files > FF_FS_LOCK */
     FR_INVALID_PARAMETER    /* (19) Given parameter is invalid */
 } FRESULT;
+
+struct FATFS {
+    uint dev; // device number
+    struct spinlock lock;
+
+    uchar n_fats;       // Number of FATs (1 or 2)
+    uint n_sectors_fat; // Number of sectors per FAT
+
+    ushort volbase; // Volume base sector
+    uint dirbase;   // Root directory base sector
+    uint fatbase;   // FAT base sector
+    uint database;  // Data base sector
+
+    uint sector_size;        // size of a sector
+    uint cluster_size;       // size of a cluster
+    uint sector_per_cluster; // sector of a cluster
+
+    struct FAT32_Fsinfo fsinfo;
+    /*access window*/
+    uint winsect;
+    uchar win[FF_MAX_SS];
+};
+
+typedef struct FATFS FATFS_t;
+
+#define FAT_N(fatfs) (fatfs->n_fats)
+#define FAT_SECTOR_N(fatfs) (fatfs->n_sectors_fat)
+#define FAT_BASE(fatfs) (fatfs->fatbase)
+
+#define BPS(fatfs) (fatfs->sector_size)
+#define BPC(fatfs) (fatfs->cluster_size)
+#define SPC(fatfs) (fatfs->sector_per_cluster)
+
+FRESULT fat32_mount(int, FATFS_t *fatfs);
+FRESULT fat32_mkfs(void);
+FRESULT fat32_open(void);
+FRESULT fat32_close(void);
+
+int fat32_boot_sector_parser(FATFS_t *, fat_bpb_t *);
 
 #endif // __FAT_FAT32_H__

@@ -158,7 +158,6 @@ main(int argc, char *argv[])
       shortname += 1;
 
     inum = ialloc(T_FILE);
-
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, shortname, DIRSIZ);
