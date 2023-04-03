@@ -1,7 +1,8 @@
+#define USER
 #include "types.h"
-#include "stat.h"
+#include "fs/inode/stat.h"
 #include "user.h"
-#include "fs.h"
+#include "fs/inode/fs.h"
 
 char*
 fmtname(char *path)

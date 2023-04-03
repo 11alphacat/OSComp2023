@@ -1,11 +1,12 @@
+#define USER
 #include "param.h"
 #include "types.h"
-#include "stat.h"
+#include "fs/inode/stat.h"
 #include "user.h"
-#include "fs.h"
-#include "fcntl.h"
+#include "fs/inode/fs.h"
+#include "fs/fcntl.h"
 #include "syscall_gen/syscall_num.h"
-#include "memlayout.h"
+#include "memory/memlayout.h"
 #include "riscv.h"
 
 //

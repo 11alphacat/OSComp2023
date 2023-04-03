@@ -4,17 +4,20 @@
 // user code, and calls into file.c and fs.c.
 //
 
-#include "types.h"
+#include "common.h"
 #include "riscv.h"
-#include "defs.h"
 #include "param.h"
-#include "stat.h"
-#include "spinlock.h"
-#include "proc.h"
-#include "fs.h"
-#include "sleeplock.h"
-#include "file.h"
-#include "fcntl.h"
+#include "fs/inode/stat.h"
+#include "atomic/spinlock.h"
+#include "kernel/proc.h"
+#include "fs/inode/fs.h"
+#include "atomic/sleeplock.h"
+#include "fs/inode/file.h"
+#include "fs/fcntl.h"
+#include "kernel/trap.h"
+#include "memory/list_alloc.h"
+#include "kernel/pipe.h"
+#include "memory/vm.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.

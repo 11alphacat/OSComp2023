@@ -1,8 +1,9 @@
 // Create a zombie process that
 // must be reparented at exit.
 
+#define USER
 #include "types.h"
-#include "stat.h"
+#include "fs/inode/stat.h"
 #include "user.h"
 
 int

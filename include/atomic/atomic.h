@@ -1,5 +1,5 @@
-#ifndef _H_ATOMIC_
-#define _H_ATOMIC_
+#ifndef __ATOMIC_H__
+#define __ATOMIC_H__
 
 // 原子操作数据结构
 typedef struct {
@@ -40,4 +40,5 @@ static inline int atomic_add_return(atomic_t *v, int i) {
 static inline int atomic_sub_return(atomic_t *v, int i) {
     return __sync_fetch_and_sub(&v->counter, i);
 }
-#endif
+
+#endif // __ATOMIC_H__

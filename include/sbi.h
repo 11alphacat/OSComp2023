@@ -1,4 +1,7 @@
-#include "types.h"
+#ifndef __SBI_H__
+#define __SBI_H__
+
+#include "common.h"
 
 #define EXTENSION_BASE 1
 #define FUNCTION_BASE_GET_SPEC_VERSION 1
@@ -42,3 +45,5 @@ static inline struct sbiret sbi_set_timer(uint64 stime_value) {
 static inline struct sbiret sbi_legacy_set_timer(uint64 stime_value) {
     return SBI_CALL_1(LEGACY_SET_TIMER, 0, stime_value);
 }
+
+#endif // __SBI_H__

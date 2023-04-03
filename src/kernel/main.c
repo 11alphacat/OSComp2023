@@ -1,10 +1,26 @@
-#include "types.h"
+#include "common.h"
 #include "param.h"
-#include "memlayout.h"
+#include "memory/memlayout.h"
 #include "riscv.h"
-#include "defs.h"
+#include "kernel/proc.h"
+#include "kernel/cpu.h"
 
 volatile static int started = 0;
+void printfinit(void);
+void consoleinit(void);
+void trapinit(void);
+void trapinithart(void);
+void kvminit(void);
+void kvminithart(void);
+void plicinit(void);
+void plicinithart(void);
+void virtio_disk_init(void);
+void binit(void);
+void userinit(void);
+void kinit(void);
+void iinit();
+void fileinit(void);
+
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
 // start() jumps here in supervisor mode on all CPUs.

@@ -1,10 +1,15 @@
-#include "types.h"
+#include "common.h"
 #include "param.h"
-#include "memlayout.h"
+#include "memory/memlayout.h"
 #include "riscv.h"
-#include "spinlock.h"
-#include "proc.h"
-#include "defs.h"
+#include "atomic/spinlock.h"
+#include "kernel/proc.h"
+#include "memory/list_alloc.h"
+#include "kernel/trap.h"
+#include "kernel/cpu.h"
+#include "memory/vm.h"
+#include "fs/inode/fs.h"
+#include "fs/inode/file.h"
 
 struct cpu cpus[NCPU];
 
@@ -15,6 +20,7 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
+extern void fsinit(int);
 extern void forkret(void);
 static void freeproc(struct proc *p);
 

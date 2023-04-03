@@ -1,4 +1,4 @@
-#include "types.h"
+#include "common.h"
 #include "riscv.h"
 #include "debug.h"
 

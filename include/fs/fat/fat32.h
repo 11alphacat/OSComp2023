@@ -1,7 +1,8 @@
-#ifndef _H_FAT32_
-#define _H_FAT32_
-#include "types.h"
-#include "spinlock.h"
+#ifndef __FAT_FAT32_H__
+#define __FAT_FAT32_H__
+
+#include "common.h"
+
 /*
     FAT32 
     +---------------------------+
@@ -217,4 +218,4 @@ typedef enum {
     FR_INVALID_PARAMETER    /* (19) Given parameter is invalid */
 } FRESULT;
 
-#endif
+#endif // __FAT_FAT32_H__

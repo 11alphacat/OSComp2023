@@ -1,5 +1,6 @@
+#define USER
 #include "types.h"
-#include "stat.h"
+#include "fs/inode/stat.h"
 #include "user.h"
 #include "param.h"
 

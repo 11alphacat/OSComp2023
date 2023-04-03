@@ -1,10 +1,10 @@
-#include "types.h"
+#include "common.h"
 #include "riscv.h"
-#include "defs.h"
 #include "param.h"
-#include "memlayout.h"
-#include "spinlock.h"
-#include "proc.h"
+#include "memory/memlayout.h"
+#include "atomic/spinlock.h"
+#include "kernel/proc.h"
+#include "kernel/trap.h"
 
 uint64
 sys_exit(void) {

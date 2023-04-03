@@ -91,7 +91,7 @@ qemu-gdb: _kernel .gdbinit fs.img
 
 # target =================================================================================
 format:
-	@clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
+	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 
 qemu: _kernel fs.img
@@ -100,7 +100,7 @@ qemu: _kernel fs.img
 fs.img: $(SCRIPTS)/mkfs user README.md
 	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
 
-$(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs.h include/param.h
+$(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/inode/stat.h include/param.h
 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
 
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
@@ -108,7 +108,7 @@ xv6U=xv6_user
 oscompU=user
 FILE=brk
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
-user: oscomp
+user:
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
 

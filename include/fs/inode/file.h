@@ -1,3 +1,13 @@
+#ifndef __INODE_FILE_H__
+#define __INODE_FILE_H__
+
+#include "common.h"
+#include "fs/inode/fs_macro.h"
+#include "atomic/sleeplock.h"
+
+struct pipe;
+struct inode;
+
 struct file {
     enum { FD_NONE,
            FD_PIPE,
@@ -11,10 +21,6 @@ struct file {
     uint off;          // FD_INODE
     short major;       // FD_DEVICE
 };
-
-#define major(dev) ((dev) >> 16 & 0xFFFF)
-#define minor(dev) ((dev)&0xFFFF)
-#define mkdev(m, n) ((uint)((m) << 16 | (n)))
 
 // in-memory copy of an inode
 struct inode {
@@ -40,4 +46,11 @@ struct devsw {
 
 extern struct devsw devsw[];
 
-#define CONSOLE 1
+struct file *filealloc(void);
+void fileclose(struct file *);
+struct file *filedup(struct file *);
+int fileread(struct file *, uint64, int n);
+int filestat(struct file *, uint64 addr);
+int filewrite(struct file *, uint64, int n);
+
+#endif // __INODE_FILE_H__

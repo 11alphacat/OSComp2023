@@ -7,11 +7,12 @@
 //    for (i = 0; i < 40000; i++)
 //      asm volatile("");
 
+#define USER
 #include "types.h"
-#include "stat.h"
+#include "fs/inode/stat.h"
 #include "user.h"
-#include "fs.h"
-#include "fcntl.h"
+#include "fs/inode/fs.h"
+#include "fs/fcntl.h"
 
 int
 main(int argc, char *argv[])

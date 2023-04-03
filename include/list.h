@@ -1,7 +1,8 @@
-#ifndef _H_LIST_
-#define _H_LIST_
+#ifndef __LIST_H__
+#define __LIST_H__
 
-#include "types.h"
+#include "common.h"
+
 // 一个给定变量偏移
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
@@ -253,4 +254,4 @@ static inline void list_splice(struct list_head *list, struct list_head *head) {
          &pos->member != (head);                               \
          pos = n, n = list_prev_entry(n, member))
 
-#endif
+#endif // __LIST_H__

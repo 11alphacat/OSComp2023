@@ -2,13 +2,13 @@
 // low-level driver routines for 16550a UART.
 //
 
-#include "types.h"
+#include "common.h"
 #include "param.h"
-#include "memlayout.h"
+#include "memory/memlayout.h"
 #include "riscv.h"
-#include "spinlock.h"
-#include "proc.h"
-#include "defs.h"
+#include "atomic/spinlock.h"
+#include "kernel/proc.h"
+#include "driver/console.h"
 
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the

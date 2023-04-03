@@ -1,3 +1,12 @@
+#ifndef __VIRTIO_H__
+#define __VIRTIO_H__
+
+#include "common.h"
+struct buf;
+
+void virtio_disk_rw(struct buf *, int);
+void virtio_disk_intr(void);
+
 //
 // virtio device definitions.
 // for both the mmio interface, and virtio descriptors.
@@ -94,3 +103,5 @@ struct virtio_blk_req {
     uint32 reserved;
     uint64 sector;
 };
+
+#endif // __VIRTIO_H__

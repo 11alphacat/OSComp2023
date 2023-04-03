@@ -1,4 +1,8 @@
+#ifndef __RISCV_H__
+#define __RISCV_H__
+
 #ifndef __ASSEMBLER__
+#include "common.h"
 
 // which hart (core) is this?
 static inline uint64
@@ -340,9 +344,6 @@ sfence_vma() {
     asm volatile("sfence.vma zero, zero");
 }
 
-typedef uint64 pte_t;
-typedef uint64 *pagetable_t; // 512 PTEs
-
 #endif // __ASSEMBLER__
 
 #define PGSIZE 4096 // bytes per page
@@ -374,3 +375,5 @@ typedef uint64 *pagetable_t; // 512 PTEs
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+
+#endif // __RISCV_H__

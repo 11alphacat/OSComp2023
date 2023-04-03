@@ -1,7 +1,7 @@
-#ifndef __DEBUG__
-#define __DEBUG__
+#ifndef __DEBUG_H__
+#define __DEBUG_H__
 
-#include "defs.h"
+#include "common.h"
 
 #define ANSI_FG_BLACK "\33[1;30m"
 #define ANSI_FG_RED "\33[1;31m"
@@ -39,4 +39,4 @@
     printf("\33[1;35m[%s,%d,%s] " format "\33[0m\n", \
            __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
-#endif
+#endif // __DEBUG_H__
