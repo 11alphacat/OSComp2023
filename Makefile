@@ -123,6 +123,15 @@ clean-all: clean
 clean: 
 	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf $(FSIMG)/*
 
+MNT_DIR=build/mnt
+$(shell mkdir -p $(MNT_DIR))
+fat32.img: _kernel user
+	@dd if=/dev/zero of=$@ bs=1M count=128
+	@mkfs.vfat -F 32 $@
+	@sudo mount $@ $(MNT_DIR)
+	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
+	@sudo umount $(MNT_DIR)
+
 .PHONY: qemu clean user clean-all format test oscomp
 
 include $(SCRIPTS)/build.mk
