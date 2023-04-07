@@ -124,3 +124,25 @@ void printfinit(void) {
     initlock(&pr.lock, "pr");
     pr.locking = 1;
 }
+
+void Show_bytes(byte_pointer b, int len) {
+    size_t i;
+    printf("0x");
+    for (i = 0; i < len; i++)
+        printf("%x ", b[i]);
+    printf("\n");
+}
+
+void printf_bin(uchar *num, int len) {
+    for (int i = 0; i < len; i++) {
+        unsigned char *p = (unsigned char *)&num[i];
+        for (int k = 7; k >= 0; k--) {
+            if (*p & (1 << k))
+                printf("1");
+            else
+                printf("0");
+        }
+        printf(" ");
+    }
+    printf("\r\n");
+}

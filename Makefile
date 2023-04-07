@@ -34,7 +34,7 @@ ifeq ($(DEBUG), 1)
 CFLAGS += -D__DEBUG__
 endif
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -72,7 +72,8 @@ endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
-QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+# QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 # try to generate a unique GDB port
@@ -85,23 +86,32 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: _kernel .gdbinit fs.img
+# qemu-gdb: _kernel .gdbinit fs.img
+# 	@echo "*** Now run 'gdb' in another window." 1>&2
+# 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+
+qemu-gdb: _kernel .gdbinit
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
 
 # target =================================================================================
 format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 
-qemu: _kernel fs.img
+# qemu: _kernel fs.img
+# 	$(QEMU) $(QEMUOPTS)
+
+qemu: _kernel fat32.img
 	$(QEMU) $(QEMUOPTS)
 
-fs.img: $(SCRIPTS)/mkfs user README.md
-	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
+# fs.img: $(SCRIPTS)/mkfs user README.md
+# 	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
 
-$(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/inode/stat.h include/param.h
-	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
+# $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/inode/stat.h include/param.h
+# 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
 
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
 xv6U=xv6_user

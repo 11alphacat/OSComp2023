@@ -23,6 +23,7 @@
 
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
+#define RED(str) "\e[31;1m" str "\e[0m"
 /* #define STRACE(format, ...) \
    printf(ANSI_FMT(format, ANSI_FG_YELLOW), ## __VA_ARGS__) */
 
@@ -36,7 +37,11 @@
     } while (0)
 
 #define Log(format, ...)                             \
-    printf("\33[1;35m[%s,%d,%s] " format "\33[0m\n", \
+    printf("\33[1;31m[%s,%d,%s] " format "\33[0m\n", \
            __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+
+#define Info(fmt, ...) printf("[INFO] " fmt "", ##__VA_ARGS__);
+
+#define Info_R(fmt, ...) printf("[INFO] " RED(fmt) "", ##__VA_ARGS__);
 
 #endif // __DEBUG_H__

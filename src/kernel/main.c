@@ -4,6 +4,7 @@
 #include "riscv.h"
 #include "kernel/proc.h"
 #include "kernel/cpu.h"
+#include "fs/fat/fat32.h"
 
 volatile static int started = 0;
 void printfinit(void);
@@ -20,7 +21,7 @@ void userinit(void);
 void kinit(void);
 void iinit();
 void fileinit(void);
-void fat32_fs_init(void);
+FRESULT fat32_fs_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 

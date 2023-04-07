@@ -18,6 +18,16 @@ typedef long int64;
 typedef unsigned long uintptr_t;
 typedef unsigned long size_t;
 
+typedef uint8 uint8_t;
+typedef uint16 uint16_t;
+typedef uint32 uint32_t;
+typedef uint64 uint64_t;
+
+typedef unsigned short WORD;
+typedef unsigned int DWORD;
+
+
+typedef unsigned char *byte_pointer;
 #define NULL ((void *)0)
 
 typedef uint64 pte_t;
@@ -36,6 +46,8 @@ char *strncpy(char *, const char *, int);
 // printf.c
 void printf(char *, ...);
 void panic(char *) __attribute__((noreturn));
+void Show_bytes(byte_pointer, int);
+void printf_bin(uchar *, int);
 #endif
 
 #endif // __COMMON_H__

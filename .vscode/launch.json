@@ -22,8 +22,7 @@
                 },
                 {
                     "description": "set output radix 16",
-                    "text": "set output-radix 16",
-                    "ignoreFailures": true,
+                    "text": "set output-radix 16"
                 }
             ],
         }

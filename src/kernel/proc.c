@@ -10,6 +10,8 @@
 #include "memory/vm.h"
 #include "fs/inode/fs.h"
 #include "fs/inode/file.h"
+#include "fs/fat/fat32.h"
+#include "fs/fat/fat32_fs.h"
 
 struct cpu cpus[NCPU];
 
@@ -25,7 +27,7 @@ extern void forkret(void);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
-
+extern FATFS_t global_fatfs;
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
 // memory model when using p->parent.
@@ -475,8 +477,8 @@ void forkret(void) {
         // regular process (e.g., because it calls sleep), and thus cannot
         // be run from main().
         first = 0;
-        fsinit(ROOTDEV);
-        // fat32_mount(ROOTDEV, )
+        // fsinit(ROOTDEV);
+        fat32_fs_mount(ROOTDEV, &global_fatfs);
         char *argv[] = {"init", 0};
         myproc()->trapframe->a0 = exec("/init", argv);
     }

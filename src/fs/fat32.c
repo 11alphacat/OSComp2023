@@ -1,62 +1,37 @@
 #include "common.h"
-#include "fs/fat/fat32.h"
 #include "memory/list_alloc.h"
 #include "fs/bio.h"
 #include "atomic/spinlock.h"
 #include "kernel/trap.h"
+#include "fs/fat/fat32_fs.h"
+#include "debug.h"
 
-struct FATFS fatfs_root;
+#define DIR_FIRST_CLUS(high, low) ((high << 16) | (low))
+struct fat_entry *fat32_root_entry_init(FATFS_t *fatfs) {
+    /*先用kalloc分配一个物理块*/
+    fat_entry_t *root = (fat_entry_t *)kalloc();
+    /*初始化root_entry的一些字段*/
+    initsleeplock(&root->lock, "fat_entry_root");
+    root->parent = root; // 根目录父亲节点是自身
+    root->fname[0] = '/';
+    root->fname[1] = '\0';
+    root->nlink = 1;
+    root->ref = 1;
+    root->valid = 0;
+    root->cluster_start = fatfs->rootbase;
+    root->cluster_end = fatfs->rootbase;
+    root->parent_off = 0;
+    // root->size_in_mem=sizeof(fat_entry_t);
+    // Info_R("root size of RAM : %d\n",root->size_in_mem);
 
-void panic(char *) __attribute__((noreturn));
+    ASSERT(root->cluster_start == 2);
+    root->fat_obj = fatfs;
 
-int fat32_boot_sector_parser(FATFS_t *fatfs, fat_bpb_t *bpb) {
-    // memmove((void *)fatfs->volbase, bpb->RsvdSecCnt, sizeof(bpb->RsvdSecCnt));
-    // fatfs->volbase = bpb->RsvdSecCnt;
+    // dirent_cpy->Attr
 
-    return 0;
-}
+    /*初始化dirent_cpy的其他参数*/
 
-// Bootblock
-FRESULT fat32_mount(int dev, FATFS_t *fatfs) {
-    fatfs = (FATFS_t *)kalloc();
-    if (fatfs == 0)
-        panic("allocation fail, no space");
-    struct buffer_head *bp;
-    bp = bread(dev, 0);
-
-    /*
-    uchar   n_fats;// Number of FATs (1 or 2)
-    uint    n_sectors_fat; // Number of sectors per FAT
-       
-    uint    volbase;  // Volume base sector
-    uint	dirbase;  // Root directory base sector
-    uint    fatbase;  // FAT base sector
-    uint    database; // Data base sector
-
-    uint    sector_size;// size of a sector
-    uint    cluster_size;// size of a cluster
-    uint    sector_per_cluster;// sector of a cluster
-
-    struct FAT32_Fsinfo fsinfo;
-    access window*/
-    // uint   winsect;
-    // uchar win[FF_MAX_SS];
-    fatfs->dev = dev;
-    initlock(&fatfs->lock, "fatfs_lock");
-
-    fat32_boot_sector_parser(fatfs, (fat_bpb_t *)bp->data);
-
-    return FR_OK;
-}
-
-FRESULT fat32_mkfs(void) {
-    return FR_OK;
-}
-
-FRESULT fat32_open(void) {
-    return FR_OK;
-}
-
-FRESULT fat32_close(void) {
-    return FR_OK;
+    // TODO: 设置i_mapping
+    // panic("root entry init\n");
+    return root;
 }

@@ -14,6 +14,7 @@ struct sleeplock {
     int pid;    // Process holding lock
 };
 
+typedef struct sleeplock sleeplock_t;
 void acquiresleep(struct sleeplock *);
 void releasesleep(struct sleeplock *);
 int holdingsleep(struct sleeplock *);
