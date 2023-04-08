@@ -62,9 +62,13 @@ void printf(char *fmt, ...) {
     int i, c, locking;
     char *s;
 
+    extern int debug_lock;
+    // cannot debug lock when execute printf, it will cause recursive call
+    debug_lock = 0;
     locking = pr.locking;
     if (locking)
         acquire(&pr.lock);
+    debug_lock = 1;
 
     if (fmt == 0)
         panic("null fmt");
@@ -106,8 +110,10 @@ void printf(char *fmt, ...) {
     }
     va_end(ap);
 
+    debug_lock = 0;
     if (locking)
         release(&pr.lock);
+    debug_lock = 1;
 }
 
 void panic(char *s) {

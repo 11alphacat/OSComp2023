@@ -23,11 +23,13 @@ void fileinit(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
+int debug_lock = 0;
 // start() jumps here in supervisor mode on all CPUs.
 void main() {
     if (cpuid() == 0) {
         consoleinit();
         printfinit();
+        debug_lock = 1;
         printf("\n");
         printf("xv6 kernel is booting\n");
         printf("\n");
