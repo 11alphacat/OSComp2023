@@ -10,6 +10,8 @@
 #include "kernel/proc.h"
 #include "fs/inode/stat.h"
 
+extern struct file_operations fat32_fop;
+extern struct inode_operations fat32_iop;
 
 extern FATFS_t global_fatfs;
 
