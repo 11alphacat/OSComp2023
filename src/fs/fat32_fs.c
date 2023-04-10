@@ -20,10 +20,12 @@ int fat32_fs_mount(int dev, FATFS_t *fatfs) {
     struct buffer_head *bp;
     bp = bread(dev, 0);
     fat32_boot_sector_parser(fatfs, (fat_bpb_t *)bp->data);
+    brelse(bp);
 
     /*用bread，读取设备号为dev，第1号扇区*/
     bp = bread(dev, 1);
     fat32_fsinfo_parser(fatfs, (fsinfo_t *)bp->data);
+    brelse(bp);
     /*用brelse 释放缓存*/
     // brelse(bp);
     /* 调用fat32_root_entry_init，获取到root根目录的fat_entry*/
@@ -32,7 +34,8 @@ int fat32_fs_mount(int dev, FATFS_t *fatfs) {
     // TODO： fat_dirty
     // fat的读脏写回链表
     // panic("fs_mount");
-
+    // fat32_fat_entry_trunc(fatfs->root_entry);
+    
     panic("fs_mount");
     return FR_OK;
 }

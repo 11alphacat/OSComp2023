@@ -622,7 +622,7 @@ namex(char *path, int nameiparent, char *name) {
         ip = idup(myproc()->cwd);
 
     while ((path = skipelem(path, name)) != 0) {
-        ilock(ip);
+        (ip);
         if (ip->type != T_DIR) {
             iunlockput(ip);
             return 0;

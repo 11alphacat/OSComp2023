@@ -31,14 +31,13 @@ typedef enum {
 } FRESULT;
 
 // Oscomp
-struct dirent_tmp {
+struct fat_dirent_buf{
     uint64 d_ino;            // 索引结点号
     int64 d_off;             // 到下一个dirent的偏移
     unsigned short d_reclen; // 当前dirent的长度
     unsigned char d_type;    // 文件类型
-    char d_name[];           //文件名
+    char d_name[];           // 文件名
 };
-typedef struct dirent_tmp dirent_buf;
 
 
 struct fat_entry {
@@ -69,16 +68,25 @@ struct fat_entry {
 };
 
 typedef struct fat_entry fat_entry_t;
-fat_entry_t *fat32_root_entry_init(FATFS_t *);
-
+fat_entry_t* fat32_root_entry_init(FATFS_t *);
 fat_entry_t* fat32_name_fat_entry(char *);
 fat_entry_t* fat32_name_fat_entry_parent(char *, char *);
-fat_entry_t* fat32_fat_entry_dup(fat_entry_t *);
+fat_entry_t* fat32_fat_entry_dup(fat_entry_t*);
+fat_entry_t* fat32_fat_entry_dirlookup(fat_entry_t*, char *, uint *);
+fat_entry_t* fat32_fat_entry_get(uint, dirent_s_t*);
 
 void fat32_fat_entry_trunc(fat_entry_t*);
 void fat32_fat_entry_update(fat_entry_t*);
 void fat32_fat_entry_lock(fat_entry_t*);
 void fat32_fat_entry_unlock(fat_entry_t*);
-void fat32_fat_entry_put(fat_entry_t *);
-void fat32_fat_entry_unlock_put(fat_entry_t *);
+void fat32_fat_entry_put(fat_entry_t*);
+void fat32_fat_entry_unlock_put(fat_entry_t*);
+
+
+int fat32_fat_entry_write(fat_entry_t*, int, uint64, uint, uint);
+int fat32_fat_entry_read(fat_entry_t*, int, uint64, uint, uint);
+int fat32_fat_dirlink(fat_entry_t *, char*, uint);
+
+// void fat32_fat_entry_stat(fat_entry_t*, struct stat*);
+
 #endif 
