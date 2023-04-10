@@ -34,7 +34,8 @@ ifeq ($(DEBUG), 1)
 CFLAGS += -D__DEBUG__
 endif
 
-CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
+# CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -118,9 +119,14 @@ xv6U=xv6_user
 oscompU=user
 FILE=brk
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
-user:
+# user: oscomp
+# 	@echo "$(YELLOW)build user:$(RESET)"
+# 	@make -C $(xv6U)
+
+user: 
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
+
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7

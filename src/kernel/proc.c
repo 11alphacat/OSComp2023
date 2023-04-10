@@ -10,7 +10,7 @@
 #include "memory/vm.h"
 #include "fs/inode/fs.h"
 #include "fs/inode/file.h"
-#include "fs/fat/fat32.h"
+#include "fs/fat/fat32_entry.h"
 #include "fs/fat/fat32_fs.h"
 
 struct cpu cpus[NCPU];

@@ -93,3 +93,27 @@ int strlen(const char *s) {
         ;
     return n;
 }
+
+#define ch_toupper(c) ({ \
+    char ch = (c); \
+    ch >= 'a' && ch <= 'z' ? ch - ('a' - 'A') : ch; \
+})
+
+#define ch_tolower(c) ({ \
+    char ch = (c); \
+    ch >= 'A' && ch <= 'Z' ? ch + ('a' - 'A') : ch; \
+})
+
+void to_upper(char *str) {
+  while(*str != '\0') {
+      *str = ch_toupper(*str);
+      str++;
+  }
+}
+
+void to_lower(char *str) {
+  while(*str != '\0') {
+      *str = ch_tolower(*str);
+      str++;
+  }
+}

@@ -40,7 +40,7 @@
 // #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8 * (hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
 #define CLINT_INTERVAL 1000000       // cycles; about 1/10th second in qemu.
-
+// #define CLINT_INTERVAL 100000000000       // cycles; about 1/10th second in qemu.
 // qemu puts platform-level interrupt controller (PLIC) here.
 #define PLIC 0x0c000000L
 #define PLIC_PRIORITY (PLIC + 0x0)
