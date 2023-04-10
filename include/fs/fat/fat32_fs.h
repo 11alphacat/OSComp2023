@@ -197,7 +197,7 @@
 #define PATH_LONG_MAX      260
 
 // FAT32 Boot Record
-struct FAT32_BootRecord {
+typedef struct FAT32_BootRecord {
     /*FAT common field*/
 
     uchar Jmpboot[3]; // Jump instruction to boot code.
@@ -257,11 +257,10 @@ struct FAT32_BootRecord {
     // Boot code.
     uchar BootSign[2];
     // Bootable partition signature 0xAA55.
-} __attribute__((packed));
-typedef struct FAT32_BootRecord fat_bpb_t;
+} __attribute__((packed)) fat_bpb_t;
 
 // FAT32 Fsinfo
-struct FAT32_Fsinfo {
+typedef struct FAT32_Fsinfo {
     uchar LeadSig[4]; // validate that this is in fact an FSInfo sector
     // Value 0x41615252
     uchar Reserved1[480]; // is currently reserved for future expansion
@@ -274,8 +273,7 @@ struct FAT32_Fsinfo {
     uchar Reserved2[12];
     uchar TrailSig[4]; // validate that this is in fact an FSInfo sector
     // Value 0xAA550000
-} __attribute__((packed));
-typedef struct FAT32_Fsinfo fsinfo_t;
+} __attribute__((packed)) fsinfo_t;
 
 // Date
 typedef struct __date_t {
@@ -292,7 +290,7 @@ typedef struct __time_t {
 } FAT_time_t;
 
 // Directory Structure (short name)
-struct Short_Dir_t {
+typedef struct Short_Dir_t {
     uchar DIR_Name[FAT_SFN_LENGTH]; // directory name
     uchar DIR_Attr;                 // directory attribute
     uchar DIR_NTRes;                // reserved
@@ -307,11 +305,10 @@ struct Short_Dir_t {
     FAT_time_t DIR_WrtDate;      // Last modification (write) date.
     uchar DIR_FstClusLO[2];    // Low word of first data cluster number
     uint32_t DIR_FileSize;     // 32-bit quantity containing size
-} __attribute__((packed));
-typedef struct Short_Dir_t dirent_s_t;
+} __attribute__((packed)) dirent_s_t ;
 
 // Directory Structure (long name)
-struct Long_Dir_t {
+typedef struct Long_Dir_t {
     uchar LDIR_Ord;          // The order of this entry in the sequence
     uint16_t LDIR_Name1[5]; // characters 1 through 5
     uchar LDIR_Attr;         // Attributes
@@ -320,8 +317,7 @@ struct Long_Dir_t {
     uint16_t LDIR_Name2[6]; // characters 6 through 11
     uchar LDIR_FstClusLO[2]; // Must be set to 0
     uint16_t LDIR_Name3[2];  // characters 12 and 13
-} __attribute__((packed));
-typedef struct Long_Dir_t dirent_l_t;
+} __attribute__((packed)) dirent_l_t;
 
 // the structure of FAT file system
 struct FATFS {
@@ -346,6 +342,7 @@ struct FATFS {
     uint winsect;
     uchar win[FF_MAX_SS];
 };
+
 typedef struct FATFS FATFS_t;
 
 typedef uint32_t FAT_term_t;
@@ -354,5 +351,5 @@ int fat32_fs_mount(int, FATFS_t *);
 int fat32_boot_sector_parser(FATFS_t *, fat_bpb_t *);
 int fat32_fsinfo_parser(FATFS_t *, fsinfo_t *);
 
-uchar   ChkSum(uchar*);
+uchar ChkSum(uchar*);
 #endif 

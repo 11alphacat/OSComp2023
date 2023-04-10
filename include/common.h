@@ -6,6 +6,8 @@
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 
+#define __user
+
 typedef unsigned int uint;
 typedef unsigned short ushort;
 typedef unsigned char uchar;
@@ -17,6 +19,9 @@ typedef unsigned long uint64;
 typedef long int64;
 typedef unsigned long uintptr_t;
 typedef unsigned long size_t;
+typedef long ssize_t;
+typedef unsigned short mode_t;
+
 
 typedef uint8 uint8_t;
 typedef uint16 uint16_t;

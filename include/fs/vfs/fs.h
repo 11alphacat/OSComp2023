@@ -4,7 +4,7 @@
 #include "common.h"
 #include "atomic/spinlock.h"
 #include "atomic/sleeplock.h"
-
+#include "fs/stat.h"
 #include "fs/fat/fat_info.h"
 
 struct superblock {
@@ -40,7 +40,7 @@ struct file {
 };
 
 struct file_operations {
-    char* (*getcwd) (char * __user buf,size_t size);
+    char* (*getcwd) (char *__user buf,size_t size);
     int (*pipe2) (int fd[2], int flags);	
     int (*dup) (int fd);
     int (*dup3) (int oldfd, int newfd, int flags);
@@ -55,7 +55,7 @@ struct file_operations {
     int (*mkdirat) (int dirfd, const char *pathname, mode_t mode);
     int (*umount2) (const char *target, int flags);
     int (*mount) (const char *source, const char *target, const char *filesystemtype, unsigned 			long 	mountflags, const void *data);
-    int (*fstat) (int fd, struct stat *statbuf);
+    int (*fstat) (int fd, struct kstat *statbuf);
 };
 
 #define NAME_MAX 10
