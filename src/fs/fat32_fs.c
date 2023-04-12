@@ -7,6 +7,7 @@
 #include "fs/bio.h"
 #include "debug.h"
 #include "test.h"
+#include "param.h"
 
 // FATFS_t global_fatfs;
 struct _superblock fat32_sb;
@@ -143,8 +144,9 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
 
 uchar ChkSum(uchar *pFcbName) {
     uchar Sum = 0;
-    for (short FcbNameLen = 11; FcbNameLen != 0; FcbNameLen--) {
+    for (short FcbNameLen=13; FcbNameLen!=0; FcbNameLen--) 
+    {
         Sum = ((Sum & 1) ? 0x80 : 0) + (Sum >> 1) + *pFcbName++;
     }
-    return (Sum);
+    return Sum;
 }

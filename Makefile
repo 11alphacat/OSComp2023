@@ -143,7 +143,7 @@ MNT_DIR=build/mnt
 $(shell mkdir -p $(MNT_DIR))
 fat32.img: _kernel user
 	@dd if=/dev/zero of=$@ bs=1M count=128
-	@mkfs.vfat -F 32 $@
+	@mkfs.vfat -F 32 -s 2 $@
 	@sudo mount $@ $(MNT_DIR)
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
 	@sudo umount $(MNT_DIR)

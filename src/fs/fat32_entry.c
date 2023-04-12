@@ -10,6 +10,7 @@
 #include "kernel/proc.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
+#include "fs/fat/fat32_stack.h"
 
 extern struct file_operations fat32_fop;
 extern struct inode_operations fat32_iop;
@@ -108,70 +109,152 @@ struct _inode *fat32_root_entry_init(struct _superblock *sb) {
 //   skepelem("///a//bb", name) = "bb", setting name = "a"
 //   skepelem("a", name) = "", setting name = "a"
 //   skepelem("", name) = skepelem("////", name) = 0
-// static char *skepelem(char *path, char *name) {
-//     char *s;
-//     int len;
 
-//     while (*path == '/')
-//         path++;
-//     if (*path == 0)
-//         return 0;
-//     s = path;
-//     while (*path != '/' && *path != 0)
-//         path++;
-//     len = path - s;
-//     if (len >= PATH_LONG_MAX)
-//         memmove(name, s, PATH_LONG_MAX);
-//     else {
-//         memmove(name, s, len);
-//         name[len] = 0;
-//     }
-//     while (*path == '/')
-//         path++;
-//     return path;
-// }
+static char * skepelem(char *path, char *name) {
+    char *s;
+    int len;
 
-// static fat_entry_t *fat32_fat_entry_namex(char *path, int nameeparent, char *name) {
-//     fat_entry_t *fat_ep, *next;
+    while (*path == '/')
+        path++;
+    if (*path == 0)
+        return 0;
+    s = path;
+    while (*path != '/' && *path != 0)
+        path++;
+    len = path - s;
+    if (len >= PATH_LONG_MAX)
+        memmove(name, s, PATH_LONG_MAX);
+    else {
+        memmove(name, s, len);
+        name[len] = 0;
+    }
+    while (*path == '/')
+        path++;
+    return path;
+}
 
-//     if (*path == '/')
-//         fat_ep = fat32_fat_entry_dup(global_fatfs.root_entry);
-//     else
-//         fat_ep = fat32_fat_entry_dup(myproc()->fat_cwd);
+static fat_entry_t* fat32_fat_entry_namex(char *path, int nameeparent, char *name) {
+    fat_entry_t* fat_ep, *next;
 
-//     // while ((path = skepelem(path, name)) != 0) {
-//     //     ilock(fat_ep);
-//     //     if (!DIR_BOOL(fat_ep->Attr)) {
-//     //         iunlockput(fat_ep);
-//     //         return 0;
-//     //     }
-//     //     if (nameeparent && *path == '\0') {
-//     //         // Stop one level early.
-//     //         iunlock(fat_ep);
-//     //         return fat_ep;
-//     //     }
-//     //     if ((next = dirlookup(fat_ep, name, 0)) == 0) {
-//     //         iunlockput(fat_ep);
-//     //         return 0;
-//     //     }
-//     //     iunlockput(fat_ep);
-//     //     fat_ep = next;
-//     // }
-//     // if (nameeparent) {
-//     //     eput(fat_ep);
-//     //     return 0;
-//     // }
-//     return fat_ep;
-// }
+    if (*path == '/')
+        fat_ep = fat32_fat_entry_dup(&global_fatfs.root_entry);
+    else
+        fat_ep = fat32_fat_entry_dup(myproc()->fat_cwd);
 
-// fat_entry_t *fat32_name_fat_entry(char *path) {
-//     char name[PATH_LONG_MAX]; // 260
-//     return fat32_fat_entry_namex(path, 0, name);
-// }
+    while ((path = skepelem(path, name)) != 0) {
+        fat32_fat_entry_lock(fat_ep);
+        if (!DIR_BOOL(fat_ep->Attr)) {
+            fat32_fat_entry_unlock_put(fat_ep);
+            return 0;
+        }
+        if (nameeparent && *path == '\0') {
+            // Stop one level early.
+            fat32_fat_entry_lock(fat_ep);
+            return fat_ep;
+        }
+        if ((next = fat32_fat_entry_dirlookup(fat_ep, name, 0)) == 0) {
+            fat32_fat_entry_put(fat_ep);
+            return 0;
+        }
+        fat32_fat_entry_put(fat_ep);
+        fat_ep = next;
+    }
+    if (nameeparent) {
+        fat32_fat_entry_put(fat_ep);
+        return 0;
+    }
+    return fat_ep;
+}
 
-// fat_entry_t *fat32_name_fat_entry_parent(char *path, char *name) {
-//     return fat32_fat_entry_namex(path, 1, name);
-// }
+fat_entry_t* fat32_name_fat_entry(char *path) {
+    char name[PATH_LONG_MAX];// 260
+    return fat32_fat_entry_namex(path, 0, name);
+}
+
+fat_entry_t* fat32_name_fat_entry_parent(char *path, char *name) {
+    return fat32_fat_entry_namex(path, 1, name);
+}
+
+fat_entry_t* fat32_fat_entry_dup(fat_entry_t *fat_ep) {
+    acquire(&fat_entry_table.lock);
+    fat_ep->ref++;
+    release(&fat_entry_table.lock);
+    return fat_ep;
+}
+
+void fat32_fat_entry_update(fat_entry_t *fat_ep) {
+    struct buffer_head *bp;
+    bp = bread(fat_ep->fatfs_obj->dev, FATNUM_TO_SECTOR(fat_ep->fat_num));
+    dirent_s_t* dirent_s_tmp = (dirent_s_t *)bp->data + FATNUM_TO_OFFSET(fat_ep->fat_num);
+
+    dirent_s_tmp->DIR_Attr = fat_ep->Attr;
+    memmove((void*)&dirent_s_tmp->DIR_LstAccDate,(void*)&fat_ep->DIR_LstAccDate,sizeof(fat_ep->DIR_LstAccDate));
+    memmove((void*)&dirent_s_tmp->DIR_WrtDate,(void*)&fat_ep->DIR_WrtDate,sizeof(fat_ep->DIR_WrtDate));
+    memmove((void*)&dirent_s_tmp->DIR_WrtTime,(void*)&fat_ep->DIR_WrtTime,sizeof(fat_ep->DIR_WrtTime));
+    dirent_s_tmp->DIR_FstClusHI = DIR_FIRST_HIGH(fat_ep->cluster_start);
+    dirent_s_tmp->DIR_FstClusLO = DIR_FIRST_LOW(fat_ep->cluster_end);
+    dirent_s_tmp->DIR_FileSize = fat_ep->DIR_FileSize;
+
+    bwrite(bp);
+    brelse(bp);
+}
+
+void fat32_fat_entry_trunc(fat_entry_t* fat_ep) {
+    struct buffer_head *bp;
+
+    FAT_term_t iter_n = fat_ep->cluster_start;
+    uint32 FAT_s_n;
+    uint32 FAT_s_offset;
+    FAT_term_t end=0;
+
+    while(!ISEOF(iter_n))
+    {
+        FAT_s_n =  ThisFATSecNum(iter_n);
+        FAT_s_offset = ThisFATEntOffset(iter_n);
+        bp = bread(fat_ep->fatfs_obj->dev, FAT_s_n);
+        FAT_term_t fat_next=FAT32ClusEntryVal(bp->data,iter_n);
+        SetFAT32ClusEntryVal(bp->data,iter_n,EOC_MASK);
+        Show_bytes((byte_pointer)&bp->data, sizeof(bp->data));
+        bwrite(bp);
+        brelse(bp);
+        iter_n=fat_next;
+    }
+    fat_ep->cluster_start = -1;
+    fat_ep->cluster_end = -1;
+    fat_ep->parent_off = -1;
+    fat_ep->cluster_cnt = -1;
+    fat_ep->DIR_FileSize = 0;
+    fat32_fat_entry_update(fat_ep);
+}
+
+// 获取fat_entry的锁
+void fat32_fat_entry_lock(fat_entry_t* fat_ep) {
+    struct buffer_head *bp;
+    if (fat_ep == 0 || fat_ep->ref < 1)
+        panic("ilock");
+    acquiresleep(&fat_ep->lock);
+    if (fat_ep->valid == 0) {
+        bp = bread(fat_ep->fatfs_obj->dev, FATNUM_TO_SECTOR(fat_ep->fat_num));
+        dirent_s_t* dirent_s_tmp = (dirent_s_t *)bp->data + FATNUM_TO_OFFSET(fat_ep->fat_num);
+
+        fat_ep->Attr = dirent_s_tmp->DIR_Attr;
+        fat_ep->cluster_start = DIR_FIRST_CLUS(dirent_s_tmp->DIR_FstClusHI,dirent_s_tmp->DIR_FstClusLO);
+        fat_ep->cluster_cnt = fat32_fat_travel(fat_ep->cluster_start, &(fat_ep->cluster_end));
+        fat_ep->DIR_CrtTimeTenth = dirent_s_tmp->DIR_CrtTimeTenth;
+        
+        memmove((void*)&fat_ep->DIR_CrtTime,(void*)&dirent_s_tmp->DIR_CrtTime,sizeof(dirent_s_tmp->DIR_CrtTime));
+        memmove((void*)&fat_ep->DIR_CrtDate,(void*)&dirent_s_tmp->DIR_CrtDate,sizeof(dirent_s_tmp->DIR_CrtDate));
+        memmove((void*)&fat_ep->DIR_LstAccDate,(void*)&dirent_s_tmp->DIR_LstAccDate,sizeof(dirent_s_tmp->DIR_LstAccDate));
+        memmove((void*)&fat_ep->DIR_WrtTime,(void*)&dirent_s_tmp->DIR_WrtTime,sizeof(dirent_s_tmp->DIR_WrtTime));
+        memmove((void*)&fat_ep->DIR_WrtDate,(void*)&dirent_s_tmp->DIR_WrtDate,sizeof(dirent_s_tmp->DIR_WrtDate));
+        
+        fat_ep->DIR_FileSize = dirent_s_tmp->DIR_FileSize;
+        brelse(bp);
+        fat_ep->valid = 1;
+        if (fat_ep->Attr== 0)
+            panic("fat32_fat_entry_lock: no Attr");
+    }
+}
 
 // fat_entry_t *fat32_fat_entry_dup(fat_entry_t *fat_ep) {
 //     acquire(&fat_entry_table.lock);
@@ -251,98 +334,282 @@ struct _inode *fat32_root_entry_init(struct _superblock *sb) {
 
 //         releasesleep(&fat_ep->lock);
 
-//         acquire(&fat_entry_table.lock);
-//     }
+char* fat32_filter_longname(struct Long_Dir_t* dirent_l_tmp)
+{
+    char ret_name[15];
+    int idx=0;
+    for(int i=0;i<5;i++)
+        if(LONG_NAME_CHAR_VALID(dirent_l_tmp->LDIR_Name1[i]))
+            ret_name[idx++] = LONG_NAME_CHAR_MASK(dirent_l_tmp->LDIR_Name1[i]);
+    for(int i=0;i<6;i++)
+        if(LONG_NAME_CHAR_VALID(dirent_l_tmp->LDIR_Name2[i]))
+            ret_name[idx++] = LONG_NAME_CHAR_MASK(dirent_l_tmp->LDIR_Name2[i]);
+    for(int i=0;i<2;i++)
+        if(LONG_NAME_CHAR_VALID(dirent_l_tmp->LDIR_Name3[i]))
+            ret_name[idx++] = LONG_NAME_CHAR_MASK(dirent_l_tmp->LDIR_Name3[i]);
+    ret_name[idx]='\0';
+    if(ChkSum(ret_name)!=dirent_l_tmp->LDIR_Chksum)
+    {
+        panic("check sum error!!\n");
+    }
+    return ret_name;
+}
 
-//     fat_ep->ref--;
-//     release(&fat_entry_table.lock);
-// }
+fat_entry_t* fat32_fat_entry_dirlookup(fat_entry_t *fat_ep, char *name, uint *poff) {
+    uint inum;
 
-// // unlock and put
-// void fat32_fat_entry_unlock_put(fat_entry_t *fat_ep) {
-//     fat32_fat_entry_unlock(fat_ep);
-//     fat32_fat_entry_put(fat_ep);
-// }
+    if (DIR_BOOL((fat_ep->Attr)))
+        panic("dirlookup not DIR");
+    struct buffer_head *bp;
+    FAT_term_t iter_n = fat_ep->cluster_start;
+    uint32 FAT_s_n;
+    uint32 FAT_s_offset;
 
-// #define fat32_namecmp(s, t) (strncmp(s, t, PATH_LONG_MAX))
+    char name_buf[LONG_NAME_MAX];
+    memset(name_buf,0,sizeof(name_buf));
+    int name_idx = 0;
 
-// // for (off = 0; off < dp->DIR_FileSize; off += sizeof(de)) {
-// //     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-// //         panic("dirlookup read");
-// //     if (de.inum == 0)
-// //         continue;
-// //     if (namecmp(name, de.name) == 0) {
-// //         // entry matches path element
-// //         if (poff)
-// //             *poff = off;
-// //         inum = de.inum;
-// //         return iget(dp->dev, inum);
-// //     }
-// // }
-// fat_entry_t *fat32_fat_entry_dirlookup(fat_entry_t *fat_ep, char *name, uint *poff) {
-//     uint off, inum;
 
-//     if (DIR_BOOL((fat_ep->Attr)))
-//         panic("dirlookup not DIR");
+    Stack_t fcb_stack;
+    stack_init(&fcb_stack);
 
-//     return 0;
-// }
+    int first_sector;
+    int off=0;
+    // FAT seek cluster chains
+    while(!ISEOF(iter_n))
+    {
+        first_sector = FirstSectorofCluster(iter_n);
+        // sectors in a cluster
+        for(int s=0;s<(fat_ep->fatfs_obj->sector_per_cluster);s++)
+        {
+            bp = bread(fat_ep->fatfs_obj->dev,first_sector+s);
 
-// fat_entry_t *fat32_fat_entry_get(uint dev, dirent_s_t *dirent_s_t) {
-//     fat_entry_t *fat_ep, *empty;
-//     acquire(&fat_entry_table.lock);
+            dirent_s_t* fcb_s = (dirent_s_t*)(bp->data);
+            dirent_l_t* fcb_l = (dirent_l_t*)(bp->data); 
+            int idx = 0;
+            // FCB in a sector
+            while(idx<FCB_PER_BLOCK)
+            {
+                // long dirctory item push into the stack
+                while(LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr))
+                {
+                    stack_push(&fcb_stack,fcb_l[idx++]);
+                    off++;
+                }
 
-//     // // Is the inode already in the table?
-//     // empty = 0;
-//     // for (ip = &itable.inode[0]; ip < &itable.inode[NINODE]; ip++) {
-//     //     if (ip->ref > 0 && ip->dev == dev && ip->inum == inum) {
-//     //         ip->ref++;
-//     //         release(&itable.lock);
-//     //         return ip;
-//     //     }
-//     //     if (empty == 0 && ip->ref == 0) // Remember empty slot.
-//     //         empty = ip;
-//     // }
+                // reverse the stack
+                while(!stack_is_empty(&fcb_stack))
+                {
+                    dirent_l_t fcb_l_tmp = stack_pop(&fcb_stack);
+                    char* l_tmp = fat32_filter_longname(&fcb_l_tmp);
+                    for(int i=0;i<13;i++)
+                    {
+                        name_buf[name_idx++]=l_tmp[i];
+                    }
+                }
+                name_buf[name_idx] = '\0';
+                
+                // is our search for?
+                if (namecmp(name, name_buf) == 0) {
+                    // entry matches path element
+                    if (poff)
+                        *poff = off;
+                    
+                    return fat32_fat_entry_get(fat_ep->fatfs_obj->dev,SECTOR_TO_FATNUM(first_sector+s,idx),name,off);
+                }else{
+                    memset(name_buf,0,sizeof(name_buf));
+                    int name_idx = 0;
+                }
+                idx++;
+                off++;
+            }
+            brelse(bp);
+        }
 
-//     // // Recycle an inode entry.
-//     // if (empty == 0)
-//     //     panic("iget: no inodes");
+        FAT_s_n =  ThisFATSecNum(iter_n);
+        FAT_s_offset = ThisFATEntOffset(iter_n);
+        bp = bread(fat_ep->fatfs_obj->dev, FAT_s_n);
+        FAT_term_t fat_next=FAT32ClusEntryVal(bp->data,iter_n);
+        brelse(bp);
+        iter_n=fat_next;
+    }
 
-//     // ip = empty;
-//     // ip->dev = dev;
-//     // ip->inum = inum;
-//     // ip->ref = 1;
-//     // ip->valid = 0;
-//     release(&fat_entry_table.lock);
+    return 0;
+}
 
-//     return fat_ep;
-// }
 
-// // Read data from fat_entry.
-// int fat32_fat_entry_read(fat_entry_t *ip, int user_dst, uint64 dst, uint off, uint n) {
-//     uint tot, m;
-//     struct buffer_head *bp;
+fat_entry_t * fat32_fat_entry_get(uint dev, uint fat_num, char* name, uint parentoff) {
+    fat_entry_t *fat_ep, *empty;
+    acquire(&fat_entry_table.lock);
 
-//     // if (off > ip->size || off + n < off)
-//     //     return 0;
-//     // if (off + n > ip->size)
-//     //     n = ip->size - off;
+    // Is the fat_entry already in the table?
+    empty = 0;
+    for (fat_ep = fat_entry_table.fat_table; fat_ep < &fat_entry_table.fat_table[NENTRY]; fat_ep++) {
+        if (fat_ep->ref > 0 && fat_ep->fatfs_obj->dev == dev && fat_ep->fat_num == fat_num) {
+            fat_ep->ref++;
+            release(&fat_entry_table.lock);
+            return fat_ep;
+        }
+        if (empty == 0 && fat_ep->ref == 0) // Remember empty slot.
+            empty = fat_ep;        
+    }
 
-//     // for (tot = 0; tot < n; tot += m, off += m, dst += m) {
-//     //     uint addr = bmap(ip, off / BSIZE);
-//     //     if (addr == 0)
-//     //         break;
-//     //     bp = bread(ip->dev, addr);
-//     //     m = min(n - tot, BSIZE - off % BSIZE);
-//     //     if (either_copyout(user_dst, dst, bp->data + (off % BSIZE), m) == -1) {
-//     //         brelse(bp);
-//     //         tot = -1;
-//     //         break;
-//     //     }
-//     //     brelse(bp);
-//     // }
-//     return tot;
-// }
+    // Recycle an fat32 entry.
+    if (empty == 0)
+        panic("fat32_fat_entry_get: no space");
+
+    fat_ep = empty;
+    fat_ep->fatfs_obj = &global_fatfs;
+    fat_ep->fatfs_obj->dev = dev;
+    fat_ep->fat_num = fat_num;
+    fat_ep->ref = 1;
+    fat_ep->valid = 0;
+    fat_ep->parent_off = parentoff;
+    strncpy(fat_ep->fname,name,strlen(fat_ep));
+
+    release(&fat_entry_table.lock);
+    return fat_ep;
+}
+
+uint fat32_fat_entry_dirlength(fat_entry_t* fat_ep)
+{
+    struct buffer_head *bp;
+    int ret=(fat_ep->cluster_cnt-1)*(fat_ep->fatfs_obj->cluster_size);
+    int last_c_first_s =  FirstSectorofCluster(fat_ep->cluster_end);
+    for(int s = last_c_first_s;s<fat_ep->fatfs_obj->sector_per_cluster;s++)
+    {
+        bp = bread(fat_ep->fatfs_obj->dev,last_c_first_s+s);
+        dirent_s_t* diernt_s_tmp = (dirent_s_t*)(bp->data);
+        for(int i=0;i<FCB_PER_BLOCK;i++)
+        {
+            if(NAME0_FREE_ONLY(diernt_s_tmp[i].DIR_Name[0])||NAME0_FREE_ALL(diernt_s_tmp[i].DIR_Name[0]))
+            {
+                return ret;
+            }else{
+                ret+=sizeof(dirent_s_t);
+            }
+        }
+        brelse(bp);
+    }
+    return ret;
+}
+
+// Read data from fat_entry.
+uint fat32_fat_entry_read(fat_entry_t* fat_ep, int user_dst, uint64 dst, uint off, uint n) {
+    uint tot=0, m;
+    struct buffer_head *bp;
+
+    // 是一个目录
+    int fileSize=0;
+    if(DIR_BOOL(fat_ep->Attr))
+    {
+        // TODO: 把目录的大小考虑进去
+        fileSize = fat32_fat_entry_dirlength(fat_ep);
+    }else{
+        fileSize = fat_ep->DIR_FileSize; 
+    }
+    
+    // 特判合法
+    if (off > fileSize || off + n < off)
+        return 0;
+    if (off + n > fileSize)
+        n = fileSize - off;
+    
+    FAT_term_t iter_n = fat_ep->cluster_start;
+    uint32 FAT_s_n;
+    uint32 FAT_s_offset;
+    
+    // find the target cluster of off
+    while(!ISEOF(iter_n))
+    {
+        if(LOGISTIC_C_NUM(off)==iter_n)
+            break;    
+        FAT_s_n =  ThisFATSecNum(iter_n);
+        FAT_s_offset = ThisFATEntOffset(iter_n);
+
+        bp = bread(ROOTDEV, FAT_s_n);
+        FAT_term_t fat_next=FAT32ClusEntryVal(bp->data,iter_n);
+        brelse(bp);
+        
+        iter_n=fat_next;
+    }
+    int init_s_n = LOGISTIC_S_NUM(off);
+    int init_s_offset = LOGISTIC_S_OFFSET(off);
+
+    // read the target sector
+    while(!ISEOF(iter_n)&&tot<n)
+    {
+        int first_sector = FirstSectorofCluster(iter_n);
+        for(int s = init_s_n;s<fat_ep->fatfs_obj->sector_per_cluster;s++)
+        {
+            bp = bread(fat_ep->fatfs_obj->dev, first_sector+s);
+            m = min(BSIZE-init_s_offset,n-tot);
+            
+            if (either_copyout(user_dst, dst, bp->data + init_s_offset, m) == -1) {
+                brelse(bp);
+                tot = -1;
+                break;
+            }
+            brelse(bp);
+
+            tot+=m;
+            dst+=m;
+            init_s_offset = 0;
+        }
+        init_s_n = 0;
+
+
+        FAT_s_n =  ThisFATSecNum(iter_n);
+        FAT_s_offset = ThisFATEntOffset(iter_n);
+        bp = bread(ROOTDEV, FAT_s_n);
+        FAT_term_t fat_next=FAT32ClusEntryVal(bp->data,iter_n);
+        brelse(bp);
+        iter_n=fat_next;
+    }
+    return tot;
+}
+
+// Write data to fat_entry
+uint fat32_fat_entry_write(fat_entry_t *fat_ep, int user_src, uint64 src, uint off, uint n) {
+    uint tot=0, m;
+    struct buffer_head *bp;
+
+    // 是一个目录
+    int fileSize=0;
+    if(DIR_BOOL(fat_ep->Attr))
+    {
+        // TODO: 把目录的大小考虑进去
+        fileSize = fat32_fat_entry_dirlength(fat_ep);
+    }else{
+        fileSize = fat_ep->DIR_FileSize; 
+    }
+    if (off > fileSize || off + n < off)
+        return -1;
+    if (off + n > DataSec * BSIZE)
+        return -1;
+
+
+    // for (tot = 0; tot < n; tot += m, off += m, src += m) {
+    //     uint addr = bmap(fat_ep, off / BSIZE);
+    //     if (addr == 0)
+    //         break;
+    //     bp = bread(fat_ep->dev, addr);
+    //     m = min(n - tot, BSIZE - off % BSIZE);
+    //     if (either_copyin(bp->data + (off % BSIZE), user_src, src, m) == -1) {
+    //         brelse(bp);
+    //         break;
+    //     }
+    //     log_write(bp);
+    //     brelse(bp);
+    // }
+
+    // if (off > fat_ep->DIR_FileSize)
+    //     fat_ep->DIR_FileSize = off;
+
+    // fat32_fat_entry_update(fat_ep);
+
+    return tot;
+}
 
 // // Write data to fat_entry
 // int fat32_fat_entry_write(fat_entry_t *ip, int user_src, uint64 src, uint off, uint n) {
@@ -379,37 +646,63 @@ struct _inode *fat32_root_entry_init(struct _superblock *sb) {
 //     return tot;
 // }
 
-// // void fat32_fat_entry_stat(fat_entry_t* fat_ep, struct stat *st) {
-// //     st->dev = fat_ep->fatfs_obj->dev;
-// //     // st->ino = fat_ep->inum;
-// //     st->type = fat_ep->Attr;
-// //     st->nlink = fat_ep->nlink;
-// //     st->size = fat_ep->DIR_FileSize;
-// // }
+int fat32_fat_dirlink(fat_entry_t *fat_ep, char *name, uint inum) {
+    // int off;
+    // struct dirent de;
+    // struct inode *fat_ep;
 
-// int fat32_fat_dirlink(fat_entry_t *fat_ep, char *name, uint inum) {
-//     // int off;
-//     // struct dirent de;
-//     // struct inode *ip;
+    // // Check that name is not present.
+    // if ((fat_ep = dirlookup(dp, name, 0)) != 0) {
+    //     fat_eput(fat_ep);
+    //     return -1;
+    // }
 
-//     // // Check that name is not present.
-//     // if ((ip = dirlookup(dp, name, 0)) != 0) {
-//     //     iput(ip);
-//     //     return -1;
-//     // }
+    // // Look for an empty dirent.
+    // for (off = 0; off < dp->size; off += sizeof(de)) {
+    //     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+    //         panic("dirlink read");
+    //     if (de.inum == 0)
+    //         break;
+    // }
 
-//     // // Look for an empty dirent.
-//     // for (off = 0; off < dp->size; off += sizeof(de)) {
-//     //     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-//     //         panic("dirlink read");
-//     //     if (de.inum == 0)
-//     //         break;
-//     // }
+    // strncpy(de.name, name, DIRSIZ);
+    // de.inum = inum;
+    // if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+    //     return -1;
 
-//     // strncpy(de.name, name, DIRSIZ);
-//     // de.inum = inum;
-//     // if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-//     //     return -1;
+    return 0;
+}
 
-//     return 0;
-// }
+
+int *fat32_fat_fcb_alloc(uint dev, short attr) {
+    int fat_num;
+    struct buffer_head *bp;
+    if(!global_fatfs.free_count)
+    {
+        panic("no disk space!!!\n");
+    }    
+    int free_num = global_fatfs.nxt_free;
+    // TODO: 分配一个簇还是一个FCB，如果分配FCB，就是在某个文件中分配。？？？
+
+
+    // bp = bread(dev, FATNUM_TO_SECTOR(fat_num));
+    // dirent_s_t* dirent_s_tmp = (dirent_s_t *)bp->data + FATNUM_TO_OFFSET(fat_ep->fat_num);
+    
+
+    // for (inum = 1; inum < sb.ninodes; inum++) {
+    //     bp = bread(dev, IBLOCK(inum, sb));
+    //     dip = (struct dinode *)bp->data + inum % IPB;
+    //     if (dip->type == 0) { // a free inode
+    //         memset(dip, 0, sizeof(*dip));
+    //         dip->type = type;
+    //         bwrite(bp);
+    //         brelse(bp);
+    //         return iget(dev, inum);
+    //     }
+    //     brelse(bp);
+    // }
+    // printf("ialloc: no inodes\n");
+    return 0;
+}
+
+

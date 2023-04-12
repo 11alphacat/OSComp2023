@@ -178,12 +178,13 @@ extern struct _superblock fat32_sb;
 #define ATTR_HIDDEN 0x02    // Hidden 0000_0010
 #define ATTR_SYSTEM 0x04    // System 0000_0100
 #define ATTR_VOLUME_ID 0x08 // VOLUME_ID 0000_1000
-#define ATTR_DIRECTORY 0x20 // Directory 0001_0000
+#define ATTR_ARCHIVE 0x20   // Archive 0010_0000
+#define ATTR_DIRECTORY 0x20  // Directory 0001_0000
 
-#define DIR_BOOL(x) ((x)&ATTR_DIRECTORY)
-#define DIR_SET(x) ((x) = (((x)&FREE_MASK) | ATTR_DIRECTORY))
+#define DIR_BOOL(x)             ((x)&ATTR_DIRECTORY)
+#define LONG_FILE_NAME_BOOL(x)  ((x)&ATTR_LONG_NAME)
+#define DIR_SET(x)              ((x)=((x)&FREE_MASK)|ATTR_DIRECTORY)
 
-#define ATTR_ARCHIVE 0x20 // Archive 0010_0000
 #define ATTR_LONG_NAME (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
 #define ATTR_LONG_NAME_MASK (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID | ATTR_DIRECTORY | ATTR_ARCHIVE)
 
@@ -191,9 +192,9 @@ extern struct _superblock fat32_sb;
 #define LAST_LONG_ENTRY 0x40
 #define LONG_DIRENT_CNT 20
 
-#define LONG_NAME_BOOL(x) (x == ATTR_LONG_NAME)
-#define LAST_LONG_ENTRY_BOOL(x) ((x)&LAST_LONG_ENTRY)
-#define LAST_LONG_ENTRY_SET(x) ((x) | LAST_LONG_ENTRY)
+#define LONG_NAME_BOOL(x)           ((x)&ATTR_LONG_NAME)
+#define LAST_LONG_ENTRY_BOOL(x)     ((x)&LAST_LONG_ENTRY)
+#define LAST_LONG_ENTRY_SET(x)      ((x)=((x)&FREE_MASK)|LAST_LONG_ENTRY)
 
 #define DOT (".          ")
 #define DOTDOT ("..         ")
@@ -202,6 +203,19 @@ extern struct _superblock fat32_sb;
 // $ % ' - _ @ ~ ` ! ( ) { } ^ # & is allowed
 #define LONG_NAME_MAX 255
 #define PATH_LONG_MAX 260
+
+#define FCB_PER_BLOCK      ((BSIZE)/sizeof(dirent_s_t))
+#define LONG_NAME_CHAR_MASK(x) (((x)>>8)&0xFF)
+#define LONG_NAME_CHAR_VALID(x) (((x)!=0x0000)&&((x)!=0xFFFF))
+
+#define SECTOR_TO_FATNUM(s,offset) (((s)-FirstDataSector)*(FCB_PER_BLOCK)+(offset))
+#define FATNUM_TO_SECTOR(num)   ((num)/(FCB_PER_BLOCK))
+#define FATNUM_TO_OFFSET(num)   ((num)%(FCB_PER_BLOCK))
+
+#define LOGISTIC_C_NUM(off)       ((off)/(__BPB_SecPerClus*BSIZE))
+#define LOGISTIC_C_OFFSET(off)    ((off)%(__BPB_SecPerClus*BSIZE))
+#define LOGISTIC_S_NUM(off)       (LOGISTIC_C_OFFSET(off)/BSIZE)
+#define LOGISTIC_S_OFFSET(off)    (LOGISTIC_C_OFFSET(off)%BSIZE)
 
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {
@@ -307,10 +321,10 @@ typedef struct Short_Dir_t {
     FAT_time_t DIR_CrtTime;    // create time, 2 bytes
     FAT_date_t DIR_CrtDate;    // create date, 2 bytes
     FAT_time_t DIR_LstAccDate; // last access date, 2 bytes
-    uchar DIR_FstClusHI[2];    // High word of first data cluster number
-    FAT_time_t DIR_WrtTime;    // Last modification (write) time.
-    FAT_time_t DIR_WrtDate;    // Last modification (write) date.
-    uchar DIR_FstClusLO[2];    // Low word of first data cluster number
+    uint16_t DIR_FstClusHI;    // High word of first data cluster number
+    FAT_time_t DIR_WrtTime;      // Last modification (write) time.
+    FAT_time_t DIR_WrtDate;      // Last modification (write) date.
+    uint16_t DIR_FstClusLO;    // Low word of first data cluster number
     uint32_t DIR_FileSize;     // 32-bit quantity containing size
 } __attribute__((packed)) dirent_s_t;
 
@@ -344,7 +358,22 @@ struct FATFS {
     uint free_count;
     uint nxt_free;
 
-    struct fat_entry *root_entry;
+    struct {
+        sleeplock_t lock;
+        struct fat_entry *parent;
+        char fname[PATH_LONG_MAX];
+        short nlink;
+        int ref;
+        int valid;
+        int fat_num;
+        uint32 cluster_start; // start num
+        uint32 cluster_end;   // end num
+        uint32 parent_off;    // offset in parent clusters
+        uint64 cluster_cnt;   // number of clusters
+
+        uchar Attr;             // directory attribute
+        uint32_t DIR_FileSize;  // file size (bytes)
+    } root_entry;
     /*access window*/
     uint winsect;
     uchar win[FF_MAX_SS];
