@@ -1,6 +1,6 @@
 #define USER
 #include "types.h"
-#include "fs/inode/stat.h"
+#include "fs/stat.h"
 #include "fs/fcntl.h"
 #include "user.h"
 

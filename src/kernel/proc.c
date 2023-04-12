@@ -27,7 +27,6 @@ extern void forkret(void);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
-extern FATFS_t global_fatfs;
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
 // memory model when using p->parent.
@@ -467,6 +466,8 @@ void yield(void) {
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void) {
+    // extern FATFS_t global_fatfs;
+    extern struct _superblock fat32_sb;
     static int first = 1;
 
     // Still holding p->lock from scheduler.
@@ -478,7 +479,7 @@ void forkret(void) {
         // be run from main().
         first = 0;
         // fsinit(ROOTDEV);
-        fat32_fs_mount(ROOTDEV, &global_fatfs);
+        fat32_fs_mount(ROOTDEV, &fat32_sb);
         char *argv[] = {"init", 0};
         myproc()->trapframe->a0 = exec("/init", argv);
     }

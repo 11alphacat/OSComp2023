@@ -146,4 +146,3 @@ void printf_bin(uchar *num, int len) {
     }
     printf("\r\n");
 }
-

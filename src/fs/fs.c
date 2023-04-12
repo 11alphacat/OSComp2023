@@ -12,7 +12,7 @@
 #include "common.h"
 #include "riscv.h"
 #include "param.h"
-#include "fs/inode/stat.h"
+#include "fs/stat.h"
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
 #include "atomic/sleeplock.h"
@@ -622,7 +622,7 @@ namex(char *path, int nameiparent, char *name) {
         ip = idup(myproc()->cwd);
 
     while ((path = skipelem(path, name)) != 0) {
-        (ip);
+        ilock(ip);
         if (ip->type != T_DIR) {
             iunlockput(ip);
             return 0;

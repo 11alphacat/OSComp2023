@@ -18,7 +18,7 @@ typedef unsigned long uint64;
 // 由于系统头文件会先搜索-I中指定的头文件,而内核中有同名的头文件fcntl.h
 // 因此编译mkfs.c不使用-I参数，这里的include path也就需要带上../include的前缀
 #include "../include/fs/inode/fs.h"
-#include "../include/fs/inode/stat.h"
+#include "../include/fs/stat.h"
 #include "../include/param.h"
 
 #ifndef static_assert

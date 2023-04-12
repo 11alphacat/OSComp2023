@@ -7,7 +7,7 @@
 #include "common.h"
 #include "riscv.h"
 #include "param.h"
-#include "fs/inode/stat.h"
+#include "fs/stat.h"
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
 #include "fs/inode/fs.h"

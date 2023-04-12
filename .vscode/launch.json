@@ -18,7 +18,6 @@
                 {
                     "description": "pretty printing",
                     "text": "-enable-pretty-printing",
-                    "ignoreFailures": true,
                 },
                 {
                     "description": "set output radix 16",

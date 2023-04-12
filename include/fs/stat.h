@@ -4,6 +4,8 @@
 // since mkfs will use kernel header file, add this condition preprocess
 #ifndef USER
 #include "common.h"
+#else
+typedef unsigned short mode_t;
 #endif
 
 #define T_DIR 1    // Directory
@@ -22,7 +24,6 @@ struct stat {
 
 typedef unsigned long int dev_t;
 typedef unsigned long int ino_t;
-typedef unsigned int mode_t;
 typedef unsigned long int nlink_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;

@@ -5,8 +5,8 @@
 #include "atomic/spinlock.h"
 #include "atomic/sleeplock.h"
 #include "fs/fat/fat32_fs.h"
-#include "vfs/fs.h"
 #include "fs/stat.h"
+#include "fs/vfs/fs.h"
 
 /* File function return code (FRESULT) */
 typedef enum {
@@ -33,14 +33,13 @@ typedef enum {
 } FRESULT;
 
 // Oscomp
-struct fat_dirent_buf{
+struct fat_dirent_buf {
     uint64 d_ino;            // 索引结点号
     int64 d_off;             // 到下一个dirent的偏移
     unsigned short d_reclen; // 当前dirent的长度
     unsigned char d_type;    // 文件类型
     char d_name[];           // 文件名
 };
-
 
 struct fat_entry {
     sleeplock_t lock;
@@ -70,24 +69,23 @@ struct fat_entry {
 };
 
 typedef struct fat_entry fat_entry_t;
-fat_entry_t* fat32_root_entry_init(FATFS_t *);
-fat_entry_t* fat32_name_fat_entry(char *);
-fat_entry_t* fat32_name_fat_entry_parent(char *, char *);
-fat_entry_t* fat32_fat_entry_dup(fat_entry_t*);
-fat_entry_t* fat32_fat_entry_dirlookup(fat_entry_t*, char *, uint *);
-fat_entry_t* fat32_fat_entry_get(uint, dirent_s_t*);
+struct _inode *fat32_root_entry_init(struct _superblock *);
+struct _inode *fat32_name_fat_entry(char *);
+struct _inode *fat32_name_fat_entry_parent(char *, char *);
+struct _inode *fat32_fat_entry_dup(struct _inode *);
+struct _inode *fat32_fat_entry_dirlookup(struct _inode *, char *, uint *);
+struct _inode *fat32_fat_entry_get(uint, dirent_s_t *);
 
-void fat32_fat_entry_trunc(fat_entry_t*);
-void fat32_fat_entry_update(fat_entry_t*);
-void fat32_fat_entry_lock(fat_entry_t*);
-void fat32_fat_entry_unlock(fat_entry_t*);
-void fat32_fat_entry_put(fat_entry_t*);
-void fat32_fat_entry_unlock_put(fat_entry_t*);
+void fat32_fat_entry_trunc(fat_entry_t *);
+void fat32_fat_entry_update(fat_entry_t *);
+void fat32_fat_entry_lock(fat_entry_t *);
+void fat32_fat_entry_unlock(fat_entry_t *);
+void fat32_fat_entry_put(fat_entry_t *);
+void fat32_fat_entry_unlock_put(fat_entry_t *);
 
-
-int fat32_fat_entry_write(fat_entry_t*, int, uint64, uint, uint);
-int fat32_fat_entry_read(fat_entry_t*, int, uint64, uint, uint);
-int fat32_fat_dirlink(fat_entry_t *, char*, uint);
+int fat32_fat_entry_write(fat_entry_t *, int, uint64, uint, uint);
+int fat32_fat_entry_read(fat_entry_t *, int, uint64, uint, uint);
+int fat32_fat_dirlink(fat_entry_t *, char *, uint);
 
 // void fat32_fat_entry_stat(fat_entry_t*, struct stat*);
 

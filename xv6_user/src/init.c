@@ -1,7 +1,7 @@
 // init: The initial user-level program
 #define USER
 #include "types.h"
-#include "fs/inode/stat.h"
+#include "fs/stat.h"
 #include "fs/inode/fs.h"
 #include "user.h"
 #include "fs/fcntl.h"

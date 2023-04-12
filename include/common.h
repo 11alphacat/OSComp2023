@@ -28,8 +28,8 @@ typedef uint16 uint16_t;
 typedef uint32 uint32_t;
 typedef uint64 uint64_t;
 
-typedef unsigned short  WORD;
-typedef unsigned int    DWORD;
+typedef unsigned short WORD;
+typedef unsigned int DWORD;
 
 typedef unsigned char *byte_pointer;
 #define NULL ((void *)0)
@@ -46,15 +46,14 @@ char *safestrcpy(char *, const char *, int);
 int strlen(const char *);
 int strncmp(const char *, const char *, uint);
 char *strncpy(char *, const char *, int);
-void to_upper(char *);
-void to_lower(char *);
+void str_toupper(char *);
+void str_tolower(char *);
 
 // printf.c
 void printf(char *, ...);
 void panic(char *) __attribute__((noreturn));
 void Show_bytes(byte_pointer, int);
 void printf_bin(uchar *, int);
-
 
 #endif
 

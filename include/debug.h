@@ -44,4 +44,6 @@
 
 #define Info_R(fmt, ...) printf("[INFO] " RED(fmt) "", ##__VA_ARGS__);
 
+#define TODO() 0
+
 #endif // __DEBUG_H__
