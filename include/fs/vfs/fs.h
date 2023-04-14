@@ -12,7 +12,7 @@ struct _superblock {
     struct spinlock lock;
     uint8 s_dev;
 
-    //
+    
     uint32 s_blocksize;
     // uint32 s_blocksize_bits;
     uint n_sectors;   // Number of sectors

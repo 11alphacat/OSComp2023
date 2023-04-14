@@ -8,17 +8,17 @@
 /*
     FAT32
     +---------------------------+
-    |   0:  Boot Sector         |
+    | 0:    Boot Sector         |
     +---------------------------+
-    |  1:    FsInfo            |
+    | 1:       FsInfo           |
     +---------------------------+
-    |  6: Backup BPB Structure  |
+    | 6: Backup BPB Structure   |
+    +---------------------------+
+    | 7: Backup FsInfo Structure|
     +---------------------------+
     |     FAT Region (FAT1)     |
     +---------------------------+
     |     FAT Region (FAT2)     |
-    +---------------------------+
-    |    Root Directory Region  |
     +---------------------------+
     |    Data Region (Cluster 2)|
     +---------------------------+
@@ -324,14 +324,15 @@ typedef struct __date_t {
     uchar day : 5;   // 0~31
     uchar month : 4; // Jan ~ Dec
     uchar year : 7;  // form 1980 (1980~2107)
-} FAT_date_t;
+} __attribute__((packed)) FAT_date_t;
 
-// Time
+// Time 
 typedef struct __time_t {
     uchar second_per_2 : 5; // 2-second increments 0~59
     uchar minute : 6;       // number of minutes 0~59
     uchar hour : 5;         // hours 0~23
-} FAT_time_t;
+} __attribute__((packed)) FAT_time_t;
+
 
 // Directory Structure (short name)
 typedef struct Short_Dir_t {
