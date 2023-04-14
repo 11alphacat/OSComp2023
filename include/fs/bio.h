@@ -57,4 +57,5 @@ int init_bio(void);
 int submit_bio(int, struct bio *);
 int free_bio(struct bio *);
 
+void fat32_bzero(int, int);
 #endif // __BIO_H__

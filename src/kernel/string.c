@@ -119,4 +119,27 @@ void str_tolower(char *str) {
             str++;
         }
     }
+char *strchr(const char *str, int c) {
+    while (*str != '\0') {
+        if (*str == (char)c) {
+            return (char *)str;
+        }
+        str++;
+    }
+    if (c == '\0') {
+        return (char *)str;
+    }
+    return NULL;
+}
+
+int str_split(char *str, char ch, char *str1, char *str2) {
+    char *p = strchr(str, ch);
+    if (p == NULL) {
+        return -1;
+    }
+    *p = '\0';
+    strncpy(str1, str, sizeof(str1));
+    strncpy(str2, p + 1, sizeof(str2));
+
+    return 1;
 }

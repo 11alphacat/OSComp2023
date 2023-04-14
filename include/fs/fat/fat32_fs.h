@@ -8,15 +8,15 @@
 /*
     FAT32
     +---------------------------+
-    |       Boot Sector         |
+    |   0:  Boot Sector         |
     +---------------------------+
-    |         FsInfo            |
+    |  1:    FsInfo            |
+    +---------------------------+
+    |  6: Backup BPB Structure  |
     +---------------------------+
     |     FAT Region (FAT1)     |
     +---------------------------+
     |     FAT Region (FAT2)     |
-    +---------------------------+
-    |     Backup BPB Structure  |
     +---------------------------+
     |    Root Directory Region  |
     +---------------------------+
@@ -102,6 +102,16 @@ extern struct _superblock fat32_sb;
 #define __BPB_SecPerClus (fat32_sb.fat32_sb_info.sector_per_cluster)
 #define __Free_Count (fat32_sb.fat32_sb_info.free_count)
 #define __Nxt_Free (fat32_sb.fat32_sb_info.nxt_free)
+// #define __BPB_RootEntCnt 0
+// #define __BPB_BytsPerSec (global_fatfs.sector_size)
+// #define __BPB_ResvdSecCnt (global_fatfs.fatbase)
+// #define __BPB_NumFATs (global_fatfs.n_fats)
+// #define __FATSz (global_fatfs.n_sectors_fat)
+// #define __BPB_SecPerClus (global_fatfs.sector_per_cluster)
+// #define __TotSec (global_fatfs.n_sectors)
+// #define __Free_Count (global_fatfs.free_count)
+// #define __Nxt_Free (global_fatfs.nxt_free)
+// #define __CLUSTER_SIZE (global_fatfs.cluster_size)
 
 // number of root directory sectors
 #define RootDirSectors (((__BPB_RootEntCnt * 32) + (__BPB_BytsPerSec - 1)) / __BPB_BytsPerSec)
@@ -129,6 +139,10 @@ extern struct _superblock fat32_sb;
 
 // FAT item
 #define FATOffset(N) ((N)*4)
+#define FAT_CLUSTER_CNT CountofClusters + 1
+
+#define FAT_BASE __BPB_ResvdSecCnt
+// #define ThisFATSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
 // the sector number of fat entry
 // 保留区域的扇区个数+一个扇区对应4字节的FAT表项的偏移/一个扇区多少个字节，就可以算出这个FAT表项在那个扇区
 #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + ((FATOffset(N)) / (__BPB_BytsPerSec)))
@@ -138,6 +152,7 @@ extern struct _superblock fat32_sb;
 
 // read the FAT32 cluster entry value
 #define FAT32NextCluster(SectorBuf, N) ((*((DWORD *)&((char *)SectorBuf)[(ThisFATEntOffset(N))])) & 0x0FFFFFFF)
+#define FAT32ClusEntryVal(SecBuff, N) ((*((DWORD *)&(SecBuff)[(ThisFATEntOffset(N))])) & 0x0FFFFFFF)
 
 // set the FAT32 cluster entry value
 #define SetFAT32ClusEntryVal(SecBuff, N, Val)                                                                    \
@@ -179,11 +194,11 @@ extern struct _superblock fat32_sb;
 #define ATTR_SYSTEM 0x04    // System 0000_0100
 #define ATTR_VOLUME_ID 0x08 // VOLUME_ID 0000_1000
 #define ATTR_ARCHIVE 0x20   // Archive 0010_0000
-#define ATTR_DIRECTORY 0x20  // Directory 0001_0000
+#define ATTR_DIRECTORY 0x20 // Directory 0001_0000
 
-#define DIR_BOOL(x)             ((x)&ATTR_DIRECTORY)
-#define LONG_FILE_NAME_BOOL(x)  ((x)&ATTR_LONG_NAME)
-#define DIR_SET(x)              ((x)=((x)&FREE_MASK)|ATTR_DIRECTORY)
+#define DIR_BOOL(x) ((x)&ATTR_DIRECTORY)
+#define LONG_FILE_NAME_BOOL(x) ((x)&ATTR_LONG_NAME)
+#define DIR_SET(x) ((x) = ((x)&FREE_MASK) | ATTR_DIRECTORY)
 
 #define ATTR_LONG_NAME (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
 #define ATTR_LONG_NAME_MASK (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID | ATTR_DIRECTORY | ATTR_ARCHIVE)
@@ -192,31 +207,39 @@ extern struct _superblock fat32_sb;
 #define LAST_LONG_ENTRY 0x40
 #define LONG_DIRENT_CNT 20
 
-#define LONG_NAME_BOOL(x)           ((x)&ATTR_LONG_NAME)
-#define LAST_LONG_ENTRY_BOOL(x)     ((x)&LAST_LONG_ENTRY)
-#define LAST_LONG_ENTRY_SET(x)      ((x)=((x)&FREE_MASK)|LAST_LONG_ENTRY)
+#define LONG_NAME_BOOL(x) ((x)&ATTR_LONG_NAME)
+#define LAST_LONG_ENTRY_BOOL(x) ((x)&LAST_LONG_ENTRY)
+#define LAST_LONG_ENTRY_SET(x) ((x) = ((x)&FREE_MASK) | LAST_LONG_ENTRY)
 
 #define DOT (".          ")
 #define DOTDOT ("..         ")
-#define SHORT_NAME_MAX 8
+#define NAME_SHORT_MAX 8
 #define PATH_SHORT_MAX 80
 // $ % ' - _ @ ~ ` ! ( ) { } ^ # & is allowed
-#define LONG_NAME_MAX 255
+#define NAME_LONG_MAX 255
 #define PATH_LONG_MAX 260
 
-#define FCB_PER_BLOCK      ((BSIZE)/sizeof(dirent_s_t))
-#define LONG_NAME_CHAR_MASK(x) (((x)>>8)&0xFF)
-#define LONG_NAME_CHAR_VALID(x) (((x)!=0x0000)&&((x)!=0xFFFF))
+#define FCB_PER_BLOCK ((BSIZE) / sizeof(dirent_s_t))
+#define LONG_NAME_CHAR_MASK(x) ((x) & 0xFF)
+#define LONG_NAME_CHAR_VALID(x) (((x) != 0x0000) && ((x) != 0xFFFF))
+#define LONG_NAME_CHAR_SET(x) (((ushort)(x)) | 0x00FF)
 
-#define SECTOR_TO_FATNUM(s,offset) (((s)-FirstDataSector)*(FCB_PER_BLOCK)+(offset))
-#define FATNUM_TO_SECTOR(num)   ((num)/(FCB_PER_BLOCK))
-#define FATNUM_TO_OFFSET(num)   ((num)%(FCB_PER_BLOCK))
+#define SECTOR_TO_FATNUM(s, offset) (((s)-FirstDataSector) * (FCB_PER_BLOCK) + (offset))
+#define FATNUM_TO_SECTOR(num) ((num) / (FCB_PER_BLOCK))
+#define FATNUM_TO_OFFSET(num) ((num) % (FCB_PER_BLOCK))
 
-#define LOGISTIC_C_NUM(off)       ((off)/(__BPB_SecPerClus*BSIZE))
-#define LOGISTIC_C_OFFSET(off)    ((off)%(__BPB_SecPerClus*BSIZE))
-#define LOGISTIC_S_NUM(off)       (LOGISTIC_C_OFFSET(off)/BSIZE)
-#define LOGISTIC_S_OFFSET(off)    (LOGISTIC_C_OFFSET(off)%BSIZE)
+#define LOGISTIC_C_NUM(off) ((off) / (__BPB_SecPerClus * BSIZE))
+#define LOGISTIC_C_OFFSET(off) ((off) % (__BPB_SecPerClus * BSIZE))
+#define LOGISTIC_S_NUM(off) (LOGISTIC_C_OFFSET(off) / BSIZE)
+#define LOGISTIC_S_OFFSET(off) (LOGISTIC_C_OFFSET(off) % BSIZE)
 
+#define FAT_PER_BLOCK ((BSIZE) / 4)
+
+#define DIRLENGTH(fat_ep) ((fat_ep->cluster_cnt) * __CLUSTER_SIZE)
+
+#define FCB_MAX_LENGTH 672 // (21+1)*32
+
+#define STR_END_BOOL(x) ((x) == '\0')
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {
     /*FAT common field*/
@@ -322,8 +345,8 @@ typedef struct Short_Dir_t {
     FAT_date_t DIR_CrtDate;    // create date, 2 bytes
     FAT_time_t DIR_LstAccDate; // last access date, 2 bytes
     uint16_t DIR_FstClusHI;    // High word of first data cluster number
-    FAT_time_t DIR_WrtTime;      // Last modification (write) time.
-    FAT_time_t DIR_WrtDate;      // Last modification (write) date.
+    FAT_time_t DIR_WrtTime;    // Last modification (write) time.
+    FAT_time_t DIR_WrtDate;    // Last modification (write) date.
     uint16_t DIR_FstClusLO;    // Low word of first data cluster number
     uint32_t DIR_FileSize;     // 32-bit quantity containing size
 } __attribute__((packed)) dirent_s_t;
@@ -336,7 +359,7 @@ typedef struct Long_Dir_t {
     uchar LDIR_Type;         // Must be set to 0.
     uchar LDIR_Chksum;       // Checksum of name
     uint16_t LDIR_Name2[6];  // characters 6 through 11
-    uchar LDIR_FstClusLO[2]; // Must be set to 0
+    uint16_t LDIR_FstClusLO; // Must be set to 0
     uint16_t LDIR_Name3[2];  // characters 12 and 13
 } __attribute__((packed)) dirent_l_t;
 
@@ -371,8 +394,8 @@ struct FATFS {
         uint32 parent_off;    // offset in parent clusters
         uint64 cluster_cnt;   // number of clusters
 
-        uchar Attr;             // directory attribute
-        uint32_t DIR_FileSize;  // file size (bytes)
+        uchar Attr;            // directory attribute
+        uint32_t DIR_FileSize; // file size (bytes)
     } root_entry;
     /*access window*/
     uint winsect;

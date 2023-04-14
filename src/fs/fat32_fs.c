@@ -8,6 +8,8 @@
 #include "debug.h"
 #include "test.h"
 #include "param.h"
+#include "fs/fat/fat32_stack.h"
+#include "kernel_test.h"
 
 // FATFS_t global_fatfs;
 struct _superblock fat32_sb;
@@ -142,10 +144,118 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
     return FR_OK;
 }
 
+int fat32_fcb_init(fat_entry_t *fat_ep_parent, uchar *long_name, uchar attr, char *fcb_char) {
+    dirent_s_t dirent_s_cur;
+    memset((void *)&dirent_s_cur, 0, sizeof(dirent_s_cur));
+    // dirent_l_t dirent_l_cur;
+    dirent_s_cur.DIR_Attr = attr;
+
+    uint long_idx = -1;
+
+    char file_name[NAME_LONG_MAX];
+    char file_ext[4];
+
+    /*short dirent*/
+    int name_len = strlen(long_name);
+    // 数据文件
+    if (!DIR_BOOL(attr)) {
+        if (str_split(long_name, '.', file_name, file_ext) == -1) {
+            panic("fcb init : str split");
+        }
+        to_upper(file_ext);
+        strncpy(dirent_s_cur.DIR_Name + 8, file_ext, 3); // extend name
+
+        to_upper(file_name);
+        strncpy(dirent_s_cur.DIR_Name, file_name, 8);
+        if (strlen(long_name) > 8) {
+            long_idx = fat32_find_same_name_cnt(fat_ep_parent, long_name);
+            dirent_s_cur.DIR_Name[6] = '~';
+            dirent_s_cur.DIR_Name[7] = long_idx;
+        }
+    } else {
+        // 目录文件
+        strncpy(file_name, long_name, 11);
+
+        to_upper(file_name);
+        strncpy(dirent_s_cur.DIR_Name, file_name, 11);
+        if (strlen(long_name) > 8) {
+            long_idx = fat32_find_same_name_cnt(fat_ep_parent, long_name);
+
+            strncpy(dirent_s_cur.DIR_Name + 8, file_name + (name_len - 3), 3); // last three char
+            dirent_s_cur.DIR_Name[6] = '~';
+            dirent_s_cur.DIR_Name[7] = long_idx;
+        }
+    }
+    dirent_s_cur.DIR_FileSize = 0;
+
+    uint first_c = fat32_cluster_alloc(fat_ep_parent->fatfs_obj->dev);
+    dirent_s_cur.DIR_FstClusHI = DIR_FIRST_HIGH(first_c);
+    dirent_s_cur.DIR_FstClusLO = DIR_FIRST_LOW(first_c);
+
+    /*push long dirent into stack*/
+    Stack_t fcb_stack;
+    stack_init(&fcb_stack);
+    int iter_order = 1;
+    uchar checksum = ChkSum(dirent_s_cur.DIR_Name);
+    int char_idx = 0;
+    // every long name entry
+    for (int i = 1; i <= name_len / FAT_LFN_LENGTH + 1; i++) {
+        dirent_l_t dirent_l_cur;
+        memset((void *)&(dirent_l_cur), 0xFF, sizeof(dirent_l_cur));
+        if (char_idx == name_len)
+            break;
+
+        // order
+        if (i == name_len / FAT_LFN_LENGTH + 1)
+            dirent_l_cur.LDIR_Ord = LAST_LONG_ENTRY_SET(i);
+        else
+            dirent_l_cur.LDIR_Ord = i;
+
+        // Name
+        int end_flag = 0;
+        for (int i = 0; i < 5&&!end_flag; i++)
+        {
+            dirent_l_cur.LDIR_Name1[i] = LONG_NAME_CHAR_SET(long_name[char_idx]);                
+            if (LONG_NAME_CHAR_VALID(long_name[char_idx++]))
+                end_flag=1;
+        }
+        for (int i = 0; i < 6&&!end_flag; i++)
+        {
+            dirent_l_cur.LDIR_Name2[i] = LONG_NAME_CHAR_SET(long_name[char_idx]);                
+            if (LONG_NAME_CHAR_VALID(long_name[char_idx++]))
+                end_flag=1;
+        }
+        for (int i = 0; i < 2&&!end_flag; i++)
+        {
+            dirent_l_cur.LDIR_Name3[i] = LONG_NAME_CHAR_SET(long_name[char_idx]);                
+            if (LONG_NAME_CHAR_VALID(long_name[char_idx++]))
+                end_flag=1;
+        }
+
+        // Attr  and  Type
+        dirent_l_cur.LDIR_Attr = ATTR_LONG_NAME_MASK;
+        dirent_l_cur.LDIR_Type = 0;
+
+        // check sum 
+        dirent_l_cur.LDIR_Chksum = checksum;
+        stack_push(&fcb_stack, dirent_l_cur);
+
+        dirent_l_cur.LDIR_FstClusLO = 0;
+    }
+
+    while (!stack_is_empty(&fcb_stack)) {
+        dirent_l_t fcb_l_tmp = stack_pop(&fcb_stack);
+        memmove(fcb_char, &fcb_l_tmp, sizeof(fcb_l_tmp));
+        fcb_char = fcb_char + sizeof(fcb_l_tmp);
+    }
+    memmove(fcb_char, &dirent_s_cur, sizeof(dirent_s_cur));
+    return 1;
+    // TODO: 获取当前时间和日期，还有TimeTenth
+}
+
 uchar ChkSum(uchar *pFcbName) {
     uchar Sum = 0;
-    for (short FcbNameLen=13; FcbNameLen!=0; FcbNameLen--) 
-    {
+    for (short FcbNameLen = 11; FcbNameLen != 0; FcbNameLen--) {
         Sum = ((Sum & 1) ? 0x80 : 0) + (Sum >> 1) + *pFcbName++;
     }
     return Sum;

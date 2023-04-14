@@ -37,6 +37,10 @@ typedef uint64 pte_t;
 typedef uint64 pde_t;
 typedef uint64 *pagetable_t; // 512 PTEs
 
+// math
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 // string.c
 int memcmp(const void *, const void *, uint);
 void *memmove(void *, const void *, uint);
@@ -48,6 +52,8 @@ int strncmp(const char *, const char *, uint);
 char *strncpy(char *, const char *, int);
 void str_toupper(char *);
 void str_tolower(char *);
+char *strchr(const char *, int);
+int str_split(char *, char, char *, char *);
 
 // printf.c
 void printf(char *, ...);

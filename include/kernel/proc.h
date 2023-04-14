@@ -39,7 +39,12 @@ struct proc {
     struct context context;      // swtch() here to run process
     struct file *ofile[NOFILE];  // Open files
     struct inode *cwd;           // Current directory
+<<<<<<< HEAD
     char name[16];               // Process name (debugging)
+=======
+    struct fat_entry *fat_cwd;
+    char name[16]; // Process name (debugging)
+>>>>>>> modify4
 };
 
 // per-process data for the trap handling code in trampoline.S.

@@ -148,3 +148,13 @@ int init_bio() {
 int free_bio(struct bio *bio) {
     return 0;
 }
+
+// Zero a block.
+void fat32_bzero(int dev, int bno) {
+    struct buffer_head *bp;
+
+    bp = bread(dev, bno);
+    memset(bp->data, 0, BSIZE);
+    bwrite(bp);
+    brelse(bp);
+}

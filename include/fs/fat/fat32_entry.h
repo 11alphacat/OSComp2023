@@ -41,7 +41,7 @@ struct fat_dirent_buf {
     char d_name[];           // 文件名
 };
 
-#define PATH_LONG_MAX      260
+
 struct fat_entry {
     sleeplock_t lock;
     struct fat_entry *parent;
@@ -85,12 +85,12 @@ struct _inode *fat32_fat_entry_dirlookup(struct _inode *, char *, uint *);
 // fat_entry_t* fat32_fat_entry_dirlookup(fat_entry_t*, char *, uint *);
 fat_entry_t* fat32_fat_entry_get(uint, uint, char*,uint);
 
-void fat32_fat_entry_trunc(fat_entry_t*);
-void fat32_fat_entry_update(fat_entry_t*);
-void fat32_fat_entry_lock(fat_entry_t*);
-void fat32_fat_entry_unlock(fat_entry_t*);
-void fat32_fat_entry_put(fat_entry_t*);
-void fat32_fat_entry_unlock_put(fat_entry_t*);
+void fat32_fat_entry_trunc(fat_entry_t *);
+void fat32_fat_entry_update(fat_entry_t *);
+void fat32_fat_entry_lock(fat_entry_t *);
+void fat32_fat_entry_unlock(fat_entry_t *);
+void fat32_fat_entry_put(fat_entry_t *);
+void fat32_fat_entry_unlock_put(fat_entry_t *);
 
 void fat32_fat_entry_trunc(fat_entry_t *);
 void fat32_fat_entry_update(fat_entry_t *);
@@ -103,12 +103,18 @@ int fat32_fat_entry_write(fat_entry_t *, int, uint64, uint, uint);
 int fat32_fat_entry_read(fat_entry_t *, int, uint64, uint, uint);
 int fat32_fat_dirlink(fat_entry_t *, char *, uint);
 
-int fat32_fat_dirlink(fat_entry_t *, char*, uint);
+int fat32_filter_longname(dirent_l_t *, char *);
+
+uint fat32_cluster_alloc(uint);
+
+uint fat32_fat_alloc();
+
+uint fat32_fat_next_cluster(uint);
+
+// int fat32_fat_dirlink(fat_entry_t *, char*, uint);
 // void fat32_fat_entry_stat(fat_entry_t*, struct stat*);
-char* fat32_filter_longname(dirent_l_t*);
 
-int *fat32_fat_fcb_alloc(uint, short);
-
+uint8 fat32_find_same_name_cnt(fat_entry_t *fat_ep, char *name);
 
 // implement file_operations
 char *fat32_getcwd(char *__user buf, size_t size);
