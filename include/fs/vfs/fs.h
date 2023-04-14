@@ -56,7 +56,7 @@ struct file_operations {
     int (*mkdirat)(int dirfd, const char *pathname, mode_t mode);
     int (*umount2)(const char *target, int flags);
     int (*mount)(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
-    int (*fstat)(int fd, struct kstat *statbuf);
+    // int (*fstat)(int fd, struct kstat *statbuf);
 };
 
 #define NAME_MAX 10

@@ -94,9 +94,15 @@ int strlen(const char *s) {
     return n;
 }
 
-#define toupper(__c) (((__c) >= 'a' && (__c) <= 'z') ? ((unsigned char)(__c) - 'a' + 'A') : __c)
-#define tolower(__c) (((__c) >= 'A' && (__c) <= 'Z') ? ((unsigned char)(__c) - 'A' + 'a') : __c)
+size_t strnlen(const char *s, size_t count) {
+    const char *sc;
 
+    for (sc = s; *sc != '\0' && count--; ++sc)
+        /* nothing */;
+    return sc - s;
+}
+
+#include "ctype.h"
 void str_toupper(char *str) {
     if (str != NULL) {
         while (*str != '\0') {

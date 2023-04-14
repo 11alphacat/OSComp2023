@@ -14,6 +14,8 @@
 #include "riscv.h"
 #include "driver/console.h"
 
+#include "ctype.h"
+
 volatile int panicked = 0;
 
 // lock to avoid interleaving concurrent printf's.
@@ -22,45 +24,244 @@ static struct {
     int locking;
 } pr;
 
-static char digits[] = "0123456789abcdef";
+#define ZEROPAD 1  /* pad with zero */
+#define SIGN 2     /* unsigned/signed long */
+#define PLUS 4     /* show plus */
+#define SPACE 8    /* space if plus */
+#define LEFT 16    /* left justified */
+#define SPECIAL 32 /* 0x */
+#define LARGE 64   /* use 'ABCDEF' instead of 'abcdef' */
 
-static void
-printint(int xx, int base, int sign) {
-    char buf[16];
+#define do_div(n, base) ({ \
+int __res; \
+__res = ((unsigned long) n) % (unsigned) base; \
+n = ((unsigned long) n) / (unsigned) base; \
+__res; })
+
+/* we use this so that we can do without the ctype library */
+#define is_digit(c) ((c) >= '0' && (c) <= '9')
+
+static int skip_atoi(const char **s) {
+    int i = 0;
+
+    while (is_digit(**s))
+        i = i * 10 + *((*s)++) - '0';
+    return i;
+}
+static void number(long num, int base, int size, int precision, int type) {
+    char c, sign, tmp[66];
+    const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
     int i;
-    uint x;
 
-    if (sign && (sign = xx < 0))
-        x = -xx;
-    else
-        x = xx;
-
+    if (type & LARGE)
+        digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if (type & LEFT)
+        type &= ~ZEROPAD;
+    if (base < 2 || base > 36)
+        return;
+    c = (type & ZEROPAD) ? '0' : ' ';
+    sign = 0;
+    if (type & SIGN) {
+        if (num < 0) {
+            sign = '-';
+            num = -num;
+            size--;
+        } else if (type & PLUS) {
+            sign = '+';
+            size--;
+        } else if (type & SPACE) {
+            sign = ' ';
+            size--;
+        }
+    }
+    if (type & SPECIAL) {
+        if (base == 16)
+            size -= 2;
+        else if (base == 8)
+            size--;
+    }
     i = 0;
-    do {
-        buf[i++] = digits[x % base];
-    } while ((x /= base) != 0);
-
+    if (num == 0)
+        tmp[i++] = '0';
+    else
+        while (num != 0)
+            tmp[i++] = digits[do_div(num, base)];
+    if (i > precision)
+        precision = i;
+    size -= precision;
+    if (!(type & (ZEROPAD + LEFT)))
+        while (size-- > 0)
+            consputc(' ');
     if (sign)
-        buf[i++] = '-';
-
-    while (--i >= 0)
-        consputc(buf[i]);
+        consputc(sign);
+    if (type & SPECIAL) {
+        if (base == 8)
+            consputc('0');
+        else if (base == 16) {
+            consputc('0');
+            consputc(digits[33]);
+        }
+    }
+    if (!(type & LEFT)) {
+        while (size-- > 0)
+            consputc(c);
+    }
+    while (i < precision--)
+        consputc('0');
+    while (i-- > 0)
+        consputc(tmp[i]);
+    while (size-- > 0)
+        consputc(' ');
 }
 
-static void
-printptr(uint64 x) {
-    int i;
-    consputc('0');
-    consputc('x');
-    for (i = 0; i < (sizeof(uint64) * 2); i++, x <<= 4)
-        consputc(digits[x >> (sizeof(uint64) * 8 - 4)]);
+void vprintf(const char *fmt, va_list args) {
+    int len;
+    unsigned long num;
+    int i, base;
+    char *s;
+
+    int flags; /* flags to number() */
+
+    int field_width; /* width of output field */
+    int precision;   /* min. # of digits for integers; max
+				   number of chars for from string */
+    int qualifier;   /* 'l', or 'L' for integer fields */
+
+    for (; *fmt; ++fmt) {
+        if (*fmt != '%') {
+            consputc(*fmt);
+            continue;
+        }
+
+        /* process flags */
+        flags = 0;
+    repeat:
+        ++fmt; /* this also skips first '%' */
+        switch (*fmt) {
+        case '-': flags |= LEFT; goto repeat;
+        case '+': flags |= PLUS; goto repeat;
+        case ' ': flags |= SPACE; goto repeat;
+        case '#': flags |= SPECIAL; goto repeat;
+        case '0': flags |= ZEROPAD; goto repeat;
+        }
+
+        /* get field width */
+        field_width = -1;
+        if (is_digit(*fmt))
+            field_width = skip_atoi(&fmt);
+        else if (*fmt == '*') {
+            ++fmt;
+            /* it's the next argument */
+            field_width = va_arg(args, int);
+            if (field_width < 0) {
+                field_width = -field_width;
+                flags |= LEFT;
+            }
+        }
+
+        /* get the precision */
+        precision = -1;
+        if (*fmt == '.') {
+            ++fmt;
+            if (is_digit(*fmt))
+                precision = skip_atoi(&fmt);
+            else if (*fmt == '*') {
+                ++fmt;
+                /* it's the next argument */
+                precision = va_arg(args, int);
+            }
+            if (precision < 0)
+                precision = 0;
+        }
+
+        /* get the conversion qualifier */
+        qualifier = -1;
+        if (*fmt == 'l' || *fmt == 'L') {
+            qualifier = *fmt;
+            ++fmt;
+        }
+
+        /* default base */
+        base = 10;
+
+        switch (*fmt) {
+        case 'c':
+            if (!(flags & LEFT))
+                while (--field_width > 0)
+                    consputc(' ');
+            consputc((unsigned char)va_arg(args, int));
+            while (--field_width > 0)
+                consputc(' ');
+            continue;
+
+        case 's':
+            s = va_arg(args, char *);
+            if (!s)
+                s = "<NULL>";
+
+            len = strnlen(s, precision);
+
+            if (!(flags & LEFT))
+                while (len < field_width--)
+                    consputc(' ');
+            for (i = 0; i < len; ++i)
+                consputc(*s++);
+            while (len < field_width--)
+                consputc(' ');
+            continue;
+
+        case 'p':
+            if (field_width == -1) {
+                field_width = 2 * sizeof(void *);
+                flags |= ZEROPAD;
+            }
+            number((unsigned long)va_arg(args, void *), 16,
+                   field_width, precision, flags);
+            continue;
+
+        /* integer number formats - set up the flags and "break" */
+        case 'o':
+            base = 8;
+            break;
+
+        case 'X':
+            flags |= LARGE;
+        case 'x':
+            base = 16;
+            break;
+
+        case 'd':
+        case 'i':
+            flags |= SIGN;
+        case 'u':
+            break;
+
+        default:
+            if (*fmt != '%')
+                consputc('%');
+            if (*fmt)
+                consputc(*fmt);
+            else
+                --fmt;
+            continue;
+        }
+        if (qualifier == 'l')
+            num = va_arg(args, unsigned long);
+        else if (flags & SIGN)
+            num = va_arg(args, int);
+        else
+            num = va_arg(args, unsigned int);
+        number(num, base, field_width, precision, flags);
+    }
+    return;
 }
 
 // Print to the console. only understands %d, %x, %p, %s.
 void printf(char *fmt, ...) {
     va_list ap;
-    int i, c, locking;
-    char *s;
+    // int i, c, locking;
+    int locking;
+    // char *s;
 
     locking = pr.locking;
     if (locking)
@@ -70,40 +271,7 @@ void printf(char *fmt, ...) {
         panic("null fmt");
 
     va_start(ap, fmt);
-    for (i = 0; (c = fmt[i] & 0xff) != 0; i++) {
-        if (c != '%') {
-            consputc(c);
-            continue;
-        }
-        c = fmt[++i] & 0xff;
-        if (c == 0)
-            break;
-        switch (c) {
-        case 'd':
-            printint(va_arg(ap, int), 10, 1);
-            break;
-        case 'x':
-            printint(va_arg(ap, int), 16, 1);
-            break;
-        case 'p':
-            printptr(va_arg(ap, uint64));
-            break;
-        case 's':
-            if ((s = va_arg(ap, char *)) == 0)
-                s = "(null)";
-            for (; *s; s++)
-                consputc(*s);
-            break;
-        case '%':
-            consputc('%');
-            break;
-        default:
-            // Print unknown % sequence to draw attention.
-            consputc('%');
-            consputc(c);
-            break;
-        }
-    }
+    vprintf(fmt, ap);
     va_end(ap);
 
     if (locking)

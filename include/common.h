@@ -22,7 +22,6 @@ typedef unsigned long size_t;
 typedef long ssize_t;
 typedef unsigned short mode_t;
 
-
 typedef uint8 uint8_t;
 typedef uint16 uint16_t;
 typedef uint32 uint32_t;
@@ -44,6 +43,7 @@ void *memmove(void *, const void *, uint);
 void *memset(void *, int, uint);
 char *safestrcpy(char *, const char *, int);
 int strlen(const char *);
+size_t strnlen(const char *s, size_t count);
 int strncmp(const char *, const char *, uint);
 char *strncpy(char *, const char *, int);
 void str_toupper(char *);
@@ -54,6 +54,10 @@ void printf(char *, ...);
 void panic(char *) __attribute__((noreturn));
 void Show_bytes(byte_pointer, int);
 void printf_bin(uchar *, int);
+
+// sprintf.c
+int sprintf(char *buf, const char *fmt, ...);
+int snprintf(char *buf, int size, const char *fmt, ...);
 
 #endif
 

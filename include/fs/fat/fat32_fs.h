@@ -312,7 +312,7 @@ typedef struct Short_Dir_t {
     FAT_time_t DIR_WrtDate;    // Last modification (write) date.
     uchar DIR_FstClusLO[2];    // Low word of first data cluster number
     uint32_t DIR_FileSize;     // 32-bit quantity containing size
-} __attribute__((packed)) dirent_s_t ;
+} __attribute__((packed)) dirent_s_t;
 
 // Directory Structure (long name)
 typedef struct Long_Dir_t {

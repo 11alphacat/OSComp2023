@@ -6,6 +6,7 @@
 #include "memory/list_alloc.h"
 #include "fs/bio.h"
 #include "debug.h"
+#include "test.h"
 
 // FATFS_t global_fatfs;
 struct _superblock fat32_sb;
@@ -31,6 +32,8 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     sb->fat32_sb_info.root_entry = fat32_root_entry_init(sb);
     sb->s_mount = sb->fat32_sb_info.root_entry;
 
+    snprintf_test();
+    printf_test();
     panic("fs_mount");
     return FR_OK;
 }
