@@ -93,3 +93,30 @@ int strlen(const char *s) {
         ;
     return n;
 }
+
+size_t strnlen(const char *s, size_t count) {
+    const char *sc;
+
+    for (sc = s; *sc != '\0' && count--; ++sc)
+        /* nothing */;
+    return sc - s;
+}
+
+#include "ctype.h"
+void str_toupper(char *str) {
+    if (str != NULL) {
+        while (*str != '\0') {
+            *str = toupper(*str);
+            str++;
+        }
+    }
+}
+
+void str_tolower(char *str) {
+    if (str != NULL) {
+        while (*str != '\0') {
+            *str = tolower(*str);
+            str++;
+        }
+    }
+}

@@ -4,6 +4,7 @@
 #include "riscv.h"
 #include "kernel/proc.h"
 #include "kernel/cpu.h"
+#include "test.h"
 
 volatile static int started = 0;
 void printfinit(void);
@@ -46,6 +47,9 @@ void main() {
         fileinit();         // file table
         virtio_disk_init(); // emulated hard disk
         userinit();         // first user process
+        // test
+        printf_test();
+        snprintf_test();
         __sync_synchronize();
         started = 1;
     } else {
