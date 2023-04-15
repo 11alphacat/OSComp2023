@@ -67,43 +67,30 @@ sys_dup(void) {
 }
 
 uint64
-sys_dup3(void) {
-    struct file *f;
-    int oldfd;
-    int newfd;
-    int flag;
-
-    argint(2,&flag);
-    assert(flag == 0);
-
-    return TODO();
-}
-
-uint64
 sys_read(void) {
     struct file *f;
-    int count;
-    uint64 buf;
+    int n;
+    uint64 p;
 
-    argaddr(1, &buf);
-    argint(2, &count);
+    argaddr(1, &p);
+    argint(2, &n);
     if (argfd(0, 0, &f) < 0)
         return -1;
-    return fileread(f, buf, count);
+    return fileread(f, p, n);
 }
 
 uint64
 sys_write(void) {
     struct file *f;
-    int count;
-    uint64 buf;
+    int n;
+    uint64 p;
 
-    argaddr(1, &buf);
-    argint(2, &count);
+    argaddr(1, &p);
+    argint(2, &n);
     if (argfd(0, 0, &f) < 0)
         return -1;
 
-    return filewrite(f, buf, count);
+    return filewrite(f, p, n);
 }
 
 uint64
@@ -121,28 +108,25 @@ sys_close(void) {
 uint64
 sys_fstat(void) {
     struct file *f;
-    uint64 kst; // user pointer to struct stat
+    uint64 st; // user pointer to struct stat
 
-    argaddr(1, &kst);
+    argaddr(1, &st);
     if (argfd(0, 0, &f) < 0)
         return -1;
-    return filestat(f, kst);
+    return filestat(f, st);
 }
 
 // Create the path new as a link to the same inode as old.
 uint64
-sys_linkat(void) {
-    char name[DIRSIZ], newpath[MAXPATH], oldpath[MAXPATH];
-    int flags;
+sys_link(void) {
+    char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
     struct inode *dp, *ip;
 
-    argint(4,&flags);
-    assert(flags == 0);
-    if (argstr(1, oldpath, MAXPATH) < 0 || argstr(3, newpath, MAXPATH) < 0)
+    if (argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
         return -1;
 
     begin_op();
-    if ((ip = namei(oldpath)) == 0) {
+    if ((ip = namei(old)) == 0) {
         end_op();
         return -1;
     }
@@ -158,7 +142,7 @@ sys_linkat(void) {
     iupdate(ip);
     iunlock(ip);
 
-    if ((dp = nameiparent(newpath, name)) == 0)
+    if ((dp = nameiparent(new, name)) == 0)
         goto bad;
     ilock(dp);
     if (dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0) {
@@ -197,15 +181,13 @@ isdirempty(struct inode *dp) {
 }
 
 uint64
-sys_unlinkat(void) {
+sys_unlink(void) {
     struct inode *ip, *dp;
     struct dirent de;
     char name[DIRSIZ], path[MAXPATH];
-    int flags;
     uint off;
 
-    argint(2,&flags);
-    if (argstr(1, path, MAXPATH) < 0)
+    if (argstr(0, path, MAXPATH) < 0)
         return -1;
 
     begin_op();
@@ -313,34 +295,32 @@ fail:
 }
 
 uint64
-sys_openat(void) {
-    char filename[MAXPATH];
-    int fd, flags;
-    mode_t mode;
+sys_open(void) {
+    char path[MAXPATH];
+    int fd, omode;
     struct file *f;
     struct inode *ip;
     int n;
 
-    argint(2,&flags);
-    argint(3,&mode);
-    if ((n = argstr(0, filename, MAXPATH)) < 0)
+    argint(1, &omode);
+    if ((n = argstr(0, path, MAXPATH)) < 0)
         return -1;
 
     begin_op();
 
-    if (mode & O_CREATE) {
-        ip = create(filename, T_FILE, 0, 0);
+    if (omode & O_CREATE) {
+        ip = create(path, T_FILE, 0, 0);
         if (ip == 0) {
             end_op();
             return -1;
         }
     } else {
-        if ((ip = namei(filename)) == 0) {
+        if ((ip = namei(path)) == 0) {
             end_op();
             return -1;
         }
         ilock(ip);
-        if (ip->type == T_DIR && mode != O_RDONLY) {
+        if (ip->type == T_DIR && omode != O_RDONLY) {
             iunlockput(ip);
             end_op();
             return -1;
@@ -369,10 +349,10 @@ sys_openat(void) {
         f->off = 0;
     }
     f->ip = ip;
-    f->readable = !(mode & O_WRONLY);
-    f->writable = (mode & O_WRONLY) || (mode & O_RDWR);
+    f->readable = !(omode & O_WRONLY);
+    f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
 
-    if ((mode & O_TRUNC) && ip->type == T_FILE) {
+    if ((omode & O_TRUNC) && ip->type == T_FILE) {
         itrunc(ip);
     }
 
@@ -383,7 +363,7 @@ sys_openat(void) {
 }
 
 uint64
-sys_mkdirat(void) {
+sys_mkdir(void) {
     char path[MAXPATH];
     struct inode *ip;
 
@@ -397,6 +377,23 @@ sys_mkdirat(void) {
     return 0;
 }
 
+uint64
+sys_mknod(void) {
+    struct inode *ip;
+    char path[MAXPATH];
+    int major, minor;
+
+    begin_op();
+    argint(1, &major);
+    argint(2, &minor);
+    if ((argstr(0, path, MAXPATH)) < 0 || (ip = create(path, T_DEVICE, major, minor)) == 0) {
+        end_op();
+        return -1;
+    }
+    iunlockput(ip);
+    end_op();
+    return 0;
+}
 
 uint64
 sys_chdir(void) {
