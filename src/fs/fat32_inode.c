@@ -135,7 +135,7 @@ static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name)
     struct _inode *ip=NULL, *next=NULL;
 
     if (*path == '/')
-        ip = fat32_inode_dup(&(fat32_sb.fat32_sb_info.root_entry));
+        ip = fat32_inode_dup(&fat32_sb.fat32_sb_info.root_entry);
     else
         ip = fat32_inode_dup(myproc()->cwd);
 
@@ -207,7 +207,7 @@ void fat32_inode_trunc(struct _inode *ip) {
     FAT_entry_t end = 0;
 
     while (!ISEOF(iter_n)) {
-        FAT_entry_t fat_next = fat32_fat_next_cluster(iter_n);
+        FAT_entry_t fat_next = fat32_next_cluster(iter_n);
         bp = bread(ip->i_dev, iter_n);
         SetFAT32ClusEntryVal(bp->data, iter_n, FREE_MASK);
 
@@ -226,7 +226,7 @@ void fat32_inode_trunc(struct _inode *ip) {
 // find the next cluster of current cluster
 uint fat32_next_cluster(uint cluster_curr) {
     struct buffer_head *bp;
-    uint FAT_s_n = ThisFATSecNum(cluster_curr);
+    uint FAT_s_n = ThisFATEntSecNum(cluster_curr);
     uint FAT_s_offset = ThisFATEntOffset(cluster_curr);
     bp = bread(ROOTDEV, FAT_s_n);
     FAT_entry_t fat_next = FAT32ClusEntryVal(bp->data, cluster_curr);
@@ -387,7 +387,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
             }
             brelse(bp);
         }
-        iter_n = fat32_fat_next_cluster(iter_n);
+        iter_n = fat32_next_cluster(iter_n);
     }
     return 0;
 }
@@ -452,7 +452,7 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
     while (!ISEOF(iter_n)) {
         if (LOGISTIC_C_NUM(off) == iter_n)
             break;
-        iter_n = fat32_fat_next_cluster(iter_n);
+        iter_n = fat32_next_cluster(iter_n);
     }
     int init_s_n = LOGISTIC_S_NUM(off);
     int init_s_offset = LOGISTIC_S_OFFSET(off);
@@ -477,7 +477,7 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
         }
         init_s_n = 0;
 
-        iter_n = fat32_fat_next_cluster(iter_n);
+        iter_n = fat32_next_cluster(iter_n);
     }
     return tot;
 }
@@ -507,7 +507,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     while (!ISEOF(iter_n)) {
         if (LOGISTIC_C_NUM(off) == iter_n)
             break;
-        iter_n = fat32_fat_next_cluster(iter_n);
+        iter_n = fat32_next_cluster(iter_n);
     }
 
     // TODO: off如果超出文件大小。
@@ -534,7 +534,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             init_s_offset = 0;
         }
         init_s_n = 0;
-        iter_n = fat32_fat_next_cluster(iter_n);
+        iter_n = fat32_next_cluster(iter_n);
         if (iter_n == EOC_MASK)
             iter_n = fat32_cluster_alloc(ROOTDEV);
     }
@@ -611,7 +611,7 @@ uint fat32_find_same_name_cnt(struct _inode *ip, char *name) {
     int first_sector;
     int ret = 0;
 
-    to_upper(name);
+    str_toupper(name);
     // FAT seek cluster chains
     while (!ISEOF(iter_n)) {
         first_sector = FirstSectorofCluster(iter_n);
@@ -632,7 +632,7 @@ uint fat32_find_same_name_cnt(struct _inode *ip, char *name) {
             }
             brelse(bp);
         }
-        iter_n = fat32_fat_next_cluster(iter_n);
+        iter_n = fat32_next_cluster(iter_n);
     }
     return ret;
 }
@@ -655,10 +655,10 @@ int fat32_fcb_init(struct _inode *ip_parent, uchar *long_name, uchar attr, char 
         if (str_split(long_name, '.', file_name, file_ext) == -1) {
             panic("fcb init : str split");
         }
-        to_upper(file_ext);
+        str_toupper(file_ext);
         strncpy(dirent_s_cur.DIR_Name + 8, file_ext, 3); // extend name
 
-        to_upper(file_name);
+        str_toupper(file_name);
         strncpy(dirent_s_cur.DIR_Name, file_name, 8);
         if (strlen(long_name) > 8) {
             long_idx = fat32_find_same_name_cnt(ip_parent, long_name);
@@ -669,7 +669,7 @@ int fat32_fcb_init(struct _inode *ip_parent, uchar *long_name, uchar attr, char 
         // 目录文件
         strncpy(file_name, long_name, 11);
 
-        to_upper(file_name);
+        str_toupper(file_name);
         strncpy(dirent_s_cur.DIR_Name, file_name, 11);
         if (strlen(long_name) > 8) {
             long_idx = fat32_find_same_name_cnt(ip_parent, long_name);
@@ -754,6 +754,62 @@ uchar ChkSum(uchar *pFcbName) {
     return Sum;
 }
 
+struct _inode * fat32_inode_create(char *path, short attr) {
+//     struct inode *ip, *dp;
+//     char name[DIRSIZ];
+
+//     if ((dp = nameiparent(path, name)) == 0)
+//         return 0;
+
+//     ilock(dp);
+
+//     if ((ip = dirlookup(dp, name, 0)) != 0) {
+//         iunlockput(dp);
+//         ilock(ip);
+//         if (type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
+//             return ip;
+//         iunlockput(ip);
+//         return 0;
+//     }
+
+//     if ((ip = ialloc(dp->dev, type)) == 0) {
+//         iunlockput(dp);
+//         return 0;
+//     }
+
+//     ilock(ip);
+//     ip->major = major;
+//     ip->minor = minor;
+//     ip->nlink = 1;
+//     iupdate(ip);
+
+//     if (type == T_DIR) { // Create . and .. entries.
+//         // No ip->nlink++ for ".": avoid cyclic ref count.
+//         if (dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
+//             goto fail;
+//     }
+
+//     if (dirlink(dp, name, ip->inum) < 0)
+//         goto fail;
+
+//     if (type == T_DIR) {
+//         // now that success is guaranteed:
+//         dp->nlink++; // for ".."
+//         iupdate(dp);
+//     }
+
+//     iunlockput(dp);
+
+//     return ip;
+
+// fail:
+//     // something went wrong. de-allocate ip.
+//     ip->nlink = 0;
+//     iupdate(ip);
+//     iunlockput(ip);
+//     iunlockput(dp);
+//     return 0;
+}
 
 
 // int fat32_fat_dirlink(fat_entry_t *ip, char *name, uint inum) {

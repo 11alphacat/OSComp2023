@@ -79,6 +79,7 @@ uint fat32_cluster_alloc(uint);
 uint fat32_find_same_name_cnt(struct _inode *, char *);
 int fat32_fcb_init(struct _inode *, uchar *, uchar, char *);
 
+uint fat32_next_cluster(uint);
 uchar ChkSum(uchar *);
 
 #endif 

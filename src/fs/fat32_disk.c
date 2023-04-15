@@ -11,7 +11,7 @@
 #include "fs/fat/fat32_stack.h"
 #include "kernel_test.h"
 
-struct _superblock fat32_sb;
+extern struct _superblock fat32_sb;
 
 int fat32_fs_mount(int dev, struct _superblock *sb) {
     /* superblock initialization */

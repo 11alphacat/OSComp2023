@@ -361,8 +361,5 @@ typedef uint32_t FAT_entry_t;
 int fat32_fs_mount(int, struct _superblock *);
 int fat32_boot_sector_parser(struct _superblock *, fat_bpb_t *);
 int fat32_fsinfo_parser(struct _superblock *, fsinfo_t *);
-uint fat32_next_cluster(uint);
 
-
-uchar ChkSum(uchar *);
 #endif

@@ -119,6 +119,8 @@ void str_tolower(char *str) {
             str++;
         }
     }
+}
+
 char *strchr(const char *str, int c) {
     while (*str != '\0') {
         if (*str == (char)c) {

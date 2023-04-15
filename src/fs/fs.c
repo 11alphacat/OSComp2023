@@ -584,6 +584,7 @@ int dirlink(struct inode *dp, char *name, uint inum) {
 //   skipelem("a", name) = "", setting name = "a"
 //   skipelem("", name) = skipelem("////", name) = 0
 //
+
 static char *
 skipelem(char *path, char *name) {
     char *s;
