@@ -1,6 +1,6 @@
 #include "kernel_test.h"
-#include "fs/fat/fat32_fs.h"
-#include "fs/fat/fat32_entry.h"
+#include "fs/fat/fat32_disk.h"
+#include "fs/fat/fat32_mem.h"
 extern FATFS_t global_fatfs;
 
 void fat32_test_functions(void)

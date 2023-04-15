@@ -1,7 +1,7 @@
 #ifndef __FAT32_STACK_H__
 #define __FAT32_STACK_H__
 
-#include "fs/fat/fat32_fs.h"
+#include "fs/fat/fat32_disk.h"
 #include "common.h"
 #define CAPACITY 30
 

@@ -4,7 +4,7 @@
 #include "riscv.h"
 #include "kernel/proc.h"
 #include "kernel/cpu.h"
-#include "fs/fat/fat32_entry.h"
+#include "fs/fat/fat32_mem.h"
 
 volatile static int started = 0;
 void printfinit(void);
@@ -21,7 +21,7 @@ void userinit(void);
 void kinit(void);
 void iinit();
 void fileinit(void);
-void fat32_fat_entry_init(void);
+void inode_table_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
@@ -58,9 +58,10 @@ void main() {
         // origin
         iinit();    // inode table
         fileinit(); // file table
+        inode_table_init();
 
         // fat32
-        fat32_fat_entry_init();
+        // fat32_fat_entry_init();
 
         // virtual disk
         virtio_disk_init(); // emulated hard disk

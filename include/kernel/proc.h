@@ -5,7 +5,7 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
-#include "fs/fat/fat32_fs.h"
+#include "fs/fat/fat32_disk.h"
 
 struct file;
 struct inode;

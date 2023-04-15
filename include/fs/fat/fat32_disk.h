@@ -1,9 +1,8 @@
-#ifndef __FAT_FAT32_FS_H__
-#define __FAT_FAT32_FS_H__
+#ifndef __FAT32_DISK_H__
+#define __FAT32_DISK_H__
 
 #include "common.h"
 #include "atomic/sleeplock.h"
-#include "fs/fat/fat32_fs.h"
 
 /*
     FAT32
@@ -102,16 +101,8 @@ extern struct _superblock fat32_sb;
 #define __BPB_SecPerClus (fat32_sb.fat32_sb_info.sector_per_cluster)
 #define __Free_Count (fat32_sb.fat32_sb_info.free_count)
 #define __Nxt_Free (fat32_sb.fat32_sb_info.nxt_free)
-// #define __BPB_RootEntCnt 0
-// #define __BPB_BytsPerSec (global_fatfs.sector_size)
-// #define __BPB_ResvdSecCnt (global_fatfs.fatbase)
-// #define __BPB_NumFATs (global_fatfs.n_fats)
-// #define __FATSz (global_fatfs.n_sectors_fat)
-// #define __BPB_SecPerClus (global_fatfs.sector_per_cluster)
-// #define __TotSec (global_fatfs.n_sectors)
-// #define __Free_Count (global_fatfs.free_count)
-// #define __Nxt_Free (global_fatfs.nxt_free)
-// #define __CLUSTER_SIZE (global_fatfs.cluster_size)
+#define __CLUSTER_SIZE (fat32_sb.fat32_sb_info.cluster_size)
+#define FAT_BASE __BPB_ResvdSecCnt
 
 // number of root directory sectors
 #define RootDirSectors (((__BPB_RootEntCnt * 32) + (__BPB_BytsPerSec - 1)) / __BPB_BytsPerSec)
@@ -132,16 +123,16 @@ extern struct _superblock fat32_sb;
 // the count of clusters in data region
 #define CountofClusters ((DataSec) / (__BPB_SecPerClus))
 
-// FAT的最后一个扇区
-#define FAT_LAST_SECTOR CountofClusters + 1
+// 最后一个簇
+#define FAT_CLUSTER_CNT CountofClusters + 1
 
+// 每个BLOCK每个FCB的数量
 #define FCB_PER_BLOCK ((BSIZE) / sizeof(dirent_s_t))
 
 // FAT item
 #define FATOffset(N) ((N)*4)
-#define FAT_CLUSTER_CNT CountofClusters + 1
 
-#define FAT_BASE __BPB_ResvdSecCnt
+
 // #define ThisFATSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
 // the sector number of fat entry
 // 保留区域的扇区个数+一个扇区对应4字节的FAT表项的偏移/一个扇区多少个字节，就可以算出这个FAT表项在那个扇区
@@ -235,7 +226,7 @@ extern struct _superblock fat32_sb;
 
 #define FAT_PER_BLOCK ((BSIZE) / 4)
 
-#define DIRLENGTH(fat_ep) ((fat_ep->cluster_cnt) * __CLUSTER_SIZE)
+#define DIRLENGTH(ip) ((ip->fat32_i.cluster_cnt) * __CLUSTER_SIZE)
 
 #define FCB_MAX_LENGTH 672 // (21+1)*32
 
@@ -344,10 +335,10 @@ typedef struct Short_Dir_t {
     // 0 <= DIR_CrtTimeTenth <= 199
     FAT_time_t DIR_CrtTime;    // create time, 2 bytes
     FAT_date_t DIR_CrtDate;    // create date, 2 bytes
-    FAT_time_t DIR_LstAccDate; // last access date, 2 bytes
+    FAT_date_t DIR_LstAccDate; // last access date, 2 bytes
     uint16_t DIR_FstClusHI;    // High word of first data cluster number
     FAT_time_t DIR_WrtTime;    // Last modification (write) time.
-    FAT_time_t DIR_WrtDate;    // Last modification (write) date.
+    FAT_date_t DIR_WrtDate;    // Last modification (write) date.
     uint16_t DIR_FstClusLO;    // Low word of first data cluster number
     uint32_t DIR_FileSize;     // 32-bit quantity containing size
 } __attribute__((packed)) dirent_s_t;
@@ -364,52 +355,14 @@ typedef struct Long_Dir_t {
     uint16_t LDIR_Name3[2];  // characters 12 and 13
 } __attribute__((packed)) dirent_l_t;
 
-// the structure of FAT file system
-struct FATFS {
-    uint dev; // device number
-    struct spinlock lock;
-
-    uint n_sectors;     // Number of sectors
-    uint n_fats;        // Number of FATs (1 or 2)
-    uint n_sectors_fat; // Number of sectors per FAT
-
-    uint rootbase;           // Root directory base cluster
-    uint fatbase;            // FAT base sector
-    uint sector_size;        // size of a sector
-    uint cluster_size;       // size of a cluster
-    uint sector_per_cluster; // sector of a cluster
-
-    uint free_count;
-    uint nxt_free;
-
-    struct {
-        sleeplock_t lock;
-        struct fat_entry *parent;
-        char fname[PATH_LONG_MAX];
-        short nlink;
-        int ref;
-        int valid;
-        int fat_num;
-        uint32 cluster_start; // start num
-        uint32 cluster_end;   // end num
-        uint32 parent_off;    // offset in parent clusters
-        uint64 cluster_cnt;   // number of clusters
-
-        uchar Attr;            // directory attribute
-        uint32_t DIR_FileSize; // file size (bytes)
-    } root_entry;
-    /*access window*/
-    uint winsect;
-    uchar win[FF_MAX_SS];
-};
-
-typedef struct FATFS FATFS_t;
 
 typedef uint32_t FAT_entry_t;
 
 int fat32_fs_mount(int, struct _superblock *);
 int fat32_boot_sector_parser(struct _superblock *, fat_bpb_t *);
 int fat32_fsinfo_parser(struct _superblock *, fsinfo_t *);
+uint fat32_next_cluster(uint);
+
 
 uchar ChkSum(uchar *);
 #endif
