@@ -108,9 +108,9 @@ extern struct _superblock fat32_sb;
 #define RootDirSectors (((__BPB_RootEntCnt * 32) + (__BPB_BytsPerSec - 1)) / __BPB_BytsPerSec)
 // (0*32+512-1)/512 FAT32 没有Root Directory 的概念，所以一直是0
 
-// the first data sector
+// 假设一个FAT32区域占2017个扇区: 32 + (2 * 2017) + 0
+// the first data sector num(sector number index from 0)
 #define FirstDataSector ((__BPB_ResvdSecCnt) + ((__BPB_NumFATs) * (__FATSz)) + (RootDirSectors))
-// 假设一个FAT32区域占2017个扇区：32+(2*2017)+0
 
 // the first sector number of cluster N
 #define FirstSectorofCluster(N) (((N)-2) * (__BPB_SecPerClus) + (FirstDataSector))
@@ -124,7 +124,7 @@ extern struct _superblock fat32_sb;
 #define CountofClusters ((DataSec) / (__BPB_SecPerClus))
 
 // 最后一个簇
-#define FAT_CLUSTER_CNT CountofClusters + 1
+#define FAT_CLUSTER_MAX ((CountofClusters) + 1)
 
 // 每个BLOCK每个FCB的数量
 #define FCB_PER_BLOCK ((BSIZE) / sizeof(dirent_s_t))
@@ -132,8 +132,7 @@ extern struct _superblock fat32_sb;
 // FAT item
 #define FATOffset(N) ((N)*4)
 
-
-// #define ThisFATSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
+// #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
 // the sector number of fat entry
 // 保留区域的扇区个数+一个扇区对应4字节的FAT表项的偏移/一个扇区多少个字节，就可以算出这个FAT表项在那个扇区
 #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + ((FATOffset(N)) / (__BPB_BytsPerSec)))
@@ -142,8 +141,7 @@ extern struct _superblock fat32_sb;
 #define ThisFATEntOffset(N) ((FATOffset(N)) % (__BPB_BytsPerSec))
 
 // read the FAT32 cluster entry value
-#define FAT32NextCluster(SectorBuf, N) ((*((DWORD *)&((char *)SectorBuf)[(ThisFATEntOffset(N))])) & 0x0FFFFFFF)
-#define FAT32ClusEntryVal(SecBuff, N) ((*((DWORD *)&(SecBuff)[(ThisFATEntOffset(N))])) & 0x0FFFFFFF)
+#define FAT32ClusEntryVal(SectorBuf, N) ((*((DWORD *)&((char *)SectorBuf)[(ThisFATEntOffset(N))])) & 0x0FFFFFFF)
 
 // set the FAT32 cluster entry value
 #define SetFAT32ClusEntryVal(SecBuff, N, Val)                                                                    \
@@ -162,7 +160,7 @@ extern struct _superblock fat32_sb;
 // If this bit is 0, the file system driver encountered a disk I/O error on theVolume the last time it was mounted,
 // which is an indicator that some sectorsmay have gone bad on the volume.
 
-#define EOC_MASK 0xFFFFFFFF
+#define EOC 0xFFFFFFFF
 #define FREE_MASK 0x00000000
 #define NAME0_FREE_ONLY(x) (x == 0xE5)
 #define NAME0_FREE_ALL(x) (x == 0x00)
@@ -211,13 +209,14 @@ extern struct _superblock fat32_sb;
 #define PATH_LONG_MAX 260
 
 #define FCB_PER_BLOCK ((BSIZE) / sizeof(dirent_s_t))
-#define LONG_NAME_CHAR_MASK(x) ((x) & 0xFF)
+#define LONG_NAME_CHAR_MASK(x) ((x)&0xFF)
 #define LONG_NAME_CHAR_VALID(x) (((x) != 0x0000) && ((x) != 0xFFFF))
 #define LONG_NAME_CHAR_SET(x) (((ushort)(x)) | 0x00FF)
 
-#define SECTOR_TO_FATNUM(s, offset) (((s)-FirstDataSector) * (FCB_PER_BLOCK) + (offset))
-#define FATNUM_TO_SECTOR(num) ((num) / (FCB_PER_BLOCK))
-#define FATNUM_TO_OFFSET(num) ((num) % (FCB_PER_BLOCK))
+// NOTE: inum index from 1
+#define SECTOR_TO_FATINUM(s, offset) (((s)-FirstDataSector) * (FCB_PER_BLOCK) + (offset))
+#define FATINUM_TO_SECTOR(ino) ((ino - 1) / (FCB_PER_BLOCK)) + 1
+#define FATINUM_TO_OFFSET(ino) ((ino - 1) % (FCB_PER_BLOCK)) + 1
 
 #define LOGISTIC_C_NUM(off) ((off) / (__BPB_SecPerClus * BSIZE))
 #define LOGISTIC_C_OFFSET(off) ((off) % (__BPB_SecPerClus * BSIZE))
@@ -317,13 +316,12 @@ typedef struct __date_t {
     uchar year : 7;  // form 1980 (1980~2107)
 } __attribute__((packed)) FAT_date_t;
 
-// Time 
+// Time
 typedef struct __time_t {
     uchar second_per_2 : 5; // 2-second increments 0~59
     uchar minute : 6;       // number of minutes 0~59
     uchar hour : 5;         // hours 0~23
 } __attribute__((packed)) FAT_time_t;
-
 
 // Directory Structure (short name)
 typedef struct Short_Dir_t {
@@ -354,7 +352,6 @@ typedef struct Long_Dir_t {
     uint16_t LDIR_FstClusLO; // Must be set to 0
     uint16_t LDIR_Name3[2];  // characters 12 and 13
 } __attribute__((packed)) dirent_l_t;
-
 
 typedef uint32_t FAT_entry_t;
 

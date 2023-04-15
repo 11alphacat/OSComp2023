@@ -12,9 +12,8 @@ struct _superblock {
     struct spinlock lock;
     uint8 s_dev; // device number
 
-    
-    uint32 s_blocksize; // 逻辑块的数量
-    uint32 sectors_per_block;// 每个逻辑块的扇区个数
+    uint32 s_blocksize;       // 逻辑块的数量
+    uint32 sectors_per_block; // 每个逻辑块的扇区个数
     // uint32 s_blocksize_bits;
     uint n_sectors;   // Number of sectors
     uint sector_size; // size of a sector
@@ -79,9 +78,9 @@ struct _inode {
     // dev_t i_rdev;
     uint32 i_size;
 
-    long i_atime;// access time
-    long i_mtime;// modify time
-    long i_ctime;// create time
+    long i_atime; // access time
+    long i_mtime; // modify time
+    long i_ctime; // create time
 
     // uint32 i_blksize;
     // uint32 i_blocks;
@@ -100,7 +99,6 @@ struct _inode {
         // void *generic_ip;
     };
 };
-
 
 /* File function return code (FRESULT) */
 typedef enum {

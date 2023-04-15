@@ -1,7 +1,6 @@
 #ifndef __FAT32_MEM_H__
 #define __FAT32_MEM_H__
 
-
 #include "common.h"
 #include "fat32_disk.h"
 
@@ -18,10 +17,10 @@ struct fat_dirent_buf {
 
 struct fat32_sb_info {
     // read-only
-    uint fatbase;        // FAT base sector
-    uint n_fats;         // Number of FATs (1 or 2)
-    uint n_sectors_fat;  // Number of sectors per FAT
-    uint root_cluster_s; // Root directory base cluster (start)
+    uint fatbase;            // FAT base sector
+    uint n_fats;             // Number of FATs (1 or 2)
+    uint n_sectors_fat;      // Number of sectors per FAT
+    uint root_cluster_s;     // Root directory base cluster (start)
     uint cluster_size;       // size of a cluster
     uint sector_per_cluster; // sector of a cluster
 
@@ -33,24 +32,26 @@ struct fat32_sb_info {
 };
 
 struct fat32_inode_info {
-    struct _inode *parent;
+    // on-disk structure
     char fname[PATH_LONG_MAX];
-    uint32 cluster_start;      // start num
-    uint32 cluster_end;        // end num
-    uint32 parent_off;         // offset in parent clusters
-    uint64 cluster_cnt;        // number of clusters
-    uchar DIR_CrtTimeTenth;    // create time
-    // Count of tenths of a second
-    // 0 <= DIR_CrtTimeTenth <= 199
     uchar Attr;                // directory attribute
+    uchar DIR_NTRes;           // reserved
+    uchar DIR_CrtTimeTenth;    // create time
     FAT_time_t DIR_CrtTime;    // create time, 2 bytes
     FAT_date_t DIR_CrtDate;    // create date, 2 bytes
-    FAT_time_t DIR_LstAccDate; // last access date, 2 bytes
-    FAT_time_t DIR_WrtTime;    // Last modification (write) time.
-    FAT_date_t DIR_WrtDate;    // Last modification (write) date.
-    uint32_t DIR_FileSize;     // file size (bytes)
-};
+    FAT_date_t DIR_LstAccDate; // last access date, 2 bytes
+    // (DIR_FstClusHI << 16) | (DIR_FstClusLO)
+    uint32 cluster_start;   // start num
+    FAT_time_t DIR_WrtTime; // Last modification (write) time.
+    FAT_date_t DIR_WrtDate; // Last modification (write) date.
+    uint32_t DIR_FileSize;  // file size (bytes)
 
+    // in memory structure
+    struct _inode *parent;
+    uint32 cluster_end; // end num
+    uint32 parent_off;  // offset in parent clusters
+    uint64 cluster_cnt; // number of clusters
+};
 
 uint32 fat32_fat_travel(struct _inode *, uint32);
 
@@ -82,4 +83,4 @@ int fat32_fcb_init(struct _inode *, uchar *, uchar, char *);
 uint fat32_next_cluster(uint);
 uchar ChkSum(uchar *);
 
-#endif 
+#endif

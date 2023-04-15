@@ -3,5 +3,4 @@
 
 void fat32_test_functions(void);
 
-
 #endif

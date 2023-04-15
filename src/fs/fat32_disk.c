@@ -142,4 +142,3 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
     // panic("boot sector parser");
     return FR_OK;
 }
-
