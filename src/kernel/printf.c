@@ -124,7 +124,7 @@ void vprintf(const char *fmt, va_list args) {
 
     int field_width; /* width of output field */
     int precision;   /* min. # of digits for integers; max
-                   number of chars for from string */
+				   number of chars for from string */
     int qualifier;   /* 'l', or 'L' for integer fields */
 
     for (; *fmt; ++fmt) {
@@ -263,9 +263,13 @@ void printf(char *fmt, ...) {
     int locking;
     // char *s;
 
+    extern int debug_lock;
+    // cannot debug lock when execute printf, it will cause recursive call
+    debug_lock = 0;
     locking = pr.locking;
     if (locking)
         acquire(&pr.lock);
+    debug_lock = 1;
 
     if (fmt == 0)
         panic("null fmt");
@@ -274,8 +278,10 @@ void printf(char *fmt, ...) {
     vprintf(fmt, ap);
     va_end(ap);
 
+    debug_lock = 0;
     if (locking)
         release(&pr.lock);
+    debug_lock = 1;
 }
 
 void panic(char *s) {

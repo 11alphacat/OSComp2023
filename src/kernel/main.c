@@ -5,6 +5,7 @@
 #include "kernel/proc.h"
 #include "kernel/cpu.h"
 #include "fs/fat/fat32_mem.h"
+#include "test.h"
 
 volatile static int started = 0;
 void printfinit(void);
@@ -25,6 +26,7 @@ void inode_table_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
+int debug_lock = 0;
 // start() jumps here in supervisor mode on all CPUs.
 void main() {
     if (cpuid() == 0) {

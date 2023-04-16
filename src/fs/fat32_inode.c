@@ -25,6 +25,7 @@ struct inode_table_t {
 
 void inode_table_init() {
     struct _inode *entry;
+    initlock(&inode_table, "inode_table");
     for (entry = inode_table.inode_entry; entry < &inode_table.inode_entry[NENTRY]; entry++) {
         memset(entry, 0, sizeof(struct _inode));
         initsleeplock(&entry->i_sem, "inode_entry");
@@ -774,7 +775,7 @@ struct _inode *fat32_inode_create(char *path,  uchar attr) {
     // without parent fat_entry
     if ((dp = fat32_name_inode_parent(path, name)) == 0)
         return 0;
-
+    
     //     ilock(dp);
 
     //     if ((ip = dirlookup(dp, name, 0)) != 0) {

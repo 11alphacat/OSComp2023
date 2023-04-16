@@ -67,4 +67,4 @@ int snprintf(char *buf, int size, const char *fmt, ...);
 
 #endif
 
-#endif // __COMMON_H__
+#endif

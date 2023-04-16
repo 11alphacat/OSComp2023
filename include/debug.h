@@ -26,6 +26,10 @@
 #define RED(str) "\e[31;1m" str "\e[0m"
 /* #define STRACE(format, ...) \
    printf(ANSI_FMT(format, ANSI_FG_YELLOW), ## __VA_ARGS__) */
+#define DEBUG_ACQUIRE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_RED), ##__VA_ARGS__)
+#define DEBUG_RELEASE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_BLUE), ##__VA_ARGS__)
 
 #define ASSERT(cond)                                                             \
     do {                                                                         \
