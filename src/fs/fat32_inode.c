@@ -135,7 +135,7 @@ static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name)
     struct _inode *ip = NULL, *next = NULL;
 
     if (*path == '/')
-        ip = fat32_inode_dup(&fat32_sb.fat32_sb_info.root_entry);
+        ip = fat32_inode_dup(fat32_sb.fat32_sb_info.root_entry);
     else
         ip = fat32_inode_dup(myproc()->cwd);
 
@@ -147,7 +147,7 @@ static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name)
         }
         if (nameeparent && *path == '\0') {
             // Stop one level early.
-            fat32_inode_lock(ip);
+            fat32_inode_unlock(ip);
             return ip;
         }
         if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {
@@ -201,8 +201,6 @@ void fat32_inode_update(struct _inode *ip) {
 }
 
 void fat32_inode_trunc(struct _inode *ip) {
-    struct buffer_head *bp;
-
     FAT_entry_t iter_n = ip->fat32_i.cluster_start;
     FAT_entry_t end = 0;
     uint32 FAT_sector_num;
@@ -211,11 +209,8 @@ void fat32_inode_trunc(struct _inode *ip) {
     // truncate the data
     while (!ISEOF(iter_n)) {
         FAT_entry_t fat_next = fat32_next_cluster(iter_n);
-        bp = bread(ip->i_dev, iter_n);
-        SetFAT32ClusEntryVal(bp->data, iter_n, FREE_MASK);
+        fat32_fat_entry_set(iter_n, EOC);
         iter_n = fat_next;
-        bwrite(bp);
-        brelse(bp);
     }
     ip->fat32_i.cluster_start = 0;
     ip->fat32_i.cluster_end = 0;
@@ -322,6 +317,25 @@ int fat32_filter_longname(dirent_l_t *dirent_l_tmp, char *ret_name) {
     return idx;
 }
 
+int fat32_longname_popstack(Stack_t* fcb_stack, uchar* fcb_s_name, char* name_buf)
+{
+    int name_idx = 0;
+    // reverse the stack to check every long directory entry
+    while (!stack_is_empty(fcb_stack)) {
+        dirent_l_t fcb_l_tmp = stack_pop(fcb_stack);
+        if (fcb_l_tmp.LDIR_Chksum != ChkSum(fcb_s_name)) {
+            panic("check sum error");
+        }
+        char l_tmp[14];
+        memset(l_tmp, 0, sizeof(l_tmp));
+        int l_tmp_len = fat32_filter_longname(&fcb_l_tmp, l_tmp);
+        for (int i = 0; i < l_tmp_len; i++) {
+            name_buf[name_idx++] = l_tmp[i];
+        }
+    }
+    name_buf[name_idx] = '\0';
+}
+
 struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) {
     if (!DIR_BOOL((ip->fat32_i.Attr)))
         panic("dirlookup not DIR");
@@ -331,14 +345,12 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
     uint32 FAT_s_offset;
 
     char name_buf[NAME_LONG_MAX];
-    memset(name_buf, 0, sizeof(name_buf));
-    int name_idx = 0;
-
+    memset(name_buf, 0, sizeof(name_buf));   
     Stack_t fcb_stack;
     stack_init(&fcb_stack);
 
     int first_sector;
-    int off = 0;
+    uint off = 0;
     // FAT seek cluster chains
     while (!ISEOF(iter_n)) {
         first_sector = FirstSectorofCluster(iter_n);
@@ -352,40 +364,24 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
             // FCB in a sector
             while (idx < FCB_PER_BLOCK) {
                 // long dirctory item push into the stack
-                while (LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr)) {
+                while (LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr)&&idx<FCB_PER_BLOCK) {
                     stack_push(&fcb_stack, fcb_l[idx++]);
                     off++;
                 }
-
-                // reverse the stack to check every long directory entry
-                while (!stack_is_empty(&fcb_stack)) {
-                    dirent_l_t fcb_l_tmp = stack_pop(&fcb_stack);
-                    // check sum
-                    if (fcb_l_tmp.LDIR_Chksum != ChkSum(fcb_s[idx].DIR_Name)) {
-                        panic("check sum error");
+                // pop stack
+                if(!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr)){
+                    fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
+                    //  search for?
+                    if (namecmp(name, name_buf) == 0) {
+                        // inode matches path element
+                        if (poff)
+                            *poff = off;
+                        brelse(bp);
+                        return fat32_inode_get(ip->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name, off);
                     }
-                    char l_tmp[14];
-                    memset(l_tmp, 0, sizeof(l_tmp));
-                    int l_tmp_len = fat32_filter_longname(&fcb_l_tmp, l_tmp);
-                    for (int i = 0; i < l_tmp_len; i++) {
-                        name_buf[name_idx++] = l_tmp[i];
-                    }
+                    idx++;
+                    off++;
                 }
-                name_buf[name_idx] = '\0';
-
-                // search for?
-                if (namecmp(name, name_buf) == 0) {
-                    // inode matches path element
-                    if (poff)
-                        *poff = off;
-
-                    return fat32_inode_get(ip->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name, off);
-                } else {
-                    memset(name_buf, 0, sizeof(name_buf));
-                    name_idx = 0;
-                }
-                idx++;
-                off++;
             }
             brelse(bp);
         }
@@ -422,7 +418,7 @@ struct _inode *fat32_inode_get(uint dev, uint inum, char *name, uint parentoff) 
     ip->ref = 1;
     ip->valid = 0;
     ip->fat32_i.parent_off = parentoff;
-    strncpy(ip->fat32_i.fname, name, strlen(ip));
+    strncpy(ip->fat32_i.fname, name, strlen(name));
 
     release(&inode_table.lock);
     return ip;
@@ -505,6 +501,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
 
     FAT_entry_t iter_n = ip->fat32_i.cluster_start;
 
+    FAT_entry_t next;
     // find the target cluster of off
     while (!ISEOF(iter_n)) {
         if (LOGISTIC_C_NUM(off) == iter_n)
@@ -536,9 +533,12 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             init_s_offset = 0;
         }
         init_s_n = 0;
-        iter_n = fat32_next_cluster(iter_n);
-        if (iter_n == EOC)
-            iter_n = fat32_cluster_alloc(ROOTDEV);
+        next = fat32_next_cluster(iter_n);
+        if (next == EOC)
+        {
+            FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);   
+            fat32_fat_entry_set(iter_n, fat_new);
+        }   
     }
     if (off + n > ip->fat32_i.DIR_FileSize)
         ip->fat32_i.DIR_FileSize = off + n;
@@ -547,7 +547,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     return tot;
 }
 
-// allocate a fat term
+// allocate a fat entry
 uint fat32_fat_alloc() {
     struct buffer_head *bp;
 
@@ -557,6 +557,7 @@ uint fat32_fat_alloc() {
         bp = bread(fat32_sb.s_dev, sec);
         for (int s = 0; s < FAT_PER_BLOCK; s++) {
             if ((bp->data)[s] == FREE_MASK) {
+                fat32_fat_entry_set(c, EOC);
                 brelse(bp);
                 return c;
             }
@@ -566,6 +567,15 @@ uint fat32_fat_alloc() {
         brelse(bp);
     }
     return -1;
+}
+
+// set fat entry to value
+void fat32_fat_entry_set(uint cluster, uint value)
+{
+    struct buffer_head *bp;
+    SetFAT32ClusEntryVal(bp->data, cluster, value);
+    bwrite(bp);
+    brelse(bp);
 }
 
 // allocate a free cluster
@@ -581,7 +591,11 @@ uint fat32_cluster_alloc(uint dev) {
     int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
     bp = bread(dev, FATINUM_TO_SECTOR(free_num));
     if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1)
+    {
+        fat32_fat_entry_set(fat32_sb.fat32_sb_info.nxt_free, EOC);
+        
         fat32_sb.fat32_sb_info.nxt_free++;
+    }
     else {
         uint fat_next = fat32_fat_alloc();
         if (fat_next == -1)
@@ -753,12 +767,13 @@ uchar ChkSum(uchar *pFcbName) {
     return Sum;
 }
 
-struct _inode *fat32_inode_create(char *path, short attr) {
-    //     struct inode *ip, *dp;
-    //     char name[DIRSIZ];
+struct _inode *fat32_inode_create(char *path,  uchar attr) {
+    struct _inode *ip = NULL, *dp = NULL;
+    char name[NAME_LONG_MAX];
 
-    //     if ((dp = nameiparent(path, name)) == 0)
-    //         return 0;
+    // without parent fat_entry
+    if ((dp = fat32_name_inode_parent(path, name)) == 0)
+        return 0;
 
     //     ilock(dp);
 

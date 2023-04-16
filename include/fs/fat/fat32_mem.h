@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "fat32_disk.h"
+#include "fat32_stack.h"
 
 struct _inode;
 
@@ -22,8 +23,7 @@ struct fat32_sb_info {
     uint n_sectors_fat;      // Number of sectors per FAT
     uint root_cluster_s;     // Root directory base cluster (start)
     uint cluster_size;       // size of a cluster
-    uint sector_per_cluster; // sector of a cluster
-
+    
     // FSINFO ~ may modify
     uint free_count;
     uint nxt_free;
@@ -82,5 +82,11 @@ int fat32_fcb_init(struct _inode *, uchar *, uchar, char *);
 
 uint fat32_next_cluster(uint);
 uchar ChkSum(uchar *);
+
+void fat32_fat_entry_set(uint, uint);
+
+struct _inode *fat32_inode_create(char *path,  uchar attr);
+
+int fat32_longname_popstack(Stack_t*, uchar*, char*);
 
 #endif

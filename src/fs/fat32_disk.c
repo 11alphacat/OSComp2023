@@ -9,7 +9,7 @@
 #include "test.h"
 #include "param.h"
 #include "fs/fat/fat32_stack.h"
-#include "kernel_test.h"
+#include "test.h"
 
 extern struct _superblock fat32_sb;
 
@@ -36,6 +36,7 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
 
     // snprintf_test();
     // printf_test();
+    fat32_test_functions();
     panic("fs_mount");
     return FR_OK;
 }
@@ -70,12 +71,13 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
     sb->fat32_sb_info.n_fats = fat_bpb->NumFATs;
     sb->fat32_sb_info.n_sectors_fat = fat_bpb->FATSz32;
     sb->fat32_sb_info.root_cluster_s = fat_bpb->RootClus;
-    sb->fat32_sb_info.sector_per_cluster = fat_bpb->SecPerClus;
     sb->sector_size = fat_bpb->BytsPerSec;
     sb->n_sectors = fat_bpb->TotSec32;
+    sb->sectors_per_block = fat_bpb->SecPerClus;
+
 
     // repeat with sb->s_blocksize
-    sb->fat32_sb_info.cluster_size = (sb->sector_size) * (sb->fat32_sb_info.sector_per_cluster);
+    sb->fat32_sb_info.cluster_size = (sb->sector_size) * (sb->sectors_per_block);
     sb->s_blocksize = sb->fat32_sb_info.cluster_size;
 
     //////////////////////////////////////////////////////////////////

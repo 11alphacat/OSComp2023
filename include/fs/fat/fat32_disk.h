@@ -98,7 +98,7 @@ extern struct _superblock fat32_sb;
 #define __BPB_ResvdSecCnt (fat32_sb.fat32_sb_info.fatbase)
 #define __BPB_NumFATs (fat32_sb.fat32_sb_info.n_fats)
 #define __FATSz (fat32_sb.fat32_sb_info.n_sectors_fat)
-#define __BPB_SecPerClus (fat32_sb.fat32_sb_info.sector_per_cluster)
+#define __BPB_SecPerClus (fat32_sb.sectors_per_block)
 #define __Free_Count (fat32_sb.fat32_sb_info.free_count)
 #define __Nxt_Free (fat32_sb.fat32_sb_info.nxt_free)
 #define __CLUSTER_SIZE (fat32_sb.fat32_sb_info.cluster_size)
@@ -133,6 +133,7 @@ extern struct _superblock fat32_sb;
 #define FATOffset(N) ((N)*4)
 
 // #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
+// #define ThisFATSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
 // the sector number of fat entry
 // 保留区域的扇区个数+一个扇区对应4字节的FAT表项的偏移/一个扇区多少个字节，就可以算出这个FAT表项在那个扇区
 #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + ((FATOffset(N)) / (__BPB_BytsPerSec)))
