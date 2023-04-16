@@ -308,7 +308,8 @@ sys_open(void) {
         return -1;
 
     begin_op();
-
+    
+    // 如果是要求创建文件，则调用 create
     if (omode & O_CREATE) {
         ip = create(path, T_FILE, 0, 0);
         if (ip == 0) {

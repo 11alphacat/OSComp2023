@@ -56,6 +56,7 @@ void procinit(void) {
     initlock(&wait_lock, "wait_lock");
     for (p = proc; p < &proc[NPROC]; p++) {
         initlock(&p->lock, "proc");
+        initlock(&p->tlock, "proc_thread");
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
     }

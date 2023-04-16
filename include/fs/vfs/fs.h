@@ -30,21 +30,22 @@ struct _superblock {
 };
 
 union file_type {
-    struct pipe *pipe; // FD_PIPE
-    struct inode *ip;  // FD_INODE and FD_DEVICE
-    // short major;       // FD_DEVICE
+    struct pipe *f_pipe; // FD_PIPE
+    struct inode *f_inode;  // FD_INODE and FD_DEVICE
 };
 
 struct _file {
     enum { FD_NONE,
            FD_PIPE,
            FD_INODE,
-           FD_DEVICE } type;
-    union file_type *fp;
+           FD_DEVICE } f_type;
+    union file_type *f_tp;
     ushort f_mode;
     uint32 f_pos;
     ushort f_flags;
     ushort f_count;
+    short f_major;       // FD_DEVICE
+
 
     // struct file *f_next, *f_prev;
     int f_owner; /* pid or -pgrp where SIGIO should be sent */
@@ -82,8 +83,8 @@ struct _dirent {
 #define IMODE_NONE 0x00
 struct _inode {
     uint8 i_dev;
-    uint32 i_ino;
-    uint16 i_mode;
+    uint32 i_ino;   // 对任意给定的文件系统的唯一编号标识：由具体文件系统解释
+    uint16 i_mode;  // 访问权限和所有权
     int ref; // Reference count
     int valid;
     // Note: fat fs does not support hard link, reserve for vfs interface
@@ -92,6 +93,7 @@ struct _inode {
     uint i_gid;
     uint64 i_rdev;
     uint32 i_size;
+    uint16 i_type;
 
     uchar i_type;
 
@@ -111,6 +113,7 @@ struct _inode {
     // struct wait_queue *i_wait;
     struct _inode *parent;
 
+    struct _inode *parent;
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6_inode_info xv6_i;

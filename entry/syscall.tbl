@@ -1,51 +1,51 @@
 # proc
-172  getpid          sys_getpid
-0   fork            sys_fork
-93   exit            sys_exit
-2   wait            sys_wait
-5   kill            sys_kill
-6   exec            sys_exec
-11  sbrk            sys_sbrk
-214  brk            sys_brk
-215  munmap            sys_munmap
-222  mmap            sys_mmap
-220   clone            sys_clone
-221   execve            sys_execve
-260   wait4            sys_wait4
-173  getppid          sys_getppid
-124  sched_yield          sys_sched_yield
+172  getpid          oscomp_sys_getpid
+0   fork            oscomp_sys_fork
+93   exit            oscomp_sys_exit
+2   wait            oscomp_sys_wait
+5   kill            oscomp_sys_kill
+6   exec            oscomp_sys_exec
+11  sbrk            oscomp_sys_sbrk
+214  brk            oscomp_sys_brk
+215  munmap            oscomp_sys_munmap
+222  mmap            oscomp_sys_mmap
+220   clone            oscomp_sys_clone
+221   execve            oscomp_sys_execve
+260   wait4            oscomp_sys_wait4
+173  getppid          oscomp_sys_getppid
+124  sched_yield          oscomp_sys_sched_yield
 
 
 # fs
-80   fstat           sys_fstat
-14  open            sys_open
-56  openat            sys_openat
-64  write           sys_write
-63   read            sys_read
-57 close           sys_close
-19  mkdir           sys_mkdir
-34  mkdirat           sys_mkdirat
-49   chdir           sys_chdir
-18  link            sys_link
-37  linkat            sys_linkat
-17  unlink          sys_unlink
-35  unlinkat          sys_unlinkat
-16  mknod           sys_mknod
-23   dup             sys_dup
-24   dup3             sys_dup3
-3   pipe            sys_pipe
-59  pipe2           sys_pipe2
-61  getdents64        sys_getdents64
-39  umount2         sys_umount2
-39  mount         sys_mount
+80   fstat           oscomp_sys_fstat
+14  open            oscomp_sys_open
+56  openat            oscomp_sys_openat
+64  write           oscomp_sys_write
+63   read            oscomp_sys_read
+57 close           oscomp_sys_close
+19  mkdir           oscomp_sys_mkdir
+34  mkdirat           oscomp_sys_mkdirat
+49   chdir           oscomp_sys_chdir
+18  link            oscomp_sys_link
+37  linkat            oscomp_sys_linkat
+17  unlink          oscomp_sys_unlink
+35  unlinkat          oscomp_sys_unlinkat
+16  mknod           oscomp_sys_mknod
+23   dup             oscomp_sys_dup
+24   dup3             oscomp_sys_dup3
+3   pipe            oscomp_sys_pipe
+59  pipe2           oscomp_sys_pipe2
+61  getdents64        oscomp_sys_getdents64
+39  umount2         oscomp_sys_umount2
+39  mount         oscomp_sys_mount
 
 # misc
-13  uptime          sys_uptime
-12  sleep           sys_sleep
-101  nanosleep       sys_nanosleep
-153  times           sys_times
-160  uname           sys_uname
-169  gettimeofday    sys_gettimeofday
+13  uptime          oscomp_sys_uptime
+12  sleep           oscomp_sys_sleep
+101  nanosleep       oscomp_sys_nanosleep
+153  times           oscomp_sys_times
+160  uname           oscomp_sys_uname
+169  gettimeofday    oscomp_sys_gettimeofday
 
 
 

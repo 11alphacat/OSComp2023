@@ -267,10 +267,10 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
     uint tot = 0, m;
     struct buffer_head *bp;
 
-    // 是一个目录
+    // 鏄竴涓洰褰?
     int fileSize = ip->i_size;
 
-    // 特判合法
+    // 鐗瑰垽鍚堟硶
     if (off > fileSize || off + n < off)
         return 0;
     if (off + n > fileSize)
@@ -315,7 +315,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     uint tot = 0, m;
     struct buffer_head *bp;
 
-    // 是一个目录
+    // 鏄竴涓洰褰?
     int fileSize = ip->i_size;
 
     if (off > fileSize || off + n < off)
@@ -330,8 +330,8 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     // find the target cluster of off
     iter_n = fat32_fat_travel(ip, C_NUM_off);
 
-    // TODO: off如果超出文件大小。
-    // 这里先假设off不会超出文件大小。
+    // TODO: off濡傛灉瓒呭嚭鏂囦欢澶у皬銆?
+    // 杩欓噷鍏堝亣璁緊ff涓嶄細瓒呭嚭鏂囦欢澶у皬銆?
 
     int init_s_n = LOGISTIC_S_NUM(off);
     int init_s_offset = LOGISTIC_S_OFFSET(off);
@@ -417,7 +417,7 @@ struct _inode *fat32_inode_get(uint dev, uint inum, char *name, uint parentoff) 
     return ip;
 }
 
-// 获取fat32 inode的锁 并加载 磁盘中的short dirent to mem
+// 鑾峰彇fat32 inode鐨勯攣 骞跺姞杞?纾佺洏涓殑short dirent to mem
 void fat32_inode_lock(struct _inode *ip) {
     struct buffer_head *bp;
     if (ip == 0 || ip->ref < 1)
@@ -473,7 +473,7 @@ void fat32_inode_lock(struct _inode *ip) {
     }
 }
 
-// 释放fat32 inode的锁
+// 閲婃斁fat32 inode鐨勯攣
 void fat32_inode_unlock(struct _inode *ip) {
     if (ip == 0 || !holdingsleep(&ip->i_sem) || ip->ref < 1)
         panic("fat32 unlock");
@@ -828,7 +828,7 @@ int fat32_fcb_init(struct _inode *ip_parent, uchar *long_name, uchar attr, char 
     char file_ext[4];
     /*short dirent*/
     int name_len = strlen(long_name);
-    // 数据文件
+    // 鏁版嵁鏂囦欢
     if (!DIR_BOOL(attr)) {
         if (str_split(long_name, '.', file_name, file_ext) == -1) {
             panic("fcb init : str split");
@@ -844,7 +844,7 @@ int fat32_fcb_init(struct _inode *ip_parent, uchar *long_name, uchar attr, char 
             dirent_s_cur.DIR_Name[7] = long_idx + 0x31;
         }
     } else {
-        // 目录文件
+        // 鐩綍鏂囦欢
         strncpy(file_name, long_name, 11);
 
         str_toupper(file_name);
@@ -924,7 +924,7 @@ int fat32_fcb_init(struct _inode *ip_parent, uchar *long_name, uchar attr, char 
     fcb_l_tmp.LDIR_Nlinks = 1;
     memmove(fcb_char, &dirent_s_cur, sizeof(dirent_s_cur));
     return ret_cnt + 1;
-    // TODO: 获取当前时间和日期，还有TimeTenth
+    // TODO: 鑾峰彇褰撳墠鏃堕棿鍜屾棩鏈燂紝杩樻湁TimeTenth
 }
 
 // find the same prefix and same extend name !!!
@@ -969,7 +969,7 @@ uint fat32_find_same_name_cnt(struct _inode *ip, char *name) {
     return ret;
 }
 
-// 获取fcb的插入位置(可以插入到碎片中)
+// 鑾峰彇fcb鐨勬彃鍏ヤ綅缃?鍙互鎻掑叆鍒扮鐗囦腑)
 uint fat32_dir_fcb_insert_offset(struct _inode *ip, uchar fcb_cnt_req) {
     struct buffer_head *bp;
     FAT_entry_t iter_n = ip->fat32_i.cluster_start;
@@ -1008,7 +1008,7 @@ uint fat32_dir_fcb_insert_offset(struct _inode *ip, uchar fcb_cnt_req) {
     return offset_ret_final;
 }
 
-// 一个目录除了 .. 和 . 是否为空？
+// 涓€涓洰褰曢櫎浜?.. 鍜?. 鏄惁涓虹┖锛?
 uint fat32_isdirempty(struct _inode *ip) {
     struct buffer_head *bp;
     FAT_entry_t iter_n = ip->fat32_i.cluster_start;
@@ -1044,7 +1044,7 @@ int fat32_time_parser(FAT_time_t *time_in, char *str, int ms) {
     uint TimeHour = time_in->hour;
 
     if (ms) {
-        CreateTimeMillisecond = (uint)(ms)*10; // 计算毫秒数
+        CreateTimeMillisecond = (uint)(ms)*10; // 璁＄畻姣鏁?
         sprintf(str, "%d:%02d:%02d.%03d", TimeHour, TimeMinute, TimeSecond, CreateTimeMillisecond);
     } else {
         sprintf(str, "%d:%02d:%02d", TimeHour, TimeMinute, TimeSecond);
@@ -1069,7 +1069,7 @@ int fat32_inode_delete(struct _inode *dp, struct _inode *ip) {
     int str_len = strlen(ip->fat32_i.fname);
     int off = ip->fat32_i.parent_off;
     ASSERT(off > 0);
-    int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
+    int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 涓婂彇鏁?
     char fcb_char[FCB_MAX_LENGTH];
     memset(fcb_char, 0, sizeof(fcb_char));
     for (int i = 0; i < long_dir_len + 1; i++)
@@ -1088,7 +1088,7 @@ FAT_time_t fat32_inode_get_time(int *ms) {
 
     // asm volatile("rdtime %0" : "=r"(count));
     // // second and its reminder
-    // uint64 tick_per_second = 10000000;   // 时钟频率为 32.768 kHz
+    // uint64 tick_per_second = 10000000;   // 鏃堕挓棰戠巼涓?32.768 kHz
     // uint64 seconds = count / tick_per_second;
     // uint64 remainder = count % tick_per_second;
 
