@@ -85,7 +85,7 @@ uchar ChkSum(uchar *);
 
 void fat32_fat_entry_set(uint, uint);
 
-struct _inode *fat32_inode_create(char *path,  uchar attr);
+struct _inode *fat32_inode_create(char *,  uchar);
 
 int fat32_longname_popstack(Stack_t*, uchar*, char*);
 
