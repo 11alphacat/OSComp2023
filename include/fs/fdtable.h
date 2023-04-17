@@ -5,9 +5,9 @@
 #include "atomic/spinlock.h"
 #include "atomic/atomic.h"
 
-struct file;
+struct _file;
 struct fd {
-    struct file *file;
+    struct _file *file;
     uint flags;
 };
 

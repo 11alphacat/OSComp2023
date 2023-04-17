@@ -6,8 +6,13 @@
 #include "atomic/sleeplock.h"
 #include "fs/stat.h"
 #include "fs/fat/fat32_mem.h"
+#include "fs/fcntl.h"
 
-struct stat;
+#define NAME_MAX 10
+#define IMODE_READONLY 0x1
+
+
+struct kstat;
 struct _superblock {
     struct spinlock lock;
     uint8 s_dev; // device number
@@ -30,8 +35,8 @@ struct _superblock {
 };
 
 union file_type {
-    struct pipe *f_pipe; // FD_PIPE
-    struct inode *f_inode;  // FD_INODE and FD_DEVICE
+    struct pipe *f_pipe;  // FD_PIPE  
+    struct _inode *f_inode; // FD_INODE and FD_DEVICE
 };
 
 struct _file {
@@ -47,33 +52,12 @@ struct _file {
     short f_major;       // FD_DEVICE
 
 
-    // struct file *f_next, *f_prev;
     int f_owner; /* pid or -pgrp where SIGIO should be sent */
-    struct _inode *f_inode;
-    struct file_operations *f_op;
+    union file_type * f_tp;
+    const struct file_operations *f_op;
     unsigned long f_version;
 };
 
-struct file_operations {
-    char *(*getcwd)(char *__user buf, size_t size);
-    int (*pipe2)(int fd[2], int flags);
-    int (*dup)(int fd);
-    int (*dup3)(int oldfd, int newfd, int flags);
-    int (*chdir)(const char *path);
-    int (*openat)(int dirfd, const char *pathname, int flags, mode_t mode);
-    int (*close)(int fd);
-    ssize_t (*getdents64)(int fd, void *dirp, size_t count);
-    ssize_t (*read)(int fd, void *buf, size_t count);
-    ssize_t (*write)(int fd, const void *buf, size_t count);
-    int (*linkat)(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
-    int (*unlinkat)(int dirfd, const char *pathname, int flags);
-    int (*mkdirat)(int dirfd, const char *pathname, mode_t mode);
-    int (*umount2)(const char *target, int flags);
-    int (*mount)(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
-    // int (*fstat)(int fd, struct kstat *statbuf);
-};
-
-#define NAME_MAX 10
 struct _dirent {
     long d_ino;
     char d_name[NAME_MAX + 1];
@@ -120,6 +104,26 @@ struct _inode {
         // struct ext2_inode_info ext2_i;
         // void *generic_ip;
     };
+};
+
+// ==ignore==
+struct file_operations {
+    char *(*getcwd)(char *__user buf, size_t size);
+    int (*pipe2)(int fd[2], int flags);
+    int (*dup)(int fd);
+    int (*dup3)(int oldfd, int newfd, int flags);
+    int (*chdir)(const char *path);
+    int (*openat)(int dirfd, const char *pathname, int flags, mode_t mode);
+    int (*close)(int fd);
+    ssize_t (*getdents64)(int fd, void *dirp, size_t count);
+    ssize_t (*read)(int fd, void *buf, size_t count);
+    ssize_t (*write)(int fd, const void *buf, size_t count);
+    int (*linkat)(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
+    int (*unlinkat)(int dirfd, const char *pathname, int flags);
+    int (*mkdirat)(int dirfd, const char *pathname, mode_t mode);
+    int (*umount2)(const char *target, int flags);
+    int (*mount)(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
+    // int (*fstat)(int fd, struct kstat *statbuf);
 };
 /* File function return code (FRESULT) */
 typedef enum {

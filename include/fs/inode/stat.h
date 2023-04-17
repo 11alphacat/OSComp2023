@@ -1,5 +1,5 @@
-#ifndef __INODE_STAT_H__
-#define __INODE_STAT_H__
+#ifndef __FS_STAT_H__
+#define __FS_STAT_H__
 
 // since mkfs will use kernel header file, add this condition preprocess
 #ifndef USER
@@ -10,21 +10,9 @@
 #define T_FILE 2   // File
 #define T_DEVICE 3 // Device
 
-#define major(dev) ((dev) >> 4 & 0xF)
-#define minor(dev) ((dev)&0xF)
-#define mkdev(m, n) ((uint)((m) << 4 | (n)))
-
-struct stat {
-    int dev;     // File system's disk device
-    uint ino;    // Inode number
-    short type;  // Type of file
-    short nlink; // Number of links to file
-    uint64 size; // Size of file in bytes
-};
 
 typedef unsigned long int dev_t;
 typedef unsigned long int ino_t;
-// typedef unsigned int mode_t;
 typedef unsigned long int nlink_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;
@@ -33,25 +21,25 @@ typedef long int blksize_t;
 typedef long int blkcnt_t;
 
 struct kstat {
-    dev_t st_dev;
-    ino_t st_ino;
-    mode_t st_mode;
-    nlink_t st_nlink;
-    uid_t st_uid;
-    gid_t st_gid;
-    dev_t st_rdev;
-    unsigned long __pad;
-    off_t st_size;
-    blksize_t st_blksize;
-    int __pad2;
-    blkcnt_t st_blocks;
-    long st_atime_sec;
-    long st_atime_nsec;
-    long st_mtime_sec;
-    long st_mtime_nsec;
-    long st_ctime_sec;
-    long st_ctime_nsec;
-    unsigned __unused[2];
+	dev_t st_dev;
+	ino_t st_ino;
+	mode_t st_mode;
+	nlink_t st_nlink;
+	uid_t st_uid;
+	gid_t st_gid;
+	dev_t st_rdev;
+	unsigned long __pad;	// for padding
+	off_t st_size;
+	blksize_t st_blksize;
+	int __pad2;				// for padding
+	blkcnt_t st_blocks;
+	long st_atime_sec;
+	long st_atime_nsec;
+	long st_mtime_sec;
+	long st_mtime_nsec;
+	long st_ctime_sec;
+	long st_ctime_nsec;
+	unsigned __unused[2];	// do not use
 };
 
-#endif // __INODE_STAT_H__
+#endif // __FS_STAT_H__

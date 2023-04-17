@@ -7,8 +7,8 @@
 #include "kernel/kthread.h"
 #include "fs/fat/fat32_disk.h"
 
-struct file;
-struct inode;
+struct _file;
+struct _inode;
 
 enum procstate { UNUSED,
                  USED,
@@ -40,8 +40,6 @@ struct proc {
     pagetable_t pagetable;       // User page table
     struct trapframe *trapframe; // data page for trampoline.S
     struct context context;      // swtch() here to run process
-
-
     struct _file *ofile[NOFILE];  // Open files
     struct _inode *cwd;           // Current directory
     char name[16];               // Process name (debugging)

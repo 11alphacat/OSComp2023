@@ -28,10 +28,10 @@ struct kstat {
 	uid_t st_uid;
 	gid_t st_gid;
 	dev_t st_rdev;
-	unsigned long __pad;
+	unsigned long __pad;	// for padding
 	off_t st_size;
 	blksize_t st_blksize;
-	int __pad2;
+	int __pad2;				// for padding
 	blkcnt_t st_blocks;
 	long st_atime_sec;
 	long st_atime_nsec;
@@ -39,7 +39,7 @@ struct kstat {
 	long st_mtime_nsec;
 	long st_ctime_sec;
 	long st_ctime_nsec;
-	unsigned __unused[2];
+	unsigned __unused[2];	// do not use
 };
 
 #endif // __FS_STAT_H__

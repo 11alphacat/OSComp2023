@@ -15,17 +15,19 @@
 #include "fs/fat/fat32_stack.h"
 #include "fs/fat/fat32_file.h"
 
-#define F_WRITEABLE(fp) (((fp)->f_mode & (O_WRONLY | O_RDWR)) == 0 ? 0 : 1)
-#define F_READABLE(fp) ((fp)->f_mode == O_RDONLY || (fp)->f_mode == O_RDWR)
+#define F_WRITEABLE(fp)     ( ((fp)->f_mode & (O_WRONLY | O_RDWR)) == 0 ? 0 : 1)
+#define F_READABLE(fp)     ( (fp)->f_mode == O_RDONLY || (fp)->f_mode == O_RDWR )
 
 struct devsw devsw[NDEV];
 struct {
-    struct spinlock lock;
-    struct _file file[NFILE];
+  struct spinlock lock;
+  struct _file file[NFILE];
 } ftable;
 
-void fat32_fileinit(void) {
-    initlock(&ftable.lock, "ftable");
+void
+fat32_fileinit(void)
+{
+  initlock(&ftable.lock, "ftable");
 }
 
 // Allocate a file structure.
@@ -49,8 +51,7 @@ fat32_filealloc(void) {
 // Increment ref count for file f.
 // 语义：将 f 指向的 file 文件的引用次数自增，并返回该指针
 // 实现：给 ftable 加锁后，f->f_count++
-struct _file *
-fat32_filedup(struct _file *f) {
+struct _file*  fat32_filedup(struct _file *f) {
     acquire(&ftable.lock);
     if (f->f_count < 1)
         panic("filedup");
