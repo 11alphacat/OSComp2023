@@ -71,6 +71,7 @@ void fat32_inode_unlock_put(struct _inode *);
 int fat32_filter_longname(dirent_l_t *, char *);
 struct _inode *fat32_inode_dirlookup(struct _inode *, char *, uint *);
 struct _inode *fat32_inode_get(uint, uint, char *, uint);
+void fat32_inode_stati(struct _inode *, struct kstat *);
 
 uint fat32_inode_read(struct _inode *, int, uint64, uint, uint);
 uint fat32_inode_write(struct _inode *, int, uint64, uint, uint);

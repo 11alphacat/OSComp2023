@@ -428,6 +428,32 @@ struct _inode *fat32_inode_get(uint dev, uint inum, char *name, uint parentoff) 
     return ip;
 }
 
+// Copy stat information from inode.
+// Caller must hold ip->lock.
+void fat32_inode_stati(struct _inode *ip, struct kstat *st) {
+	st->st_dev = ip->i_dev;
+	st->st_mode = ip->i_mode;
+	st->st_ino = ip->i_ino;
+	st->st_nlink = ip->i_nlink;
+	st->st_uid = ip->i_uid;
+	st->st_gid; ip->i_gid;
+	st->st_rdev = ip->i_rdev;
+	// st->__pad = TODO();  // padding, do not touch
+	st->st_size = ip->i_size;
+	st->st_blksize = ip->i_blksize;
+	// st->__pad2 = TODO();
+	st->st_blocks = ip->i_blocks;
+	st->st_atime_sec = ip->i_atime;
+	st->st_atime_nsec = TODO();
+	st->st_mtime_sec = ip->i_mtime;
+	st->st_mtime_nsec = TODO();
+	st->st_ctime_sec = ip->i_ctime;
+	st->st_ctime_nsec = TODO();
+	// st->__unused[0] = st->__unused[1] = 0; // unused, do not touch
+    return;
+}
+
+
 // Read data from inode.
 uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uint n) {
     uint tot = 0, m;

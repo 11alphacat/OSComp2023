@@ -6,8 +6,13 @@
 #include "atomic/sleeplock.h"
 #include "fs/stat.h"
 #include "fs/fat/fat32_mem.h"
+#include "fs/fcntl.h"
 
-struct stat;
+#define NAME_MAX 10
+#define IMODE_READONLY 0x1
+
+
+struct kstat;
 struct _superblock {
     struct spinlock lock;
     uint8 s_dev; // device number
@@ -27,45 +32,35 @@ struct _superblock {
     };
 };
 
-struct _file {
-    ushort f_mode;
-    uint32 f_pos;
-    ushort f_flags;
-    ushort f_count;
+union file_type {
+    struct pipe *f_pipe;  // FD_PIPE  
+    struct _inode *f_inode; // FD_INODE and FD_DEVICE
+};
 
-    // struct file *f_next, *f_prev;
+struct _file {
+    enum { FD_NONE,
+           FD_PIPE,
+           FD_INODE,
+           FD_DEVICE } f_type;   
+    short f_major;       // FD_DEVICE
+
+    ushort f_mode;      // 打开文件时传递的参数(O_RDONLY、O_WRONLY、O_RDWR)
+    uint32 f_pos;       // F_INODE 
+    ushort f_flags;     // open系统调用传递的额外标志(O_CREAT、O_TRUNC)
+    ushort f_count;     // reference count
+
     int f_owner; /* pid or -pgrp where SIGIO should be sent */
-    struct _inode *f_inode;
-    struct file_operations *f_op;
+    union file_type * f_tp;
+    const struct file_operations *f_op;
     unsigned long f_version;
 };
 
-struct file_operations {
-    char *(*getcwd)(char *__user buf, size_t size);
-    int (*pipe2)(int fd[2], int flags);
-    int (*dup)(int fd);
-    int (*dup3)(int oldfd, int newfd, int flags);
-    int (*chdir)(const char *path);
-    int (*openat)(int dirfd, const char *pathname, int flags, mode_t mode);
-    int (*close)(int fd);
-    ssize_t (*getdents64)(int fd, void *dirp, size_t count);
-    ssize_t (*read)(int fd, void *buf, size_t count);
-    ssize_t (*write)(int fd, const void *buf, size_t count);
-    int (*linkat)(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
-    int (*unlinkat)(int dirfd, const char *pathname, int flags);
-    int (*mkdirat)(int dirfd, const char *pathname, mode_t mode);
-    int (*umount2)(const char *target, int flags);
-    int (*mount)(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
-    // int (*fstat)(int fd, struct kstat *statbuf);
-};
-
-#define NAME_MAX 10
 struct _dirent {
     long d_ino;
     char d_name[NAME_MAX + 1];
 };
 
-#define IMODE_READONLY 0x1
+// 加下划线以区分 xv6 的 inode 结构体
 struct _inode {
     uint8 i_dev;
     uint32 i_ino;
@@ -74,14 +69,16 @@ struct _inode {
     int valid;
     // Note: fat fs does not support hard link, reserve for vfs interface
     uint16 i_nlink;
-
-    // dev_t i_rdev;
+	uint i_uid;
+	uint i_gid;
+    uint64 i_rdev;
     uint32 i_size;
 
     long i_atime; // access time
     long i_mtime; // modify time
     long i_ctime; // create time
-
+	uint64 i_blksize;   // bytes of one block
+	uint64 i_blocks;    // numbers of 512B blocks
     // uint32 i_blksize;
     // uint32 i_blocks;
     // struct semaphore i_sem;
@@ -100,6 +97,25 @@ struct _inode {
     };
 };
 
+// ==ignore==
+struct file_operations {
+    char *(*getcwd)(char *__user buf, size_t size);
+    int (*pipe2)(int fd[2], int flags);
+    int (*dup)(int fd);
+    int (*dup3)(int oldfd, int newfd, int flags);
+    int (*chdir)(const char *path);
+    int (*openat)(int dirfd, const char *pathname, int flags, mode_t mode);
+    int (*close)(int fd);
+    ssize_t (*getdents64)(int fd, void *dirp, size_t count);
+    ssize_t (*read)(int fd, void *buf, size_t count);
+    ssize_t (*write)(int fd, const void *buf, size_t count);
+    int (*linkat)(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);
+    int (*unlinkat)(int dirfd, const char *pathname, int flags);
+    int (*mkdirat)(int dirfd, const char *pathname, mode_t mode);
+    int (*umount2)(const char *target, int flags);
+    int (*mount)(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
+    // int (*fstat)(int fd, struct kstat *statbuf);
+};
 /* File function return code (FRESULT) */
 typedef enum {
     FR_OK = 0, /* (0) Succeeded */

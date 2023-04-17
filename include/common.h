@@ -22,6 +22,16 @@ typedef unsigned long size_t;
 typedef long ssize_t;
 typedef unsigned short mode_t;
 
+// used in struct kstat
+typedef unsigned long int dev_t;
+typedef unsigned long int ino_t;
+typedef unsigned long int nlink_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef long int off_t;
+typedef long int blksize_t;
+typedef long int blkcnt_t;
+
 typedef uint8 uint8_t;
 typedef uint16 uint16_t;
 typedef uint32 uint32_t;

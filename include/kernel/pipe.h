@@ -4,7 +4,7 @@
 #include "common.h"
 #include "atomic/spinlock.h"
 
-struct file;
+struct _file;
 #define PIPESIZE 512
 
 struct pipe {
@@ -16,9 +16,9 @@ struct pipe {
     int writeopen; // write fd is still open
 };
 
-int pipealloc(struct file **, struct file **);
-void pipeclose(struct pipe *, int);
-int piperead(struct pipe *, uint64, int);
-int pipewrite(struct pipe *, uint64, int);
+int pipealloc(struct _file **f0, struct _file **f1);
+void pipeclose(struct pipe *pi, int writable);
+int piperead(struct pipe *pi, uint64 addr, int n);
+int pipewrite(struct pipe *pi, uint64 addr, int n);
 
 #endif // __PIPE_H__

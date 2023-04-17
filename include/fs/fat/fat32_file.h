@@ -3,7 +3,23 @@
 
 #include "common.h"
 
-// implement file_operations
+struct devsw {
+    int (*read)(int, uint64, int);
+    int (*write)(int, uint64, int);
+};
+
+extern struct devsw devsw[];
+
+void fat32_fileinit(void);
+struct _file *fat32_filealloc(void);
+void fat32_fileclose(struct _file *);
+struct _file *fat32_filedup(struct _file *);
+int fat32_fileread(struct _file *, uint64, int n);
+int fat32_filestat(struct _file *, uint64 addr);
+int fat32_filewrite(struct _file *, uint64, int n);
+
+
+// implement file_operations( ==ignore== )
 char *fat32_getcwd(char *__user buf, size_t size);
 int fat32_pipe2(int fd[2], int flags);
 int fat32_dup(int fd);
