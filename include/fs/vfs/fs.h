@@ -85,7 +85,7 @@ struct _inode {
     long i_mtime;     // modify time
     long i_ctime;     // create time
     uint64 i_blksize; // bytes of one block
-    uint64 i_blocks;  // numbers of 512B blocks
+    uint64 i_blocks;  // numbers of blocks
     // uint32 i_blksize;
     // uint32 i_blocks;
     // struct semaphore i_sem;
@@ -96,8 +96,7 @@ struct _inode {
     struct _inode *i_mount;
     // struct wait_queue *i_wait;
     struct _inode *parent;
-
-    struct _inode *parent;
+    
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6_inode_info xv6_i;

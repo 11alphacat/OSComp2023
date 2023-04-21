@@ -32,8 +32,7 @@ fat32_fileinit(void)
 
 // Allocate a file structure.
 // 语义：从内存中的 ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
-struct _file *
-fat32_filealloc(void) {
+struct _file* fat32_filealloc(void) {
     struct _file *f;
 
     acquire(&ftable.lock);
