@@ -9,10 +9,10 @@ extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 uint64 npages;
 
+struct phys_mem_pool mempools[NCPU];
 static struct page *merge_page(struct phys_mem_pool *pool, struct page *page);
 static struct page *split_page(struct phys_mem_pool *pool, uint64 order, struct page *page);
-void init_buddy(struct page *start_page, uint64 start_addr, uint64 page_num);
-struct phys_mem_pool mempools;
+void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 start_addr, uint64 page_num);
 
 static inline uint64 page_to_offset(struct phys_mem_pool *pool, struct page *page) {
     return (page - pool->page_metadata) * PGSIZE;
@@ -36,34 +36,50 @@ static struct page *get_buddy(struct phys_mem_pool *pool, struct page *page) {
     return offset_to_page(pool, (uint64)buddy_off);
 }
 
+struct page *pagemeta_start;
 void mm_init() {
-    init_buddy((struct page *)PGROUNDUP((uint64)end), (uint64)START_MEM, NPAGES);
+    // readonly! can not modify!
+    pagemeta_start = (struct page *)PGROUNDUP((uint64)end);
+    Log("pagemeta_start %x", pagemeta_start);
+    Log("NPAGES: %d", NPAGES);
+    Log("PAGES PER CPU: %d", PAGES_PER_CPU);
+    for (int i = 0; i < NCPU; i++) {
+        init_buddy(&mempools[i],
+                   (struct page *)PGROUNDUP((uint64)end) + i * PAGES_PER_CPU,
+                   (uint64)START_MEM + i * PAGES_PER_CPU * PGSIZE,
+                   PAGES_PER_CPU);
+    }
 }
 
-void init_buddy(struct page *start_page, uint64 start_addr, uint64 page_num) {
-    // Log("pagemeta start: %x", start_page);
-    // Log("page_num %d", page_num);
-    // Log("pagemeta end: %x", (uint64)start_page + page_num * sizeof(struct page));
-    ASSERT((uint64)start_page + page_num * sizeof(struct page) < start_addr);
-    mempools.start_addr = start_addr;
-    mempools.page_metadata = start_page;
-    mempools.mem_size = PGSIZE * page_num;
+// static int cur = 0;
+void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 start_addr, uint64 page_num) {
+    // int mem_size = PGSIZE * page_num;
+    // Log("%d mem size: %dM", cur, mem_size / 1024 / 1024);
+    // Log("%d start_mem: %#x", cur, start_addr);
+    // Log("%d end mem: %#x", cur, start_addr + mem_size);
+    // Log("%d page_num %d", cur, page_num);
+    // Log("%d pagemeta start: %x", cur, start_page);
+    // Log("%d pagemeta end: %x", cur, (uint64)start_page + page_num * sizeof(struct page));
+    ASSERT((uint64)start_page + page_num * sizeof(struct page) < START_MEM);
+    pool->start_addr = start_addr;
+    pool->page_metadata = start_page;
+    pool->mem_size = PGSIZE * page_num;
 
-    // Log("start_page_metadata: %#x", mempools.page_metadata);
-    // Log("start_addr: %#x", mempools.start_addr);
-    // Log("mem size: %#x", mempools.mem_size);
+    // Log("start_page_metadata: %#x", pool->page_metadata);
+    // Log("start_addr: %#x", pool->start_addr);
+    // cur++;
 
     /* Init the spinlock */
-    initlock(&mempools.lock, "buddy_phy_mem_pools_lock");
+    initlock(&pool->lock, "buddy_phy_mem_pools_lock");
 
     /* Init the free lists */
     for (int order = 0; order <= BUDDY_MAX_ORDER; ++order) {
-        INIT_LIST_HEAD(&mempools.freelists[order].lists);
-        mempools.freelists[order].num = 0;
+        INIT_LIST_HEAD(&pool->freelists[order].lists);
+        pool->freelists[order].num = 0;
     }
 
     /* Clear the page_metadata area. */
-    memset(mempools.page_metadata, 0, page_num * sizeof(struct page));
+    memset(pool->page_metadata, 0, page_num * sizeof(struct page));
 
     /* Init the page_metadata area. */
     struct page *page;
@@ -76,24 +92,26 @@ void init_buddy(struct page *start_page, uint64 start_addr, uint64 page_num) {
     /* Put each physical memory page into the free lists. */
     for (int page_idx = 0; page_idx < page_num; ++page_idx) {
         page = start_page + page_idx;
-        buddy_free_pages(&mempools, page);
+        buddy_free_pages(pool, page);
     }
     // Log("finish initialization");
 
     /* make sure the buddy_free_pages works correctly */
     uint64 memsize = 0;
     for (int i = 0; i <= BUDDY_MAX_ORDER; i++) {
-        Log("%d order chunks num: %d", i, mempools.freelists[i].num);
-        memsize += mempools.freelists[i].num * PGSIZE * (1 << i);
+        // Log("%d order chunks num: %d", i, pool->freelists[i].num);
+        memsize += pool->freelists[i].num * PGSIZE * (1 << i);
     }
     Log("memsize: %u", memsize / 1024 / 1024);
-    ASSERT(memsize == mempools.mem_size);
+    ASSERT(memsize == pool->mem_size);
     return;
 }
 
 struct page *buddy_get_pages(struct phys_mem_pool *pool, uint64 order) {
-    ASSERT(order <= BUDDY_MAX_ORDER);
+    // kalloc() will call push_off, so use pop_off here to prevent long time interrupt off
+    pop_off();
 
+    ASSERT(order <= BUDDY_MAX_ORDER);
     struct page *page = NULL;
     struct list_head *lists;
 
@@ -109,7 +127,7 @@ struct page *buddy_get_pages(struct phys_mem_pool *pool, uint64 order) {
     }
 
     if (page == NULL) {
-        Log("there is no 2^%d mem!", order);
+        // Log("there is no 2^%d mem!", order);
         release(&pool->lock);
         return NULL;
     }
@@ -176,7 +194,7 @@ static struct page *merge_page(struct phys_mem_pool *pool, struct page *page) {
         merge->order++;
         if (merge->order > max) {
             max = merge->order;
-            Log("%d", max);
+            // Log("%d", max);
         }
         return merge_page(pool, merge);
     } else {

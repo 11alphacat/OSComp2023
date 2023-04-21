@@ -21,10 +21,12 @@
 */
 
 /* configuration option */
-#define START_MEM 0x80400000
-#define BUDDY_MAX_ORDER 13
+#define START_MEM 0x82400000
+#define BUDDY_MAX_ORDER 12
 
 #define NPAGES (((PHYSTOP)-START_MEM) / (PGSIZE))
+#define PAGES_PER_CPU (NPAGES / NCPU)
+extern struct page *pagemeta_start;
 
 struct page {
     // use for buddy system
@@ -41,7 +43,6 @@ struct free_list {
     int num;
 };
 
-extern struct phys_mem_pool mempools;
 struct phys_mem_pool {
     uint64 start_addr;
     uint64 mem_size;
@@ -56,6 +57,7 @@ struct phys_mem_pool {
     /* The free list of different free-memory-chunk orders. */
     struct free_list freelists[BUDDY_MAX_ORDER + 1];
 };
+extern struct phys_mem_pool mempools[NCPU];
 
 void buddy_free_pages(struct phys_mem_pool *pool, struct page *page);
 struct page *buddy_get_pages(struct phys_mem_pool *pool, uint64 order);

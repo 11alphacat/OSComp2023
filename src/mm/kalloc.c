@@ -10,26 +10,59 @@
 #include "memory/list_alloc.h"
 #include "memory/buddy.h"
 #include "debug.h"
+#include "kernel/cpu.h"
 
-static inline uint64 page_to_pa(struct phys_mem_pool *pool, struct page *page) {
-    return (page - pool->page_metadata) * PGSIZE + pool->start_addr;
+extern char end[];
+
+static inline int get_pages_cpu(struct page *page) {
+    return (page - pagemeta_start) / PAGES_PER_CPU;
 }
 
-static struct page *pa_to_page(struct phys_mem_pool *pool, uint64 pa) {
-    ASSERT((pa - pool->start_addr) % PGSIZE == 0);
-    return ((pa - pool->start_addr) / PGSIZE + pool->page_metadata);
+static inline uint64 page_to_pa(struct page *page) {
+    return (page - pagemeta_start) * PGSIZE + START_MEM;
+}
+static struct page *pa_to_page(uint64 pa) {
+    ASSERT((pa - START_MEM) % PGSIZE == 0);
+    return ((pa - START_MEM) / PGSIZE + pagemeta_start);
+}
+
+struct page *steal_mem(int cur_id, uint64 order) {
+    struct page *page = NULL;
+    for (int i = 0; i < NCPU; i++) {
+        if (i == cur_id) {
+            continue;
+        }
+        // TODO
+        push_off();
+        page = buddy_get_pages(&mempools[i], order);
+        if (page != NULL) {
+            return page;
+        }
+    }
+    ASSERT(page == NULL);
+    return page;
 }
 
 void *kalloc(void) {
-    struct page *page = buddy_get_pages(&mempools, 0);
+    int order = 0;
+
+    push_off();
+    int id = cpuid();
+    ASSERT(id >= 0 && id < NCPU);
+    struct page *page = buddy_get_pages(&mempools[id], order);
+
     if (page == NULL) {
-        return 0;
-    } else {
-        return (void *)page_to_pa(&mempools, page);
+        page = steal_mem(id, order);
+        if (page == NULL) {
+            return 0;
+        }
     }
+    return (void *)page_to_pa(page);
 }
 
 void kfree(void *pa) {
-    struct page *page = pa_to_page(&mempools, (uint64)pa);
-    buddy_free_pages(&mempools, page);
+    struct page *page = pa_to_page((uint64)pa);
+    int id = get_pages_cpu(page);
+    ASSERT(id >= 0 && id < NCPU);
+    buddy_free_pages(&mempools[id], page);
 }
