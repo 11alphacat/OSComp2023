@@ -4,7 +4,6 @@
 void snprintf_test();
 void printf_test();
 
-
 void fat32_test_functions(void);
 
 #endif // __TEST_H__

@@ -124,7 +124,7 @@ void vprintf(const char *fmt, va_list args) {
 
     int field_width; /* width of output field */
     int precision;   /* min. # of digits for integers; max
-				   number of chars for from string */
+                   number of chars for from string */
     int qualifier;   /* 'l', or 'L' for integer fields */
 
     for (; *fmt; ++fmt) {
@@ -303,7 +303,7 @@ void Show_bytes(byte_pointer b, int len) {
     size_t i;
     printf("0x");
     for (i = 0; i < len; i++)
-        printf("%x ", b[i]);
+        printf("%X ", b[i]);
     printf("\n");
 }
 

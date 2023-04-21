@@ -214,6 +214,7 @@ sys_unlink(void) {
     }
 
     memset(&de, 0, sizeof(de));
+
     if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
         panic("unlink: writei");
     if (ip->type == T_DIR) {

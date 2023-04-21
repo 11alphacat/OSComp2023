@@ -21,12 +21,12 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
 
     /* read boot sector in sector 0 */
     struct buffer_head *bp;
-    bp = bread(dev, 0);
+    bp = bread(dev, SECTOR_BPB);
     fat32_boot_sector_parser(sb, (fat_bpb_t *)bp->data);
     brelse(bp);
 
     /* read fsinfo sector in sector 1 */
-    bp = bread(dev, 1);
+    bp = bread(dev, SECTOR_FSINFO);
     fat32_fsinfo_parser(sb, (fsinfo_t *)bp->data);
     brelse(bp);
 
@@ -67,18 +67,20 @@ int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
 int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
     Info_R("=============BOOT Sector==========\n");
     /* superblock initialization */
-    sb->fat32_sb_info.fatbase = fat_bpb->RsvdSecCnt;
-    sb->fat32_sb_info.n_fats = fat_bpb->NumFATs;
-    sb->fat32_sb_info.n_sectors_fat = fat_bpb->FATSz32;
-    sb->fat32_sb_info.root_cluster_s = fat_bpb->RootClus;
+    // common
     sb->sector_size = fat_bpb->BytsPerSec;
     sb->n_sectors = fat_bpb->TotSec32;
     sb->sectors_per_block = fat_bpb->SecPerClus;
 
+    // specail for fat32 superblock
+    sb->fat32_sb_info.fatbase = fat_bpb->RsvdSecCnt;
+    sb->fat32_sb_info.n_fats = fat_bpb->NumFATs;
+    sb->fat32_sb_info.n_sectors_fat = fat_bpb->FATSz32;
+    sb->fat32_sb_info.root_cluster_s = fat_bpb->RootClus;
 
     // repeat with sb->s_blocksize
-    sb->fat32_sb_info.cluster_size = (sb->sector_size) * (sb->sectors_per_block);
-    sb->s_blocksize = sb->fat32_sb_info.cluster_size;
+    sb->cluster_size = (sb->sector_size) * (sb->sectors_per_block);
+    sb->s_blocksize = sb->cluster_size;
 
     //////////////////////////////////////////////////////////////////
     /*然后是打印fat32的所有信息*/
@@ -133,7 +135,8 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
     Info("VolLab : ");
     Show_bytes((byte_pointer)&fat_bpb->VolLab, sizeof(fat_bpb->VolLab));
 
-    Info("FilSysType : %s\n", fat_bpb->FilSysType);
+    Info("FilSysType : ");
+    printf("%.5s\n", fat_bpb->FilSysType);
 
     Info("BootCode : ");
     Show_bytes((byte_pointer)&fat_bpb->BootCode, sizeof(fat_bpb->BootCode));

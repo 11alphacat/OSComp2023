@@ -10,6 +10,10 @@
 #define T_FILE 2   // File
 #define T_DEVICE 3 // Device
 
+#define major(dev) ((dev) >> 4 & 0xF)
+#define minor(dev) ((dev)&0xF)
+#define mkdev(m, n) ((uint)((m) << 4 | (n)))
+
 struct stat {
     int dev;     // File system's disk device
     uint ino;    // Inode number
@@ -20,7 +24,7 @@ struct stat {
 
 typedef unsigned long int dev_t;
 typedef unsigned long int ino_t;
-typedef unsigned int mode_t;
+// typedef unsigned int mode_t;
 typedef unsigned long int nlink_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;

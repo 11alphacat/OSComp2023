@@ -138,9 +138,8 @@ int str_split(char *str, char ch, char *str1, char *str2) {
     if (p == NULL) {
         return -1;
     }
-    *p = '\0';
-    strncpy(str1, str, sizeof(str1));
-    strncpy(str2, p + 1, sizeof(str2));
+    strncpy(str1, str, p - str);
+    strncpy(str2, p + 1, strlen(str) - 1 - (p - str));
 
     return 1;
 }

@@ -40,6 +40,13 @@ typedef uint64 *pagetable_t; // 512 PTEs
 // math
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define CEIL_DIVIDE(x, y) (((x) + (y)-1) / (y))
+// util
+
+/* Character code support macros */
+#define IsUpper(c) ((c) >= 'A' && (c) <= 'Z')
+#define IsLower(c) ((c) >= 'a' && (c) <= 'z')
+#define IsDigit(c) ((c) >= '0' && (c) <= '9')
 
 // string.c
 int memcmp(const void *, const void *, uint);

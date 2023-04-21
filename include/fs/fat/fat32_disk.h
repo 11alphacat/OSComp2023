@@ -70,28 +70,26 @@
 // #define FSI_Nxt_Free 492   /* FAT32 FSI: Last allocated cluster (DWORD) */
 // #define FSI_Reserved2 496  /* FAT32 FSI: Reserved. This field should be always initialized to zero.*/
 // #define FSI_TrailSig 512   /* FAT32 FSI: */
-
-/* Character code support macros */
-#define IsUpper(c) ((c) >= 'A' && (c) <= 'Z')
-#define IsLower(c) ((c) >= 'a' && (c) <= 'z')
-#define IsDigit(c) ((c) >= '0' && (c) <= '9')
-
-/*sector size*/
-#define FF_MAX_SS 512
-
-/* File access mode and open method flags (3rd argument of f_open) */
-#define FA_READ 0x01
-#define FA_WRITE 0x02
-#define FA_OPEN_EXISTING 0x00
-#define FA_CREATE_NEW 0x04
-#define FA_CREATE_ALWAYS 0x08
-#define FA_OPEN_ALWAYS 0x10
-#define FA_OPEN_APPEND 0x30
-
-#define FAT_SFN_LENGTH 11 // 短文件名长度
-#define FAT_LFN_LENGTH 13 // 长文件名长度
-
+// /*reserved, may be used in the future*/
+// #define ClnShutBitMask 0x08000000
+// // If bit is 1, volume is "clean".If bit is 0, volume is "dirty".
+// #define HrdErrBitMask 0x04000000
+// // If this bit is 1, no disk read/write errors were encountered.
+// // If this bit is 0, the file system driver encountered a disk I/O error on theVolume the last time it was mounted,
+// // which is an indicator that some sectorsmay have gone bad on the volume.
+// #define NAME0_NOT_VALID(x) (x == 0x20)
+// #define NAME_CHAR_NOT_VALID(x) ((x < 0x20 && x != 0x05) || (x == 0x22) || (x >= 0x2A && x <= 0x2C) || (x >= 0x2E && x <= 0x2F) || (x >= 0x3A || x <= 0x3F) || (x >= 0x5B && x <= 0x5D) || (x == 0x7C))
+// // " * + , . / : ; < =	> ? [ \ ] |
+// #define FCB_NUM(x) (sizeof(x) / sizeof(dirent_s_t))
 extern struct _superblock fat32_sb;
+
+// the sector of bpb and fsinfo
+#define SECTOR_BPB 0
+#define SECTOR_FSINFO 1
+#define SECTOR_BPB_BACKUP 6
+#define SECTOR_FSINFO_BACKUP 7
+
+// some useful field of fat32 super block
 #define __BPB_RootEntCnt 0
 #define __BPB_BytsPerSec (fat32_sb.sector_size)
 #define __TotSec (fat32_sb.n_sectors)
@@ -101,136 +99,162 @@ extern struct _superblock fat32_sb;
 #define __BPB_SecPerClus (fat32_sb.sectors_per_block)
 #define __Free_Count (fat32_sb.fat32_sb_info.free_count)
 #define __Nxt_Free (fat32_sb.fat32_sb_info.nxt_free)
-#define __CLUSTER_SIZE (fat32_sb.fat32_sb_info.cluster_size)
+#define __CLUSTER_SIZE (fat32_sb.cluster_size)
 #define FAT_BASE __BPB_ResvdSecCnt
 
-// number of root directory sectors
-#define RootDirSectors (((__BPB_RootEntCnt * 32) + (__BPB_BytsPerSec - 1)) / __BPB_BytsPerSec)
-// (0*32+512-1)/512 FAT32 没有Root Directory 的概念，所以一直是0
+#define FAT_SFN_LENGTH 11 // 短文件名长度
+#define FAT_LFN_LENGTH 13 // 长文件名长度
 
+/* some useful macro from manual */
+// 1. number of root directory sectors (not important in fat32 file system)
+// (0*32+512-1)/512 FAT32 没有Root Directory 的概念，所以一直是0
+#define RootDirSectors (((__BPB_RootEntCnt * 32) + (__BPB_BytsPerSec - 1)) / __BPB_BytsPerSec)
+
+// 2. the first data sector num(sector number index from 0)
 // 假设一个FAT32区域占2017个扇区: 32 + (2 * 2017) + 0
-// the first data sector num(sector number index from 0)
 #define FirstDataSector ((__BPB_ResvdSecCnt) + ((__BPB_NumFATs) * (__FATSz)) + (RootDirSectors))
 
-// the first sector number of cluster N
+// 3. the first sector number of cluster N
+// 假设一个簇两个扇区,保留区有32个扇区，一个fat区域占2017个扇区，有两个fat区域：(N-2)*2+32+(2*2017)+0
 #define FirstSectorofCluster(N) (((N)-2) * (__BPB_SecPerClus) + (FirstDataSector))
-// 假设一个簇两个扇区：(N-2)*2+32+(2*2017)+0
 
-// the number of sectors in data region
-#define DataSec ((__TotSec) - ((__BPB_ResvdSecCnt) + ((__BPB_NumFATs) * (__FATSz)) + (RootDirSectors)))
+// 4. the number of sectors in data region
 // 就是用总的数量减去保留扇区，然后减去FAT的扇区
+// remeber, RootDirSectors is always 0
+#define DataSec ((__TotSec) - ((__BPB_ResvdSecCnt) + ((__BPB_NumFATs) * (__FATSz)) + (RootDirSectors)))
 
-// the count of clusters in data region
+// 5. the count of clusters in data region
+// remeber, cluster 0 and cluster 1 can not used!!!
 #define CountofClusters ((DataSec) / (__BPB_SecPerClus))
 
+// 6. the maxium of FAT entry
 // 最后一个簇
 #define FAT_CLUSTER_MAX ((CountofClusters) + 1)
 
-// 每个BLOCK每个FCB的数量
-#define FCB_PER_BLOCK ((BSIZE) / sizeof(dirent_s_t))
+// 7. 每个BLOCK每个FCB的数量
+#define FCB_PER_BLOCK ((__BPB_BytsPerSec) / sizeof(dirent_s_t))
 
-// FAT item
+// 8. bytes of (FAT32 entry)
 #define FATOffset(N) ((N)*4)
 
-// #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
-// #define ThisFATSecNum(N) ((__BPB_ResvdSecCnt) + (FATOffset(N)) / (__BPB_BytsPerSec))
-// the sector number of fat entry
+// 9. the sector number of fat entry
 // 保留区域的扇区个数+一个扇区对应4字节的FAT表项的偏移/一个扇区多少个字节，就可以算出这个FAT表项在那个扇区
 #define ThisFATEntSecNum(N) ((__BPB_ResvdSecCnt) + ((FATOffset(N)) / (__BPB_BytsPerSec)))
-// the offset of an entry within a sector
+
+// 10. the offset of an entry within a sector
 // 算出FAT表项在对应扇区的具体多少偏移的位置
 #define ThisFATEntOffset(N) ((FATOffset(N)) % (__BPB_BytsPerSec))
 
-// read the FAT32 cluster entry value
-#define FAT32ClusEntryVal(SectorBuf, N) ((*((DWORD *)&((char *)SectorBuf)[(ThisFATEntOffset(N))])) & 0x0FFFFFFF)
+// remember ,the valid number of bits of the FAT32 entry is 28
+#define FAT_VALID_MASK 0x0FFFFFFF
 
-// set the FAT32 cluster entry value
+// 11. read the FAT32 cluster entry value
+// 读FAT32 的entry
+#define FAT32ClusEntryVal(SectorBuf, N) ((*((DWORD *)&((char *)SectorBuf)[(ThisFATEntOffset(N))])) & FAT_VALID_MASK)
+
+// 12. set the FAT32 cluster entry value
+// 写FAT32 的entry
 #define SetFAT32ClusEntryVal(SecBuff, N, Val)                                                                    \
     do {                                                                                                         \
-        int fat_entry_val = Val & 0x0FFFFFFF;                                                                    \
+        int fat_entry_val = Val & FAT_VALID_MASK;                                                                \
         *((DWORD *)&SecBuff[ThisFATEntOffset(N)]) = (*((DWORD *)&SecBuff[ThisFATEntOffset(N)])) & 0xF0000000;    \
         *((DWORD *)&SecBuff[ThisFATEntOffset(N)]) = (*((DWORD *)&SecBuff[ThisFATEntOffset(N)])) | fat_entry_val; \
     } while (0);
 
-#define ISEOF(FATContent) ((FATContent) >= 0x0FFFFFF8)
-
-#define ClnShutBitMask 0x08000000
-// If bit is 1, volume is "clean".If bit is 0, volume is "dirty".
-#define HrdErrBitMask 0x04000000
-// If this bit is 1, no disk read/write errors were encountered.
-// If this bit is 0, the file system driver encountered a disk I/O error on theVolume the last time it was mounted,
-// which is an indicator that some sectorsmay have gone bad on the volume.
-
-#define EOC 0xFFFFFFFF
-#define FREE_MASK 0x00000000
-#define NAME0_FREE_ONLY(x) (x == 0xE5)
-#define NAME0_FREE_ALL(x) (x == 0x00)
-#define NAME0_SPECIAL(x) (x == 0x05) // 0xE5伪装->0x05
-#define NAME0_NOT_VALID(x) (x == 0x20)
-#define NAME_CHAR_NOT_VALID(x) ((x < 0x20 && x != 0x05) || (x == 0x22) || (x >= 0x2A && x <= 0x2C) || (x >= 0x2E && x <= 0x2F) || (x >= 0x3A || x <= 0x3F) || (x >= 0x5B && x <= 0x5D) || (x == 0x7C))
-// " * + , . / : ; < =	> ? [ \ ] |
-#define FAT_VALID 0x0FFFFFFF
-
+// FAT[0] and FAT[1] is reserved !!!
 // FAT[0]: 0FFF FFF8
 // FAT[1]: 0FFF FFFF
 
-#define DIR_FIRST_CLUS(high, low) ((high << 16) | (low))
-#define DIR_FIRST_HIGH(x) ((x) >> 16)
-#define DIR_FIRST_LOW(x) ((x)&0x0000FFFF)
+/*some useful macro for fat chain travel*/
+// 1. reach the end of fat32 chain?
+#define ISEOF(FATContent) ((FATContent) >= 0x0FFFFFF8)
 
-/* File attribute bits for directory entry (FILINFO.fattrib) */
+// 2. EOC and FREE
+#define EOC 0xFFFFFFFF
+#define FREE_MASK 0x00000000
+
+// 3. NAME0 flag
+#define NAME0_FREE_ONLY(x) (x == 0xE5)
+#define NAME0_FREE_ALL(x) (x == 0x00)
+#define NAME0_FREE_BOOL(x) (NAME0_FREE_ONLY(x) || NAME0_FREE_ALL(x))
+#define NAME0_SPECIAL(x) (x == 0x05) // 0xE5伪装->0x05
+
+/* File attribute bits for directory entry*/
+// 1.  some attrs definition
 #define ATTR_READ_ONLY 0x01 // Read only 0000_0001
 #define ATTR_HIDDEN 0x02    // Hidden 0000_0010
 #define ATTR_SYSTEM 0x04    // System 0000_0100
 #define ATTR_VOLUME_ID 0x08 // VOLUME_ID 0000_1000
 #define ATTR_ARCHIVE 0x20   // Archive 0010_0000
-#define ATTR_DIRECTORY 0x20 // Directory 0001_0000
-
-#define DIR_BOOL(x) ((x)&ATTR_DIRECTORY)
-#define LONG_FILE_NAME_BOOL(x) ((x)&ATTR_LONG_NAME)
-#define DIR_SET(x) ((x) = ((x)&FREE_MASK) | ATTR_DIRECTORY)
-
+#define ATTR_DIRECTORY 0x10 // Directory 0001_0000
+// 2. long directory attr
 #define ATTR_LONG_NAME (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
 #define ATTR_LONG_NAME_MASK (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID | ATTR_DIRECTORY | ATTR_ARCHIVE)
 
+// 3. is dir? and is long dir entry?
+#define DIR_BOOL(x) ((x)&ATTR_DIRECTORY)
+#define LONG_FILE_NAME_BOOL(x) ((x)&ATTR_LONG_NAME)
+
+// 4. set attr to dir and set attr to none dir
+#define DIR_SET(x) ((x) = ((x)&FREE_MASK) | ATTR_DIRECTORY)
+// we suppose it is archive if a file is not a directory when initialized
+#define NONE_DIR_SET(x) ((x) = ((x)&FREE_MASK) | ATTR_ARCHIVE)
+
+// 5. read only ?
+#define READONLY_GET(x) ((x)&ATTR_READ_ONLY)
+
+// first cluster number
+#define DIR_FIRST_CLUS(high, low) ((high << 16) | (low))
+#define DIR_FIRST_HIGH(x) ((x) >> 16)
+#define DIR_FIRST_LOW(x) ((x)&0x0000FFFF)
+
+// The maximum length of the name and the maximum length of the path
+// 1. short
+#define NAME_SHORT_MAX 8
+#define PATH_SHORT_MAX 80
+// 2. long
+// $ % ' - _ @ ~ ` ! ( ) { } ^ # & is allowed for fat32 file system allowed long directory
+#define NAME_LONG_MAX 255
+#define PATH_LONG_MAX 260
+
+// some useful macro related to long dirent
 #define FIRST_LONG_ENTRY 0x01
 #define LAST_LONG_ENTRY 0x40
 #define LONG_DIRENT_CNT 20
 
 #define LONG_NAME_BOOL(x) ((x)&ATTR_LONG_NAME)
 #define LAST_LONG_ENTRY_BOOL(x) ((x)&LAST_LONG_ENTRY)
-#define LAST_LONG_ENTRY_SET(x) ((x) = ((x)&FREE_MASK) | LAST_LONG_ENTRY)
+#define LAST_LONG_ENTRY_SET(x) ((x) = ((x) | LAST_LONG_ENTRY))
 
-#define DOT (".          ")
-#define DOTDOT ("..         ")
-#define NAME_SHORT_MAX 8
-#define PATH_SHORT_MAX 80
-// $ % ' - _ @ ~ ` ! ( ) { } ^ # & is allowed
-#define NAME_LONG_MAX 255
-#define PATH_LONG_MAX 260
-
-#define FCB_PER_BLOCK ((BSIZE) / sizeof(dirent_s_t))
+// long name char macro
 #define LONG_NAME_CHAR_MASK(x) ((x)&0xFF)
 #define LONG_NAME_CHAR_VALID(x) (((x) != 0x0000) && ((x) != 0xFFFF))
-#define LONG_NAME_CHAR_SET(x) (((ushort)(x)) | 0x00FF)
+#define LONG_NAME_CHAR_SET(x) (((ushort)(x)) & 0x00FF)
 
-// NOTE: inum index from 1
+// NOTE: inum index from 0
+// allocate an ino for each fat32 short entry
+#define FCB_PER_BLOCK ((__BPB_BytsPerSec) / sizeof(dirent_s_t))
 #define SECTOR_TO_FATINUM(s, offset) (((s)-FirstDataSector) * (FCB_PER_BLOCK) + (offset))
-#define FATINUM_TO_SECTOR(ino) ((ino - 1) / (FCB_PER_BLOCK)) + 1
-#define FATINUM_TO_OFFSET(ino) ((ino - 1) % (FCB_PER_BLOCK)) + 1
+#define FATINUM_TO_SECTOR(ino) ((ino) / (FCB_PER_BLOCK) + FirstDataSector)
+#define FATINUM_TO_OFFSET(ino) ((ino) % (FCB_PER_BLOCK))
 
-#define LOGISTIC_C_NUM(off) ((off) / (__BPB_SecPerClus * BSIZE))
-#define LOGISTIC_C_OFFSET(off) ((off) % (__BPB_SecPerClus * BSIZE))
-#define LOGISTIC_S_NUM(off) (LOGISTIC_C_OFFSET(off) / BSIZE)
-#define LOGISTIC_S_OFFSET(off) (LOGISTIC_C_OFFSET(off) % BSIZE)
+// the logistic number of cluster for position : off
+// start from 0
+#define LOGISTIC_C_NUM(off) ((off) / (__BPB_SecPerClus * __BPB_BytsPerSec))
+#define LOGISTIC_C_OFFSET(off) ((off) % (__BPB_SecPerClus * __BPB_BytsPerSec))
+// the logistic number of sector for position : off
+// start form 0
+#define LOGISTIC_S_NUM(off) (LOGISTIC_C_OFFSET(off) / __BPB_BytsPerSec)
+#define LOGISTIC_S_OFFSET(off) (LOGISTIC_C_OFFSET(off) % __BPB_BytsPerSec)
 
-#define FAT_PER_BLOCK ((BSIZE) / 4)
-
+// misc
+// 1. the length of a dir file
 #define DIRLENGTH(ip) ((ip->fat32_i.cluster_cnt) * __CLUSTER_SIZE)
+// 2. the fat32 entry number of a sector
+#define FAT_PER_SECTOR ((__BPB_BytsPerSec) / 4)
+// 3. the maxium of FCB (short and long entry)
+#define FCB_MAX_LENGTH 672 // (20+1)*32
 
-#define FCB_MAX_LENGTH 672 // (21+1)*32
-
-#define STR_END_BOOL(x) ((x) == '\0')
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {
     /*FAT common field*/
@@ -328,8 +352,9 @@ typedef struct __time_t {
 typedef struct Short_Dir_t {
     uchar DIR_Name[FAT_SFN_LENGTH]; // directory name
     uchar DIR_Attr;                 // directory attribute
-    uchar DIR_NTRes;                // reserved
-    uchar DIR_CrtTimeTenth;         // create time
+    uchar DIR_Dev;                  // reserved, but we use it as DEVICE
+    // DIR_NTRes
+    uchar DIR_CrtTimeTenth; // create time
     // Count of tenths of a second
     // 0 <= DIR_CrtTimeTenth <= 199
     FAT_time_t DIR_CrtTime;    // create time, 2 bytes
@@ -344,20 +369,25 @@ typedef struct Short_Dir_t {
 
 // Directory Structure (long name)
 typedef struct Long_Dir_t {
-    uchar LDIR_Ord;          // The order of this entry in the sequence
-    uint16_t LDIR_Name1[5];  // characters 1 through 5
-    uchar LDIR_Attr;         // Attributes
-    uchar LDIR_Type;         // Must be set to 0.
-    uchar LDIR_Chksum;       // Checksum of name
-    uint16_t LDIR_Name2[6];  // characters 6 through 11
-    uint16_t LDIR_FstClusLO; // Must be set to 0
-    uint16_t LDIR_Name3[2];  // characters 12 and 13
+    uchar LDIR_Ord;         // The order of this entry in the sequence
+    uint16_t LDIR_Name1[5]; // characters 1 through 5
+    uchar LDIR_Attr;        // Attributes
+    uchar LDIR_Type;        // Must be set to 0.
+    uchar LDIR_Chksum;      // Checksum of name
+    uint16_t LDIR_Name2[6]; // characters 6 through 11
+    uint16_t LDIR_Nlinks;   // (Must be set to 0, but we use it as nlinks)
+    // LDIR_FstClusLO
+    uint16_t LDIR_Name3[2]; // characters 12 and 13
 } __attribute__((packed)) dirent_l_t;
 
 typedef uint32_t FAT_entry_t;
 
+// 1. mount fat32 file system
 int fat32_fs_mount(int, struct _superblock *);
-int fat32_boot_sector_parser(struct _superblock *, fat_bpb_t *);
-int fat32_fsinfo_parser(struct _superblock *, fsinfo_t *);
 
+// 2. bpb parser
+int fat32_boot_sector_parser(struct _superblock *, fat_bpb_t *);
+
+// 3. fsinfo parser
+int fat32_fsinfo_parser(struct _superblock *, fsinfo_t *);
 #endif

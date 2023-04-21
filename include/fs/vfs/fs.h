@@ -14,6 +14,8 @@ struct _superblock {
 
     uint32 s_blocksize;       // 逻辑块的数量
     uint32 sectors_per_block; // 每个逻辑块的扇区个数
+    uint cluster_size;        // size of a cluster
+
     // uint32 s_blocksize_bits;
     uint n_sectors;   // Number of sectors
     uint sector_size; // size of a sector
@@ -27,7 +29,18 @@ struct _superblock {
     };
 };
 
+union file_type {
+    struct pipe *pipe; // FD_PIPE
+    struct inode *ip;  // FD_INODE and FD_DEVICE
+    // short major;       // FD_DEVICE
+};
+
 struct _file {
+    enum { FD_NONE,
+           FD_PIPE,
+           FD_INODE,
+           FD_DEVICE } type;
+    union file_type *fp;
     ushort f_mode;
     uint32 f_pos;
     ushort f_flags;
@@ -65,7 +78,8 @@ struct _dirent {
     char d_name[NAME_MAX + 1];
 };
 
-#define IMODE_READONLY 0x1
+#define IMODE_READONLY 0x01
+#define IMODE_NONE 0x00
 struct _inode {
     uint8 i_dev;
     uint32 i_ino;
@@ -74,14 +88,18 @@ struct _inode {
     int valid;
     // Note: fat fs does not support hard link, reserve for vfs interface
     uint16 i_nlink;
-
-    // dev_t i_rdev;
+    uint i_uid;
+    uint i_gid;
+    uint64 i_rdev;
     uint32 i_size;
 
-    long i_atime; // access time
-    long i_mtime; // modify time
-    long i_ctime; // create time
+    uchar i_type;
 
+    long i_atime;     // access time
+    long i_mtime;     // modify time
+    long i_ctime;     // create time
+    uint64 i_blksize; // bytes of one block
+    uint64 i_blocks;  // numbers of 512B blocks
     // uint32 i_blksize;
     // uint32 i_blocks;
     // struct semaphore i_sem;
@@ -91,6 +109,7 @@ struct _inode {
     struct _superblock *i_sb;
     struct _inode *i_mount;
     // struct wait_queue *i_wait;
+    struct _inode *parent;
 
     union {
         struct fat32_inode_info fat32_i;
@@ -99,7 +118,6 @@ struct _inode {
         // void *generic_ip;
     };
 };
-
 /* File function return code (FRESULT) */
 typedef enum {
     FR_OK = 0, /* (0) Succeeded */

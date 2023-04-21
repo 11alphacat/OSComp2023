@@ -50,4 +50,6 @@
 
 #define TODO() 0
 
+#define DEBUG_SECTOR(dp, sec_num) ((sec_num) * (dp->i_sb->sector_size))
+#define DEBUG_FATNUM()
 #endif // __DEBUG_H__
