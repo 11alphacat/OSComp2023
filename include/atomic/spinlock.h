@@ -26,5 +26,6 @@ int holding(struct spinlock *);
 void initlock(struct spinlock *, char *);
 void push_off(void);
 void pop_off(void);
+int atomic_read4(int *addr);
 
 #endif // __SPINLOCK_H__

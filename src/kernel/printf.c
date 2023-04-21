@@ -15,6 +15,7 @@
 #include "driver/console.h"
 
 #include "ctype.h"
+#include "debug.h"
 
 volatile int panicked = 0;
 
@@ -297,4 +298,15 @@ void panic(char *s) {
 void printfinit(void) {
     initlock(&pr.lock, "pr");
     pr.locking = 1;
+}
+
+void backtrace() {
+    uint64 fp = r_fp();
+    uint64 last_ra;
+    Log("kernel backtrace");
+    while (fp < PGROUNDUP(fp) && fp > PGROUNDDOWN(fp)) {
+        last_ra = *(uint64 *)(fp - 8);
+        fp = *(uint64 *)(fp - 16);
+        printf("%p\n", last_ra);
+    }
 }

@@ -32,6 +32,19 @@ OBJDUMP = $(TOOLPREFIX)objdump
 
 
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+
+ifdef KCSAN
+CFLAGS += -DKCSAN
+KCSANFLAG += -fsanitize=thread -fno-inline
+
+OBJS_KCSAN = \
+  build/src/kernel/console.o \
+  build/src/driver/uart.o \
+  build/src/kernel/printf.o \
+  build/src/atomic/spinlock.o \
+  build/src/kernel/kcsan.o
+endif
+
 ifeq ($(DEBUG), 1)
 CFLAGS += -D__DEBUG__
 endif
@@ -106,7 +119,7 @@ $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/inode/stat.h
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
 xv6U=xv6_user
 oscompU=user
-FILE=brk
+FILE=brk open
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 user:
 	@echo "$(YELLOW)build user:$(RESET)"

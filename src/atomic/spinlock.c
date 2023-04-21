@@ -9,6 +9,13 @@
 #include "kernel/cpu.h"
 #include "debug.h"
 
+// Read a shared 32-bit value without holding a lock
+int atomic_read4(int *addr) {
+    uint32 val;
+    __atomic_load(addr, &val, __ATOMIC_SEQ_CST);
+    return val;
+}
+
 void _acquire(struct spinlock *lk);
 void _release(struct spinlock *lk);
 #define DEBUG_LOCK_NUM 1

@@ -2,6 +2,7 @@
 #define __LIST_H__
 
 #include "common.h"
+#include <stddef.h>
 
 // 一个给定变量偏移
 #ifndef container_of
