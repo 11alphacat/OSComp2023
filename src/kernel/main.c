@@ -19,17 +19,16 @@ void plicinithart(void);
 void virtio_disk_init(void);
 void binit(void);
 void userinit(void);
-void kinit(void);
 void iinit();
 void fileinit(void);
 void vmas_init();
 #ifdef KCSAN
 void kcsaninit();
 #endif
-
+void mm_init();
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
-void mm_init();
+
 int debug_lock = 0;
 // start() jumps here in supervisor mode on all CPUs.
 void main() {

@@ -49,4 +49,6 @@ void backtrace();
 
 #define VMA(format, ...) \
     printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
+           
+#define TODO() 0
 #endif // __DEBUG_H__

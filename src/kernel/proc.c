@@ -11,15 +11,24 @@
 #include "fs/inode/fs.h"
 #include "fs/inode/file.h"
 #include "debug.h"
+#include "atomic/atomic.h"
+#include "proc/sched.h"
+#include "memory/vma.h"
 
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
-
 struct proc *initproc;
+// used queue、used queue、sleeping queue、runnable queue、running queue、zombie running
+struct PCB_Q process_queue[STATEMAX];
 
-int nextpid = 1;
-struct spinlock pid_lock;
+
+atomic_t nextpid;
+// helps ensure that wakeups of wait()ing
+// parents are not lost. helps obey the
+// memory model when using p->parent.
+// must be acquired before any p->lock.
+struct spinlock wait_lock;
 
 extern void fsinit(int);
 extern void forkret(void);
@@ -27,40 +36,7 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
-// helps ensure that wakeups of wait()ing
-// parents are not lost. helps obey the
-// memory model when using p->parent.
-// must be acquired before any p->lock.
-struct spinlock wait_lock;
-
-// Allocate a page for each process's kernel stack.
-// Map it high in memory, followed by an invalid
-// guard page.
-void proc_mapstacks(pagetable_t kpgtbl) {
-    struct proc *p;
-
-    for (p = proc; p < &proc[NPROC]; p++) {
-        char *pa = kalloc();
-        if (pa == 0)
-            panic("kalloc");
-        uint64 va = KSTACK((int)(p - proc));
-        kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-    }
-}
-
-// initialize the proc table.
-void procinit(void) {
-    struct proc *p;
-
-    initlock(&pid_lock, "nextpid");
-    initlock(&wait_lock, "wait_lock");
-    for (p = proc; p < &proc[NPROC]; p++) {
-        initlock(&p->lock, "proc");
-        p->state = UNUSED;
-        p->kstack = KSTACK((int)(p - proc));
-    }
-}
-
+extern PCB_Q_t unused_q, used_q, running_q, runnable_q, sleeping_q, zombie_q;
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.
@@ -79,8 +55,7 @@ mycpu(void) {
 }
 
 // Return the current struct proc *, or zero if none.
-struct proc *
-myproc(void) {
+struct proc * myproc(void) {
     push_off();
     struct cpu *c = mycpu();
     struct proc *p = c->proc;
@@ -89,15 +64,41 @@ myproc(void) {
 }
 
 int allocpid() {
-    int pid;
-
-    acquire(&pid_lock);
-    pid = nextpid;
-    nextpid = nextpid + 1;
-    release(&pid_lock);
-
+    int pid  = atomic_inc_return(&nextpid);
     return pid;
 }
+
+// initialize the proc table.
+void procinit(void) {
+    struct proc *p;
+
+    atomic_set(&nextpid, 1);
+    initlock(&wait_lock, "wait_lock");
+    
+    PCB_Q_ALL_INIT();
+    for (p = proc; p < &proc[NPROC]; p++) {
+        initlock(&p->lock, "proc");
+        p->state = UNUSED;
+        p->kstack = KSTACK((int)(p - proc));
+        PCB_Q_push_back(&unused_q, p);
+    }
+}
+
+// Allocate a page for each process's kernel stack.
+// Map it high in memory, followed by an invalid
+// guard page.
+void proc_mapstacks(pagetable_t kpgtbl) {
+    struct proc *p;
+
+    for (p = proc; p < &proc[NPROC]; p++) {
+        char *pa = kalloc();
+        if (pa == 0)
+            panic("kalloc");
+        uint64 va = KSTACK((int)(p - proc));
+        kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    }
+}
+
 
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
@@ -322,6 +323,17 @@ int fork(void) {
     return pid;
 }
 
+int clone(int flags, void* stack , pid_t ptid, void*tls, pid_t* ctid)
+{
+    return 1;
+}
+
+int do_fork()
+{
+    return 1;
+}
+
+
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void reparent(struct proc *p) {
@@ -425,6 +437,20 @@ int wait(uint64 addr) {
         sleep(p, &wait_lock); //DOC: wait-sleep
     }
 }
+
+
+int wait4(pid_t pid, int *status, int options) {
+    
+    int ret=0;
+    return ret;
+}
+
+int do_wait()
+{
+    return 1;
+}
+
+
 
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.

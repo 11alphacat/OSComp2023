@@ -50,23 +50,7 @@ uint64 sys_gettimeofday(void) {
     ASSERT(0);
     return 0;
 }
-uint64 sys_getppid(void) {
-    ASSERT(0);
-    return 0;
-}
 uint64 sys_brk(void) {
-    ASSERT(0);
-    return 0;
-}
-uint64 sys_clone(void) {
-    ASSERT(0);
-    return 0;
-}
-uint64 sys_execve(void) {
-    ASSERT(0);
-    return 0;
-}
-uint64 sys_wait4(void) {
     ASSERT(0);
     return 0;
 }

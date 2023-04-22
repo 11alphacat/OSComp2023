@@ -4,6 +4,7 @@
 #include "riscv.h"
 #include "kernel/proc.h"
 #include "common.h"
+#include "kernel/cpu.h"
 
 //
 // Race detector using gcc's thread sanitizer. It delays all stores

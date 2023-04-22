@@ -5,17 +5,31 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
-#include "memory/vma.h"
+#include "list.h"
+
+#define NPROC 64                  // maximum number of processes
 
 struct file;
 struct inode;
+
+enum pid_type
+{
+	PIDTYPE_PID,// 进程 ID 类型
+	PIDTYPE_PGID,// 进程组 ID 类型
+    PIDTYPE_SID,// 会话 ID 类型
+	PIDTYPE_MAX// 最大的 PID 类型索引编号 + 1
+};
 
 enum procstate { UNUSED,
                  USED,
                  SLEEPING,
                  RUNNABLE,
                  RUNNING,
-                 ZOMBIE };
+                 ZOMBIE,
+                 STATEMAX};
+
+
+typedef int pid_t;
 
 // Per-process state
 struct proc {
@@ -41,6 +55,8 @@ struct proc {
     struct file *ofile[NOFILE];  // Open files
     struct inode *cwd;           // Current directory
     char name[16];               // Process name (debugging)
+
+    struct list_head PCB_list;
 };
 
 // per-process data for the trap handling code in trampoline.S.
@@ -94,27 +110,51 @@ struct trapframe {
     /* 280 */ uint64 t6;
 };
 
-void exit(int);
-int fork(void);
-int growproc(int);
-void proc_mapstacks(pagetable_t);
-pagetable_t proc_pagetable(struct proc *);
-void proc_freepagetable(pagetable_t, uint64);
-int kill(int);
-int killed(struct proc *);
-void setkilled(struct proc *);
+// 1. get current proc
 struct proc *myproc();
+
+// 2. allocate a new pid
+int allocpid();
+
 void procinit(void);
-void scheduler(void) __attribute__((noreturn));
-void sched(void);
-void sleep(void *, struct spinlock *);
-int wait(uint64);
-void wakeup(void *);
-void yield(void);
-int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
-int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
-void procdump(void);
+pagetable_t proc_pagetable(struct proc *);
+void proc_mapstacks(pagetable_t);
+void proc_freepagetable(pagetable_t, uint64);
+int growproc(int);
+
+
+int fork(void);
+int clone();
+int do_fork();
+
+void exit(int);
+
+int kill(int);
+void setkilled(struct proc *);
+int killed(struct proc *);
 
 int exec(char *, char **);
+int execve();
+int do_execve();
+
+
+void yield(void);
+void sched(void);
+void scheduler(void) __attribute__((noreturn));
+
+int wait(uint64);
+int wait4(pid_t, int *, int);
+int do_wait();
+
+
+void sleep(void *, struct spinlock *);
+void wakeup(void *);
+
+
+int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
+int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
+
+void procdump(void);
+
 
 #endif // __PROC_H__

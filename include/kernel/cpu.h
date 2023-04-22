@@ -16,8 +16,9 @@ struct cpu {
 
 extern struct cpu cpus[NCPU];
 
+// 1. get the id of cpu
 int cpuid(void);
+// 2. get the struct cpu
 struct cpu *mycpu(void);
-struct cpu *getmycpu(void);
 
 #endif // __CPU_H__

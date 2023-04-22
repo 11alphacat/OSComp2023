@@ -9,6 +9,92 @@
 #include "memory/alloactor.h"
 #include "debug.h"
 
+extern struct spinlock wait_lock;
+
+
+/*
+* 功能：获取进程ID；
+* 输入：系统调用ID；
+* 返回值：成功返回进程ID；
+*/
+uint64
+sys_getpid(void) {
+    return myproc()->pid;
+}
+
+/*
+* 功能：获取父进程ID；
+* 输入：系统调用ID；
+* 返回值：成功返回父进程ID；
+*/
+uint64 
+sys_getppid(void) {
+    acquire(&wait_lock);
+    uint64 ppid = myproc()->parent->pid;
+    release(&wait_lock);
+    return ppid;
+}
+
+uint64
+sys_fork(void) {
+    return fork();
+}
+
+/*
+* 功能：创建一个子进程；
+* 输入：
+  - flags: 创建的标志，如SIGCHLD；
+  - stack: 指定新进程的栈，可为0；
+  - ptid: 父线程ID；
+  - tls: TLS线程本地存储描述符；
+  - ctid: 子线程ID；
+* 返回值：成功则返回子进程的线程ID，失败返回-1；
+*/
+// int flags, void* stack , pid_t ptid, void*tls, pid_t* ctid
+uint64 
+sys_clone(void) {
+    int flags;
+    uint64 stack;
+    pid_t ptid;
+    uint64 tls;
+    uint64 ctid;
+    argint(0, &flags);
+    argaddr(1, &stack);
+    argint(2, &ptid);
+    argaddr(3, &tls);
+    argaddr(4, &ctid);
+    return clone(flags, stack, ptid, tls, ctid);
+}
+
+uint64
+sys_wait(void) {
+    uint64 p;
+    argaddr(0, &p);
+    return wait(p);
+}
+
+/*
+* 功能：等待进程改变状态;
+* 输入：
+  - pid: 指定进程ID，可为-1等待任何子进程；
+  - status: 接收状态的指针；
+  - options: 选项：WNOHANG，WUNTRACED，WCONTINUED；
+* 返回值：成功则返回进程ID；如果指定了WNOHANG，且进程还未改变状态，直接返回0；失败则返回-1；
+*/
+// pid_t pid, int *status, int options;
+uint64 
+sys_wait4(void) {
+    pid_t p;
+    uint64 status;
+    int options;
+    argint(0, &p);
+    argaddr(1, &status);
+    argint(2, &options);
+    
+    return wait4(p, (int*)status, options);
+}
+
+
 uint64
 sys_exit(void) {
     int n;
@@ -17,21 +103,17 @@ sys_exit(void) {
     return 0; // not reached
 }
 
-uint64
-sys_getpid(void) {
-    return myproc()->pid;
-}
-
-uint64
-sys_fork(void) {
-    return fork();
-}
-
-uint64
-sys_wait(void) {
-    uint64 p;
-    argaddr(0, &p);
-    return wait(p);
+/*
+* 功能：执行一个指定的程序；
+* 输入：
+  - path: 待执行程序路径名称，
+  - argv: 程序的参数， 
+  - envp: 环境变量的数组指针
+* 返回值：成功不返回，失败返回-1；
+*/
+// const char *path, char *const argv[], char *const envp[];
+uint64 sys_execve(void) {
+    return 0;
 }
 
 uint64

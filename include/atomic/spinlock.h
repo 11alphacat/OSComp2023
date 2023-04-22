@@ -16,6 +16,7 @@ struct spinlock {
     int debug;
 #endif
 };
+typedef struct spinlock spinlock_t;
 
 #define acquire(lock) wrap_acquire(__FILE__, __LINE__, (lock))
 #define release(lock) wrap_release(__FILE__, __LINE__, (lock))
