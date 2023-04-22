@@ -21,8 +21,8 @@
 */
 
 /* configuration option */
-#define START_MEM 0x82400000
-#define BUDDY_MAX_ORDER 12
+#define START_MEM 0x80400000
+#define BUDDY_MAX_ORDER 13
 
 #define NPAGES (((PHYSTOP)-START_MEM) / (PGSIZE))
 #define PAGES_PER_CPU (NPAGES / NCPU)
