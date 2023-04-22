@@ -36,7 +36,7 @@ static int argfd(int n, int *pfd, struct _file **pf) {
 
     // in case another thread writes after the current thead reads
     acquire(&p->tlock);
-    if (f = myproc()->ofile[fd] == 0) {
+    if ( (f = myproc()->_ofile[fd]) == 0) {
         release(&p->tlock);
         return -1;
     } else {
@@ -49,6 +49,11 @@ static int argfd(int n, int *pfd, struct _file **pf) {
     return 0;
 }
 
+static inline int __namecmp(const char *s, const char *t) {
+    return strncmp(s, t, PATH_LONG_MAX);
+}
+
+
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
 // 它是线程安全的
@@ -58,8 +63,8 @@ static int fdalloc(struct _file *f) {
 
     acquire(&p->tlock);
     for (fd = 0; fd < NOFILE; fd++) {
-        if (p->ofile[fd] == 0) {
-            p->ofile[fd] = f;
+        if (p->_ofile[fd] == 0) {
+            p->_ofile[fd] = f;
             release(&p->tlock);
             return fd;
         }
@@ -73,11 +78,10 @@ static int fdalloc(struct _file *f) {
 // 如果path是绝对路径，则dirfd被忽略。
 // 一般不对 path作检查
 // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
-static struct _inode *find_inode(const char *path, int dirfd, char* name) {
+static struct _inode *find_inode(char *path, int dirfd, char* name) {
     ASSERT(path);
     struct _inode *ip;
     struct proc *p = myproc();
-    char name[PATH_LONG_MAX]; // 260
     if (*path == '/' || dirfd == AT_FDCWD ) {
         // 绝对路径 || 相对于当前路径，忽略 dirfd 
         acquire(&p->tlock);
@@ -94,24 +98,24 @@ static struct _inode *find_inode(const char *path, int dirfd, char* name) {
         // path为相对于 dirfd目录的路径
         struct _file* f;
         acquire(&p->tlock);
-        if (dirfd < 0 || dirfd >= NOFILE || (f = p->ofile[dirfd])==0 ) {
+        if (dirfd < 0 || dirfd >= NOFILE || (f = p->_ofile[dirfd])==0 ) {
             release(&p->tlock);
             return 0;
         }
-        struct _inode *oldcwd = p->cwd;
-        p->cwd = f->f_tp->f_inode;
+        struct _inode *oldcwd = p->_cwd;
+        p->_cwd = f->f_tp->f_inode;
         ip = (!name) ? fat32_name_inode(path):fat32_name_inode_parent(path,name);
         if (ip == 0) {
             release(&p->tlock);
             return 0;
         }
-        p->cwd = oldcwd;
+        p->_cwd = oldcwd;
         release(&p->tlock);
     }
     return ip;
 }
 
-struct _inode *inode_create(const char *path, int dirfd, uchar type) {
+struct _inode *inode_create(char *path, int dirfd, uchar type) {
     // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     struct _inode *ip = NULL, *dp = NULL;
     char name[NAME_LONG_MAX];
@@ -149,15 +153,15 @@ struct _inode *inode_create(const char *path, int dirfd, uchar type) {
         // TODO : dirlink
 
         // direntory . and .. , write them to the disk
-        uchar fcb_dot_char[64];
+        char fcb_dot_char[64];
         memset(fcb_dot_char, 0, sizeof(fcb_dot_char));
-        fat32_fcb_init(ip, ".", ATTR_DIRECTORY, fcb_dot_char);
+        fat32_fcb_init(ip, (uchar*)".", ATTR_DIRECTORY, fcb_dot_char);
         uint tot = fat32_inode_write(ip, 0, (uint64)fcb_dot_char, 0, 32);
         ASSERT(tot == 32);
 
-        uchar fcb_dotdot_char[64];
+        char fcb_dotdot_char[64];
         memset(fcb_dotdot_char, 0, sizeof(fcb_dotdot_char));
-        fat32_fcb_init(ip, "..", ATTR_DIRECTORY, fcb_dotdot_char);
+        fat32_fcb_init(ip, (uchar*)"..", ATTR_DIRECTORY, fcb_dotdot_char);
         tot = fat32_inode_write(ip, 0, (uint64)fcb_dotdot_char, 32, 32);
         ASSERT(tot == 32);
     }
@@ -173,12 +177,12 @@ struct _inode *inode_create(const char *path, int dirfd, uchar type) {
     fat32_inode_unlock_put(dp);
     return ip;
 
-fail:
-    ip->i_nlink = 0;
-    fat32_inode_update(ip);
-    fat32_inode_unlock_put(ip);
-    fat32_inode_unlock_put(dp);
-    return 0;
+// fail:
+//     ip->i_nlink = 0;
+//     fat32_inode_update(ip);
+//     fat32_inode_unlock_put(ip);
+//     fat32_inode_unlock_put(dp);
+//     return 0;
 }
 
 
@@ -197,11 +201,11 @@ uint64 oscomp_sys_getcwd(void) {
     size_t size;
     struct proc *p = myproc();
     argaddr(0, &buf);
-    argint(1, &size);
+    argint(1, (int*)&size);
 
     char kbuf[PATH_LONG_MAX];
     fat32_getcwd(kbuf);
-    if (!buf && (buf = kalloc()) == 0) {
+    if (!buf && (buf = (uint64)kalloc()) == 0) {
         return NULL;
     }
 
@@ -241,7 +245,7 @@ uint64 oscomp_sys_dup3(void) {
     struct proc *p = myproc();
     int oldfd, newfd, flags;
 
-    if (argfd(0, 0, &f) < 0) {
+    if (argfd(0, &oldfd, &f) < 0) {
         return -1;
     }
     argint(1, &newfd);
@@ -256,15 +260,15 @@ uint64 oscomp_sys_dup3(void) {
     }
 
     acquire(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
-    if (p->ofile[newfd] == 0) {
+    if (p->_ofile[newfd] == 0) {
         // not used, great!
-        p->ofile[newfd] = f;
+        p->_ofile[newfd] = f;
         release(&p->tlock);
     } else {
         // close and reuse
         // two steps must be atomic!
-        fat32_fileclose(p->ofile[newfd]);
-        p->ofile[newfd] = f;
+        fat32_fileclose(p->_ofile[newfd]);
+        p->_ofile[newfd] = f;
         release(&p->tlock);
     }
 
@@ -297,7 +301,6 @@ uint64 oscomp_sys_openat(void) {
     struct _file *f;
     struct _inode *ip;
     int n;
-    struct proc *p = myproc();
     argint(0, &dirfd);
     if ((n = argstr(1, path, PATH_LONG_MAX)) < 0)
         return -1;
@@ -306,7 +309,7 @@ uint64 oscomp_sys_openat(void) {
 
     // 如果是要求创建文件，则调用 create
     if (flags & O_CREAT) {
-        if (ip = fat32_inode_create(path, T_FILE) == 0) {
+        if ( (ip = fat32_inode_create(path, T_FILE)) == 0) {
             return -1;
         }
     } else {
@@ -480,7 +483,7 @@ uint64 oscomp_sys_unlinkat(void) {
 
     fat32_inode_lock(dp);
     // Cannot unlink "." or "..".
-    if (namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
+    if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0)
         goto bad;
 
     if ((ip = fat32_inode_dirlookup(dp, name, &off)) == 0)
@@ -489,7 +492,7 @@ uint64 oscomp_sys_unlinkat(void) {
     fat32_inode_lock(ip);
     if (ip->i_nlink < 1)
         panic("unlink: nlink < 1");
-    if (ip->i_type == T_DIR && !isdirempty(ip)) {
+    if (ip->i_type == T_DIR && !fat32_isdirempty(ip)) {
         // 试图删除的是目录文件，并且非空
         fat32_inode_unlock_put(ip);
         goto bad;
@@ -532,7 +535,7 @@ uint64 oscomp_sys_mkdirat(void) {
     mode_t mode;
     struct _inode *ip;
     argint(0,&dirfd);
-    argint(2,&mode);
+    argint(2,(int*)&mode);
     if (argstr(1, path, PATH_LONG_MAX) < 0 || (ip = inode_create(path, dirfd,T_DIR)) == 0) {
         return -1;
     }
@@ -552,7 +555,7 @@ uint64 oscomp_sys_close(void) {
 
     if (argfd(0, &fd, &f) < 0)
         return -1;
-    myproc()->ofile[fd] = 0;
+    myproc()->_ofile[fd] = 0;
     fat32_fileclose(f);
     return 0;
 }
@@ -601,20 +604,6 @@ uint64 oscomp_sys_fstat(void) {
     return fat32_filestat(f, st);
 }
 
-// Is the directory dp empty except for "." and ".." ?
-static int isdirempty(struct _inode *dp) {
-    // int off;
-    // struct dirent de;
-
-    // for (off = 2 * sizeof(de); off < dp->size; off += sizeof(de)) {
-    //     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-    //         panic("isdirempty: readi");
-    //     if (de.inum != 0)
-    //         return 0;
-    // }
-    return 1;
-}
-
 
 // 功能：切换工作目录；
 // 输入：
@@ -638,9 +627,9 @@ uint64 oscomp_sys_chdir(void) {
         return -1;
     }
     fat32_inode_unlock(ip);
-    fat32_inode_put(p->cwd);
+    fat32_inode_put(p->_cwd);
     // end_op();
-    p->cwd = ip;
+    p->_cwd = ip;
     return 0;
 }
 
@@ -655,21 +644,21 @@ uint64 oscomp_sys_pipe2(void) {
     struct proc *p = myproc();
 
     argaddr(0, &fdarray);
-    if (pipealloc(&rf, &wf) < 0) // 分配两个 pipe 文件
+    if (_pipealloc(&rf, &wf) < 0) // 分配两个 pipe 文件
         return -1;
     fd0 = -1;
     if ((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0) { // 给当前进程分配两个文件描述符，代指那两个管道文件
         if (fd0 >= 0)
-            p->ofile[fd0] = 0;
+            p->_ofile[fd0] = 0;
         fat32_fileclose(rf);
         fat32_fileclose(wf);
         return -1;
     }
     if (copyout(p->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0 || copyout(p->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
-        p->ofile[fd0] = 0;
-        p->ofile[fd1] = 0;
-        fileclose(rf);
-        fileclose(wf);
+        p->_ofile[fd0] = 0;
+        p->_ofile[fd1] = 0;
+        fat32_fileclose(rf);
+        fat32_fileclose(wf);
         return -1;
     }
     return 0;

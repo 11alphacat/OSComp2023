@@ -8,6 +8,7 @@
 
 #define T_DIR 1    // Directory
 #define T_FILE 2   // File
+#define TFILE 2   // for xv6
 #define T_DEVICE 3 // Device
 
 
@@ -19,6 +20,7 @@ typedef unsigned int gid_t;
 typedef long int off_t;
 typedef long int blksize_t;
 typedef long int blkcnt_t;
+typedef unsigned short mode_t;
 
 struct kstat {
 	dev_t st_dev;
@@ -40,6 +42,14 @@ struct kstat {
 	long st_ctime_sec;
 	long st_ctime_nsec;
 	unsigned __unused[2];	// do not use
+};
+
+struct stat {
+  int dev;     // File system's disk device
+  uint ino;    // Inode number
+  short type;  // Type of file
+  short nlink; // Number of links to file
+  uint64 size; // Size of file in bytes
 };
 
 #endif // __FS_STAT_H__

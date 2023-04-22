@@ -5,10 +5,13 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
+#include "fs/inode/fs.h"
 #include "fs/fat/fat32_disk.h"
 
 struct _file;
 struct _inode;
+struct file;
+struct inode;
 
 enum procstate { UNUSED,
                  USED,
@@ -40,8 +43,10 @@ struct proc {
     pagetable_t pagetable;       // User page table
     struct trapframe *trapframe; // data page for trampoline.S
     struct context context;      // swtch() here to run process
-    struct _file *ofile[NOFILE];  // Open files
-    struct _inode *cwd;           // Current directory
+    struct _file *_ofile[NOFILE];  // Open files
+    struct _inode *_cwd;           // Current directory
+    struct file *ofile[NOFILE];  // Open files(only in xv6)
+    struct inode *cwd;           // Current directory(only in xv6)
     char name[16];               // Process name (debugging)
 };
 

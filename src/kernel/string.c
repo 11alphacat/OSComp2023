@@ -133,7 +133,7 @@ char *strchr(const char *str, int c) {
     return NULL;
 }
 
-int str_split(char *str, char ch, char *str1, char *str2) {
+int str_split(const char *str, const char ch, char *str1, char *str2) {
     char *p = strchr(str, ch);
     if (p == NULL) {
         return -1;

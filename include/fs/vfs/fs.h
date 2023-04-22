@@ -9,8 +9,6 @@
 #include "fs/fcntl.h"
 
 #define NAME_MAX 10
-#define IMODE_READONLY 0x1
-
 
 struct kstat;
 struct _superblock {
@@ -39,12 +37,9 @@ union file_type {
     struct _inode *f_inode; // FD_INODE and FD_DEVICE
 };
 
+
 struct _file {
-    enum { FD_NONE,
-           FD_PIPE,
-           FD_INODE,
-           FD_DEVICE } f_type;
-    union file_type *f_tp;
+    type_t f_type;
     ushort f_mode;
     uint32 f_pos;
     ushort f_flags;
@@ -78,8 +73,6 @@ struct _inode {
     uint64 i_rdev;
     uint32 i_size;
     uint16 i_type;
-
-    uchar i_type;
 
     long i_atime;     // access time
     long i_mtime;     // modify time

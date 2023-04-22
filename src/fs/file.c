@@ -6,13 +6,14 @@
 #include "common.h"
 #include "riscv.h"
 #include "param.h"
-#include "fs/inode/fs.h"
 #include "atomic/spinlock.h"
 #include "atomic/sleeplock.h"
-#include "fs/inode/file.h"
-#include "fs/stat.h"
 #include "kernel/proc.h"
 #include "kernel/trap.h"
+#include "fs/stat.h"
+#include "fs/inode/fs.h"
+#include "fs/inode/file.h"
+
 
 struct devsw devsw[NDEV];
 struct {

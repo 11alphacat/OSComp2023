@@ -9,10 +9,7 @@ struct pipe;
 struct inode;
 
 struct file {
-    enum { FD_NONE,
-           FD_PIPE,
-           FD_INODE,
-           FD_DEVICE } type;
+    type_t type;
     int ref; // reference count
     char readable;
     char writable;
@@ -39,10 +36,10 @@ struct inode {
 };
 
 // map major device number to device functions.
-struct devsw {
-    int (*read)(int, uint64, int);
-    int (*write)(int, uint64, int);
-};
+// struct devsw {
+//     int (*read)(int, uint64, int);
+//     int (*write)(int, uint64, int);
+// };
 
 extern struct devsw devsw[];
 

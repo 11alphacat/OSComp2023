@@ -4,6 +4,7 @@
 #include "common.h"
 #include "fat32_disk.h"
 #include "fat32_stack.h"
+#include "fs/stat.h"
 
 struct _inode;
 
@@ -141,7 +142,7 @@ struct _inode *fat32_inode_create(char *path, uchar attr);
 struct _inode *fat32_inode_alloc(struct _inode *, char *, uchar);
 
 // 24. init the fat32 fcb (short + long)
-int fat32_fcb_init(struct _inode *, uchar *, uchar, char *);
+int fat32_fcb_init(struct _inode *, const uchar *, uchar , char *);
 
 // 25. the number of files with the same name prefix
 uint fat32_find_same_name_cnt(struct _inode *, char *);

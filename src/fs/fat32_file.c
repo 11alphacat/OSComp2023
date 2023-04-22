@@ -18,44 +18,44 @@
 #define F_WRITEABLE(fp)     ( ((fp)->f_mode & (O_WRONLY | O_RDWR)) == 0 ? 0 : 1)
 #define F_READABLE(fp)     ( (fp)->f_mode == O_RDONLY || (fp)->f_mode == O_RDWR )
 
-struct devsw devsw[NDEV];
+// struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct _file file[NFILE];
-} ftable;
+} _ftable;
 
 void
 fat32_fileinit(void)
 {
-  initlock(&ftable.lock, "ftable");
+  initlock(&_ftable.lock, "_ftable");
 }
 
 // Allocate a file structure.
-// 语义：从内存中的 ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
+// 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
 struct _file* fat32_filealloc(void) {
     struct _file *f;
 
-    acquire(&ftable.lock);
-    for (f = ftable.file; f < ftable.file + NFILE; f++) {
+    acquire(&_ftable.lock);
+    for (f = _ftable.file; f < _ftable.file + NFILE; f++) {
         if (f->f_count == 0) {
             f->f_count = 1;
-            release(&ftable.lock);
+            release(&_ftable.lock);
             return f;
         }
     }
-    release(&ftable.lock);
+    release(&_ftable.lock);
     return 0;
 }
 
 // Increment ref count for file f.
 // 语义：将 f 指向的 file 文件的引用次数自增，并返回该指针
-// 实现：给 ftable 加锁后，f->f_count++
+// 实现：给 _ftable 加锁后，f->f_count++
 struct _file*  fat32_filedup(struct _file *f) {
-    acquire(&ftable.lock);
+    acquire(&_ftable.lock);
     if (f->f_count < 1)
         panic("filedup");
     f->f_count++;
-    release(&ftable.lock);
+    release(&_ftable.lock);
     return f;
 }
 
@@ -66,17 +66,17 @@ struct _file*  fat32_filedup(struct _file *f) {
 void fat32_fileclose(struct _file *f) {
     struct _file ff;
 
-    acquire(&ftable.lock);
+    acquire(&_ftable.lock);
     if (f->f_count < 1)
         panic("fileclose");
     if (--f->f_count > 0) {
-        release(&ftable.lock);
+        release(&_ftable.lock);
         return;
     }
     ff = *f;
     f->f_count = 0;
     f->f_type = FD_NONE;
-    release(&ftable.lock);
+    release(&_ftable.lock);
 
     if (ff.f_type == FD_PIPE) {
         int wrable = F_WRITEABLE(&ff);
@@ -212,7 +212,7 @@ static void get_absolute_path(struct _inode *ip, char *buf) {
 void fat32_getcwd(char *buf) {
     if (!buf) return;
     struct proc *p = myproc();
-    get_absolute_path(p->cwd, buf);
+    get_absolute_path(p->_cwd, buf);
     size_t n = strlen(buf);
     if (n > 1) {
         buf[n - 1] = 0; // clear '/'

@@ -4,16 +4,16 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
-// #include "fs/inode/fs.h"
+#include "fs/inode/fs.h"
 #include "atomic/sleeplock.h"
-// #include "fs/inode/file.h"
+#include "fs/inode/file.h"
 #include "kernel/trap.h"
 #include "memory/list_alloc.h"
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
 
-int pipealloc(struct _file **f0, struct _file **f1) {
+int _pipealloc(struct _file **f0, struct _file **f1) {
     struct pipe *pi;
 
     pi = 0;
@@ -47,6 +47,42 @@ bad:
     if (*f1)
         fat32_fileclose(*f1);
     return -1;
+}
+
+int
+pipealloc(struct file **f0, struct file **f1)
+{
+  struct pipe *pi;
+
+  pi = 0;
+  *f0 = *f1 = 0;
+  if((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
+    goto bad;
+  if((pi = (struct pipe*)kalloc()) == 0)
+    goto bad;
+  pi->readopen = 1;
+  pi->writeopen = 1;
+  pi->nwrite = 0;
+  pi->nread = 0;
+  initlock(&pi->lock, "pipe");
+  (*f0)->type = FD_PIPE;
+  (*f0)->readable = 1;
+  (*f0)->writable = 0;
+  (*f0)->pipe = pi;
+  (*f1)->type = FD_PIPE;
+  (*f1)->readable = 0;
+  (*f1)->writable = 1;
+  (*f1)->pipe = pi;
+  return 0;
+
+ bad:
+  if(pi)
+    kfree((char*)pi);
+  if(*f0)
+    fileclose(*f0);
+  if(*f1)
+    fileclose(*f1);
+  return -1;
 }
 
 void pipeclose(struct pipe *pi, int writable) {

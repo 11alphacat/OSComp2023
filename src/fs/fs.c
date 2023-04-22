@@ -12,13 +12,14 @@
 #include "common.h"
 #include "riscv.h"
 #include "param.h"
-#include "fs/stat.h"
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
 #include "atomic/sleeplock.h"
-#include "fs/inode/fs.h"
 #include "fs/bio.h"
+#include "fs/stat.h"
+#include "fs/inode/fs.h"
 #include "fs/inode/file.h"
+#include "fs/inode/stat.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with

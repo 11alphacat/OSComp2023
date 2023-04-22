@@ -8,6 +8,11 @@
 
 #define __user
 
+typedef enum { FD_NONE,
+           FD_PIPE,
+           FD_INODE,
+           FD_DEVICE } type_t;
+
 typedef unsigned int uint;
 typedef unsigned short ushort;
 typedef unsigned char uchar;
@@ -41,11 +46,18 @@ typedef unsigned short WORD;
 typedef unsigned int DWORD;
 
 typedef unsigned char *byte_pointer;
-#define NULL ((void *)0)
+#define NULL 0
 
 typedef uint64 pte_t;
 typedef uint64 pde_t;
 typedef uint64 *pagetable_t; // 512 PTEs
+
+// remember return to fat32_file.h
+struct devsw {
+    int (*read)(int, uint64, int);
+    int (*write)(int, uint64, int);
+};
+extern struct devsw devsw[];
 
 // math
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -70,7 +82,7 @@ char *strncpy(char *, const char *, int);
 void str_toupper(char *);
 void str_tolower(char *);
 char *strchr(const char *, int);
-int str_split(char *, char, char *, char *);
+int str_split(const char *, const char , char *, char *);
 
 // printf.c
 void printf(char *, ...);
