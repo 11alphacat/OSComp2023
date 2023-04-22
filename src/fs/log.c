@@ -3,9 +3,10 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "atomic/sleeplock.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
+#include "proc/wait_queue.h"
 
 // Simple logging that allows concurrent FS system calls.
 //

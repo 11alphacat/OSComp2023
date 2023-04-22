@@ -3,7 +3,7 @@
 #include "memory/memlayout.h"
 #include "riscv.h"
 #include "atomic/spinlock.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "kernel/trap.h"
 #include "syscall_gen/syscall_num.h"
 

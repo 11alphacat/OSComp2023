@@ -4,9 +4,9 @@
 #include "memory/vma.h"
 #include "riscv.h"
 #include "kernel/trap.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "memory/vm.h"
-#include "memory/alloactor.h"
+#include "memory/allocator.h"
 
 static uint32 perm_vma2pte(uint32 vma_perm) {
     uint32 pte_perm = 0;

@@ -1,5 +1,6 @@
-#ifndef __PROC_H__
-#define __PROC_H__
+#ifndef __PCB_LIFE_H__
+#define __PCB_LIFE_H__
+
 
 #include "common.h"
 #include "param.h"
@@ -56,7 +57,7 @@ struct proc {
     struct inode *cwd;           // Current directory
     char name[16];               // Process name (debugging)
 
-    struct list_head PCB_list;
+    struct list_head state_list;
 };
 
 // per-process data for the trap handling code in trampoline.S.
@@ -110,51 +111,28 @@ struct trapframe {
     /* 280 */ uint64 t6;
 };
 
-// 1. get current proc
-struct proc *myproc();
-
-// 2. allocate a new pid
-int allocpid();
-
+// 1. struct proc and pid
 void procinit(void);
-pagetable_t proc_pagetable(struct proc *);
-void proc_mapstacks(pagetable_t);
-void proc_freepagetable(pagetable_t, uint64);
-int growproc(int);
+struct proc *myproc();
+int allocpid();
+void freeproc(struct proc *p);
+struct proc *allocproc(void);
 
-
+// 2. the lifetime of proc
 int fork(void);
-int clone();
+void forkret(void);
+int clone(int, uint64, pid_t, uint64, pid_t*);
 int do_fork();
 
 void exit(int);
-
-int kill(int);
-void setkilled(struct proc *);
-int killed(struct proc *);
-
-int exec(char *, char **);
-int execve();
-int do_execve();
-
-
-void yield(void);
-void sched(void);
-void scheduler(void) __attribute__((noreturn));
 
 int wait(uint64);
 int wait4(pid_t, int *, int);
 int do_wait();
 
+void reparent(struct proc *p);
 
-void sleep(void *, struct spinlock *);
-void wakeup(void *);
-
-
-int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
-int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
-
+// 3. debug
 void procdump(void);
 
-
-#endif // __PROC_H__
+#endif

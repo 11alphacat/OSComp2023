@@ -1,13 +1,15 @@
 #include "param.h"
 #include "common.h"
 #include "memory/memlayout.h"
-#include "kernel/elf.h"
+#include "proc/exec.h"
 #include "riscv.h"
 #include "fs/inode/fs.h"
 #include "memory/vm.h"
-#include "kernel/proc.h"
-#include "memory/alloactor.h"
 #include "debug.h"
+#include "memory/allocator.h"
+#include "proc/pcb_life.h"
+#include "proc/pcb_mm.h"
+
 
 /*
  * the kernel's page table.

@@ -1,8 +1,8 @@
 #include "common.h"
 #include "memory/vma.h"
 #include "atomic/spinlock.h"
-#include "memory/alloactor.h"
-#include "kernel/proc.h"
+#include "memory/allocator.h"
+#include "proc/pcb_life.h"
 #include "riscv.h"
 #include "list.h"
 #include "debug.h"
@@ -19,7 +19,7 @@ void vmas_init() {
 }
 
 static struct vma *alloc_vma(void) {
-    // 1. slab alloactor
+    // 1. slab allocator
     // 2. fine grained lock
     acquire(&vmas_lock);
     for (int i = 0; i < NVMA; i++) {

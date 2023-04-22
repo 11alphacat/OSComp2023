@@ -4,4 +4,8 @@
 
 void PCB_Q_ALL_INIT();
 
+void yield(void);
+void sched(void);
+void scheduler(void) __attribute__((noreturn));
+
 #endif

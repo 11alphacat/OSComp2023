@@ -3,7 +3,7 @@
 #include "memory/memlayout.h"
 #include "riscv.h"
 #include "atomic/spinlock.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "kernel/plic.h"
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
@@ -12,6 +12,9 @@
 #include "sbi.h"
 #include "memory/vm.h"
 #include "debug.h"
+#include "proc/wait_queue.h"
+#include "proc/signal.h"
+#include "proc/sched.h"
 
 #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 

@@ -7,7 +7,7 @@
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
 #include "riscv.h"
-#include "memory/alloactor.h"
+#include "memory/allocator.h"
 #include "memory/buddy.h"
 #include "debug.h"
 #include "kernel/cpu.h"

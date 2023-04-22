@@ -19,8 +19,11 @@
 #include "fs/inode/file.h"
 #include "memory/memlayout.h"
 #include "riscv.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "driver/uart.h"
+#include "proc/pcb_mm.h"
+#include "proc/signal.h"
+#include "proc/wait_queue.h"
 
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x

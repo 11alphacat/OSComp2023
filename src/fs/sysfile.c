@@ -9,16 +9,17 @@
 #include "param.h"
 #include "fs/inode/stat.h"
 #include "atomic/spinlock.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "fs/inode/fs.h"
 #include "atomic/sleeplock.h"
 #include "fs/inode/file.h"
 #include "fs/fcntl.h"
 #include "kernel/trap.h"
-#include "memory/alloactor.h"
-#include "kernel/pipe.h"
-#include "memory/vm.h"
 #include "debug.h"
+#include "memory/allocator.h"
+#include "proc/pipe.h"
+#include "memory/vm.h"
+#include "proc/exec.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.

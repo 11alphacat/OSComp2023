@@ -1,9 +1,9 @@
 #ifndef __PCB_QUEUE_H__
 #define __PCB_QUEUE_H__
 #include "common.h"
-#include "atomic/spinlock.h"
 #include "list.h"
-#include "kernel/proc.h"
+#include "atomic/spinlock.h"
+#include "proc/pcb_life.h"
 
 struct proc;
 
@@ -31,22 +31,22 @@ static inline int PCB_Q_isempty(PCB_Q_t* pcb_q)
 // push back
 static inline void PCB_Q_push_back(PCB_Q_t* pcb_q, struct proc* p)
 {
-    list_add_tail(&(p->PCB_list), &(pcb_q->list));
+    list_add_tail(&(p->state_list), &(pcb_q->list));
 }
 
 
 // move it from its old PCB QUEUE
 static inline void PCB_Q_remove(struct proc* p)
 {
-    list_del(&p->PCB_list);
-    INIT_LIST_HEAD(&(p->PCB_list));
+    list_del(&p->state_list);
+    INIT_LIST_HEAD(&(p->state_list));
 }
 // pop the queue
 static inline struct proc* PCB_Q_pop(PCB_Q_t* pcb_q)
 {
     if(PCB_Q_isempty(pcb_q))
         return NULL;
-    struct proc* p = list_first_entry(&pcb_q->list, struct proc, PCB_list);
+    struct proc* p = list_first_entry(&(pcb_q->list), struct proc, state_list);
     PCB_Q_remove(p);
     return p;
 }

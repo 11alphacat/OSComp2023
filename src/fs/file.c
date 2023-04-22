@@ -2,7 +2,7 @@
 // Support functions for system calls that involve file descriptors.
 //
 
-#include "kernel/pipe.h"
+#include "proc/pipe.h"
 #include "common.h"
 #include "riscv.h"
 #include "param.h"
@@ -11,7 +11,7 @@
 #include "atomic/sleeplock.h"
 #include "fs/inode/file.h"
 #include "fs/inode/stat.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "kernel/trap.h"
 
 struct devsw devsw[NDEV];

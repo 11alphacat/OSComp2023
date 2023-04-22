@@ -2,7 +2,7 @@
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
 #include "riscv.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "common.h"
 #include "kernel/cpu.h"
 

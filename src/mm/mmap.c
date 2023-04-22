@@ -1,6 +1,6 @@
 #include "common.h"
 #include "kernel/trap.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "debug.h"
 #include "memory/vma.h"
 #include "fs/fcntl.h"

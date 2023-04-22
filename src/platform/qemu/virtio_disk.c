@@ -14,8 +14,9 @@
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
 #include "driver/virtio.h"
-#include "memory/alloactor.h"
-#include "kernel/proc.h"
+#include "memory/allocator.h"
+#include "proc/pcb_life.h"
+#include "proc/wait_queue.h"
 
 // the address of virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO0 + (r)))

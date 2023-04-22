@@ -1,14 +1,16 @@
 #include "common.h"
-#include "kernel/pipe.h"
+#include "proc/pipe.h"
 #include "riscv.h"
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "fs/inode/fs.h"
 #include "atomic/sleeplock.h"
 #include "fs/inode/file.h"
 #include "kernel/trap.h"
-#include "memory/alloactor.h"
+#include "memory/allocator.h"
+#include "proc/wait_queue.h"
+#include "proc/signal.h"
 
 int pipealloc(struct file **f0, struct file **f1) {
     struct pipe *pi;

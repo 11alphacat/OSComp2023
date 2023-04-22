@@ -3,11 +3,14 @@
 #include "param.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "kernel/trap.h"
 #include "memory/vm.h"
-#include "memory/alloactor.h"
+#include "memory/allocator.h"
 #include "debug.h"
+#include "proc/pcb_mm.h"
+#include "proc/wait_queue.h"
+#include "proc/signal.h"
 
 extern struct spinlock wait_lock;
 
@@ -63,7 +66,7 @@ sys_clone(void) {
     argint(2, &ptid);
     argaddr(3, &tls);
     argaddr(4, &ctid);
-    return clone(flags, stack, ptid, tls, ctid);
+    return clone(flags, stack, ptid, tls,(pid_t*) ctid);
 }
 
 uint64

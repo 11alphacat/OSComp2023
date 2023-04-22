@@ -3,14 +3,13 @@
 #include "memory/memlayout.h"
 #include "riscv.h"
 #include "atomic/spinlock.h"
-#include "kernel/proc.h"
-#include "kernel/elf.h"
+#include "proc/pcb_life.h"
+#include "proc/exec.h"
 #include "fs/inode/file.h"
 #include "fs/inode/fs.h"
 #include "memory/vm.h"
 #include "kernel/trap.h"
-
-static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
+#include "proc/pcb_mm.h"
 
 int flags2perm(int flags) {
     int perm = 0;
@@ -20,6 +19,31 @@ int flags2perm(int flags) {
         perm |= PTE_W;
     return perm;
 }
+
+// Load a program segment into pagetable at virtual address va.
+// va must be page-aligned
+// and the pages from va to va+sz must already be mapped.
+// Returns 0 on success, -1 on failure.
+static int
+loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz) {
+    uint i, n;
+    uint64 pa;
+
+    for (i = 0; i < sz; i += PGSIZE) {
+        pa = walkaddr(pagetable, va + i);
+        if (pa == 0)
+            panic("loadseg: address should exist");
+        if (sz - i < PGSIZE)
+            n = sz - i;
+        else
+            n = PGSIZE;
+        if (readi(ip, 0, (uint64)pa, offset + i, n) != n)
+            return -1;
+    }
+
+    return 0;
+}
+
 
 int exec(char *path, char **argv) {
     char *s, *last;
@@ -140,26 +164,10 @@ bad:
     return -1;
 }
 
-// Load a program segment into pagetable at virtual address va.
-// va must be page-aligned
-// and the pages from va to va+sz must already be mapped.
-// Returns 0 on success, -1 on failure.
-static int
-loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz) {
-    uint i, n;
-    uint64 pa;
+int execve() {
+    return 1;
+}
 
-    for (i = 0; i < sz; i += PGSIZE) {
-        pa = walkaddr(pagetable, va + i);
-        if (pa == 0)
-            panic("loadseg: address should exist");
-        if (sz - i < PGSIZE)
-            n = sz - i;
-        else
-            n = PGSIZE;
-        if (readi(ip, 0, (uint64)pa, offset + i, n) != n)
-            return -1;
-    }
-
-    return 0;
+int do_execve() {
+    return 1;
 }

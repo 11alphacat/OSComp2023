@@ -2,10 +2,11 @@
 #include "param.h"
 #include "memory/memlayout.h"
 #include "riscv.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 #include "kernel/cpu.h"
 #include "test.h"
 #include "memory/vm.h"
+#include "proc/sched.h"
 
 volatile static int started = 0;
 void printfinit(void);
@@ -45,6 +46,7 @@ void main() {
         kvminit();          // create kernel page table
         kvminithart();      // turn on paging
         procinit();         // process table
+
         trapinit();         // trap vectors
         trapinithart();     // install kernel trap vector
         plicinit();         // set up interrupt controller

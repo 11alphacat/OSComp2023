@@ -4,7 +4,7 @@
 #include "memory/memlayout.h"
 #include "riscv.h"
 #include "kernel/cpu.h"
-#include "kernel/proc.h"
+#include "proc/pcb_life.h"
 
 //
 // the riscv Platform Level Interrupt Controller (PLIC).

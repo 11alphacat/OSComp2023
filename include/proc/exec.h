@@ -1,5 +1,5 @@
-#ifndef __ELF_H__
-#define __ELF_H__
+#ifndef __EXEC_H__
+#define __EXEC_H__
 
 #include "common.h"
 // Format of an ELF executable file
@@ -45,4 +45,9 @@ struct proghdr {
 #define ELF_PROG_FLAG_WRITE 2
 #define ELF_PROG_FLAG_READ 4
 
-#endif // __ELF_H__
+
+int exec(char *, char **);
+int execve();
+int do_execve();
+
+#endif
