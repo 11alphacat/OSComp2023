@@ -3,6 +3,7 @@
 #include "proc/sched.h"
 
 extern struct proc proc[NPROC];
+extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
 
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
@@ -21,6 +22,7 @@ void sleep(void *chan, struct spinlock *lk) {
 
     // Go to sleep.
     p->chan = chan;
+    PCB_Q_changeState(p, SLEEPING);
     p->state = SLEEPING;
 
     sched();
@@ -42,9 +44,11 @@ void wakeup(void *chan) {
         if (p != myproc()) {
             acquire(&p->lock);
             if (p->state == SLEEPING && p->chan == chan) {
+                PCB_Q_changeState(p, RUNNABLE);
                 p->state = RUNNABLE;
             }
             release(&p->lock);
         }
     }
+    // TODO : 将chan修改为阻塞队列！！！
 }

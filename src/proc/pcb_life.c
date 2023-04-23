@@ -32,10 +32,13 @@ struct spinlock wait_lock;
 
 extern void fsinit(int);
 
-extern PCB_Q_t unused_q, used_q, running_q, runnable_q, sleeping_q, zombie_q;
+extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
+extern PCB_Q_t *STATES[STATEMAX];
+
+char proc_lock_name[NPROC][10];
 
 // Return the current struct proc *, or zero if none.
-struct proc * myproc(void) {
+struct proc *myproc(void) {
     push_off();
     struct cpu *c = mycpu();
     struct proc *p = c->proc;
@@ -44,7 +47,7 @@ struct proc * myproc(void) {
 }
 
 int allocpid() {
-    int pid  = atomic_inc_return(&nextpid);
+    int pid = atomic_inc_return(&nextpid);
     return pid;
 }
 
@@ -56,14 +59,14 @@ void userinit(void) {
     initproc = p;
 
     p->sz = 0;
-
     p->cwd = namei("/");
+    // p->cwd = fat32_inode_name("/");
 
+    PCB_Q_changeState(p, RUNNABLE);
     p->state = RUNNABLE;
 
     release(&p->lock);
 }
-
 
 // initialize the proc table.
 void procinit(void) {
@@ -71,15 +74,19 @@ void procinit(void) {
 
     atomic_set(&nextpid, 1);
     initlock(&wait_lock, "wait_lock");
-    
+
     PCB_Q_ALL_INIT();
-    for (p = proc; p < &proc[NPROC]; p++) {
-        initlock(&p->lock, "proc");
+
+    // for (p = proc; p < &proc[NPROC]; p++) {
+    for(int i=0;i<NPROC;i++){
+        p = proc+i;
+        sprintf(proc_lock_name[i], "proc_%d", i);
+        initlock(&p->lock, proc_lock_name[i]);
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
         PCB_Q_push_back(&unused_q, p);
     }
-    return ;
+    return;
 }
 
 // Look in the process table for an UNUSED proc.
@@ -90,19 +97,30 @@ struct proc *
 allocproc(void) {
     struct proc *p;
 
-    for (p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
-        if (p->state == UNUSED) {
-            goto found;
-        } else {
-            release(&p->lock);
-        }
-    }
-    return 0;
+    // for (p = proc; p < &proc[NPROC]; p++) {
+    //     acquire(&p->lock);
+    //     if (p->state == UNUSED) {
+    //         goto found;
+    //     } else {
+    //         release(&p->lock);
+    //     }
+    // }
+    acquire(&unused_q.lock);
+    if ((p = PCB_Q_pop(&unused_q)) == NULL)
+        return 0;
+    else
+        goto found;
+    release(&unused_q.lock);
 
 found:
+    acquire(&p->lock);
     p->pid = allocpid();
     p->state = USED;
+
+    // used queue
+    acquire(&used_q.lock);
+    PCB_Q_push_back(&used_q, p);
+    release(&used_q.lock);
 
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -110,7 +128,6 @@ found:
         release(&p->lock);
         return 0;
     }
-
     // An empty user page table.
     p->pagetable = proc_pagetable(p);
     if (p->pagetable == 0) {
@@ -118,7 +135,6 @@ found:
         release(&p->lock);
         return 0;
     }
-
     // Set up new context to start executing at forkret,
     // which returns to user space.
     memset(&p->context, 0, sizeof(p->context));
@@ -126,14 +142,15 @@ found:
     p->context.sp = p->kstack + PGSIZE;
 
     INIT_LIST_HEAD(&p->head_vma);
+
+    // don't realse the lock of process p
     return p;
 }
 
 // free a proc structure and the data hanging from it,
 // including user pages.
 // p->lock must be held.
-void
-freeproc(struct proc *p) {
+void freeproc(struct proc *p) {
     if (p->trapframe)
         kfree((void *)p->trapframe);
     p->trapframe = 0;
@@ -147,9 +164,24 @@ freeproc(struct proc *p) {
     p->chan = 0;
     p->killed = 0;
     p->xstate = 0;
+    
+    PCB_Q_changeState(p, UNUSED);
     p->state = UNUSED;
 }
 
+// find the proc we search
+// return the proc pointer with spinlock
+struct proc *find_get_pid(pid_t pid){
+    struct proc* p;
+    for (p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
+        if (p->pid == pid) {
+            return p;
+        }
+        release(&p->lock);
+    }
+    return NULL;
+}
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
@@ -201,6 +233,7 @@ int fork(void) {
     // release(&wait_lock);
 
     acquire(&np->lock);
+    PCB_Q_changeState(np, RUNNABLE);
     np->state = RUNNABLE;
     release(&np->lock);
 
@@ -228,17 +261,13 @@ void forkret(void) {
     usertrapret();
 }
 
-
-int clone(int flags, uint64 stack , pid_t ptid, uint64 tls, pid_t* ctid)
-{
+int clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     return 1;
 }
 
-int do_fork()
-{
+int do_fork() {
     return 1;
 }
-
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
@@ -276,7 +305,10 @@ void exit(int status) {
     acquire(&p->lock);
 
     p->xstate = status;
+    
+    PCB_Q_changeState(p, ZOMBIE);
     p->state = ZOMBIE;
+
 
     release(&wait_lock);
 
@@ -327,18 +359,16 @@ int wait(uint64 addr) {
         }
 
         // Wait for a child to exit.
-        sleep(p, &wait_lock); //DOC: wait-sleep
+        sleep(p, &wait_lock); // DOC: wait-sleep
     }
 }
 
 int wait4(pid_t pid, int *status, int options) {
-    
-    int ret=0;
+    int ret = 0;
     return ret;
 }
 
-int do_wait()
-{
+int do_wait() {
     return 1;
 }
 
@@ -354,8 +384,6 @@ void reparent(struct proc *p) {
         }
     }
 }
-
-
 
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.

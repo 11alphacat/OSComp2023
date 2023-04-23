@@ -34,13 +34,13 @@ static inline void PCB_Q_push_back(PCB_Q_t* pcb_q, struct proc* p)
     list_add_tail(&(p->state_list), &(pcb_q->list));
 }
 
-
 // move it from its old PCB QUEUE
 static inline void PCB_Q_remove(struct proc* p)
 {
     list_del(&p->state_list);
     INIT_LIST_HEAD(&(p->state_list));
 }
+
 // pop the queue
 static inline struct proc* PCB_Q_pop(PCB_Q_t* pcb_q)
 {

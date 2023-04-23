@@ -18,10 +18,11 @@ int atomic_read4(int *addr) {
 
 void _acquire(struct spinlock *lk);
 void _release(struct spinlock *lk);
-#define DEBUG_LOCK_NUM 1
+#define DEBUG_LOCK_NUM 2
 // cannot use to debug pr(printf's lock)!!!
 char *debug_lockname[DEBUG_LOCK_NUM] = {
-    "bcache",
+    "proc_0",
+    "proc_1"
 };
 
 void initlock(struct spinlock *lk, char *name) {

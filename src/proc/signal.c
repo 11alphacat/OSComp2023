@@ -1,7 +1,9 @@
 #include "proc/signal.h"
 #include "proc/pcb_life.h"
+#include "proc/sched.h"
 
 extern struct proc proc[NPROC];
+extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
 
 // Kill the process with the given pid.
 // The victim won't exit until it tries to return
@@ -9,20 +11,17 @@ extern struct proc proc[NPROC];
 int kill(int pid) {
     struct proc *p;
 
-    for (p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
-        if (p->pid == pid) {
-            p->killed = 1;
-            if (p->state == SLEEPING) {
-                // Wake process from sleep().
-                p->state = RUNNABLE;
-            }
-            release(&p->lock);
-            return 0;
-        }
-        release(&p->lock);
+    if((p = find_get_pid(pid))==NULL)
+        return -1;
+        
+    p->killed = 1;
+    if (p->state == SLEEPING) {
+        // Wake process from sleep().
+        PCB_Q_changeState(p, RUNNABLE);
+        p->state = RUNNABLE;
     }
-    return -1;
+    release(&p->lock);
+    return 0;
 }
 
 void setkilled(struct proc *p) {

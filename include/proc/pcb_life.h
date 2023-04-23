@@ -41,7 +41,7 @@ struct proc {
     void *chan;           // If non-zero, sleeping on chan
     int killed;           // If non-zero, have been killed
     int xstate;           // Exit status to be returned to parent's wait
-    int pid;              // Process ID
+    pid_t pid;              // Process ID
 
     struct list_head head_vma;
     // wait_lock must be held when using this:
@@ -115,8 +115,9 @@ struct trapframe {
 void procinit(void);
 struct proc *myproc();
 int allocpid();
-void freeproc(struct proc *p);
 struct proc *allocproc(void);
+void freeproc(struct proc *p);
+struct proc *find_get_pid(pid_t);
 
 // 2. the lifetime of proc
 int fork(void);

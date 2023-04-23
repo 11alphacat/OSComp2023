@@ -1,3 +1,4 @@
+#include "common.h"
 #include "proc/pcb_queue.h"
 #include "proc/sched.h"
 #include "atomic/spinlock.h"
@@ -5,19 +6,42 @@
 #include "kernel/cpu.h"
 #include "proc/sched.h"
 #include "kernel/trap.h"
+#include "proc/pcb_life.h"
 
-// UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE
-PCB_Q_t unused_q, used_q, running_q, runnable_q, sleeping_q, zombie_q;
+// UNUSED, USED, SLEEPING, RUNNABLE, ZOMBIE
+PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
+// the running process is on the cpu, so we do not need it (running queue).
+// create a mapping from emurate state to the address of queue
+PCB_Q_t *STATES[STATEMAX] = {
+   [UNUSED] &unused_q,
+   [USED] &used_q,
+   [RUNNABLE] &runnable_q,
+   [SLEEPING] &sleeping_q,
+   [ZOMBIE] &zombie_q
+};
 
 extern struct proc proc[NPROC];
 
 void PCB_Q_ALL_INIT(){
     PCB_Q_init(&unused_q, "UNUSED");
     PCB_Q_init(&used_q, "USED");
-    PCB_Q_init(&running_q, "RUNNING");
     PCB_Q_init(&runnable_q, "RUNNABLE");
     PCB_Q_init(&sleeping_q, "SLEEPING");
     PCB_Q_init(&zombie_q, "ZOMBIE");
+}
+
+void PCB_Q_changeState(struct proc* p, enum procstate state_new)
+{
+    PCB_Q_t* pcb_q_old = STATES[p->state];
+    PCB_Q_t* pcb_q_new = STATES[state_new];
+    acquire(&pcb_q_old->lock);
+    PCB_Q_remove(p);
+    release(&pcb_q_old->lock);
+    
+    acquire(&pcb_q_new->lock);
+    PCB_Q_push_back(pcb_q_new, p);
+    release(&pcb_q_new->lock);
+    return;
 }
 
 // Give up the CPU for one scheduling round.
@@ -25,6 +49,12 @@ void yield(void) {
     struct proc *p = myproc();
     acquire(&p->lock);
     p->state = RUNNABLE;
+
+    // runnable queue
+    acquire(&runnable_q.lock);
+    PCB_Q_push_back(&runnable_q,p);
+    release(&runnable_q.lock);
+
     sched();
     release(&p->lock);
 }
@@ -54,7 +84,7 @@ void sched(void) {
     mycpu()->intena = intena;
 }
 
-
+#include "debug.h"
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -68,24 +98,40 @@ void scheduler(void) {
 
     c->proc = 0;
     for (;;) {
-        // Avoid deadlock by ensuring that devices can interrupt.
+        // // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
 
-        for (p = proc; p < &proc[NPROC]; p++) {
-            acquire(&p->lock);
-            if (p->state == RUNNABLE) {
-                // Switch to chosen process.  It is the process's job
-                // to release its lock and then reacquire it
-                // before jumping back to us.
-                p->state = RUNNING;
-                c->proc = p;
-                swtch(&c->context, &p->context);
+        acquire(&runnable_q.lock);
+        if((p = PCB_Q_pop(&runnable_q))==NULL)
+            continue;
+        release(&runnable_q.lock);
 
-                // Process is done running for now.
-                // It should have changed its p->state before coming back.
-                c->proc = 0;
-            }
-            release(&p->lock);
+        if (strncmp(p->name, "/init", 5) == 0) {
+            Log("1");
         }
+        acquire(&p->lock);
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        release(&p->lock);
+
+        
+        // for (p = proc; p < &proc[NPROC]; p++) {
+        //     acquire(&p->lock);
+        //     if (p->state == RUNNABLE) {
+        //         // Switch to chosen process.  It is the process's job
+        //         // to release its lock and then reacquire it
+        //         // before jumping back to us.
+        //         p->state = RUNNING;
+        //         c->proc = p;
+        //         swtch(&c->context, &p->context);
+
+        //         // Process is done running for now.
+        //         // It should have changed its p->state before coming back.
+        //         c->proc = 0;
+        //     }
+        //     release(&p->lock);
+        // }
     }
 }

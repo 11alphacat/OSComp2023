@@ -1,6 +1,6 @@
 .DEFAULT_GOAL=qemu
 PLATFORM ?= qemu
-DEBUG ?= 0
+DEBUG ?= 1
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -31,7 +31,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 
 ifdef KCSAN
 CFLAGS += -DKCSAN
