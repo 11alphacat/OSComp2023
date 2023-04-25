@@ -5,12 +5,13 @@
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
 #include "kernel/elf.h"
-#include "fs/inode/file.h"
-#include "fs/inode/fs.h"
 #include "memory/vm.h"
 #include "kernel/trap.h"
+#include "fs/fat/fat32_file.h"
+#include "fs/fat/fat32_mem.h"
 
-static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
+
+static int loadseg(pde_t *, uint64, struct _inode *, uint, uint);
 
 int flags2perm(int flags) {
     int perm = 0;
@@ -26,21 +27,19 @@ int exec(char *path, char **argv) {
     int i, off;
     uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
     struct elfhdr elf;
-    struct inode *ip;
+    struct _inode *ip;
     struct proghdr ph;
     pagetable_t pagetable = 0, oldpagetable;
     struct proc *p = myproc();
 
-    begin_op();
 
-    if ((ip = namei(path)) == 0) {
-        end_op();
+    if ((ip = fat32_name_inode(path)) == 0) {
         return -1;
     }
-    ilock(ip);
+    fat32_inode_lock(ip);
 
     // Check ELF header
-    if (readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+    if (fat32_inode_read(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
         goto bad;
 
     if (elf.magic != ELF_MAGIC)
@@ -51,7 +50,7 @@ int exec(char *path, char **argv) {
 
     // Load program into memory.
     for (i = 0, off = elf.phoff; i < elf.phnum; i++, off += sizeof(ph)) {
-        if (readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+        if (fat32_inode_read(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
             goto bad;
         if (ph.type != ELF_PROG_LOAD)
             continue;
@@ -68,8 +67,7 @@ int exec(char *path, char **argv) {
         if (loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
             goto bad;
     }
-    iunlockput(ip);
-    end_op();
+    fat32_inode_unlock_put(ip);
     ip = 0;
 
     p = myproc();
@@ -134,8 +132,7 @@ bad:
     if (pagetable)
         proc_freepagetable(pagetable, sz);
     if (ip) {
-        iunlockput(ip);
-        end_op();
+        fat32_inode_unlock_put(ip);
     }
     return -1;
 }
@@ -145,7 +142,7 @@ bad:
 // and the pages from va to va+sz must already be mapped.
 // Returns 0 on success, -1 on failure.
 static int
-loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz) {
+loadseg(pagetable_t pagetable, uint64 va, struct _inode *ip, uint offset, uint sz) {
     uint i, n;
     uint64 pa;
 
@@ -157,7 +154,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
             n = sz - i;
         else
             n = PGSIZE;
-        if (readi(ip, 0, (uint64)pa, offset + i, n) != n)
+        if (fat32_inode_read(ip, 0, (uint64)pa, offset + i, n) != n)
             return -1;
     }
 

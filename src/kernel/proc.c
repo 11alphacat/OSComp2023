@@ -12,6 +12,7 @@
 #include "fs/inode/file.h"
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_disk.h"
+#include "fs/vfs/fs.h"
 
 struct cpu cpus[NCPU];
 
@@ -224,6 +225,28 @@ void userinit(void) {
     p->state = RUNNABLE;
 
     release(&p->lock);
+}
+
+struct _file console;
+void _userinit(void) {
+    struct proc *p;
+
+    p = allocproc();
+    initproc = p;
+    safestrcpy(p->name,"/init",10); 
+    p->sz = 0;
+    p->state = RUNNABLE;
+
+    console.f_type = T_DEVICE;
+    console.f_mode = O_RDWR;
+    console.f_major = CONSOLE;
+    
+    p->_ofile[0] = &console;
+    p->_ofile[1] = &console;
+    p->_ofile[2] = &console;
+    release(&p->lock);
+    
+    return;
 }
 
 // Grow or shrink user memory by n bytes.
@@ -481,6 +504,10 @@ void forkret(void) {
         first = 0;
         // fsinit(ROOTDEV);
         fat32_fs_mount(ROOTDEV, &fat32_sb);
+        
+        myproc()->_cwd = fat32_name_inode("/");
+        console.f_tp->f_inode = fat32_inode_create("console.dev",T_DEVICE);
+
         char *argv[] = {"init", 0};
         myproc()->trapframe->a0 = exec("/init", argv);
     }

@@ -12,7 +12,7 @@
 
 struct kstat;
 struct _superblock {
-    struct spinlock lock;
+    struct sleeplock lock;
     uint8 s_dev; // device number
 
     uint32 s_blocksize;       // 逻辑块的数量

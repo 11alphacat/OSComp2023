@@ -30,7 +30,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 ifeq ($(DEBUG), 1)
 CFLAGS += -D__DEBUG__
 endif
@@ -66,7 +66,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 # QEMU configuration======================================================================
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 128M -smp $(CPUS) -nographic
@@ -115,7 +115,7 @@ qemu: _kernel fat32.img
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
 xv6U=xv6_user
 oscompU=user
-FILE=brk
+FILE=brk openat close 
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 # user: oscomp
 # 	@echo "$(YELLOW)build user:$(RESET)"

@@ -111,7 +111,7 @@ uint fat32_next_cluster(uint cluster_cur) {
 uint fat32_cluster_alloc(uint dev) {
     struct buffer_head *bp;
 
-    acquire(&fat32_sb.lock);
+    acquiresleep(&fat32_sb.lock);
     if (!fat32_sb.fat32_sb_info.free_count) {
         panic("no disk space!!!\n");
     }
@@ -121,6 +121,7 @@ uint fat32_cluster_alloc(uint dev) {
     // the first sector
     int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
     bp = bread(dev, first_sector);
+
     if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1) {
         // next free hit
         brelse(bp); // !!!!
@@ -136,7 +137,7 @@ uint fat32_cluster_alloc(uint dev) {
             panic("no more space");
         fat32_sb.fat32_sb_info.nxt_free = fat_next + 1;
     }
-    release(&fat32_sb.lock);
+    releasesleep(&fat32_sb.lock);
 
     // update fsinfo
     fsinfo_t *fsinfo_tmp;
@@ -330,6 +331,17 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     // find the target cluster of off
     iter_n = fat32_fat_travel(ip, C_NUM_off);
 
+    if (ISEOF(iter_n)) {
+        FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
+        iter_n = fat32_fat_travel(ip, C_NUM_off);
+        Log("%x", iter_n);
+
+        
+        fat32_fat_set(iter_n, fat_new);
+        iter_n = fat_new;
+        ip->fat32_i.cluster_cnt++;
+        ip->fat32_i.cluster_end = ip->fat32_i.cluster_end;
+    }
     // TODO: off如果超出文件大小。
     // 这里先假设off不会超出文件大小。
 
@@ -337,7 +349,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     int init_s_offset = LOGISTIC_S_OFFSET(off);
 
     // read the target sector
-    while (!ISEOF(iter_n) && tot < n) {
+    while ((!ISEOF(iter_n) && tot < n)) {
         int first_sector = FirstSectorofCluster(iter_n);
         for (int s = init_s_n; s < ip->i_sb->sectors_per_block; s++) {
             bp = bread(ip->i_dev, first_sector + s);
@@ -356,14 +368,15 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
         }
         init_s_n = 0;
         next = fat32_next_cluster(iter_n);
-        if (next == EOC) {
+        if (ISEOF(next)) {
             FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
             fat32_fat_set(iter_n, fat_new);
             iter_n = fat_new;
             ip->fat32_i.cluster_cnt++;
             ip->fat32_i.cluster_end = ip->fat32_i.cluster_end;
         }
-    }
+    } 
+    
     if (off + n > fileSize) {
         if (ip->i_type == T_FILE)
             ip->i_size += ip->i_sb->cluster_size;
@@ -785,7 +798,7 @@ struct _inode *fat32_inode_alloc(struct _inode *dp, char *name, uchar type) {
     uint offset = fat32_dir_fcb_insert_offset(dp, fcb_cnt);
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, offset * sizeof(dirent_l_t), fcb_cnt * sizeof(dirent_l_t));
 
-    ASSERT(tot == fcb_cnt * sizeof(dirent_l_t));
+    ASSERT(tot == fcb_cnt * sizeof(dirent_l_t) );
 
     struct _inode *ip_new;
     uint first_sector = FirstSectorofCluster(dp->fat32_i.cluster_start);
@@ -831,6 +844,8 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
     // 数据文件
     if (!DIR_BOOL(attr)) {
         if (str_split((const char*)long_name, '.', file_name, file_ext) == -1) {
+            // TODO() 
+            // try other methods
             panic("fcb init : str split");
         }
         str_toupper(file_ext);
@@ -977,7 +992,7 @@ uint fat32_dir_fcb_insert_offset(struct _inode *ip, uchar fcb_cnt_req) {
     uint first_sector;
 
     uchar fcb_free_cnt = 0;
-    uint offset_ret_base = DIRLENGTH(ip);
+    uint offset_ret_base = DIRLENGTH(ip) / sizeof(dirent_l_t);
     uint offset_ret_final = 0;      // 为通过编译给一个初始值
 
     uint idx = 0;

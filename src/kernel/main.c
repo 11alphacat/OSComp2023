@@ -6,6 +6,7 @@
 #include "kernel/cpu.h"
 #include "fs/fat/fat32_mem.h"
 #include "test.h"
+#include "kernel/proc.h"
 
 volatile static int started = 0;
 void printfinit(void);
@@ -19,6 +20,7 @@ void plicinithart(void);
 void virtio_disk_init(void);
 void binit(void);
 void userinit(void);
+void _userinit(void);
 void kinit(void);
 void iinit();
 void fileinit(void);
@@ -69,7 +71,7 @@ void main() {
         virtio_disk_init(); // emulated hard disk
 
         // First user process
-        userinit(); // first user process
+        _userinit(); // first user process
         __sync_synchronize();
         started = 1;
     } else {

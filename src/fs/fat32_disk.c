@@ -17,7 +17,7 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     /* superblock initialization */
     sb->s_op = TODO();
     sb->s_dev = dev;
-    initlock(&sb->lock, "fat32_sb");
+    initsleeplock(&sb->lock,"fat32_sb");
 
     /* read boot sector in sector 0 */
     struct buffer_head *bp;
@@ -37,7 +37,7 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     // snprintf_test();
     // printf_test();
     fat32_test_functions();
-    panic("fs_mount");
+    // panic("fs_mount");
     return FR_OK;
 }
 
