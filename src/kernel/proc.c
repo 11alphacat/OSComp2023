@@ -13,6 +13,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_disk.h"
 #include "fs/vfs/fs.h"
+#include "debug.h"
 
 struct cpu cpus[NCPU];
 
@@ -506,8 +507,10 @@ void forkret(void) {
         fat32_fs_mount(ROOTDEV, &fat32_sb);
         
         myproc()->_cwd = fat32_name_inode("/");
-        console.f_tp->f_inode = fat32_inode_create("console.dev",T_DEVICE);
-
+        // console.f_tp.f_inode = fat32_inode_create("console.dev",T_DEVICE);
+        struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
+        ASSERT(ip!=NULL);
+        console.f_tp.f_inode = ip;
         char *argv[] = {"init", 0};
         myproc()->trapframe->a0 = exec("/init", argv);
     }

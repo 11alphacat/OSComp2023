@@ -80,10 +80,10 @@ void fat32_fileclose(struct _file *f) {
 
     if (ff.f_type == FD_PIPE) {
         int wrable = F_WRITEABLE(&ff);
-        pipeclose(ff.f_tp->f_pipe, wrable);
+        pipeclose(ff.f_tp.f_pipe, wrable);
     } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
         // begin_op();
-        fat32_inode_put(ff.f_tp->f_inode);
+        fat32_inode_put(ff.f_tp.f_inode);
         // end_op();
     }
 }
@@ -96,9 +96,9 @@ int fat32_filestat(struct _file *f, uint64 addr) {
     struct kstat st;
 
     if (f->f_type == FD_INODE || f->f_type == FD_DEVICE) {
-        fat32_inode_lock(f->f_tp->f_inode);
-        fat32_inode_stati(f->f_tp->f_inode, &st);
-        fat32_inode_unlock(f->f_tp->f_inode);
+        fat32_inode_lock(f->f_tp.f_inode);
+        fat32_inode_stati(f->f_tp.f_inode, &st);
+        fat32_inode_unlock(f->f_tp.f_inode);
         if (copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
             return -1;
         return 0;
@@ -116,16 +116,16 @@ int fat32_fileread(struct _file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        r = piperead(f->f_tp->f_pipe, addr, n);
+        r = piperead(f->f_tp.f_pipe, addr, n);
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
             return -1;
         r = devsw[f->f_major].read(1, addr, n);
     } else if (f->f_type == FD_INODE) {
-        fat32_inode_lock(f->f_tp->f_inode);
-        if ((r = fat32_inode_read(f->f_tp->f_inode, 1, addr, f->f_pos, n)) > 0)
+        fat32_inode_lock(f->f_tp.f_inode);
+        if ((r = fat32_inode_read(f->f_tp.f_inode, 1, addr, f->f_pos, n)) > 0)
             f->f_pos += r;
-        fat32_inode_unlock(f->f_tp->f_inode);
+        fat32_inode_unlock(f->f_tp.f_inode);
     } else {
         panic("fileread");
     }
@@ -143,7 +143,7 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        ret = pipewrite(f->f_tp->f_pipe, addr, n);
+        ret = pipewrite(f->f_tp.f_pipe, addr, n);
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].write)
             return -1;
@@ -163,10 +163,10 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
                 n1 = max;
 
             // begin_op();
-            fat32_inode_lock(f->f_tp->f_inode);
-            if ((r = fat32_inode_write(f->f_tp->f_inode, 1, addr + i, f->f_pos, n1)) > 0)
+            fat32_inode_lock(f->f_tp.f_inode);
+            if ((r = fat32_inode_write(f->f_tp.f_inode, 1, addr + i, f->f_pos, n1)) > 0)
                 f->f_pos += r;
-            fat32_inode_unlock(f->f_tp->f_inode);
+            fat32_inode_unlock(f->f_tp.f_inode);
             // end_op();
 
             if (r != n1) {

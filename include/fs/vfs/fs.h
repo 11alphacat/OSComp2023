@@ -48,8 +48,8 @@ struct _file {
 
 
     int f_owner; /* pid or -pgrp where SIGIO should be sent */
-    union file_type * f_tp;
-    const struct file_operations *f_op;
+    union file_type f_tp; // don't use pointer!!!! bug
+    const struct file_operations* f_op; // don't use pointer (bug maybe)!!!!
     unsigned long f_version;
 };
 

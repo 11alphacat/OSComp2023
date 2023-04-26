@@ -90,7 +90,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 # 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 
-qemu-gdb: _kernel .gdbinit
+qemu-gdb: _kernel .gdbinit fat32.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
@@ -135,7 +135,7 @@ clean-all: clean
 	-@make -C $(oscompU)/ clean
 
 clean: 
-	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf $(FSIMG)/*
+	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img fat32.img $(GENINC) -rf $(FSIMG)/*
 
 MNT_DIR=build/mnt
 $(shell mkdir -p $(MNT_DIR))

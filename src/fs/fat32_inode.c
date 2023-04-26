@@ -91,6 +91,8 @@ uint32 fat32_fat_travel(struct _inode *ip, uint num) {
         ip->fat32_i.cluster_end = prev;
         return cnt;
     } else {
+        if(num>cnt)
+            return prev;
         return iter_n;
     }
 }
@@ -167,13 +169,19 @@ uint fat32_fat_alloc() {
     int sec = FAT_BASE;
     while (c < FAT_CLUSTER_MAX) {
         bp = bread(fat32_sb.s_dev, sec);
+        FAT_entry_t* fats = (FAT_entry_t*)(bp->data);
         for (int s = 0; s < FAT_PER_SECTOR; s++) {
-            if ((bp->data)[s] == FREE_MASK) {
+            if (fats[s] == FREE_MASK) {
                 brelse(bp); // !!!!
                 fat32_fat_set(c, EOC);
                 return c;
             }
             c++;
+            if(c>FAT_CLUSTER_MAX)
+            {
+                brelse(bp);
+                return 0;
+            }
         }
         sec++;
         brelse(bp);
@@ -289,7 +297,7 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
     // read the target sector
     while (!ISEOF(iter_n) && tot < n) {
         int first_sector = FirstSectorofCluster(iter_n);
-        for (int s = init_s_n; s < (ip->i_sb->sectors_per_block); s++) {
+        for (int s = init_s_n; s < (ip->i_sb->sectors_per_block)&& tot < n; s++) {
             bp = bread(ip->i_dev, (uint)first_sector + s);
             m = MIN(BSIZE - init_s_offset, n - tot);
 
@@ -304,6 +312,8 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
             dst += m;
             init_s_offset = 0;
         }
+        if(tot == n)
+            break;
         init_s_n = 0;
 
         iter_n = fat32_next_cluster(iter_n);
@@ -331,16 +341,16 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     // find the target cluster of off
     iter_n = fat32_fat_travel(ip, C_NUM_off);
 
-    if (ISEOF(iter_n)) {
+    if (C_NUM_off>ip->fat32_i.cluster_cnt) {
         FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
-        iter_n = fat32_fat_travel(ip, C_NUM_off);
-        Log("%x", iter_n);
-
-        
         fat32_fat_set(iter_n, fat_new);
+        
+        // uint first_sector = FirstSectorofCluster(fat_new); // debug
+        // uint sec_pos = DEBUG_SECTOR(ip, first_sector); // debug
+        // printf("%d\n",sec_pos); // debug
         iter_n = fat_new;
         ip->fat32_i.cluster_cnt++;
-        ip->fat32_i.cluster_end = ip->fat32_i.cluster_end;
+        ip->fat32_i.cluster_end = fat_new;
     }
     // TODO: off如果超出文件大小。
     // 这里先假设off不会超出文件大小。
@@ -351,7 +361,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     // read the target sector
     while ((!ISEOF(iter_n) && tot < n)) {
         int first_sector = FirstSectorofCluster(iter_n);
-        for (int s = init_s_n; s < ip->i_sb->sectors_per_block; s++) {
+        for (int s = init_s_n; s < ip->i_sb->sectors_per_block && tot < n; s++) {
             bp = bread(ip->i_dev, first_sector + s);
             m = MIN(BSIZE - init_s_offset, n - tot);
 
@@ -366,6 +376,8 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             src += m;
             init_s_offset = 0;
         }
+        if(tot == n)
+            break;
         init_s_n = 0;
         next = fat32_next_cluster(iter_n);
         if (ISEOF(next)) {
@@ -373,7 +385,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             fat32_fat_set(iter_n, fat_new);
             iter_n = fat_new;
             ip->fat32_i.cluster_cnt++;
-            ip->fat32_i.cluster_end = ip->fat32_i.cluster_end;
+            ip->fat32_i.cluster_end = fat_new;
         }
     } 
     
@@ -441,6 +453,7 @@ void fat32_inode_lock(struct _inode *ip) {
         uint sector_num = FATINUM_TO_SECTOR(ip->i_ino);
         uint sector_offset = FATINUM_TO_OFFSET(ip->i_ino);
         // uint sec_pos = DEBUG_SECTOR(ip, sector_num); // debug
+        // printf("%d\n",sec_pos);
         bp = bread(ip->i_dev, sector_num);
         dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp->data + sector_offset;
 
@@ -768,21 +781,22 @@ struct _inode *fat32_inode_create(char *path, uchar type) {
     // if (fat32_inode_dirlink(dp, name) < 0)
     //     goto fail;
 
-    if (type == T_DIR) {
-        // now that success is guaranteed:
-        fat32_inode_update(dp);
-    }
+    // if (type == T_DIR) {
+    //     // now that success is guaranteed:
+    //     fat32_inode_update(dp);
+    // }
 
-    fat32_inode_unlock_put(dp);
+    fat32_inode_unlock_put(dp);// !!! bug
+    fat32_inode_unlock(ip); // !!!! bug
     return ip;
-
+}
 // fail:
 //     ip->i_nlink = 0;
 //     fat32_inode_update(ip);
 //     fat32_inode_unlock_put(ip);
 //     fat32_inode_unlock_put(dp);
 //     return 0;
-}
+
 
 // allocate a new inode
 struct _inode *fat32_inode_alloc(struct _inode *dp, char *name, uchar type) {
@@ -801,14 +815,23 @@ struct _inode *fat32_inode_alloc(struct _inode *dp, char *name, uchar type) {
     ASSERT(tot == fcb_cnt * sizeof(dirent_l_t) );
 
     struct _inode *ip_new;
-    uint first_sector = FirstSectorofCluster(dp->fat32_i.cluster_start);
-    // uint sec_pos = DEBUG_SECTOR(dp, first_sector); // debug
 
-    uint fcb_offset = offset + fcb_cnt - 1;
-    uint sector_num = first_sector + fcb_offset / FCB_PER_BLOCK;
-    uint sector_offset = fcb_offset % FCB_PER_BLOCK;
+    uint fcb_new_off = (offset + fcb_cnt - 1)*sizeof(dirent_s_t); 
+    uint C_NUM = LOGISTIC_C_NUM(fcb_new_off) + 1;
+    // find the target cluster of off
+    uint target_cluster = fat32_fat_travel(dp, C_NUM);
+    uint first_sector = FirstSectorofCluster(target_cluster);
 
+    uint C_OFFSET = LOGISTIC_C_OFFSET(fcb_new_off);
+    uint sector_num = first_sector + C_OFFSET / fat32_sb.sector_size;
+    uint sector_offset = (C_OFFSET % fat32_sb.sector_size)/sizeof(dirent_l_t);
     uint fat_num = SECTOR_TO_FATINUM(sector_num, sector_offset);
+
+    // // first_sector = FirstSectorofCluster(target_cluster); // debug
+    // sector_num = first_sector + C_OFFSET / FCB_PER_BLOCK;
+    // uint sec_pos = DEBUG_SECTOR(dp, sector_num); // debug
+    // printf("%d\n",sec_pos); // debug
+
     ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset);
     ip_new->i_nlink = 1;
     ip_new->parent = dp;

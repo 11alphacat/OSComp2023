@@ -31,12 +31,12 @@ int _pipealloc(struct _file **f0, struct _file **f1) {
     // (*f0)->readable = 1;
     // (*f0)->writable = 0;
     (*f0)->f_mode = O_RDONLY;
-    (*f0)->f_tp->f_pipe = pi;
+    (*f0)->f_tp.f_pipe = pi;
     (*f1)->f_type = FD_PIPE;
     // (*f1)->readable = 0;
     // (*f1)->writable = 1;
     (*f1)->f_mode = O_WRONLY;
-    (*f1)->f_tp->f_pipe = pi;
+    (*f1)->f_tp.f_pipe = pi;
     return 0;
 
 bad:

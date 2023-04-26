@@ -103,7 +103,7 @@ static struct _inode *find_inode(char *path, int dirfd, char* name) {
             return 0;
         }
         struct _inode *oldcwd = p->_cwd;
-        p->_cwd = f->f_tp->f_inode;
+        p->_cwd = f->f_tp.f_inode;
         ip = (!name) ? fat32_name_inode(path):fat32_name_inode_parent(path,name);
         if (ip == 0) {
             release(&p->tlock);
@@ -348,7 +348,7 @@ uint64 oscomp_sys_openat(void) {
         f->f_type = FD_INODE;
         f->f_pos = 0;
     }
-    f->f_tp->f_inode = ip;
+    f->f_tp.f_inode = ip;
     f->f_flags = flags;
     f->f_mode = omode;
 
