@@ -49,9 +49,9 @@ struct phys_mem_pool {
     uint64 start_addr;
     uint64 mem_size;
     /*
-	 * The start virtual address (for used in kernel) of
-	 * the metadata area of this pool.
-	 */
+     * The start virtual address (for used in kernel) of
+     * the metadata area of this pool.
+     */
     struct page *page_metadata;
 
     struct spinlock lock;

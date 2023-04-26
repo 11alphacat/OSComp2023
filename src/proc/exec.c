@@ -44,37 +44,35 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
     return 0;
 }
 
-
-int exec(char *path, char **argv) {
-    char *s, *last;
-    int i, off;
-    uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
-    struct elfhdr elf;
+int do_execve(char *path, char *const argv[], char *const envp[]) {
+    // find its inode and read the content of file
     struct inode *ip;
-    struct proghdr ph;
-    pagetable_t pagetable = 0, oldpagetable;
-    struct proc *p = myproc();
-
     begin_op();
-
     if ((ip = namei(path)) == 0) {
         end_op();
         return -1;
     }
     ilock(ip);
+    // fat32_inode_lock(ip);
 
     // Check ELF header
+    struct elfhdr elf;
     if (readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
         goto bad;
-
     if (elf.magic != ELF_MAGIC)
         goto bad;
 
+    // new page table
+    struct proc *p = myproc();
+    pagetable_t pagetable = 0;
     if ((pagetable = proc_pagetable(p)) == 0)
         goto bad;
 
     // Load program into memory.
-    for (i = 0, off = elf.phoff; i < elf.phnum; i++, off += sizeof(ph)) {
+    struct proghdr ph;
+    uint64 sz = 0; // grow!!!
+    uint64 sz1;
+    for (int i = 0, off = elf.phoff; i < elf.phnum; i++, off += sizeof(ph)) {
         if (readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
             goto bad;
         if (ph.type != ELF_PROG_LOAD)
@@ -85,7 +83,6 @@ int exec(char *path, char **argv) {
             goto bad;
         if (ph.vaddr % PGSIZE != 0)
             goto bad;
-        uint64 sz1;
         if ((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
             goto bad;
         sz = sz1;
@@ -93,17 +90,16 @@ int exec(char *path, char **argv) {
             goto bad;
     }
     iunlockput(ip);
+    // fat32_inode_unlock_put(ip);
     end_op();
     ip = 0;
 
-    p = myproc();
-    uint64 oldsz = p->sz;
-
     // Allocate two pages at the next page boundary.
-    // Make the first inaccessible as a stack guard.
-    // Use the second as the user stack.
+    // Make the first inaccessible as a stack guard, Use the second as the user stack.
+    uint64 sp;
+    uint64 stackbase;
+    uint64 oldsz = p->sz;
     sz = PGROUNDUP(sz);
-    uint64 sz1;
     if ((sz1 = uvmalloc(pagetable, sz, sz + 2 * PGSIZE, PTE_W)) == 0)
         goto bad;
     sz = sz1;
@@ -111,6 +107,9 @@ int exec(char *path, char **argv) {
     sp = sz;
     stackbase = sp - PGSIZE;
 
+    // the pointer of argument strings and environment variabels strings
+    uint64 ustack[MAXARG];
+    uint64 argc;
     // Push argument strings, prepare rest of stack in ustack.
     for (argc = 0; argv[argc]; argc++) {
         if (argc >= MAXARG)
@@ -139,13 +138,14 @@ int exec(char *path, char **argv) {
     p->trapframe->a1 = sp;
 
     // Save program name for debugging.
+    char *s, *last;
     for (last = s = path; *s; s++)
         if (*s == '/')
             last = s + 1;
     safestrcpy(p->name, last, sizeof(p->name));
 
     // Commit to the user image.
-    oldpagetable = p->pagetable;
+    pagetable_t oldpagetable = p->pagetable;
     p->pagetable = pagetable;
     p->sz = sz;
     p->trapframe->epc = elf.entry; // initial program counter = main
@@ -162,12 +162,4 @@ bad:
         end_op();
     }
     return -1;
-}
-
-int execve() {
-    return 1;
-}
-
-int do_execve() {
-    return 1;
 }

@@ -1,24 +1,22 @@
 #ifndef __PCB_LIFE_H__
 #define __PCB_LIFE_H__
 
-
 #include "common.h"
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
 #include "list.h"
+#include "proc/signal.h"
 
-#define NPROC 64                  // maximum number of processes
+#define NPROC 64 // maximum number of processes
 
 struct file;
 struct inode;
 
-enum pid_type
-{
-	PIDTYPE_PID,// 进程 ID 类型
-	PIDTYPE_PGID,// 进程组 ID 类型
-    PIDTYPE_SID,// 会话 ID 类型
-	PIDTYPE_MAX// 最大的 PID 类型索引编号 + 1
+enum pid_type {
+    PIDTYPE_PID,  // 进程 ID 类型
+    PIDTYPE_PGID, // 进程组 ID 类型
+    PIDTYPE_MAX   // 最大的 PID 类型索引编号 + 1
 };
 
 enum procstate { UNUSED,
@@ -27,10 +25,7 @@ enum procstate { UNUSED,
                  RUNNABLE,
                  RUNNING,
                  ZOMBIE,
-                 STATEMAX};
-
-
-typedef int pid_t;
+                 STATEMAX };
 
 // Per-process state
 struct proc {
@@ -40,12 +35,9 @@ struct proc {
     enum procstate state; // Process state
     void *chan;           // If non-zero, sleeping on chan
     int killed;           // If non-zero, have been killed
-    int xstate;           // Exit status to be returned to parent's wait
-    pid_t pid;              // Process ID
-
     struct list_head head_vma;
-    // wait_lock must be held when using this:
-    struct proc *parent; // Parent process
+    int exit_state;       // Exit status to be returned to parent's wait
+    pid_t pid;            // Process ID
 
     // these are private to the process, so p->lock need not be held.
     uint64 kstack;               // Virtual address of kernel stack
@@ -57,7 +49,27 @@ struct proc {
     struct inode *cwd;           // Current directory
     char name[16];               // Process name (debugging)
 
-    struct list_head state_list;
+    // wait_lock must be held when using this:
+    struct proc *parent; // Parent process
+
+    struct list_head state_list;   // its state queue
+    struct list_head child_list;   // its children
+    struct list_head sibling_list; // its sibling
+
+    int sigpending;                   // have signal?
+    struct signal_struct *sig;        // signal
+    sigset_t blocked;                 // the blocked signal
+    struct sigpending pending;        // pending (private)
+    struct sigpending shared_pending; // pending (shared)
+
+    tgid_t tgid;               // thread group id
+    int thread_cnt;            // the count of threads
+    struct list_head threads;  // threads list
+    struct proc *group_leader; // its proc thread group leader
+
+    pgrp_t pgid; // proc group id
+
+    struct list_head wait_list; // waiting  queue
 };
 
 // per-process data for the trap handling code in trampoline.S.
@@ -122,7 +134,7 @@ struct proc *find_get_pid(pid_t);
 // 2. the lifetime of proc
 int fork(void);
 void forkret(void);
-int clone(int, uint64, pid_t, uint64, pid_t*);
+int do_clone(int, uint64, pid_t, uint64, pid_t *);
 int do_fork();
 
 void exit(int);

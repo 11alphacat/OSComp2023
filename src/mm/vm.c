@@ -10,7 +10,6 @@
 #include "proc/pcb_life.h"
 #include "proc/pcb_mm.h"
 
-
 /*
  * the kernel's page table.
  */

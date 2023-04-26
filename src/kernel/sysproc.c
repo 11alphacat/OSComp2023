@@ -9,28 +9,27 @@
 #include "memory/allocator.h"
 #include "debug.h"
 #include "proc/pcb_mm.h"
-#include "proc/wait_queue.h"
+#include "proc/cond.h"
 #include "proc/signal.h"
 
 extern struct spinlock wait_lock;
 
-
 /*
-* 功能：获取进程ID；
-* 输入：系统调用ID；
-* 返回值：成功返回进程ID；
-*/
+ * 功能：获取进程ID；
+ * 输入：系统调用ID；
+ * 返回值：成功返回进程ID；
+ */
 uint64
 sys_getpid(void) {
     return myproc()->pid;
 }
 
 /*
-* 功能：获取父进程ID；
-* 输入：系统调用ID；
-* 返回值：成功返回父进程ID；
-*/
-uint64 
+ * 功能：获取父进程ID；
+ * 输入：系统调用ID；
+ * 返回值：成功返回父进程ID；
+ */
+uint64
 sys_getppid(void) {
     acquire(&wait_lock);
     uint64 ppid = myproc()->parent->pid;
@@ -54,7 +53,7 @@ sys_fork(void) {
 * 返回值：成功则返回子进程的线程ID，失败返回-1；
 */
 // int flags, void* stack , pid_t ptid, void*tls, pid_t* ctid
-uint64 
+uint64
 sys_clone(void) {
     int flags;
     uint64 stack;
@@ -66,7 +65,7 @@ sys_clone(void) {
     argint(2, &ptid);
     argaddr(3, &tls);
     argaddr(4, &ctid);
-    return clone(flags, stack, ptid, tls,(pid_t*) ctid);
+    return do_clone(flags, stack, ptid, tls, (pid_t *)ctid);
 }
 
 uint64
@@ -85,7 +84,7 @@ sys_wait(void) {
 * 返回值：成功则返回进程ID；如果指定了WNOHANG，且进程还未改变状态，直接返回0；失败则返回-1；
 */
 // pid_t pid, int *status, int options;
-uint64 
+uint64
 sys_wait4(void) {
     pid_t p;
     uint64 status;
@@ -93,10 +92,9 @@ sys_wait4(void) {
     argint(0, &p);
     argaddr(1, &status);
     argint(2, &options);
-    
-    return wait4(p, (int*)status, options);
-}
 
+    return wait4(p, (int *)status, options);
+}
 
 uint64
 sys_exit(void) {
@@ -110,13 +108,13 @@ sys_exit(void) {
 * 功能：执行一个指定的程序；
 * 输入：
   - path: 待执行程序路径名称，
-  - argv: 程序的参数， 
+  - argv: 程序的参数，
   - envp: 环境变量的数组指针
 * 返回值：成功不返回，失败返回-1；
 */
 // const char *path, char *const argv[], char *const envp[];
 uint64 sys_execve(void) {
-    return 0;
+    return -1;
 }
 
 uint64

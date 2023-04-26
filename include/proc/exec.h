@@ -45,9 +45,6 @@ struct proghdr {
 #define ELF_PROG_FLAG_WRITE 2
 #define ELF_PROG_FLAG_READ 4
 
-
-int exec(char *, char **);
-int execve();
-int do_execve();
+int do_execve(char *path, char *const argv[], char *const envp[]);
 
 #endif

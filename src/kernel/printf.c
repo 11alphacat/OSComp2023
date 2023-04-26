@@ -125,7 +125,7 @@ void vprintf(const char *fmt, va_list args) {
 
     int field_width; /* width of output field */
     int precision;   /* min. # of digits for integers; max
-				   number of chars for from string */
+                   number of chars for from string */
     int qualifier;   /* 'l', or 'L' for integer fields */
 
     for (; *fmt; ++fmt) {

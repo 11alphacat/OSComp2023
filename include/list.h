@@ -92,6 +92,12 @@ static inline void list_del(struct list_head *entry) {
     entry->prev = (list_head_t *)NULL;
 }
 
+// delete it and re init
+static inline void list_del_reinit(struct list_head *entry) {
+    list_del(entry);
+    INIT_LIST_HEAD(entry);
+}
+
 // 将节点从一个链表中移动到另一个链表
 /**
  * list_move - delete from one list and add as another's head
@@ -247,8 +253,7 @@ static inline void list_splice(struct list_head *list, struct list_head *head) {
          &pos->member != (head);                             \
          pos = n, n = list_next_entry(n, member))
 
-// 正向安全遍历链表（反向遍历的同时删除节点）
-
+// 反向安全遍历链表（反向遍历的同时删除节点）
 #define list_for_each_entry_safe_reverse(pos, n, head, member) \
     for (pos = list_last_entry(head, typeof(*pos), member),    \
         n = list_prev_entry(pos, member);                      \

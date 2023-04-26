@@ -29,7 +29,6 @@ void kcsaninit();
 void mm_init();
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
-
 int debug_lock = 0;
 // start() jumps here in supervisor mode on all CPUs.
 void main() {

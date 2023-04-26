@@ -9,7 +9,7 @@
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
 #include "driver/console.h"
-#include "proc/wait_queue.h"
+#include "proc/cond.h"
 
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the

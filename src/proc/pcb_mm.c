@@ -26,7 +26,6 @@ void proc_mapstacks(pagetable_t kpgtbl) {
     }
 }
 
-
 // Create a user page table for a given process, with no user memory,
 // but with trampoline and trapframe pages.
 pagetable_t
@@ -109,7 +108,6 @@ int growproc(int n) {
     p->sz = sz;
     return 0;
 }
-
 
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.

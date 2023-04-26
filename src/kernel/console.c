@@ -23,7 +23,7 @@
 #include "driver/uart.h"
 #include "proc/pcb_mm.h"
 #include "proc/signal.h"
-#include "proc/wait_queue.h"
+#include "proc/cond.h"
 
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x

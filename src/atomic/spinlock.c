@@ -22,8 +22,7 @@ void _release(struct spinlock *lk);
 // cannot use to debug pr(printf's lock)!!!
 char *debug_lockname[DEBUG_LOCK_NUM] = {
     "proc_0",
-    "proc_1"
-};
+    "proc_1"};
 
 void initlock(struct spinlock *lk, char *name) {
     lk->name = name;

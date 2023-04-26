@@ -1,6 +1,6 @@
 .DEFAULT_GOAL=qemu
 PLATFORM ?= qemu
-DEBUG ?= 1
+DEBUG ?= 0
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -121,13 +121,13 @@ xv6U=xv6_user
 oscompU=user
 FILE=brk open mnt mmap getppid
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
-# user: oscomp
-# 	@echo "$(YELLOW)build user:$(RESET)"
-# 	@make -C $(xv6U)
-
-user: 
+user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
+
+# user: 
+# 	@echo "$(YELLOW)build user:$(RESET)"
+# 	@make -C $(xv6U)
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7

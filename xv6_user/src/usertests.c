@@ -1108,12 +1108,12 @@ exitwait(char *s)
       exit(1);
     }
     if(pid){
-      int xstate;
-      if(wait(&xstate) != pid){
+      int exit_state;
+      if(wait(&exit_state) != pid){
         printf("%s: wait wrong pid\n", s);
         exit(1);
       }
-      if(i != xstate) {
+      if(i != exit_state) {
         printf("%s: wait wrong exit status\n", s);
         exit(1);
       }

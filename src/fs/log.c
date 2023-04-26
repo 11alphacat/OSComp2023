@@ -6,7 +6,7 @@
 #include "proc/pcb_life.h"
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
-#include "proc/wait_queue.h"
+#include "proc/cond.h"
 
 // Simple logging that allows concurrent FS system calls.
 //

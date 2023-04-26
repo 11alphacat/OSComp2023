@@ -9,7 +9,7 @@
 #include "fs/inode/file.h"
 #include "kernel/trap.h"
 #include "memory/allocator.h"
-#include "proc/wait_queue.h"
+#include "proc/cond.h"
 #include "proc/signal.h"
 
 int pipealloc(struct file **f0, struct file **f1) {
@@ -72,7 +72,7 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
             release(&pi->lock);
             return -1;
         }
-        if (pi->nwrite == pi->nread + PIPESIZE) { //DOC: pipewrite-full
+        if (pi->nwrite == pi->nread + PIPESIZE) { // DOC: pipewrite-full
             wakeup(&pi->nread);
             sleep(&pi->nwrite, &pi->lock);
         } else {
@@ -95,21 +95,21 @@ int piperead(struct pipe *pi, uint64 addr, int n) {
     char ch;
 
     acquire(&pi->lock);
-    while (pi->nread == pi->nwrite && pi->writeopen) { //DOC: pipe-empty
+    while (pi->nread == pi->nwrite && pi->writeopen) { // DOC: pipe-empty
         if (killed(pr)) {
             release(&pi->lock);
             return -1;
         }
-        sleep(&pi->nread, &pi->lock); //DOC: piperead-sleep
+        sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
     }
-    for (i = 0; i < n; i++) { //DOC: piperead-copy
+    for (i = 0; i < n; i++) { // DOC: piperead-copy
         if (pi->nread == pi->nwrite)
             break;
         ch = pi->data[pi->nread++ % PIPESIZE];
         if (copyout(pr->pagetable, addr + i, &ch, 1) == -1)
             break;
     }
-    wakeup(&pi->nwrite); //DOC: piperead-wakeup
+    wakeup(&pi->nwrite); // DOC: piperead-wakeup
     release(&pi->lock);
     return i;
 }

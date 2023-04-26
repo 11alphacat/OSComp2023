@@ -33,6 +33,9 @@ typedef uint64 uint64_t;
 
 #define NULL ((void *)0)
 
+typedef int pid_t;
+typedef int tgid_t;
+typedef int pgrp_t;
 typedef uint64 pte_t;
 typedef uint64 pde_t;
 typedef uint64 *pagetable_t; // 512 PTEs

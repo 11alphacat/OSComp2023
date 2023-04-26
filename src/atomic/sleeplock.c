@@ -7,7 +7,7 @@
 #include "atomic/sleeplock.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
-#include "proc/wait_queue.h"
+#include "proc/cond.h"
 
 void initsleeplock(struct sleeplock *lk, char *name) {
     initlock(&lk->lk, "sleep lock");

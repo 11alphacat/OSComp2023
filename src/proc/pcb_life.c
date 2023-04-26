@@ -19,6 +19,8 @@
 #include "proc/signal.h"
 #include "proc/wait_queue.h"
 #include "memory/vma.h"
+#include "proc/cond.h"
+#include "test.h"
 
 struct proc proc[NPROC];
 struct proc *initproc;
@@ -78,8 +80,8 @@ void procinit(void) {
     PCB_Q_ALL_INIT();
 
     // for (p = proc; p < &proc[NPROC]; p++) {
-    for(int i=0;i<NPROC;i++){
-        p = proc+i;
+    for (int i = 0; i < NPROC; i++) {
+        p = proc + i;
         sprintf(proc_lock_name[i], "proc_%d", i);
         initlock(&p->lock, proc_lock_name[i]);
         p->state = UNUSED;
@@ -97,31 +99,23 @@ struct proc *
 allocproc(void) {
     struct proc *p;
 
-    // for (p = proc; p < &proc[NPROC]; p++) {
-    //     acquire(&p->lock);
-    //     if (p->state == UNUSED) {
-    //         goto found;
-    //     } else {
-    //         release(&p->lock);
-    //     }
-    // }
     acquire(&unused_q.lock);
-    if ((p = PCB_Q_pop(&unused_q)) == NULL)
+    if ((p = PCB_Q_pop(&unused_q)) == NULL) {
+        release(&unused_q.lock);
         return 0;
-    else
+    } else {
+        release(&unused_q.lock);
         goto found;
-    release(&unused_q.lock);
+    }
 
 found:
     acquire(&p->lock);
     p->pid = allocpid();
+
+    PCB_Q_changeState(p, USED);
     p->state = USED;
 
-    // used queue
-    acquire(&used_q.lock);
-    PCB_Q_push_back(&used_q, p);
-    release(&used_q.lock);
-
+    INIT_LIST_HEAD(&p->child_list);
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
         freeproc(p);
@@ -163,16 +157,17 @@ void freeproc(struct proc *p) {
     p->name[0] = 0;
     p->chan = 0;
     p->killed = 0;
-    p->xstate = 0;
-    
+    p->exit_state = 0;
+
+    list_del(&p->child_list);
     PCB_Q_changeState(p, UNUSED);
     p->state = UNUSED;
 }
 
 // find the proc we search
 // return the proc pointer with spinlock
-struct proc *find_get_pid(pid_t pid){
-    struct proc* p;
+struct proc *find_get_pid(pid_t pid) {
+    struct proc *p;
     for (p = proc; p < &proc[NPROC]; p++) {
         acquire(&p->lock);
         if (p->pid == pid) {
@@ -235,6 +230,8 @@ int fork(void) {
     acquire(&np->lock);
     PCB_Q_changeState(np, RUNNABLE);
     np->state = RUNNABLE;
+
+    list_add_tail(&np->child_list, &p->child_list);
     release(&np->lock);
 
     return pid;
@@ -255,13 +252,14 @@ void forkret(void) {
         first = 0;
         fsinit(ROOTDEV);
         char *argv[] = {"init", 0};
-        myproc()->trapframe->a0 = exec("/init", argv);
+        myproc()->trapframe->a0 = do_execve("/init", argv, NULL);
+        // test_execve();
     }
 
     usertrapret();
 }
 
-int clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
+int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     return 1;
 }
 
@@ -288,9 +286,11 @@ void exit(int status) {
             p->ofile[fd] = 0;
         }
     }
+    // TODO: fat32 file system
 
     begin_op();
     iput(p->cwd);
+    // fat32_inode_put(p->cwd);
     end_op();
     p->cwd = 0;
 
@@ -298,17 +298,13 @@ void exit(int status) {
 
     // Give any children to init.
     reparent(p);
-
     // Parent might be sleeping in wait().
     wakeup(p->parent);
 
     acquire(&p->lock);
-
-    p->xstate = status;
-    
+    p->exit_state = status;
     PCB_Q_changeState(p, ZOMBIE);
     p->state = ZOMBIE;
-
 
     release(&wait_lock);
 
@@ -338,7 +334,7 @@ int wait(uint64 addr) {
                 if (pp->state == ZOMBIE) {
                     // Found one.
                     pid = pp->pid;
-                    if (addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate, sizeof(pp->xstate)) < 0) {
+                    if (addr != 0 && copyout(p->pagetable, addr, (char *)&pp->exit_state, sizeof(pp->exit_state)) < 0) {
                         release(&pp->lock);
                         release(&wait_lock);
                         return -1;
@@ -362,7 +358,6 @@ int wait(uint64 addr) {
         sleep(p, &wait_lock); // DOC: wait-sleep
     }
 }
-
 int wait4(pid_t pid, int *status, int options) {
     int ret = 0;
     return ret;
@@ -376,15 +371,13 @@ int do_wait() {
 // Caller must hold wait_lock.
 void reparent(struct proc *p) {
     struct proc *pp;
-
     for (pp = proc; pp < &proc[NPROC]; pp++) {
         if (pp->parent == p) {
             pp->parent = initproc;
-            wakeup(initproc);
+            // wakeup(initproc);
         }
     }
 }
-
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
