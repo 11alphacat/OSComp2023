@@ -15,9 +15,10 @@
 #include "fs/inode/file.h"
 #include "fs/fcntl.h"
 #include "kernel/trap.h"
-#include "memory/list_alloc.h"
+#include "memory/alloactor.h"
 #include "kernel/pipe.h"
 #include "memory/vm.h"
+#include "debug.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.

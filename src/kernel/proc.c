@@ -4,12 +4,13 @@
 #include "riscv.h"
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
-#include "memory/list_alloc.h"
+#include "memory/alloactor.h"
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
 #include "memory/vm.h"
 #include "fs/inode/fs.h"
 #include "fs/inode/file.h"
+#include "debug.h"
 
 struct cpu cpus[NCPU];
 
@@ -181,7 +182,7 @@ proc_pagetable(struct proc *p) {
     // only the supervisor uses it, on the way
     // to/from user space, so not PTE_U.
     if (mappages(pagetable, TRAMPOLINE, PGSIZE,
-                 (uint64)trampoline, PTE_R | PTE_X)
+                 (uint64)trampoline, PTE_R | PTE_X, 0)
         < 0) {
         uvmfree(pagetable, 0);
         return 0;
@@ -190,7 +191,7 @@ proc_pagetable(struct proc *p) {
     // map the trapframe page just below the trampoline page, for
     // trampoline.S.
     if (mappages(pagetable, TRAPFRAME, PGSIZE,
-                 (uint64)(p->trapframe), PTE_R | PTE_W)
+                 (uint64)(p->trapframe), PTE_R | PTE_W, 0)
         < 0) {
         uvmunmap(pagetable, TRAMPOLINE, 1, 0);
         uvmfree(pagetable, 0);
@@ -227,16 +228,38 @@ void userinit(void) {
 // Grow or shrink user memory by n bytes.
 // Return 0 on success, -1 on failure.
 int growproc(int n) {
-    uint64 sz;
+    uint64 oldsz, newsz, sz;
     struct proc *p = myproc();
-
     sz = p->sz;
+    oldsz = p->sz;
+    newsz = p->sz + n;
+
     if (n > 0) {
-        if ((sz = uvmalloc(p->pagetable, sz, sz + n, PTE_W)) == 0) {
+        pte_t *pte;
+        int level = walk(p->pagetable, oldsz, 0, 0, &pte);
+        if (pte == NULL && level != -1) {
+            panic("growproc: wrong");
+        }
+        ASSERT(level <= 1);
+        if (level == 0) {
+            if (PGROUNDUP(oldsz) >= newsz) {
+                p->sz = newsz;
+                return 0;
+            }
+        } else if (level == 1) {
+            if (SUPERPG_ROUNDUP(oldsz) >= newsz) {
+                p->sz = newsz;
+                return 0;
+            }
+        } else if (level != -1) {
+            panic("growproc: wrong level");
+        }
+
+        if ((sz = uvmalloc(p->pagetable, oldsz, newsz, PTE_W)) == 0) {
             return -1;
         }
     } else if (n < 0) {
-        sz = uvmdealloc(p->pagetable, sz, sz + n);
+        sz = uvmdealloc(p->pagetable, oldsz, newsz);
     }
     p->sz = sz;
     return 0;

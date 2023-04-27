@@ -44,4 +44,6 @@ void backtrace();
     printf("\33[1;35m[%s,%d,%s] " format "\33[0m\n", \
            __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
+#define PTE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
 #endif // __DEBUG_H__

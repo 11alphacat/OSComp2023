@@ -8,7 +8,7 @@
 #include "atomic/sleeplock.h"
 #include "fs/inode/file.h"
 #include "kernel/trap.h"
-#include "memory/list_alloc.h"
+#include "memory/alloactor.h"
 
 int pipealloc(struct file **f0, struct file **f1) {
     struct pipe *pi;

@@ -5,6 +5,9 @@
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
 #include "kernel/trap.h"
+#include "memory/vm.h"
+#include "memory/alloactor.h"
+#include "debug.h"
 
 uint64
 sys_exit(void) {
@@ -41,6 +44,14 @@ sys_sbrk(void) {
     if (growproc(n) < 0)
         return -1;
     return addr;
+}
+
+uint64 sys_print_pgtable(void) {
+    struct proc *p = myproc();
+    vmprint(p->pagetable, 0, 0, 0, 0);
+    uint64 memsize = get_free_mem();
+    Log("%dM", memsize / 1024 / 1024);
+    return 0;
 }
 
 uint64

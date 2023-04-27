@@ -139,6 +139,9 @@ void test3(void)
       if (i == 0) {
         for(i = 0; i < N; i++) {
           a = sbrk(4096);
+          if ((uint64)a == -1) {
+            break;
+          }
           *(int *)(a+4) = 1;
           a1 = sbrk(-4096);
           if (a1 != a + 4096) {

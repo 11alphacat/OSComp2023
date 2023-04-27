@@ -5,6 +5,7 @@
 #include "kernel/proc.h"
 #include "kernel/cpu.h"
 #include "test.h"
+#include "memory/vm.h"
 
 volatile static int started = 0;
 void printfinit(void);

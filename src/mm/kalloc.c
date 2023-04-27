@@ -7,7 +7,7 @@
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
 #include "riscv.h"
-#include "memory/list_alloc.h"
+#include "memory/alloactor.h"
 #include "memory/buddy.h"
 #include "debug.h"
 #include "kernel/cpu.h"
@@ -43,6 +43,63 @@ struct page *steal_mem(int cur_id, uint64 order) {
     return page;
 }
 
+uint64 size_to_page_order(uint64 size) {
+    uint64 order;
+    uint64 page_num;
+    uint64 tmp;
+
+    order = 0;
+    page_num = ROUND_UP(size, PGSIZE) / PGSIZE;
+    tmp = page_num;
+
+    while (tmp > 1) {
+        tmp >>= 1;
+        order += 1;
+    }
+
+    if (page_num > (1 << order)) {
+        order += 1;
+    }
+
+    return order;
+}
+
+void *kmalloc(size_t size) {
+    uint64 order;
+    if (size <= PGSIZE) {
+        order = 0;
+    } else {
+        order = size_to_page_order(size);
+    }
+
+    push_off();
+    int id = cpuid();
+    ASSERT(id >= 0 && id < NCPU);
+    struct page *page = buddy_get_pages(&mempools[id], order);
+
+    if (page == NULL) {
+        page = steal_mem(id, order);
+        if (page == NULL) {
+            return 0;
+        }
+    }
+    return (void *)page_to_pa(page);
+}
+
+void *kzalloc(size_t size) {
+    void *ptr;
+
+    ptr = kmalloc(size);
+
+    /* lack of memory */
+    if (ptr == NULL)
+        return NULL;
+
+    memset(ptr, 0, size);
+    return ptr;
+}
+
+/* compatible with the old kalloc call, use kmalloc instead */
 void *kalloc(void) {
     int order = 0;
 
@@ -62,6 +119,7 @@ void *kalloc(void) {
 
 void kfree(void *pa) {
     struct page *page = pa_to_page((uint64)pa);
+    ASSERT(page->allocated == 1);
     int id = get_pages_cpu(page);
     ASSERT(id >= 0 && id < NCPU);
     buddy_free_pages(&mempools[id], page);

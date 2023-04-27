@@ -354,9 +354,15 @@ sfence_vma() {
 
 #endif // __ASSEMBLER__
 
+// only support 2MB superpage
+#define SUPERPGSIZE (PGSIZE * (PGSIZE / PTESIZE))
+
 #define PGSIZE 4096 // bytes per page
 #define PGSHIFT 12  // bits of offset within a page
+#define PTESIZE 8
 
+#define SUPERPG_ROUNDUP(sz) (((sz) + SUPERPGSIZE - 1) & ~(SUPERPGSIZE - 1))
+#define SUPERPG_DOWN(a) (((a)) & ~(SUPERPGSIZE - 1))
 #define PGROUNDUP(sz) (((sz) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE - 1))
 
@@ -365,6 +371,9 @@ sfence_vma() {
 #define PTE_W (1L << 2)
 #define PTE_X (1L << 3)
 #define PTE_U (1L << 4) // user can access
+#define PTE_A (1L << 6)
+#define PTE_SHARE (1L << 8)    // identify if the page is shared
+#define PTE_READONLY (1L << 9) //
 
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
@@ -373,10 +382,11 @@ sfence_vma() {
 
 #define PTE_FLAGS(pte) ((pte)&0x3FF)
 
+// virtual PageNum/physical PageNum macro
 // extract the three 9-bit page table indices from a virtual address.
-#define PXMASK 0x1FF // 9 bits
-#define PXSHIFT(level) (PGSHIFT + (9 * (level)))
-#define PX(level, va) ((((uint64)(va)) >> PXSHIFT(level)) & PXMASK)
+#define PNMASK 0x1FF // 9 bits
+#define PNSHIFT(level) (PGSHIFT + (9 * (level)))
+#define PN(level, va) ((((uint64)(va)) >> PNSHIFT(level)) & PNMASK)
 
 // one beyond the highest possible virtual address.
 // MAXVA is actually one bit less than the max allowed by

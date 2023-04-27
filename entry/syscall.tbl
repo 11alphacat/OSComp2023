@@ -47,7 +47,8 @@
 160  uname           sys_uname
 169  gettimeofday    sys_gettimeofday
 
-
+# debug
+400 print_pgtable sys_print_pgtable
 
 
 

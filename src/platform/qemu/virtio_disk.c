@@ -14,7 +14,7 @@
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
 #include "driver/virtio.h"
-#include "memory/list_alloc.h"
+#include "memory/alloactor.h"
 #include "kernel/proc.h"
 
 // the address of virtio mmio register r.

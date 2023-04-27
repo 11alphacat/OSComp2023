@@ -22,6 +22,35 @@
 
 char buf[BUFSZ];
 
+// new tests
+void uvmfree(char *s) {
+  enum { BIG=100*1024*1024 };
+  char *a, *p;
+  uint64 amt;
+
+  int pid = fork();
+  if (pid == 0) {
+    // oldbrk = sbrk(0);
+
+    // can one grow address space to something big?
+    a = sbrk(0);
+    amt = BIG - (uint64)a;
+    p = sbrk(amt);
+    if (p != a) {
+      printf("%s: sbrk test failed to grow big address space; enough phys mem?\n", s);
+      exit(1);
+    }
+    printf("child done\n");
+    exit(0);
+  } else if (pid > 0) {
+    wait((int*)0);
+    exit(0);
+  } else {
+    printf("fork failed");
+    exit(1);
+  }
+}
+
 //
 // Section with tests that run fairly quickly.  Use -q if you want to
 // run just those.  With -q usertests also runs the ones that take a
@@ -33,6 +62,7 @@ char buf[BUFSZ];
 void
 copyin(char *s)
 {
+  // print_pgtable();
   uint64 addrs[] = { 0x80000000LL, 0xffffffffffffffff };
 
   for(int ai = 0; ai < 2; ai++){
@@ -2078,20 +2108,29 @@ sbrkmuch(char *s)
 
   // touch each page to make sure it exists.
   char *eee = sbrk(0);
-  for(char *pp = a; pp < eee; pp += 4096)
+  // printf("eee is %x", eee);
+  // print_pgtable();
+  // int cnt = 0;
+  for(char *pp = a; pp < eee; pp += 4096) {
+    // printf("%x\n", pp);
     *pp = 1;
+  }
 
   lastaddr = (char*) (BIG-1);
   *lastaddr = 99;
 
   // can one de-allocate?
   a = sbrk(0);
+  // printf("a is %x %d\n", a, a);
+  // print_pgtable();
   c = sbrk(-PGSIZE);
+  // print_pgtable();
   if(c == (char*)0xffffffffffffffffL){
     printf("%s: sbrk could not deallocate\n", s);
     exit(1);
   }
   c = sbrk(0);
+  // printf("c is %x %d\n", c, c);
   if(c != a - PGSIZE){
     printf("%s: sbrk deallocation produced wrong address, a %x c %x\n", s, a, c);
     exit(1);
@@ -2636,9 +2675,11 @@ struct test {
   {sbrklast, "sbrklast"},
   {sbrk8000, "sbrk8000"},
   {badarg, "badarg" },
+  {uvmfree, "uvmfree"},
 
   { 0, 0},
 };
+
 
 //
 // Section with tests that take a fair bit of time

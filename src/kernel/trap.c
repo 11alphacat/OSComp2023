@@ -10,6 +10,8 @@
 #include "driver/uart.h"
 #include "driver/virtio.h"
 #include "sbi.h"
+#include "memory/vm.h"
+#include "debug.h"
 
 #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 
@@ -72,6 +74,13 @@ void usertrap(void) {
     } else if ((which_dev = devintr()) != 0) {
         // ok
     } else {
+        // vmprint(p->pagetable, 0, 0, 0, 0);
+        // pte_t *pte;
+        // walk(p->pagetable, r_stval(), 0, 0, &pte);
+        // PTE("RSW %d%d U %d X %d W %d R %d\n",
+        //     (*pte & PTE_READONLY) > 0, (*pte & PTE_SHARE) > 0,
+        //     (*pte & PTE_U) > 0, (*pte & PTE_X) > 0,
+        //     (*pte & PTE_W) > 0, (*pte & PTE_R) > 0);
         printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
         printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
         setkilled(p);

@@ -6,6 +6,10 @@
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 
+// common round_up/down
+#define ROUND_UP(x, n) (((x) + (n)-1) & ~((n)-1))
+#define ROUND_DOWN(x, n) ((x) & ~((n)-1))
+
 typedef unsigned int uint;
 typedef unsigned short ushort;
 typedef unsigned char uchar;

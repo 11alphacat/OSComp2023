@@ -201,3 +201,17 @@ static struct page *merge_page(struct phys_mem_pool *pool, struct page *page) {
         return page;
     }
 }
+
+uint64 get_free_mem() {
+    uint64 memsize = 0;
+    for (int cpu = 0; cpu < NCPU; cpu++) {
+        struct phys_mem_pool *pool = &mempools[cpu];
+        acquire(&pool->lock);
+        for (int i = 0; i <= BUDDY_MAX_ORDER; i++) {
+            // Log("%d order chunks num: %d", i, pool->freelists[i].num);
+            memsize += pool->freelists[i].num * PGSIZE * (1 << i);
+        }
+        release(&pool->lock);
+    }
+    return memsize;
+}
