@@ -36,7 +36,6 @@ CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 ifdef KCSAN
 CFLAGS += -DKCSAN
 KCSANFLAG += -fsanitize=thread -fno-inline
-
 OBJS_KCSAN = \
   build/src/kernel/console.o \
   build/src/driver/uart.o \
@@ -48,6 +47,7 @@ endif
 ifeq ($(DEBUG), 1)
 CFLAGS += -D__DEBUG__
 endif
+
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -83,7 +83,7 @@ ifndef CPUS
 CPUS := 3
 endif
 
-QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 128M -smp $(CPUS) -nographic
+QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 130M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
