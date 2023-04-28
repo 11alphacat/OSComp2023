@@ -83,6 +83,11 @@ void *kmalloc(size_t size) {
             return 0;
         }
     }
+
+    acquire(&page->lock);
+    ASSERT(page->count == 0);
+    page->count = 1;
+    release(&page->lock);
     return (void *)page_to_pa(page);
 }
 
@@ -114,13 +119,37 @@ void *kalloc(void) {
             return 0;
         }
     }
+
+    acquire(&page->lock);
+    ASSERT(page->count == 0);
+    page->count = 1;
+    release(&page->lock);
     return (void *)page_to_pa(page);
 }
 
 void kfree(void *pa) {
     struct page *page = pa_to_page((uint64)pa);
+    acquire(&page->lock);
+    ASSERT(page->count >= 1);
+    page->count--;
+    if (page->count >= 1) {
+        release(&page->lock);
+        return;
+    }
+    ASSERT(page->count == 0);
+    release(&page->lock);
+
     ASSERT(page->allocated == 1);
     int id = get_pages_cpu(page);
     ASSERT(id >= 0 && id < NCPU);
     buddy_free_pages(&mempools[id], page);
+}
+
+void share_page(uint64 pa) {
+    struct page *page = pa_to_page(pa);
+    acquire(&page->lock);
+    ASSERT(page->count >= 1);
+    page->count++;
+    release(&page->lock);
+    return;
 }

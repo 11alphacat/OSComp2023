@@ -51,15 +51,15 @@ void mm_init() {
     }
 }
 
-// static int cur = 0;
+static int cur = 0;
 void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 start_addr, uint64 page_num) {
     // int mem_size = PGSIZE * page_num;
     // Log("%d mem size: %dM", cur, mem_size / 1024 / 1024);
     // Log("%d start_mem: %#x", cur, start_addr);
     // Log("%d end mem: %#x", cur, start_addr + mem_size);
     // Log("%d page_num %d", cur, page_num);
-    // Log("%d pagemeta start: %x", cur, start_page);
-    // Log("%d pagemeta end: %x", cur, (uint64)start_page + page_num * sizeof(struct page));
+    Log("%d pagemeta start: %x", cur, start_page);
+    Log("%d pagemeta end: %x", cur, (uint64)start_page + page_num * sizeof(struct page));
     ASSERT((uint64)start_page + page_num * sizeof(struct page) < START_MEM);
     pool->start_addr = start_addr;
     pool->page_metadata = start_page;
@@ -67,7 +67,7 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
 
     // Log("start_page_metadata: %#x", pool->page_metadata);
     // Log("start_addr: %#x", pool->start_addr);
-    // cur++;
+    cur++;
 
     /* Init the spinlock */
     initlock(&pool->lock, "buddy_phy_mem_pools_lock");
@@ -87,6 +87,7 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
         page = start_page + page_idx;
         page->allocated = 1;
         page->order = 0;
+        initlock(&page->lock, "page_lock");
     }
 
     /* Put each physical memory page into the free lists. */

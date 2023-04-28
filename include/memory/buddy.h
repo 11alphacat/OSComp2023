@@ -35,8 +35,9 @@ struct page {
     int order;
     struct list_head list;
 
-    // use for cow/lazy
-    // atomic_t count;
+    // use for copy-on-write
+    struct spinlock lock;
+    int count;
 };
 
 struct free_list {

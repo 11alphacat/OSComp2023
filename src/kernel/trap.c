@@ -81,9 +81,17 @@ void usertrap(void) {
         //     (*pte & PTE_READONLY) > 0, (*pte & PTE_SHARE) > 0,
         //     (*pte & PTE_U) > 0, (*pte & PTE_X) > 0,
         //     (*pte & PTE_W) > 0, (*pte & PTE_R) > 0);
-        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-        setkilled(p);
+        if (r_scause() == 0xf) {
+            // store page fault
+            if (cow(p->pagetable, r_stval()) < 0) {
+                setkilled(p);
+            }
+        } else {
+            printf("process %s\n", p->name);
+            printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+            printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+            setkilled(p);
+        }
     }
 
     if (killed(p))

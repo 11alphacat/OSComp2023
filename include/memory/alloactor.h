@@ -9,6 +9,7 @@ void *kalloc(void);
 void kfree(void *);
 void *kzalloc(size_t size);
 void *kmalloc(size_t size);
+void share_page(uint64 pa);
 
 /* get available memory size */
 uint64 get_free_mem();

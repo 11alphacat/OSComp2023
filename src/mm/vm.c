@@ -123,7 +123,8 @@ walkaddr(pagetable_t pagetable, uint64 va) {
     if (va >= MAXVA)
         return 0;
 
-    walk(pagetable, va, 0, 0, &pte);
+    int level = walk(pagetable, va, 0, 0, &pte);
+    ASSERT(level <= 1);
     if (pte == 0)
         return 0;
     if ((*pte & PTE_V) == 0)
@@ -131,7 +132,13 @@ walkaddr(pagetable_t pagetable, uint64 va) {
     if ((*pte & PTE_U) == 0)
         return 0;
     pa = PTE2PA(*pte);
-    return pa;
+    if (level == COMMONPAGE) {
+        return pa;
+    } else if (level == SUPERPAGE) {
+        return pa + (PGROUNDDOWN(va) - SUPERPG_DOWN(va));
+    } else {
+        panic("can not reach here");
+    }
 }
 
 // add a mapping to the kernel page table.
@@ -225,7 +232,7 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
         uint64 pte_flags = PTE_FLAGS(*pte);
         *pte = 0;
 
-        if (level == 1) {
+        if (level == SUPERPAGE) {
             if (a != SUPERPG_DOWN(a) && a == va) {
                 uvmalloc(pagetable, SUPERPG_DOWN(a), a, pte_flags);
                 // vmprint(pagetable, 1, 0, 0, 0);
@@ -268,7 +275,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
             uvmdealloc(pagetable, a, oldsz);
             return 0;
         }
-        if (mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, MAPPAGE) != 0) {
+        if (mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, COMMONPAGE) != 0) {
             kfree(mem);
             uvmdealloc(pagetable, a, oldsz);
             return 0;
@@ -288,7 +295,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
                 uvmdealloc(pagetable, addr, oldsz);
                 return 0;
             }
-            if (mappages(pagetable, addr, SUPERPGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, MAPSUPERPAGE) != 0) {
+            if (mappages(pagetable, addr, SUPERPGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, SUPERPAGE) != 0) {
                 kfree(mem);
                 uvmdealloc(pagetable, addr, oldsz);
                 return 0;
@@ -301,7 +308,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
                 uvmdealloc(pagetable, addr, oldsz);
                 return 0;
             }
-            if (mappages(pagetable, addr, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, MAPPAGE) != 0) {
+            if (mappages(pagetable, addr, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, COMMONPAGE) != 0) {
                 kfree(mem);
                 uvmdealloc(pagetable, addr, oldsz);
                 return 0;
@@ -365,29 +372,44 @@ int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
     pte_t *pte;
     uint64 pa, i;
     uint flags;
-    char *mem;
 
     for (i = 0; i < sz; i += PGSIZE) {
-        walk(old, i, 0, 0, &pte);
+        int level = walk(old, i, 0, 0, &pte);
+        ASSERT(level <= 1 && level >= 0);
         if (pte == NULL) {
             panic("uvmcopy: pte should exist");
         }
-        if ((*pte & PTE_V) == 0)
-            panic("uvmcopy: page not present");
+        if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
+            *pte = *pte | PTE_READONLY;
+        }
+        /* shared page */
+        if ((*pte & PTE_W) == 0 && (*pte & PTE_READONLY) != 0) {
+            *pte = *pte | PTE_READONLY;
+        }
+        *pte = *pte | PTE_SHARE;
+        *pte = *pte & ~PTE_W;
         pa = PTE2PA(*pte);
         flags = PTE_FLAGS(*pte);
-        if ((mem = kalloc()) == 0)
-            goto err;
-        memmove(mem, (char *)pa, PGSIZE);
-        if (mappages(new, i, PGSIZE, (uint64)mem, flags, 0) != 0) {
-            kfree(mem);
-            goto err;
+        if (level == SUPERPAGE) {
+            /* level == 1 ~ map superpage */
+            ASSERT(i == SUPERPG_DOWN(i));
+            if (mappages(new, i, SUPERPGSIZE, pa, flags, SUPERPAGE) != 0) {
+                goto err;
+            }
+            i += (SUPERPGSIZE - PGSIZE);
+        } else if (level == COMMONPAGE) {
+            /* level == 0 ~ map common page */
+            if (mappages(new, i, PGSIZE, pa, flags, COMMONPAGE) != 0) {
+                goto err;
+            }
         }
+        /* call share_page after mappages success! */
+        share_page(pa);
     }
     return 0;
 
 err:
-    uvmunmap(new, 0, i / PGSIZE, 1);
+    uvmunmap(new, 0, i / PGSIZE, 0);
     return -1;
 }
 
@@ -410,6 +432,28 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 
     while (len > 0) {
         va0 = PGROUNDDOWN(dstva);
+
+        // kernel has the right to write all RAM without PAGE FAULT
+        // so need to check if this write is legal(PTE_W == 1 in PTE)
+        // if not, call cow
+        pte_t *pte;
+        int flags;
+        /* since walk will panic if va0 > maxva, so we have to handle this error before walk */
+        if (va0 >= MAXVA) {
+            return -1;
+        }
+        walk(pagetable, va0, 0, 0, &pte);
+        if (pte == 0) {
+            return -1;
+        }
+        flags = PTE_FLAGS(*pte);
+        if ((flags & PTE_W) == 0) {
+            int ret = cow(pagetable, va0);
+            if (ret < 0) {
+                return -1;
+            }
+        }
+
         pa0 = walkaddr(pagetable, va0);
         if (pa0 == 0)
             return -1;
@@ -532,4 +576,58 @@ void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 va
             }
         }
     }
+}
+
+int cow(pagetable_t pagetable, uint64 stval) {
+    void *mem;
+    pte_t *pte;
+    uint64 pa;
+    uint flags;
+    int level;
+
+    /* the va exceed the MAXVA is illegal */
+    if (PGROUNDDOWN(stval) >= MAXVA) {
+        printf("exceed the MAXVA");
+        return -1;
+    }
+
+    level = walk(pagetable, stval, 0, 0, &pte);
+    /* try to write to va which is not in the proc's pagetable is illegal */
+    if (pte == NULL) {
+        return -1;
+    }
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+
+    /* write to an unshared page is illegal */
+    if ((flags & PTE_SHARE) == 0) {
+        printf("try to write a readonly page");
+        return -1;
+    }
+
+    /* write to readonly shared page is illegal */
+    if ((flags & PTE_READONLY) > 0) {
+        printf("try to write a readonly page");
+        return -1;
+    }
+
+    if (level == SUPERPAGE) {
+        // 2MB superpage
+        if ((mem = kmalloc(SUPERPGSIZE)) == 0) {
+            return -1;
+        }
+        memmove(mem, (void *)pa, SUPERPGSIZE);
+    } else if (level == COMMONPAGE) {
+        // common page
+        if ((mem = kmalloc(PGSIZE)) == 0) {
+            return -1;
+        }
+        memmove(mem, (void *)pa, PGSIZE);
+    } else {
+        return -1;
+    }
+
+    *pte = PA2PTE((uint64)mem) | flags | PTE_W;
+    kfree((void *)pa);
+    return 0;
 }

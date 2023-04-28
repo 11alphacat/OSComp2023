@@ -241,12 +241,12 @@ int growproc(int n) {
             panic("growproc: wrong");
         }
         ASSERT(level <= 1);
-        if (level == 0) {
+        if (level == COMMONPAGE) {
             if (PGROUNDUP(oldsz) >= newsz) {
                 p->sz = newsz;
                 return 0;
             }
-        } else if (level == 1) {
+        } else if (level == SUPERPAGE) {
             if (SUPERPG_ROUNDUP(oldsz) >= newsz) {
                 p->sz = newsz;
                 return 0;

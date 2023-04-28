@@ -2,8 +2,8 @@
 #define __VM_H__
 
 #include "common.h"
-#define MAPPAGE 0
-#define MAPSUPERPAGE 1
+#define COMMONPAGE 0
+#define SUPERPAGE 1 /* 2MB superpage */
 
 void kvmmap(pagetable_t, uint64, uint64, uint64, int);
 int walk(pagetable_t, uint64, int, int, pte_t **);
@@ -17,7 +17,10 @@ void uvmfree(pagetable_t, uint64);
 void uvmunmap(pagetable_t, uint64, uint64, int);
 void uvmclear(pagetable_t, uint64);
 
-// print the pagetable
+/* copy-on write */
+int cow(pagetable_t pagetable, uint64 stval);
+
+/* print the pagetable */
 void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 vabase);
 
 #endif // __VM_H__
