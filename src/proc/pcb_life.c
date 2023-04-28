@@ -21,15 +21,14 @@
 #include "memory/vma.h"
 #include "proc/cond.h"
 #include "test.h"
+#include "proc/options.h"
 
 struct proc proc[NPROC];
 struct proc *initproc;
 
 atomic_t nextpid;
-// helps ensure that wakeups of wait()ing
-// parents are not lost. helps obey the
-// memory model when using p->parent.
-// must be acquired before any p->lock.
+// when using p->parent, we must acquire wait_lock
+// avoid wakeup lost!!!
 struct spinlock wait_lock;
 
 extern void fsinit(int);
@@ -40,7 +39,7 @@ extern PCB_Q_t *STATES[STATEMAX];
 char proc_lock_name[NPROC][10];
 
 // Return the current struct proc *, or zero if none.
-struct proc *myproc(void) {
+struct proc *current(void) {
     push_off();
     struct cpu *c = mycpu();
     struct proc *p = c->proc;
@@ -70,6 +69,12 @@ void userinit(void) {
     release(&p->lock);
 }
 
+void initret(void) {
+    fsinit(ROOTDEV);
+    char *argv[] = {"init", 0};
+    current()->trapframe->a0 = do_execve("/init", argv, NULL);
+}
+
 // initialize the proc table.
 void procinit(void) {
     struct proc *p;
@@ -84,9 +89,10 @@ void procinit(void) {
         p = proc + i;
         sprintf(proc_lock_name[i], "proc_%d", i);
         initlock(&p->lock, proc_lock_name[i]);
+        initlock(&p->wait_lock, "proc_wait_lock");
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
-        PCB_Q_push_back(&unused_q, p);
+        PCB_Q_push_back(&unused_q, p);  
     }
     return;
 }
@@ -99,23 +105,16 @@ struct proc *
 allocproc(void) {
     struct proc *p;
 
-    acquire(&unused_q.lock);
-    if ((p = PCB_Q_pop(&unused_q)) == NULL) {
-        release(&unused_q.lock);
+    p = PCB_Q_provide(&unused_q);
+    if (p == NULL)
         return 0;
-    } else {
-        release(&unused_q.lock);
-        goto found;
-    }
 
-found:
     acquire(&p->lock);
     p->pid = allocpid();
 
     PCB_Q_changeState(p, USED);
     p->state = USED;
 
-    INIT_LIST_HEAD(&p->child_list);
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
         freeproc(p);
@@ -159,7 +158,6 @@ void freeproc(struct proc *p) {
     p->killed = 0;
     p->exit_state = 0;
 
-    list_del(&p->child_list);
     PCB_Q_changeState(p, UNUSED);
     p->state = UNUSED;
 }
@@ -180,10 +178,10 @@ struct proc *find_get_pid(pid_t pid) {
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
-int fork(void) {
+int do_fork(void) {
     int i, pid;
     struct proc *np;
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     // Allocate process.
     if ((np = allocproc()) == 0) {
@@ -231,7 +229,6 @@ int fork(void) {
     PCB_Q_changeState(np, RUNNABLE);
     np->state = RUNNABLE;
 
-    list_add_tail(&np->child_list, &p->child_list);
     release(&np->lock);
 
     return pid;
@@ -240,38 +237,101 @@ int fork(void) {
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void) {
-    static int first = 1;
-
     // Still holding p->lock from scheduler.
-    release(&myproc()->lock);
-
-    if (first) {
-        // File system initialization must be run in the context of a
-        // regular process (e.g., because it calls sleep), and thus cannot
-        // be run from main().
-        first = 0;
-        fsinit(ROOTDEV);
-        char *argv[] = {"init", 0};
-        myproc()->trapframe->a0 = do_execve("/init", argv, NULL);
-        // test_execve();
+    release(&current()->lock);
+    if(current()==initproc){
+        initret();
     }
-
     usertrapret();
 }
 
 int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
-    return 1;
+    struct proc *np;
+    // Allocate process.
+    if ((np = allocproc()) == 0) {
+        return -1;
+    }
+    // uint64* long_p = &stack;
+    // uint64 fn = long_p[0];
+    // uint64 arg = long_p[1];
+    struct proc *p = current();
+
+    // copy the trapframe
+    *(np->trapframe) = *(p->trapframe);
+
+    // TODO : mmap
+    if (flags & CLONE_VM) {
+        np->pagetable = p->pagetable;
+    } else {
+        if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
+            freeproc(np);
+            release(&np->lock);
+            return -1;
+        }
+    }
+    // TODO : fdtable
+    if (flags & CLONE_FILES) {
+        for (int i = 0; i < NOFILE; i++)
+            if (p->ofile[i])
+                np->ofile[i] = filedup(p->ofile[i]);
+    } else {
+        // TODO : clone a completely same fdtable
+    }
+
+    // TODO : vfs inode cmd
+    np->cwd = idup(p->cwd);
+    // TODO : signal
+    if (flags & CLONE_SIGHAND) {
+        np->sig = p->sig;
+    } else {
+        // TODO : create a new signal
+    }
+
+    // TODO : mount point CLONE_FS
+
+    // store the parent pid
+    if (flags & CLONE_PARENT_SETTID) {
+        if (either_copyin(&ptid, 1, p->pid, sizeof(pid_t)) == -1)
+            return -1;
+    }
+    // set the tls (Thread-local Storage，TLS)
+    // RISC-V使用TP寄存器
+    if (flags & CLONE_SETTLS) {
+        np->trapframe->tp = tls;
+    }
+    // 子线程中存储子线程 ID 的变量指针
+    if (flags & CLONE_CHILD_SETTID) {
+        np->ctid = ctid;
+    }
+
+    // copy the name of proc
+    safestrcpy(np->name, p->name, sizeof(p->name));
+
+    // avoid parent miss this new child
+    acquire(&wait_lock);
+    np->parent = p;
+    release(&wait_lock);
+
+    // same as fork, its child return 0
+    np->trapframe->a0 = 0;
+
+    // change its state tp RUNNABLE
+    // acquire(&np->lock);
+    PCB_Q_changeState(np, RUNNABLE);
+    np->state = RUNNABLE;
+
+    release(&np->lock);
+
+    // its parent return child's pid
+    return np->pid;
 }
 
-int do_fork() {
-    return 1;
-}
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
-void exit(int status) {
-    struct proc *p = myproc();
+void do_exit(int status) {
+    struct proc *p = current();
 
     if (p == initproc)
         panic("init exiting");
@@ -315,10 +375,10 @@ void exit(int status) {
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
-int wait(uint64 addr) {
+int do_wait(uint64 addr) {
     struct proc *pp;
     int havekids, pid;
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     acquire(&wait_lock);
 
@@ -358,14 +418,56 @@ int wait(uint64 addr) {
         sleep(p, &wait_lock); // DOC: wait-sleep
     }
 }
-int wait4(pid_t pid, int *status, int options) {
-    int ret = 0;
-    return ret;
+int waitpid(pid_t pid, uint64 status, int options) {
+    struct proc *p = current();
+    int havekids;
+    int havetarget;
+    if(pid<-1){
+        pid = -pid;
+    }
+    acquire(&wait_lock);
+    for (;;) {  
+        havekids = 0;
+        havetarget = 0;
+        for (struct proc* p_child = proc; p_child < &proc[NPROC]; p_child++) {
+            if (p_child->parent == p) {
+                havekids = 1;  
+                // make sure the child isn't still in exit() or swtch().
+                acquire(&p_child->lock);
+
+                // TODO : thread
+
+                // TODO : proc group (进程组) pid = 0 
+
+                if(pid!=-1 && p_child->pid!= pid) {
+                    release(&p_child->lock);
+                    continue;
+                }
+                havetarget = 1;
+                if (p_child->state == ZOMBIE) {
+                    // Found one.
+                    pid = p_child->pid;
+                    if (status != 0 && copyout(p->pagetable, status, (char *)&p_child->exit_state, sizeof(p_child->exit_state)) < 0) {
+                        release(&p_child->lock);
+                        release(&wait_lock);
+                        return -1;
+                    }
+                    freeproc(p_child);
+                    release(&p_child->lock);
+                    release(&wait_lock);
+                    return pid;
+                }
+                release(&p_child->lock);
+            }
+        }
+        if ((!havekids&&(options&WNOHANG)) || killed(p) || !havetarget) {
+            release(&wait_lock);
+            return -1;
+        }
+        sleep(p, &wait_lock);
+    }
 }
 
-int do_wait() {
-    return 1;
-}
 
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.

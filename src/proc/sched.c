@@ -41,7 +41,7 @@ void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
 
 // Give up the CPU for one scheduling round.
 void yield(void) {
-    struct proc *p = myproc();
+    struct proc *p = current();
     acquire(&p->lock);
 
     // runnable queue
@@ -61,7 +61,7 @@ void yield(void) {
 // there's no process.
 void sched(void) {
     int intena;
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     if (!holding(&p->lock))
         panic("sched p->lock");

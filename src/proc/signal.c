@@ -65,10 +65,12 @@ int kill_proc_info(int sig, siginfo_t *info, pid_t pid) {
     if (p != NULL)
         error = send_sig_info(sig, info, p);
     release(&p->lock);
+    return error;
 }
 
 int send_sig_info(int sig, siginfo_t *info, struct proc *p) {
     if (!valid_signal(sig))
         return -EINVAL;
-    uint64 flags;
+    // uint64 flags;
+    return 1;
 }

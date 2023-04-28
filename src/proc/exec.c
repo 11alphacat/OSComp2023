@@ -63,7 +63,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         goto bad;
 
     // new page table
-    struct proc *p = myproc();
+    struct proc *p = current();
     pagetable_t pagetable = 0;
     if ((pagetable = proc_pagetable(p)) == 0)
         goto bad;

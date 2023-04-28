@@ -11,6 +11,7 @@
 #include "proc/pcb_mm.h"
 #include "proc/cond.h"
 #include "proc/signal.h"
+#include "proc/exec.h"
 
 extern struct spinlock wait_lock;
 
@@ -21,7 +22,7 @@ extern struct spinlock wait_lock;
  */
 uint64
 sys_getpid(void) {
-    return myproc()->pid;
+    return current()->pid;
 }
 
 /*
@@ -32,14 +33,14 @@ sys_getpid(void) {
 uint64
 sys_getppid(void) {
     acquire(&wait_lock);
-    uint64 ppid = myproc()->parent->pid;
+    uint64 ppid = current()->parent->pid;
     release(&wait_lock);
     return ppid;
 }
 
 uint64
 sys_fork(void) {
-    return fork();
+    return do_fork();
 }
 
 /*
@@ -72,7 +73,7 @@ uint64
 sys_wait(void) {
     uint64 p;
     argaddr(0, &p);
-    return wait(p);
+    return do_wait(p);
 }
 
 /*
@@ -93,14 +94,14 @@ sys_wait4(void) {
     argaddr(1, &status);
     argint(2, &options);
 
-    return wait4(p, (int *)status, options);
+    return waitpid(p, status, options);
 }
 
 uint64
 sys_exit(void) {
     int n;
     argint(0, &n);
-    exit(n);
+    do_exit(n);
     return 0; // not reached
 }
 
@@ -114,7 +115,15 @@ sys_exit(void) {
 */
 // const char *path, char *const argv[], char *const envp[];
 uint64 sys_execve(void) {
-    return -1;
+    char path[MAXPATH];
+    char* argv[MAXARG];
+    char* envp[MAXENV];
+
+    if (argstr(0, path, MAXPATH) < 0 ) {
+        return -1;
+    }
+    // TODO : 获取一个字符串数组 （argv 和 envp）
+    return do_execve(path, argv, envp);
 }
 
 uint64
@@ -123,14 +132,14 @@ sys_sbrk(void) {
     int n;
 
     argint(0, &n);
-    addr = myproc()->sz;
+    addr = current()->sz;
     if (growproc(n) < 0)
         return -1;
     return addr;
 }
 
 uint64 sys_print_pgtable(void) {
-    struct proc *p = myproc();
+    struct proc *p = current();
     vmprint(p->pagetable, 0, 0, 0, 0);
     uint64 memsize = get_free_mem();
     Log("%dM", memsize / 1024 / 1024);
@@ -146,7 +155,7 @@ sys_sleep(void) {
     acquire(&tickslock);
     ticks0 = ticks;
     while (ticks - ticks0 < n) {
-        if (killed(myproc())) {
+        if (killed(current())) {
             release(&tickslock);
             return -1;
         }

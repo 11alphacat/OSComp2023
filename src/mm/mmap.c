@@ -17,7 +17,7 @@ uint64 sys_munmap(void) {
     argaddr(0, &addr);
     argulong(1, &length);
 
-    if (vmspace_unmap(myproc(), addr, length) != 0) {
+    if (vmspace_unmap(current(), addr, length) != 0) {
         return -1;
     }
     return 0;
@@ -58,7 +58,7 @@ void *sys_mmap(void) {
     }
 
     vaddr_t mapva = find_mapping_space(addr, length);
-    if (vma_map_file(myproc(), mapva, length, mkperm(prot, flags), VMA_MAP_FILE, fd, offset, fp) < 0) {
+    if (vma_map_file(current(), mapva, length, mkperm(prot, flags), VMA_MAP_FILE, fd, offset, fp) < 0) {
         return MAP_FAILED;
     }
 

@@ -12,7 +12,7 @@ void cond_init(struct cond *cond, char *name) {
 
 // wait
 void cond_wait(struct cond *cond, struct spinlock *mutex) {
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     acquire(&p->lock);
 
@@ -73,7 +73,7 @@ void cond_broadcast(struct cond *cond) {
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
 void sleep(void *chan, struct spinlock *lk) {
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     // Must acquire p->lock in order to
     // change p->state and then call sched.
@@ -106,7 +106,7 @@ void wakeup(void *chan) {
     struct proc *p;
 
     for (p = proc; p < &proc[NPROC]; p++) {
-        if (p != myproc()) {
+        if (p != current()) {
             acquire(&p->lock);
             if (p->state == SLEEPING && p->chan == chan) {
                 PCB_Q_changeState(p, RUNNABLE);

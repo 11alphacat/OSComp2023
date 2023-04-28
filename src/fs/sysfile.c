@@ -28,7 +28,7 @@ int argfd(int n, int *pfd, struct file **pf) {
     struct file *f;
 
     argint(n, &fd);
-    if (fd < 0 || fd >= NOFILE || (f = myproc()->ofile[fd]) == 0)
+    if (fd < 0 || fd >= NOFILE || (f = current()->ofile[fd]) == 0)
         return -1;
     if (pfd)
         *pfd = fd;
@@ -42,7 +42,7 @@ int argfd(int n, int *pfd, struct file **pf) {
 static int
 fdalloc(struct file *f) {
     int fd;
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     for (fd = 0; fd < NOFILE; fd++) {
         if (p->ofile[fd] == 0) {
@@ -100,7 +100,7 @@ sys_close(void) {
 
     if (argfd(0, &fd, &f) < 0)
         return -1;
-    myproc()->ofile[fd] = 0;
+    current()->ofile[fd] = 0;
     fileclose(f);
     return 0;
 }
@@ -399,7 +399,7 @@ uint64
 sys_chdir(void) {
     char path[MAXPATH];
     struct inode *ip;
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     begin_op();
     if (argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0) {
@@ -467,7 +467,7 @@ sys_pipe(void) {
     uint64 fdarray; // user pointer to array of two integers
     struct file *rf, *wf;
     int fd0, fd1;
-    struct proc *p = myproc();
+    struct proc *p = current();
 
     argaddr(0, &fdarray);
     if (pipealloc(&rf, &wf) < 0)

@@ -73,7 +73,8 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
 // Return 0 on success, -1 on failure.
 int growproc(int n) {
     uint64 oldsz, newsz, sz;
-    struct proc *p = myproc();
+    struct proc *p = current();
+
     sz = p->sz;
     oldsz = p->sz;
     newsz = p->sz + n;
@@ -113,7 +114,7 @@ int growproc(int n) {
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.
 int either_copyout(int user_dst, uint64 dst, void *src, uint64 len) {
-    struct proc *p = myproc();
+    struct proc *p = current();
     if (user_dst) {
         return copyout(p->pagetable, dst, src, len);
     } else {
@@ -126,7 +127,7 @@ int either_copyout(int user_dst, uint64 dst, void *src, uint64 len) {
 // depending on usr_src.
 // Returns 0 on success, -1 on error.
 int either_copyin(void *dst, int user_src, uint64 src, uint64 len) {
-    struct proc *p = myproc();
+    struct proc *p = current();
     if (user_src) {
         return copyin(p->pagetable, dst, src, len);
     } else {

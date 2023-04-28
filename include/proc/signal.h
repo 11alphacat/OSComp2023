@@ -73,6 +73,9 @@ int kill(int);
 void setkilled(struct proc *);
 int killed(struct proc *);
 
+
 int do_kill(int sig, siginfo_t *info, int pid);
+int kill_proc_info(int sig, siginfo_t *info, pid_t pid);
+int send_sig_info(int sig, siginfo_t *info, struct proc *p);
 
 #endif

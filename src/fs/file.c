@@ -80,7 +80,7 @@ void fileclose(struct file *f) {
 // Get metadata about file f.
 // addr is a user virtual address, pointing to a struct stat.
 int filestat(struct file *f, uint64 addr) {
-    struct proc *p = myproc();
+    struct proc *p = current();
     struct stat st;
 
     if (f->type == FD_INODE || f->type == FD_DEVICE) {
