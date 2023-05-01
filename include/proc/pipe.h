@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "atomic/spinlock.h"
+#include "proc/semaphore.h"
 
 struct file;
 #define PIPESIZE 512
@@ -14,6 +15,9 @@ struct pipe {
     uint nwrite;   // number of bytes written
     int readopen;  // read fd is still open
     int writeopen; // write fd is still open
+
+    struct semaphore read_sem;
+    struct semaphore write_sem;
 };
 
 int pipealloc(struct file **, struct file **);

@@ -48,8 +48,7 @@ struct proc *current(void) {
 }
 
 int allocpid() {
-    int pid = atomic_inc_return(&nextpid);
-    return pid;
+    return atomic_inc_return(&nextpid);
 }
 
 // Set up first user process.
@@ -89,7 +88,8 @@ void procinit(void) {
         p = proc + i;
         sprintf(proc_lock_name[i], "proc_%d", i);
         initlock(&p->lock, proc_lock_name[i]);
-        initlock(&p->wait_lock, "proc_wait_lock");
+        // initlock(&p->wait_lock, "proc_wait_lock");
+        sema_init(&p->sem_wait_chan, 0, "proc_sema_chan");
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
         PCB_Q_push_back(&unused_q, p);  
@@ -105,7 +105,7 @@ struct proc *
 allocproc(void) {
     struct proc *p;
 
-    p = PCB_Q_provide(&unused_q);
+    p = PCB_Q_provide(&unused_q, 1);
     if (p == NULL)
         return 0;
 
@@ -114,6 +114,8 @@ allocproc(void) {
 
     PCB_Q_changeState(p, USED);
     p->state = USED;
+    p->first_child = NULL;
+    INIT_LIST_HEAD(&p->sibling_list);
 
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -160,6 +162,9 @@ void freeproc(struct proc *p) {
 
     PCB_Q_changeState(p, UNUSED);
     p->state = UNUSED;
+
+    // p->first_child = NULL;
+    // list_del(&p->sibling_list);
 }
 
 // find the proc we search
@@ -168,13 +173,39 @@ struct proc *find_get_pid(pid_t pid) {
     struct proc *p;
     for (p = proc; p < &proc[NPROC]; p++) {
         acquire(&p->lock);
-        if (p->pid == pid) {
+    if (p->pid == pid) {
             return p;
         }
         release(&p->lock);
     }
     return NULL;
 }
+
+#include "debug.h"
+#define nochildren(p)   (p->first_child==NULL)
+#define nosibling(p)    (list_empty(&p->sibling_list))
+#define firstchild(p)   (p->first_child)
+#define nextsibling(p)  (list_first_entry(&(p->sibling_list), struct proc, sibling_list))
+
+void deleteChild(struct proc* parent, struct proc* child) {
+    if(nosibling(child)){
+        parent->first_child=NULL;
+    }
+    else{
+        struct proc* firstchild = firstchild(parent);
+        if(child == firstchild){
+            parent->first_child=nextsibling(firstchild);
+        }
+        list_del_reinit(&child->sibling_list);      
+    }
+}
+
+void appendChild(struct proc* parent, struct proc* child) {
+    if(nochildren(parent))
+        parent->first_child=child;
+    else
+        list_add_tail(&child->sibling_list, &(firstchild(parent)->sibling_list));
+}   
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
@@ -185,6 +216,7 @@ int do_fork(void) {
 
     // Allocate process.
     if ((np = allocproc()) == 0) {
+        // procdump();
         return -1;
     }
 
@@ -219,18 +251,18 @@ int do_fork(void) {
 
     pid = np->pid;
 
+    np->parent = p;
+    appendChild(p, np);
+
     release(&np->lock);
 
-    // acquire(&wait_lock);
-    np->parent = p;
-    // release(&wait_lock);
+    printfRed("fork : %d -> %d\n", p->pid, np->pid);//debug
 
     acquire(&np->lock);
     PCB_Q_changeState(np, RUNNABLE);
     np->state = RUNNABLE;
 
     release(&np->lock);
-
     return pid;
 }
 
@@ -354,19 +386,25 @@ void do_exit(int status) {
     end_op();
     p->cwd = 0;
 
-    acquire(&wait_lock);
+    // acquire(&wait_lock);
 
     // Give any children to init.
-    reparent(p);
     // Parent might be sleeping in wait().
-    wakeup(p->parent);
+    // wakeup(p->parent);
+
+    reparent(p);
 
     acquire(&p->lock);
+
     p->exit_state = status;
     PCB_Q_changeState(p, ZOMBIE);
     p->state = ZOMBIE;
 
-    release(&wait_lock);
+    sema_signal(&p->sem_wait_chan);
+
+
+    printfGreen("exit : %d has exited\n",p->pid);// debug
+    // release(&wait_lock);
 
     // Jump into the scheduler, never to return.
     sched();
@@ -376,48 +414,57 @@ void do_exit(int status) {
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int do_wait(uint64 addr) {
-    struct proc *pp;
-    int havekids, pid;
     struct proc *p = current();
+    pid_t pid;
+    if (nochildren(p)) {
+        printf("wait : %d hasn't children\n", p->pid);// debug
+        return -1;
+    }
 
-    acquire(&wait_lock);
-
-    for (;;) {
+    if(killed(p)){
+        printf("wait : %d has been killed\n", p->pid);// debug
+        return -1;
+    }
+    // acquire(&wait_lock);
+    // for (;;) {
         // Scan through table looking for exited children.
-        havekids = 0;
-        for (pp = proc; pp < &proc[NPROC]; pp++) {
-            if (pp->parent == p) {
-                // make sure the child isn't still in exit() or swtch().
-                acquire(&pp->lock);
+    struct proc *p_child=NULL;
+    struct proc *p_tmp=NULL;
+    struct proc *p_first=firstchild(p);
+    int flag=1;
+    list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
+        // shell won't exit !!!
+        if(p_child->pid==SHELL_PID)
+            continue;
+        sema_wait(&p_child->sem_wait_chan);
 
-                havekids = 1;
-                if (pp->state == ZOMBIE) {
-                    // Found one.
-                    pid = pp->pid;
-                    if (addr != 0 && copyout(p->pagetable, addr, (char *)&pp->exit_state, sizeof(pp->exit_state)) < 0) {
-                        release(&pp->lock);
-                        release(&wait_lock);
-                        return -1;
-                    }
-                    freeproc(pp);
-                    release(&pp->lock);
-                    release(&wait_lock);
-                    return pid;
-                }
-                release(&pp->lock);
-            }
-        }
-
-        // No point waiting if we don't have any children.
-        if (!havekids || killed(p)) {
-            release(&wait_lock);
+        acquire(&p_child->lock);
+        printfBlue("wait : %d wakeup %d\n", p_child->pid, p->pid);// debug
+        // if(p_child->state==ZOMBIE){
+        ASSERT(p_child->state==ZOMBIE);
+        pid = p_child->pid;
+        if (addr != 0 && copyout(p->pagetable, addr, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
+            release(&p_child->lock);
+            // release(&wait_lock);
+            // release(&p->wait_lock);
             return -1;
         }
-
-        // Wait for a child to exit.
-        sleep(p, &wait_lock); // DOC: wait-sleep
+        printfBlue("wait : %d delete %d\n", p->pid, p_child->pid);// debug
+        freeproc(p_child);
+        release(&p_child->lock);
+        // release(&wait_lock);
+        // release(&p->wait_lock);
+        deleteChild(p, p_child);        
+        return pid;
+        // }
     }
+    return SHELL_PID;
 }
+    // Wait for a child to exit.
+    // sleep(p, &wait_lock); // DOC: wait-sleep
+    // sleep(p,&p->wait_lock);
+    // }
+
 int waitpid(pid_t pid, uint64 status, int options) {
     struct proc *p = current();
     int havekids;
@@ -472,14 +519,48 @@ int waitpid(pid_t pid, uint64 status, int options) {
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void reparent(struct proc *p) {
-    struct proc *pp;
-    for (pp = proc; pp < &proc[NPROC]; pp++) {
-        if (pp->parent == p) {
-            pp->parent = initproc;
-            // wakeup(initproc);
+    struct proc* p_child=NULL;
+    printf("reparent : %d is going to exit and reparent its children\n",p->pid);// debug
+    if(!nochildren(p)){
+        struct proc *p_first_c=firstchild(p);
+        struct proc *init_first_c=firstchild(initproc);
+        int flag=1;
+        list_for_each_entry_given_first(p_child, p_first_c, sibling_list, flag){
+            p_child->parent = initproc; 
+            printf("reparent : %d -> initproc\n",p_child->pid);// debug
         }
+        p->first_child=NULL;
+
+        ASSERT(p_first_c->sibling_list.next!=NULL);
+        ASSERT(p_first_c->sibling_list.prev!=NULL);
+        
+        list_join_given_first(&p_first_c->sibling_list,&init_first_c->sibling_list);
+        // wakeup_proc(initproc);
+        // procChildrenChain(initproc);
+    }else{
+        printf("reparent : %d has no children\n",p->pid);// debug
     }
 }
+
+void wakeup_proc(struct proc* p) {
+    ASSERT(current()!=p&&p->state==SLEEPING);
+    acquire(&p->lock);
+    PCB_Q_changeState(p, RUNNABLE);
+    p->state = RUNNABLE;
+    release(&p->lock);
+}
+
+void procChildrenChain(struct proc* p) {
+    printf("=======debug======\n");
+    printf("proc : %d(%s)\n",p->pid, p->name);
+    struct proc* p_pos=NULL;
+    struct proc* p_first=firstchild(p);
+    printf("%d(%s)",p_first->pid, p_first->name);
+    list_for_each_entry(p_pos, &p_first->sibling_list, sibling_list) {
+        printf("->%d(%s)",p_pos->pid, p_pos->name);
+    }
+}
+
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.

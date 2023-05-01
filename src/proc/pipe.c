@@ -26,6 +26,10 @@ int pipealloc(struct file **f0, struct file **f1) {
     pi->nwrite = 0;
     pi->nread = 0;
     initlock(&pi->lock, "pipe");
+
+    // sema_init(&pi->read_sem, 0, "read_sem");
+    // sema_init(&pi->write_sem, 0, "write_sem");
+
     (*f0)->type = FD_PIPE;
     (*f0)->readable = 1;
     (*f0)->writable = 0;
@@ -73,6 +77,8 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
             return -1;
         }
         if (pi->nwrite == pi->nread + PIPESIZE) { // DOC: pipewrite-full
+            // sema_signal(&pi->read_sem);
+            // sema_wait(&pi->write_sem);
             wakeup(&pi->nread);
             sleep(&pi->nwrite, &pi->lock);
         } else {
@@ -101,6 +107,7 @@ int piperead(struct pipe *pi, uint64 addr, int n) {
             return -1;
         }
         sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
+        // sema_wait(&pi->read_sem);
     }
     for (i = 0; i < n; i++) { // DOC: piperead-copy
         if (pi->nread == pi->nwrite)

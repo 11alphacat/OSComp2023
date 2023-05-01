@@ -1,6 +1,7 @@
 #include "proc/pcb_life.h"
 #include "proc/cond.h"
 #include "proc/sched.h"
+#include "debug.h"
 
 extern struct proc proc[NPROC];
 extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
@@ -16,37 +17,34 @@ void cond_wait(struct cond *cond, struct spinlock *mutex) {
 
     acquire(&p->lock);
 
-    acquire(&cond->waiting_queue.lock);
-    Waiting_Q_push_back(&cond->waiting_queue, p);
-    release(&cond->waiting_queue.lock);
-    // TODO : modify it to futex(ref to linux)
-
-    release(mutex);
     PCB_Q_changeState(p, SLEEPING);
     p->state = SLEEPING;
 
-    sched();
+    ASSERT(cond->waiting_queue.lock.locked!=1);
 
-    // Tidy up.
-    acquire(&cond->waiting_queue.lock);
-    Waiting_Q_remove(p);
-    release(&cond->waiting_queue.lock);
+    // acquire(&cond->waiting_queue.lock);
+    Waiting_Q_push_back(&cond->waiting_queue, p);
+    // release(&cond->waiting_queue.lock);
+    // TODO : modify it to futex(ref to linux)
+    release(mutex);
+    sched();
 
     // Reacquire original lock.
     release(&p->lock);
-
     acquire(mutex);
 }
 
 // just signal a object!!!
 void cond_signal(struct cond *cond) {
+    struct proc *p;
     if (!Waiting_Q_isempty(&cond->waiting_queue)) {
-        struct proc *p;
         p = Waiting_Q_provide(&cond->waiting_queue);
         if (p == NULL)
             panic("cond signal : this cond has no object waiting queue");
-        if (p->state != SLEEPING)
+        if (p->state != SLEEPING){
+            printf("%s\n",p->state);
             panic("cond signal : this proc is not sleeping");
+        }
         acquire(&p->lock);
         PCB_Q_changeState(p, RUNNABLE);
         p->state = RUNNABLE;
@@ -56,13 +54,15 @@ void cond_signal(struct cond *cond) {
 
 // signal all object!!!
 void cond_broadcast(struct cond *cond) {
+    struct proc *p;
     while (!Waiting_Q_isempty(&cond->waiting_queue)) {
-        struct proc *p;
         p = Waiting_Q_provide(&cond->waiting_queue);
         if (p == NULL)
             panic("cond signal : this cond has no object waiting queue");
-        if (p->state != SLEEPING)
+        if (p->state != SLEEPING){
+            printf("%s\n",p->state);
             panic("cond signal : this proc is not sleeping");
+        }
         acquire(&p->lock);
         PCB_Q_changeState(p, RUNNABLE);
         p->state = RUNNABLE;
@@ -115,5 +115,4 @@ void wakeup(void *chan) {
             release(&p->lock);
         }
     }
-    // TODO : 将chan修改为阻塞队列！！！
 }

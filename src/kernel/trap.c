@@ -16,11 +16,13 @@
 #include "proc/cond.h"
 #include "proc/signal.h"
 #include "proc/sched.h"
+#include "proc/semaphore.h"
 
 #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 
 struct spinlock tickslock;
 uint ticks;
+
 
 extern char trampoline[], uservec[], userret[];
 

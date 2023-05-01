@@ -7,8 +7,11 @@
 #include "kernel/kthread.h"
 #include "list.h"
 #include "proc/signal.h"
+#include "proc/semaphore.h"
 
 #define NPROC 64 // maximum number of processes
+#define INIT_PID 1
+#define SHELL_PID 2
 
 struct file;
 struct inode;
@@ -53,7 +56,7 @@ struct proc {
     struct proc *parent; // Parent process
 
     struct list_head state_list;   // its state queue
-    struct proc* first_child;
+    struct proc* first_child; // its first child!!!!!!!
     struct list_head sibling_list; // its sibling
 
     int sigpending;                   // have signal?
@@ -71,7 +74,8 @@ struct proc {
 
     struct list_head wait_list; // waiting  queue
     pid_t *ctid;
-    struct spinlock wait_lock;
+    // struct spinlock wait_lock;
+    struct semaphore sem_wait_chan;
 };
 
 // per-process data for the trap handling code in trampoline.S.
@@ -134,6 +138,9 @@ void forkret(void);
 struct proc *allocproc(void);
 void freeproc(struct proc *p);
 struct proc *find_get_pid(pid_t);
+void deleteChild(struct proc* parent, struct proc* child);
+void appendChild(struct proc* parent, struct proc* child);
+void procChildrenChain(struct proc* p);
 
 // 2. the lifetime of proc
 int do_fork(void);
@@ -143,7 +150,7 @@ int do_wait(uint64);
 int waitpid(pid_t, uint64, int);
 
 void reparent(struct proc *p);
-
+void wakeup_proc(struct proc* p);
 // 3. debug
 void procdump(void);
 

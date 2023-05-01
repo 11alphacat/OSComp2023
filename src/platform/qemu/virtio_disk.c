@@ -58,12 +58,16 @@ static struct disk {
 
     struct spinlock vdisk_lock;
 
+    // struct semaphore sem_disk;
+
 } disk;
 
 void virtio_disk_init(void) {
     uint32 status = 0;
 
     initlock(&disk.vdisk_lock, "virtio_disk");
+    
+    // sema_init(&disk.sem_disk, 0, "sem_disk");
 
     if (*R(VIRTIO_MMIO_MAGIC_VALUE) != 0x74726976 || *R(VIRTIO_MMIO_VERSION) != 2 || *R(VIRTIO_MMIO_DEVICE_ID) != 2 || *R(VIRTIO_MMIO_VENDOR_ID) != 0x554d4551) {
         panic("could not find virtio disk");
@@ -221,6 +225,7 @@ void virtio_disk_rw(struct buf *b, int write) {
             break;
         }
         sleep(&disk.free[0], &disk.vdisk_lock);
+        // sema_wait(&disk.sem_disk);
     }
 
     // format the three descriptors.

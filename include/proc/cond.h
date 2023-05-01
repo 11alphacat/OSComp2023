@@ -6,7 +6,7 @@
 struct Waiting_Q;
 // condition variable
 struct cond {
-    Waiting_Q_t waiting_queue;
+    struct Waiting_Q waiting_queue;
 };
 
 void cond_init(struct cond *cond, char *name);

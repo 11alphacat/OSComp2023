@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "atomic/sleeplock.h"
+#include "proc/semaphore.h"
 
 struct buf {
     int valid; // has data been read from disk?
@@ -10,6 +11,8 @@ struct buf {
     uint dev;
     uint blockno;
     struct sleeplock lock;
+    // struct semaphore sem;
+
     uint refcnt;
     struct buf *prev; // LRU cache list
     struct buf *next;

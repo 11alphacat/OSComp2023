@@ -10,6 +10,7 @@
 #include "proc/pcb_life.h"
 #include "driver/console.h"
 #include "proc/cond.h"
+#include "proc/semaphore.h"
 
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the
@@ -46,6 +47,10 @@ char uart_tx_buf[UART_TX_BUF_SIZE];
 uint64 uart_tx_w; // write next to uart_tx_buf[uart_tx_w % UART_TX_BUF_SIZE]
 uint64 uart_tx_r; // read next from uart_tx_buf[uart_tx_r % UART_TX_BUF_SIZE]
 
+// struct semaphore uart_tx_w_sem;
+// struct semaphore uart_tx_r_sem;
+
+
 extern volatile int panicked; // from printf.c
 
 void uartstart();
@@ -74,6 +79,10 @@ void uartinit(void) {
     WriteReg(IER, IER_TX_ENABLE | IER_RX_ENABLE);
 
     initlock(&uart_tx_lock, "uart");
+
+    // // semaphore
+    // sema_init(&uart_tx_r_sem, 0, "uart_tx_r_sem");
+    // sema_init(&uart_tx_w_sem, 0, "uart_tx_w_sem");
 }
 
 // add a character to the output buffer and tell the
@@ -93,7 +102,9 @@ void uartputc(int c) {
         // buffer is full.
         // wait for uartstart() to open up space in the buffer.
         sleep(&uart_tx_r, &uart_tx_lock);
+        // sema_wait(&uart_tx_r_sem);
     }
+    // acquire(&uart_tx_lock);
     uart_tx_buf[uart_tx_w % UART_TX_BUF_SIZE] = c;
     uart_tx_w += 1;
     uartstart();
@@ -143,7 +154,7 @@ void uartstart() {
 
         // maybe uartputc() is waiting for space in the buffer.
         wakeup(&uart_tx_r);
-
+    
         WriteReg(THR, c);
     }
 }

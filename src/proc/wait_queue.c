@@ -1,4 +1,5 @@
 #include "proc/wait_queue.h"
+#include "proc/pcb_life.h"
 #include "list.h"
 
 // init

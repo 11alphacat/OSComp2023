@@ -1,6 +1,8 @@
 {
     "version": "0.2.0",
     "configurations": [
+    
+
         {
             "name": "xv6debug",
             "type": "cppdbg",
@@ -18,13 +20,15 @@
                 {
                     "description": "pretty printing",
                     "text": "-enable-pretty-printing",
-                    "ignoreFailures": true,
                 },
                 {
                     "description": "set output radix 16",
-                    "text": "set output-radix 16",
-                    "ignoreFailures": true,
-                }
+                    "text": "set output-radix 16"
+                },
+                // {
+                //     "description": "Set charset to ASCII", 
+                //     "text": "-gdb-set charset ASCII"
+                // },
             ],
         }
     ]

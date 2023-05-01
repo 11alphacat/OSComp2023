@@ -6,7 +6,7 @@
 #include "fs/inode/stat.h"
 #include "user.h"
 
-#define N  1000
+#define N  100000
 
 void
 print(const char *s)
@@ -19,7 +19,7 @@ forktest(void)
 {
   int n, pid;
 
-  print("fork test\n");
+  // print("fork test\n");
 
   for(n=0; n<N; n++){
     pid = fork();
@@ -46,7 +46,7 @@ forktest(void)
     exit(1);
   }
 
-  print("fork test OK\n");
+  // print("fork test OK\n");
 }
 
 int

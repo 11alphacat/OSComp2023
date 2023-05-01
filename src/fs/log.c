@@ -7,6 +7,7 @@
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
 #include "proc/cond.h"
+#include "proc/semaphore.h"
 
 // Simple logging that allows concurrent FS system calls.
 //
@@ -46,6 +47,8 @@ struct log {
     int committing;  // in commit(), please wait.
     int dev;
     struct logheader lh;
+
+    struct semaphore sema_log;
 };
 struct log log;
 
@@ -57,6 +60,8 @@ void initlog(int dev, struct superblock *sb) {
         panic("initlog: too big logheader");
 
     initlock(&log.lock, "log");
+    
+    // sema_init();
     log.start = sb->logstart;
     log.size = sb->nlog;
     log.dev = dev;
@@ -123,10 +128,12 @@ void begin_op(void) {
     while (1) {
         if (log.committing) {
             sleep(&log, &log.lock);
+
         } else if (log.lh.n + (log.outstanding + 1) * MAXOPBLOCKS > LOGSIZE) {
             // this op might exhaust log space; wait for commit.
             sleep(&log, &log.lock);
         } else {
+            // acquire(&log.lock);
             log.outstanding += 1;
             release(&log.lock);
             break;

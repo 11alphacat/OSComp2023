@@ -2,6 +2,7 @@
 #include "proc/sched.h"
 #include "proc/signal.h"
 #include "errno.h"
+#include "debug.h"
 
 extern struct proc proc[NPROC];
 extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
@@ -16,6 +17,7 @@ int kill(int pid) {
         return -1;
 
     p->killed = 1;
+    printfCYAN("kill : kill %d\n",p->pid);// debug
     if (p->state == SLEEPING) {
         // Wake process from sleep().
         PCB_Q_changeState(p, RUNNABLE);

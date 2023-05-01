@@ -1,8 +1,9 @@
 #ifndef __WAIT_QUEUE_H__
 #define __WAIT_QUEUE_H__
-#include "proc/pcb_life.h"
-struct proc;
+#include "atomic/spinlock.h"
+#include "list.h"
 
+struct proc;
 struct Waiting_Q {
     struct spinlock lock;
     struct list_head list;

@@ -38,19 +38,20 @@ static inline void PCB_Q_remove(struct proc *p) {
 }
 
 // pop the queue
-static inline struct proc *PCB_Q_pop(PCB_Q_t *pcb_q) {
+static inline struct proc *PCB_Q_pop(PCB_Q_t *pcb_q, int remove) {
     if (PCB_Q_isempty(pcb_q))
         return NULL;
     struct proc *p = list_first_entry(&(pcb_q->list), struct proc, state_list);
-    PCB_Q_remove(p);
+    if(remove)
+        PCB_Q_remove(p);
     return p;
 }
 
 // provide the first one of the queue
-static inline struct proc *PCB_Q_provide(PCB_Q_t *pcb_q) {
+static inline struct proc *PCB_Q_provide(PCB_Q_t *pcb_q, int remove) {
     struct proc *p;
     acquire(&pcb_q->lock);
-    p = PCB_Q_pop(pcb_q);
+    p = PCB_Q_pop(pcb_q, remove);
     release(&pcb_q->lock);
     return p;
 }

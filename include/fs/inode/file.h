@@ -4,6 +4,7 @@
 #include "common.h"
 #include "fs/inode/fs_macro.h"
 #include "atomic/sleeplock.h"
+#include "proc/semaphore.h"
 
 struct pipe;
 struct inode;
@@ -28,6 +29,8 @@ struct inode {
     uint inum;             // Inode number
     int ref;               // Reference count
     struct sleeplock lock; // protects everything below here
+    // struct semaphore sem_i;
+
     int valid;             // inode has been read from disk?
 
     short type; // copy of disk inode

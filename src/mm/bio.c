@@ -44,6 +44,7 @@ void binit(void) {
         b->next = bcache.head.next;
         b->prev = &bcache.head;
         initsleeplock(&b->lock, "buffer");
+        // sema_init(&b->sem, 1, "buffer");
         bcache.head.next->prev = b;
         bcache.head.next = b;
     }
@@ -64,6 +65,7 @@ bget(uint dev, uint blockno) {
             b->refcnt++;
             release(&bcache.lock);
             acquiresleep(&b->lock);
+            // sema_wait(&b->sem);
             return b;
         }
     }
@@ -78,6 +80,7 @@ bget(uint dev, uint blockno) {
             b->refcnt = 1;
             release(&bcache.lock);
             acquiresleep(&b->lock);
+            // sema_wait(&b->sem);
             return b;
         }
     }
@@ -111,6 +114,8 @@ void brelse(struct buf *b) {
         panic("brelse");
 
     releasesleep(&b->lock);
+
+    // sema_signal(&b->sem);
 
     acquire(&bcache.lock);
     b->refcnt--;

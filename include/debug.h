@@ -50,5 +50,21 @@ void backtrace();
 #define VMA(format, ...) \
     printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
            
+#define printfRed(format, ...)                             \
+    printf("\33[1;31m" format "\33[0m", \
+            ##__VA_ARGS__)
+
+#define printfGreen(format, ...)                             \
+    printf("\33[1;32m" format "\33[0m", \
+            ##__VA_ARGS__)
+
+#define printfBlue(format, ...)                             \
+    printf("\33[1;34m" format "\33[0m", \
+            ##__VA_ARGS__)
+
+#define printfCYAN(format, ...)                             \
+    printf("\33[1;36m" format "\33[0m", \
+            ##__VA_ARGS__)
+
 #define TODO() 0
 #endif // __DEBUG_H__

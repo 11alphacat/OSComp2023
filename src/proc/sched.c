@@ -65,8 +65,9 @@ void sched(void) {
 
     if (!holding(&p->lock))
         panic("sched p->lock");
-    if (mycpu()->noff != 1)
+    if (mycpu()->noff != 1){
         panic("sched locks");
+    }
     if (p->state == RUNNING)
         panic("sched running");
     if (intr_get())
@@ -92,7 +93,7 @@ void scheduler(void) {
     for (;;) {
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
-        p = PCB_Q_provide(&runnable_q);
+        p = PCB_Q_provide(&runnable_q, 1);
         if (p == NULL)
             continue;
         acquire(&p->lock);
