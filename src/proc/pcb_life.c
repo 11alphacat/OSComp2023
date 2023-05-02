@@ -89,7 +89,7 @@ void procinit(void) {
         sprintf(proc_lock_name[i], "proc_%d", i);
         initlock(&p->lock, proc_lock_name[i]);
         // initlock(&p->wait_lock, "proc_wait_lock");
-        sema_init(&p->sem_wait_chan, 0, "proc_sema_chan");
+
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
         PCB_Q_push_back(&unused_q, p);  
@@ -116,6 +116,7 @@ allocproc(void) {
     p->state = USED;
     p->first_child = NULL;
     INIT_LIST_HEAD(&p->sibling_list);
+    sema_init(&p->sem_wait_chan, 0, "proc_sema_chan");
 
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -202,9 +203,12 @@ void deleteChild(struct proc* parent, struct proc* child) {
 
 void appendChild(struct proc* parent, struct proc* child) {
     if(nochildren(parent))
+    {
         parent->first_child=child;
-    else
+    }
+    else{
         list_add_tail(&child->sibling_list, &(firstchild(parent)->sibling_list));
+    }
 }   
 
 // Create a new process, copying the parent.
@@ -250,18 +254,21 @@ int do_fork(void) {
     safestrcpy(np->name, p->name, sizeof(p->name));
 
     pid = np->pid;
-
     np->parent = p;
     appendChild(p, np);
 
     release(&np->lock);
 
+<<<<<<< HEAD
+=======
+    #ifdef __DEBUG_PROC__
+>>>>>>> process semaphore is finised!
     printfRed("fork : %d -> %d\n", p->pid, np->pid);//debug
+    #endif
 
     acquire(&np->lock);
     PCB_Q_changeState(np, RUNNABLE);
     np->state = RUNNABLE;
-
     release(&np->lock);
     return pid;
 }
@@ -386,26 +393,20 @@ void do_exit(int status) {
     end_op();
     p->cwd = 0;
 
-    // acquire(&wait_lock);
-
     // Give any children to init.
-    // Parent might be sleeping in wait().
-    // wakeup(p->parent);
-
     reparent(p);
 
     acquire(&p->lock);
-
     p->exit_state = status;
     PCB_Q_changeState(p, ZOMBIE);
     p->state = ZOMBIE;
 
-    sema_signal(&p->sem_wait_chan);
+    sema_signal(&p->parent->sem_wait_chan);
 
-
+    #ifdef __DEBUG_PROC__
     printfGreen("exit : %d has exited\n",p->pid);// debug
-    // release(&wait_lock);
-
+    printfGreen("exit : %d wakeup %d\n",p->pid, p->parent->pid);// debug
+    #endif
     // Jump into the scheduler, never to return.
     sched();
     panic("zombie exit");
@@ -417,48 +418,52 @@ int do_wait(uint64 addr) {
     struct proc *p = current();
     pid_t pid;
     if (nochildren(p)) {
+        #ifdef __DEBUG_PROC__
         printf("wait : %d hasn't children\n", p->pid);// debug
+        #endif
         return -1;
     }
 
     if(killed(p)){
+        #ifdef __DEBUG_PROC__
         printf("wait : %d has been killed\n", p->pid);// debug
+        #endif
         return -1;
     }
-    // acquire(&wait_lock);
-    // for (;;) {
-        // Scan through table looking for exited children.
-    struct proc *p_child=NULL;
-    struct proc *p_tmp=NULL;
-    struct proc *p_first=firstchild(p);
-    int flag=1;
-    list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
-        // shell won't exit !!!
-        if(p_child->pid==SHELL_PID)
-            continue;
-        sema_wait(&p_child->sem_wait_chan);
+    while(1)
+    {
+        sema_wait(&p->sem_wait_chan);
+        #ifdef __DEBUG_PROC__
+        printfBlue("wait : %d wakeup\n", p->pid);// debug
+        #endif
+        struct proc *p_child=NULL;
+        struct proc *p_tmp=NULL;
+        struct proc *p_first=firstchild(p);
+        int flag=1;
+        list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
+            // shell won't exit !!!
+            acquire(&p_child->lock);
+            if(p_child->state==ZOMBIE){
+                // ASSERT(p_child->pid!=SHELL_PID);
+                pid = p_child->pid;
+                if (addr != 0 && copyout(p->pagetable, addr, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
+                    release(&p_child->lock);
+                    return -1;
+                }
 
-        acquire(&p_child->lock);
-        printfBlue("wait : %d wakeup %d\n", p_child->pid, p->pid);// debug
-        // if(p_child->state==ZOMBIE){
-        ASSERT(p_child->state==ZOMBIE);
-        pid = p_child->pid;
-        if (addr != 0 && copyout(p->pagetable, addr, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
+                freeproc(p_child);
+                deleteChild(p, p_child);   
+                release(&p_child->lock);
+                #ifdef __DEBUG_PROC__
+                printfBlue("wait : %d delete %d\n", p->pid, p_child->pid);// debug
+                #endif
+                return pid;
+            }
             release(&p_child->lock);
-            // release(&wait_lock);
-            // release(&p->wait_lock);
-            return -1;
         }
-        printfBlue("wait : %d delete %d\n", p->pid, p_child->pid);// debug
-        freeproc(p_child);
-        release(&p_child->lock);
-        // release(&wait_lock);
-        // release(&p->wait_lock);
-        deleteChild(p, p_child);        
-        return pid;
-        // }
+        
+        panic("====");
     }
-    return SHELL_PID;
 }
     // Wait for a child to exit.
     // sleep(p, &wait_lock); // DOC: wait-sleep
@@ -515,30 +520,46 @@ int waitpid(pid_t pid, uint64 status, int options) {
     }
 }
 
-
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void reparent(struct proc *p) {
     struct proc* p_child=NULL;
+    #ifdef __DEBUG_PROC__
     printf("reparent : %d is going to exit and reparent its children\n",p->pid);// debug
+    #endif
     if(!nochildren(p)){
         struct proc *p_first_c=firstchild(p);
-        struct proc *init_first_c=firstchild(initproc);
+        struct proc *p_tmp=NULL;
         int flag=1;
-        list_for_each_entry_given_first(p_child, p_first_c, sibling_list, flag){
-            p_child->parent = initproc; 
-            printf("reparent : %d -> initproc\n",p_child->pid);// debug
-        }
-        p->first_child=NULL;
-
-        ASSERT(p_first_c->sibling_list.next!=NULL);
-        ASSERT(p_first_c->sibling_list.prev!=NULL);
         
-        list_join_given_first(&p_first_c->sibling_list,&init_first_c->sibling_list);
-        // wakeup_proc(initproc);
+        list_for_each_entry_safe_given_first(p_child, p_tmp, p_first_c, sibling_list, flag) {
+            deleteChild(p, p_child);
+            // maybe the lock of initproc can be removed
+            acquire(&initproc->lock);
+            appendChild(initproc, p_child);
+            release(&initproc->lock);
+
+            p_child->parent = initproc;
+            if(p_child->state==ZOMBIE){
+                sema_signal(&initproc->sem_wait_chan);
+                #ifdef __DEBUG_PROC__
+                printfBWhite("reparent : zombie %d has exited\n",p_child->pid);// debug
+                printfBWhite("reparent : zombie %d wakeup initproc\n",p_child->pid);// debug
+                #endif
+            }
+            #ifdef __DEBUG_PROC__
+            printf("reparent : %d reparent %d -> initproc\n", p->pid, p_child->pid);// debug
+            #endif
+            if(p->first_child==NULL) {
+                break; // !!!!
+            }
+        }
         // procChildrenChain(initproc);
+        ASSERT(nochildren(p));
     }else{
+        #ifdef __DEBUG_PROC__
         printf("reparent : %d has no children\n",p->pid);// debug
+        #endif
     }
 }
 
@@ -551,14 +572,21 @@ void wakeup_proc(struct proc* p) {
 }
 
 void procChildrenChain(struct proc* p) {
-    printf("=======debug======\n");
-    printf("proc : %d(%s)\n",p->pid, p->name);
+    char tmp_str[1000];
+    int len = 0;
+    len += sprintf(tmp_str, "=======debug======\n");
+    len += sprintf(tmp_str+ len, "proc : %d\n",p->pid, p->name);
     struct proc* p_pos=NULL;
     struct proc* p_first=firstchild(p);
-    printf("%d(%s)",p_first->pid, p_first->name);
-    list_for_each_entry(p_pos, &p_first->sibling_list, sibling_list) {
-        printf("->%d(%s)",p_pos->pid, p_pos->name);
+    if(p_first==NULL){
+        len+=sprintf(tmp_str+len, "no children!!!\n");
+    }else{
+        len += sprintf(tmp_str+ len, "%d",p_first->pid, p_first->name);
+        list_for_each_entry(p_pos, &p_first->sibling_list, sibling_list) {
+            len+= sprintf(tmp_str+len, "->%d",p_pos->pid, p_pos->name);
+        }
     }
+    printf("%s\n", tmp_str);
 }
 
 // Print a process listing to console.  For debugging.

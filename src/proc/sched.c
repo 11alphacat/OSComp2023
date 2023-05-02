@@ -7,6 +7,7 @@
 #include "proc/sched.h"
 #include "kernel/trap.h"
 #include "proc/pcb_life.h"
+#include "debug.h"
 
 // UNUSED, USED, SLEEPING, RUNNABLE, ZOMBIE
 PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
@@ -31,8 +32,15 @@ void PCB_Q_ALL_INIT() {
 
 void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
     PCB_Q_t *pcb_q_new = STATES[state_new];
+    PCB_Q_t *pcb_q_old = STATES[p->state];
 
-    PCB_Q_remove(p);
+    if(p->state!=RUNNING){
+        acquire(&pcb_q_old->lock);
+        PCB_Q_remove(p);
+        release(&pcb_q_old->lock);
+    }else{
+        PCB_Q_remove(p);
+    }
     acquire(&pcb_q_new->lock);
     PCB_Q_push_back(pcb_q_new, p);
     release(&pcb_q_new->lock);

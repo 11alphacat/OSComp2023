@@ -65,6 +65,10 @@ void backtrace();
 #define printfCYAN(format, ...)                             \
     printf("\33[1;36m" format "\33[0m", \
             ##__VA_ARGS__)
+            
+#define printfBWhite(format, ...)                             \
+    printf("\33[1;37m" format "\33[0m", \
+            ##__VA_ARGS__)
 
 #define TODO() 0
 #endif // __DEBUG_H__

@@ -1,6 +1,7 @@
 .DEFAULT_GOAL=qemu
 PLATFORM ?= qemu
-DEBUG ?= 0
+LOCKTRACE ?= 0
+DEBUG_PROC ?= 0
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -44,10 +45,12 @@ OBJS_KCSAN = \
   build/src/kernel/kcsan.o
 endif
 
-ifeq ($(DEBUG), 1)
+ifeq ($(LOCKTRACE), 1)
 CFLAGS += -D__DEBUG__
 endif
-
+ifeq ($(DEBUG_PROC), 1)
+CFLAGS += -D__DEBUG_PROC__
+endif
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax

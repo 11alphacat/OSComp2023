@@ -27,7 +27,7 @@ void initlock(struct spinlock *lk, char *name) {
     lk->name = name;
     lk->locked = 0;
     lk->cpu = 0;
-#ifdef __DEBUG__
+#ifdef __LOCKTRACE__
     lk->debug = 0;
     for (int i = 0; i < DEBUG_LOCK_NUM; i++) {
         if (strncmp(debug_lockname[i], name, sizeof(debug_lockname[i])) == 0) {
@@ -39,7 +39,7 @@ void initlock(struct spinlock *lk, char *name) {
 }
 
 void wrap_acquire(char *file, int line, struct spinlock *lock) {
-#ifdef __DEBUG__
+#ifdef __LOCKTRACE__
     extern int debug_lock;
     if (debug_lock == 1 && lock->debug == 1) {
         DEBUG_ACQUIRE("%s:%d, acquire lock %s\t\n", file, line, lock->name);
@@ -49,7 +49,7 @@ void wrap_acquire(char *file, int line, struct spinlock *lock) {
 }
 
 void wrap_release(char *file, int line, struct spinlock *lock) {
-#ifdef __DEBUG__
+#ifdef __LOCKTRACE__
     extern int debug_lock;
     if (debug_lock == 1 && lock->debug == 1) {
         DEBUG_RELEASE("%s:%d, release lock %s\t\n", file, line, lock->name);
@@ -61,7 +61,9 @@ void wrap_release(char *file, int line, struct spinlock *lock) {
 // Acquire the lock.
 // Loops (spins) until the lock is acquired.
 void _acquire(struct spinlock *lk) {
+
     push_off(); // disable interrupts to avoid deadlock.
+    // Log("%s\n",lk->name);// debug
     if (holding(lk)){
         printf("%s\n",lk->name);
         panic("acquire");

@@ -2,6 +2,7 @@
 #include "proc/cond.h"
 #include "proc/sched.h"
 #include "debug.h"
+#include "kernel/cpu.h"
 
 extern struct proc proc[NPROC];
 extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
@@ -14,17 +15,11 @@ void cond_init(struct cond *cond, char *name) {
 // wait
 void cond_wait(struct cond *cond, struct spinlock *mutex) {
     struct proc *p = current();
-
     acquire(&p->lock);
 
     PCB_Q_changeState(p, SLEEPING);
     p->state = SLEEPING;
-
-    ASSERT(cond->waiting_queue.lock.locked!=1);
-
-    // acquire(&cond->waiting_queue.lock);
     Waiting_Q_push_back(&cond->waiting_queue, p);
-    // release(&cond->waiting_queue.lock);
     // TODO : modify it to futex(ref to linux)
     release(mutex);
     sched();

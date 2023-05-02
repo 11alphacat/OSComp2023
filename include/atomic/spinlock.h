@@ -12,7 +12,7 @@ struct spinlock {
     // For debugging:
     char *name;      // Name of lock.
     struct cpu *cpu; // The cpu holding the lock.
-#ifdef __DEBUG__
+#ifdef __LOCKTRACE__
     int debug;
 #endif
 };

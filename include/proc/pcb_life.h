@@ -9,7 +9,7 @@
 #include "proc/signal.h"
 #include "proc/semaphore.h"
 
-#define NPROC 64 // maximum number of processes
+#define NPROC 32 // maximum number of processes
 #define INIT_PID 1
 #define SHELL_PID 2
 

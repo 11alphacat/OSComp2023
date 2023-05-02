@@ -17,7 +17,11 @@ int kill(int pid) {
         return -1;
 
     p->killed = 1;
+
+    #ifdef __DEBUG_PROC__
     printfCYAN("kill : kill %d\n",p->pid);// debug
+    #endif
+    
     if (p->state == SLEEPING) {
         // Wake process from sleep().
         PCB_Q_changeState(p, RUNNABLE);

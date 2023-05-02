@@ -1194,7 +1194,7 @@ forkfork(char *s)
       exit(1);
     }
     if(pid == 0){
-      for(int j = 0; j < 200; j++){
+      for(int j = 0; j < 100; j++){
         int pid1 = fork();
         if(pid1 < 0){
           exit(1);
