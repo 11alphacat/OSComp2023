@@ -10,9 +10,10 @@ struct buf {
     int disk;  // does disk "own" buf?
     uint dev;
     uint blockno;
-    struct sleeplock lock;
-    // struct semaphore sem;
-
+    // struct sleeplock lock;
+    struct semaphore sem_lock;
+    
+    struct semaphore sem_disk_done;
     uint refcnt;
     struct buf *prev; // LRU cache list
     struct buf *next;

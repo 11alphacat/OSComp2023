@@ -179,8 +179,8 @@ void iinit() {
 
     initlock(&itable.lock, "itable");
     for (i = 0; i < NINODE; i++) {
-        // sema_init(&itable.inode[i].sem_i, 1, "inode");
-        initsleeplock(&itable.inode[i].lock, "inode");
+        sema_init(&itable.inode[i].sem_i, 1, "inode");
+        // initsleeplock(&itable.inode[i].lock, "inode");
         
     }
 }
@@ -287,8 +287,8 @@ void ilock(struct inode *ip) {
     if (ip == 0 || ip->ref < 1)
         panic("ilock");
 
-    acquiresleep(&ip->lock);
-    // sema_wait(&ip->sem_i);
+    // acquiresleep(&ip->lock);
+    sema_wait(&ip->sem_i);
 
     if (ip->valid == 0) {
         bp = bread(ip->dev, IBLOCK(ip->inum, sb));
@@ -308,14 +308,14 @@ void ilock(struct inode *ip) {
 
 // Unlock the given inode.
 void iunlock(struct inode *ip) {
-    if (ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
-        panic("iunlock");
-
-    releasesleep(&ip->lock);
-    // if (ip == 0 || ip->ref < 1)
+    // if (ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
     //     panic("iunlock");
 
-    // sema_signal(&ip->sem_i);
+    // releasesleep(&ip->lock);
+    if (ip == 0 || ip->ref < 1)
+        panic("iunlock");
+
+    sema_signal(&ip->sem_i);
 }
 
 // Drop a reference to an in-memory inode.
@@ -334,8 +334,8 @@ void iput(struct inode *ip) {
         // ip->ref == 1 means no other process can have ip locked,
         // so this acquiresleep() won't block (or deadlock).
 
-        acquiresleep(&ip->lock);
-        // sema_wait(&ip->sem_i);
+        // acquiresleep(&ip->lock);
+        sema_wait(&ip->sem_i);
 
         release(&itable.lock);
 
@@ -344,8 +344,8 @@ void iput(struct inode *ip) {
         iupdate(ip);
         ip->valid = 0;
 
-        // sema_signal(&ip->sem_i);
-        releasesleep(&ip->lock);
+        sema_signal(&ip->sem_i);
+        // releasesleep(&ip->lock);
 
         acquire(&itable.lock);
     }

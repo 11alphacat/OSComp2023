@@ -28,8 +28,8 @@ struct inode {
     uint dev;              // Device number
     uint inum;             // Inode number
     int ref;               // Reference count
-    struct sleeplock lock; // protects everything below here
-    // struct semaphore sem_i;
+    // struct sleeplock lock; // protects everything below here
+    struct semaphore sem_i;
 
     int valid;             // inode has been read from disk?
 

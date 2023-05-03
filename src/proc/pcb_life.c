@@ -409,6 +409,7 @@ void do_exit(int status) {
 int do_wait(uint64 addr) {
     struct proc *p = current();
     pid_t pid;
+
     if (nochildren(p)) {
         #ifdef __DEBUG_PROC__
         printf("wait : %d hasn't children\n", p->pid);// debug
@@ -442,18 +443,17 @@ int do_wait(uint64 addr) {
                     release(&p_child->lock);
                     return -1;
                 }
-
                 freeproc(p_child);
                 deleteChild(p, p_child);   
                 release(&p_child->lock);
                 #ifdef __DEBUG_PROC__
-                printfBlue("wait : %d delete %d\n", p->pid, p_child->pid);// debug
+                printfBlue("wait : %d delete %d\n", p->pid, pid);// debug
                 #endif
                 return pid;
             }
             release(&p_child->lock);
         }
-        
+        printf("%d", p->pid);
         panic("====");
     }
 }

@@ -24,6 +24,7 @@
 #include "proc/pcb_mm.h"
 #include "proc/signal.h"
 #include "proc/cond.h"
+#include "proc/semaphore.h"
 
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x
@@ -53,6 +54,8 @@ struct {
     uint r; // Read index
     uint w; // Write index
     uint e; // Edit index
+
+    struct semaphore sem_r;
 } cons;
 
 //
@@ -92,7 +95,10 @@ int consoleread(int user_dst, uint64 dst, int n) {
                 release(&cons.lock);
                 return -1;
             }
-            sleep(&cons.r, &cons.lock);
+            // sleep(&cons.r, &cons.lock);
+            release(&cons.lock);
+            sema_wait(&cons.sem_r);
+            acquire(&cons.lock);
         }
 
         c = cons.buf[cons.r++ % INPUT_BUF_SIZE];
@@ -165,7 +171,8 @@ void consoleintr(int c) {
                 // wake up consoleread() if a whole line (or end-of-file)
                 // has arrived.
                 cons.w = cons.e;
-                wakeup(&cons.r);
+                // wakeup(&cons.r);
+                sema_signal(&cons.sem_r);
             }
         }
         break;
@@ -176,7 +183,7 @@ void consoleintr(int c) {
 
 void consoleinit(void) {
     initlock(&cons.lock, "cons");
-
+    sema_init(&cons.sem_r, 0, "cons_sema_r");
     uartinit();
 
     // connect read and write system calls

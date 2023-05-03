@@ -43,8 +43,9 @@ void binit(void) {
     for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
         b->next = bcache.head.next;
         b->prev = &bcache.head;
-        initsleeplock(&b->lock, "buffer");
-        // sema_init(&b->sem, 1, "buffer");
+        // initsleeplock(&b->lock, "buffer");
+        sema_init(&b->sem_lock, 1, "buffer");
+        sema_init(&b->sem_disk_done, 0, "buffer_disk_done");
         bcache.head.next->prev = b;
         bcache.head.next = b;
     }
@@ -64,8 +65,8 @@ bget(uint dev, uint blockno) {
         if (b->dev == dev && b->blockno == blockno) {
             b->refcnt++;
             release(&bcache.lock);
-            acquiresleep(&b->lock);
-            // sema_wait(&b->sem);
+            // acquiresleep(&b->lock);
+            sema_wait(&b->sem_lock);
             return b;
         }
     }
@@ -79,8 +80,8 @@ bget(uint dev, uint blockno) {
             b->valid = 0;
             b->refcnt = 1;
             release(&bcache.lock);
-            acquiresleep(&b->lock);
-            // sema_wait(&b->sem);
+            // acquiresleep(&b->lock);
+            sema_wait(&b->sem_lock);
             return b;
         }
     }
@@ -102,20 +103,20 @@ bread(uint dev, uint blockno) {
 
 // Write b's contents to disk.  Must be locked.
 void bwrite(struct buf *b) {
-    if (!holdingsleep(&b->lock))
-        panic("bwrite");
+    // if (!holdingsleep(&b->lock))
+    //     panic("bwrite");
     virtio_disk_rw(b, 1);
 }
 
 // Release a locked buffer.
 // Move to the head of the most-recently-used list.
 void brelse(struct buf *b) {
-    if (!holdingsleep(&b->lock))
-        panic("brelse");
+    // if (!holdingsleep(&b->lock))
+    //     panic("brelse");
 
-    releasesleep(&b->lock);
+    // releasesleep(&b->lock);
 
-    // sema_signal(&b->sem);
+    sema_signal(&b->sem_lock);
 
     acquire(&bcache.lock);
     b->refcnt--;

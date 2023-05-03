@@ -27,8 +27,8 @@ int pipealloc(struct file **f0, struct file **f1) {
     pi->nread = 0;
     initlock(&pi->lock, "pipe");
 
-    // sema_init(&pi->read_sem, 0, "read_sem");
-    // sema_init(&pi->write_sem, 0, "write_sem");
+    sema_init(&pi->read_sem, 0, "read_sem");
+    sema_init(&pi->write_sem, 0, "write_sem");
 
     (*f0)->type = FD_PIPE;
     (*f0)->readable = 1;
@@ -54,10 +54,12 @@ void pipeclose(struct pipe *pi, int writable) {
     acquire(&pi->lock);
     if (writable) {
         pi->writeopen = 0;
-        wakeup(&pi->nread);
+        // wakeup(&pi->nread);
+        sema_signal(&pi->read_sem);
     } else {
         pi->readopen = 0;
-        wakeup(&pi->nwrite);
+        // wakeup(&pi->nwrite);
+        sema_signal(&pi->write_sem);
     }
     if (pi->readopen == 0 && pi->writeopen == 0) {
         release(&pi->lock);
@@ -77,10 +79,13 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
             return -1;
         }
         if (pi->nwrite == pi->nread + PIPESIZE) { // DOC: pipewrite-full
-            // sema_signal(&pi->read_sem);
-            // sema_wait(&pi->write_sem);
-            wakeup(&pi->nread);
-            sleep(&pi->nwrite, &pi->lock);
+            sema_signal(&pi->read_sem);
+
+            release(&pi->lock);
+            sema_wait(&pi->write_sem);
+            acquire(&pi->lock);
+            // wakeup(&pi->nread);
+            // sleep(&pi->nwrite, &pi->lock);
         } else {
             char ch;
             if (copyin(pr->pagetable, &ch, addr + i, 1) == -1)
@@ -89,7 +94,8 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
             i++;
         }
     }
-    wakeup(&pi->nread);
+    // wakeup(&pi->nread);
+    sema_signal(&pi->read_sem);
     release(&pi->lock);
 
     return i;
@@ -106,8 +112,10 @@ int piperead(struct pipe *pi, uint64 addr, int n) {
             release(&pi->lock);
             return -1;
         }
-        sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
-        // sema_wait(&pi->read_sem);
+        release(&pi->lock);
+        sema_wait(&pi->read_sem);
+        acquire(&pi->lock);
+        // sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
     }
     for (i = 0; i < n; i++) { // DOC: piperead-copy
         if (pi->nread == pi->nwrite)
@@ -116,7 +124,8 @@ int piperead(struct pipe *pi, uint64 addr, int n) {
         if (copyout(pr->pagetable, addr + i, &ch, 1) == -1)
             break;
     }
-    wakeup(&pi->nwrite); // DOC: piperead-wakeup
+    // wakeup(&pi->nwrite); // DOC: piperead-wakeup
+    sema_signal(&pi->write_sem);
     release(&pi->lock);
     return i;
 }

@@ -58,7 +58,7 @@ static struct disk {
 
     struct spinlock vdisk_lock;
 
-    // struct semaphore sem_disk;
+    struct semaphore sem_disk;
 
 } disk;
 
@@ -67,7 +67,7 @@ void virtio_disk_init(void) {
 
     initlock(&disk.vdisk_lock, "virtio_disk");
     
-    // sema_init(&disk.sem_disk, 0, "sem_disk");
+    sema_init(&disk.sem_disk, 0, "sem_disk");
 
     if (*R(VIRTIO_MMIO_MAGIC_VALUE) != 0x74726976 || *R(VIRTIO_MMIO_VERSION) != 2 || *R(VIRTIO_MMIO_DEVICE_ID) != 2 || *R(VIRTIO_MMIO_VENDOR_ID) != 0x554d4551) {
         panic("could not find virtio disk");
@@ -177,7 +177,8 @@ free_desc(int i) {
     disk.desc[i].flags = 0;
     disk.desc[i].next = 0;
     disk.free[i] = 1;
-    wakeup(&disk.free[0]);
+    // wakeup(&disk.free[0]);
+    sema_signal(&disk.sem_disk);
 }
 
 // free a chain of descriptors.
@@ -224,8 +225,10 @@ void virtio_disk_rw(struct buf *b, int write) {
         if (alloc3_desc(idx) == 0) {
             break;
         }
-        sleep(&disk.free[0], &disk.vdisk_lock);
-        // sema_wait(&disk.sem_disk);
+        release(&disk.vdisk_lock);
+        sema_wait(&disk.sem_disk);
+        acquire(&disk.vdisk_lock);
+        // sleep(&disk.free[0], &disk.vdisk_lock);
     }
 
     // format the three descriptors.
@@ -278,7 +281,10 @@ void virtio_disk_rw(struct buf *b, int write) {
 
     // Wait for virtio_disk_intr() to say request has finished.
     while (b->disk == 1) {
-        sleep(b, &disk.vdisk_lock);
+        release(&disk.vdisk_lock);
+        sema_wait(&b->sem_disk_done);
+        acquire(&disk.vdisk_lock);
+        // sleep(b, &disk.vdisk_lock);
     }
 
     disk.info[idx[0]].b = 0;
@@ -312,7 +318,8 @@ void virtio_disk_intr() {
 
         struct buf *b = disk.info[id].b;
         b->disk = 0; // disk is done with buf
-        wakeup(b);
+        // wakeup(b);
+        sema_signal(&b->sem_disk_done);
 
         disk.used_idx += 1;
     }
