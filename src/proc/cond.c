@@ -18,7 +18,7 @@ void cond_wait(struct cond *cond, struct spinlock *mutex) {
     acquire(&p->lock);
 
     PCB_Q_changeState(p, SLEEPING);
-    p->state = SLEEPING;
+
     Waiting_Q_push_back(&cond->waiting_queue, p);
     // TODO : modify it to futex(ref to linux)
     release(mutex);
@@ -42,7 +42,6 @@ void cond_signal(struct cond *cond) {
         }
         acquire(&p->lock);
         PCB_Q_changeState(p, RUNNABLE);
-        p->state = RUNNABLE;
         release(&p->lock);
     }
 }
@@ -60,7 +59,6 @@ void cond_broadcast(struct cond *cond) {
         }
         acquire(&p->lock);
         PCB_Q_changeState(p, RUNNABLE);
-        p->state = RUNNABLE;
         release(&p->lock);
     }
 }
@@ -83,7 +81,6 @@ void sleep(void *chan, struct spinlock *lk) {
     // Go to sleep.
     p->chan = chan;
     PCB_Q_changeState(p, SLEEPING);
-    p->state = SLEEPING;
 
     sched();
 
@@ -105,7 +102,6 @@ void wakeup(void *chan) {
             acquire(&p->lock);
             if (p->state == SLEEPING && p->chan == chan) {
                 PCB_Q_changeState(p, RUNNABLE);
-                p->state = RUNNABLE;
             }
             release(&p->lock);
         }

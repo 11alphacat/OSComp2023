@@ -25,7 +25,6 @@ int kill(int pid) {
     if (p->state == SLEEPING) {
         // Wake process from sleep().
         PCB_Q_changeState(p, RUNNABLE);
-        p->state = RUNNABLE;
     }
     release(&p->lock);
     return 0;

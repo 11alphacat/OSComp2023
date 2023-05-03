@@ -63,7 +63,6 @@ void userinit(void) {
     // p->cwd = fat32_inode_name("/");
 
     PCB_Q_changeState(p, RUNNABLE);
-    p->state = RUNNABLE;
 
     release(&p->lock);
 }
@@ -113,7 +112,6 @@ allocproc(void) {
     p->pid = allocpid();
 
     PCB_Q_changeState(p, USED);
-    p->state = USED;
     p->first_child = NULL;
     INIT_LIST_HEAD(&p->sibling_list);
     sema_init(&p->sem_wait_chan, 0, "proc_sema_chan");
@@ -162,7 +160,6 @@ void freeproc(struct proc *p) {
     p->exit_state = 0;
 
     PCB_Q_changeState(p, UNUSED);
-    p->state = UNUSED;
 
     // p->first_child = NULL;
     // list_del(&p->sibling_list);
@@ -268,7 +265,6 @@ int do_fork(void) {
 
     acquire(&np->lock);
     PCB_Q_changeState(np, RUNNABLE);
-    np->state = RUNNABLE;
     release(&np->lock);
     return pid;
 }
@@ -357,8 +353,6 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     // change its state tp RUNNABLE
     // acquire(&np->lock);
     PCB_Q_changeState(np, RUNNABLE);
-    np->state = RUNNABLE;
-
     release(&np->lock);
 
     // its parent return child's pid
@@ -399,8 +393,6 @@ void do_exit(int status) {
     acquire(&p->lock);
     p->exit_state = status;
     PCB_Q_changeState(p, ZOMBIE);
-    p->state = ZOMBIE;
-
     sema_signal(&p->parent->sem_wait_chan);
 
     #ifdef __DEBUG_PROC__
@@ -531,7 +523,7 @@ void reparent(struct proc *p) {
         struct proc *p_first_c=firstchild(p);
         struct proc *p_tmp=NULL;
         int flag=1;
-        
+
         list_for_each_entry_safe_given_first(p_child, p_tmp, p_first_c, sibling_list, flag) {
             deleteChild(p, p_child);
             // maybe the lock of initproc can be removed
@@ -567,7 +559,6 @@ void wakeup_proc(struct proc* p) {
     ASSERT(current()!=p&&p->state==SLEEPING);
     acquire(&p->lock);
     PCB_Q_changeState(p, RUNNABLE);
-    p->state = RUNNABLE;
     release(&p->lock);
 }
 

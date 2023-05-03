@@ -44,6 +44,8 @@ void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
     acquire(&pcb_q_new->lock);
     PCB_Q_push_back(pcb_q_new, p);
     release(&pcb_q_new->lock);
+
+    p->state = state_new;
     return;
 }
 
@@ -54,7 +56,6 @@ void yield(void) {
 
     // runnable queue
     PCB_Q_changeState(p, RUNNABLE);
-    p->state = RUNNABLE;
 
     sched();
     release(&p->lock);
