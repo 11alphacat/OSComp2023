@@ -2,8 +2,8 @@
 #define __BUF_H__
 
 #include "common.h"
-#include "atomic/sleeplock.h"
-#include "proc/semaphore.h"
+
+#include "atomic/semaphore.h"
 
 struct buf {
     int valid; // has data been read from disk?

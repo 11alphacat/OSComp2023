@@ -10,7 +10,7 @@
 #include "param.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
-#include "atomic/sleeplock.h"
+
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
 #include "driver/virtio.h"

@@ -63,7 +63,7 @@ int do_kill(int sig, siginfo_t *info, int pid) {
 }
 
 int kill_proc_info(int sig, siginfo_t *info, pid_t pid) {
-    int error;
+    int error = 0;
     struct proc *p;
     p = find_get_pid(pid);
     acquire(&p->lock);

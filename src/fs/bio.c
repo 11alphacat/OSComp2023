@@ -16,7 +16,7 @@
 #include "common.h"
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "atomic/sleeplock.h"
+
 #include "riscv.h"
 #include "fs/inode/fs.h"
 #include "fs/buf.h"

@@ -10,7 +10,7 @@
 #include "proc/pcb_life.h"
 #include "driver/console.h"
 #include "proc/cond.h"
-#include "proc/semaphore.h"
+#include "atomic/semaphore.h"
 
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the

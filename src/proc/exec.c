@@ -45,6 +45,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
 }
 
 int do_execve(char *path, char *const argv[], char *const envp[]) {
+    pagetable_t pagetable = 0;
     // find its inode and read the content of file
     struct inode *ip;
     begin_op();
@@ -64,7 +65,6 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
 
     // new page table
     struct proc *p = current();
-    pagetable_t pagetable = 0;
     if ((pagetable = proc_pagetable(p)) == 0)
         goto bad;
 

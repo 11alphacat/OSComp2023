@@ -32,17 +32,17 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 
-CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 
 ifdef KCSAN
 CFLAGS += -DKCSAN
 KCSANFLAG += -fsanitize=thread -fno-inline
 OBJS_KCSAN = \
-  build/src/kernel/console.o \
+  build/src/driver/console.o \
   build/src/driver/uart.o \
-  build/src/kernel/printf.o \
+  build/src/lib/printf.o \
   build/src/atomic/spinlock.o \
-  build/src/kernel/kcsan.o
+  build/src/lib/kcsan.o
 endif
 
 ifeq ($(LOCKTRACE), 1)

@@ -7,7 +7,7 @@
 #include "common.h"
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "atomic/sleeplock.h"
+
 #include "fs/inode/fs.h"
 #include "fs/inode/file.h"
 #include "memory/memlayout.h"

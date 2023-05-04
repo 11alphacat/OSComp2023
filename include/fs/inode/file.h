@@ -3,8 +3,8 @@
 
 #include "common.h"
 #include "fs/inode/fs_macro.h"
-#include "atomic/sleeplock.h"
-#include "proc/semaphore.h"
+
+#include "atomic/semaphore.h"
 
 struct pipe;
 struct inode;

@@ -15,12 +15,12 @@
 #include "fs/inode/stat.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
-#include "atomic/sleeplock.h"
+
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
 #include "fs/inode/file.h"
 #include "proc/pcb_mm.h"
-#include "proc/semaphore.h"
+#include "atomic/semaphore.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with

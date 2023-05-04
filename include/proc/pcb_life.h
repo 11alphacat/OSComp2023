@@ -7,7 +7,7 @@
 #include "kernel/kthread.h"
 #include "list.h"
 #include "proc/signal.h"
-#include "proc/semaphore.h"
+#include "atomic/semaphore.h"
 
 #define NPROC 32 // maximum number of processes
 #define INIT_PID 1
@@ -39,8 +39,8 @@ struct proc {
     void *chan;           // If non-zero, sleeping on chan
     int killed;           // If non-zero, have been killed
     struct list_head head_vma;
-    int exit_state;       // Exit status to be returned to parent's wait
-    pid_t pid;            // Process ID
+    int exit_state; // Exit status to be returned to parent's wait
+    pid_t pid;      // Process ID
 
     // these are private to the process, so p->lock need not be held.
     uint64 kstack;               // Virtual address of kernel stack

@@ -2,12 +2,12 @@
 #include "riscv.h"
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "atomic/sleeplock.h"
+
 #include "proc/pcb_life.h"
 #include "fs/inode/fs.h"
 #include "fs/buf.h"
 #include "proc/cond.h"
-#include "proc/semaphore.h"
+#include "atomic/semaphore.h"
 
 // Simple logging that allows concurrent FS system calls.
 //

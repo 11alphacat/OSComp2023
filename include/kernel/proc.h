@@ -7,17 +7,16 @@
 #include "kernel/kthread.h"
 #include "list.h"
 
-#define NPROC 64                  // maximum number of processes
+#define NPROC 64 // maximum number of processes
 
 struct file;
 struct inode;
 
-enum pid_type
-{
-	PIDTYPE_PID,// 进程 ID 类型
-	PIDTYPE_PGID,// 进程组 ID 类型
-    PIDTYPE_SID,// 会话 ID 类型
-	PIDTYPE_MAX// 最大的 PID 类型索引编号 + 1
+enum pid_type {
+    PIDTYPE_PID,  // 进程 ID 类型
+    PIDTYPE_PGID, // 进程组 ID 类型
+    PIDTYPE_SID,  // 会话 ID 类型
+    PIDTYPE_MAX   // 最大的 PID 类型索引编号 + 1
 };
 
 enum procstate { UNUSED,
@@ -26,8 +25,7 @@ enum procstate { UNUSED,
                  RUNNABLE,
                  RUNNING,
                  ZOMBIE,
-                 STATEMAX};
-
+                 STATEMAX };
 
 typedef int pid_t;
 
@@ -122,7 +120,6 @@ void proc_mapstacks(pagetable_t);
 void proc_freepagetable(pagetable_t, uint64);
 int growproc(int);
 
-
 int fork(void);
 int clone();
 int do_fork();
@@ -137,7 +134,6 @@ int exec(char *, char **);
 int execve();
 int do_execve();
 
-
 void yield(void);
 void sched(void);
 void scheduler(void) __attribute__((noreturn));
@@ -146,15 +142,12 @@ int wait(uint64);
 int wait4(pid_t, int *, int);
 int do_wait();
 
-
 void sleep(void *, struct spinlock *);
 void wakeup(void *);
-
 
 int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 
 void procdump(void);
-
 
 #endif // __PROC_H__

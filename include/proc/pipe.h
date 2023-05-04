@@ -3,7 +3,7 @@
 
 #include "common.h"
 #include "atomic/spinlock.h"
-#include "proc/semaphore.h"
+#include "atomic/semaphore.h"
 
 struct file;
 #define PIPESIZE 512

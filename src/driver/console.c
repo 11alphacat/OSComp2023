@@ -14,7 +14,6 @@
 #include "common.h"
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "atomic/sleeplock.h"
 #include "fs/inode/fs.h"
 #include "fs/inode/file.h"
 #include "memory/memlayout.h"
@@ -24,7 +23,7 @@
 #include "proc/pcb_mm.h"
 #include "proc/signal.h"
 #include "proc/cond.h"
-#include "proc/semaphore.h"
+#include "atomic/semaphore.h"
 
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x
