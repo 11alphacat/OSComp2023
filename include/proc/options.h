@@ -17,10 +17,8 @@
 #define WUNTRACED 0x00000002
 #define WCONTINUED 0x00000008
 
-
 #define WSTOPPED WUNTRACED
 #define WEXITED 0x00000004
-
 
 #define WNOWAIT 0x01000000     /* Don't reap, just poll status.  */
 #define __WNOTHREAD 0x20000000 /* Don't wait on children of other threads in this group */

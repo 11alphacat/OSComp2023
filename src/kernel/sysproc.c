@@ -116,10 +116,10 @@ sys_exit(void) {
 // const char *path, char *const argv[], char *const envp[];
 uint64 sys_execve(void) {
     char path[MAXPATH];
-    char* argv[MAXARG];
-    char* envp[MAXENV];
+    char *argv[MAXARG];
+    char *envp[MAXENV];
 
-    if (argstr(0, path, MAXPATH) < 0 ) {
+    if (argstr(0, path, MAXPATH) < 0) {
         return -1;
     }
     // TODO : 获取一个字符串数组 （argv 和 envp）

@@ -181,7 +181,6 @@ void iinit() {
     for (i = 0; i < NINODE; i++) {
         sema_init(&itable.inode[i].sem_i, 1, "inode");
         // initsleeplock(&itable.inode[i].lock, "inode");
-        
     }
 }
 

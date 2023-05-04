@@ -34,11 +34,11 @@ void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
     PCB_Q_t *pcb_q_new = STATES[state_new];
     PCB_Q_t *pcb_q_old = STATES[p->state];
 
-    if(p->state!=RUNNING){
+    if (p->state != RUNNING) {
         acquire(&pcb_q_old->lock);
         PCB_Q_remove(p);
         release(&pcb_q_old->lock);
-    }else{
+    } else {
         PCB_Q_remove(p);
     }
     acquire(&pcb_q_new->lock);
@@ -74,7 +74,7 @@ void sched(void) {
 
     if (!holding(&p->lock))
         panic("sched p->lock");
-    if (mycpu()->noff != 1){
+    if (mycpu()->noff != 1) {
         panic("sched locks");
     }
     if (p->state == RUNNING)

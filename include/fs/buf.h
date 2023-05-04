@@ -12,7 +12,7 @@ struct buf {
     uint blockno;
     // struct sleeplock lock;
     struct semaphore sem_lock;
-    
+
     struct semaphore sem_disk_done;
     uint refcnt;
     struct buf *prev; // LRU cache list

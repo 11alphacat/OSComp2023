@@ -163,17 +163,17 @@ static inline void list_splice(struct list_head *list, struct list_head *head) {
         __list_splice(list, head);
 }
 
-// mycode : join two lists given first pointer of head 
+// mycode : join two lists given first pointer of head
 static inline void list_join_given_first(struct list_head *first_new, struct list_head *first_old) {
-    if(first_new!=NULL&&first_old!=NULL){
+    if (first_new != NULL && first_old != NULL) {
         struct list_head *last = first_new->prev;
         struct list_head *first = first_new;
 
-        first_old->prev->next=first;
-        first->prev=first_old->prev;
+        first_old->prev->next = first;
+        first->prev = first_old->prev;
 
-        last->next=first_old;
-        first_old->prev=last;
+        last->next = first_old;
+        first_old->prev = last;
     }
 }
 
@@ -242,10 +242,10 @@ static inline void list_join_given_first(struct list_head *first_new, struct lis
          pos = list_next_entry(pos, member))
 
 // given first
-#define list_for_each_entry_given_first(pos, head_f, member, flag)               \
-    for (pos = head_f; \
-        flag || &pos->member != (&head_f->member);                             \
-        pos = list_next_entry(pos, member), flag=0)
+#define list_for_each_entry_given_first(pos, head_f, member, flag) \
+    for (pos = head_f;                                             \
+         flag || &pos->member != (&head_f->member);                \
+         pos = list_next_entry(pos, member), flag = 0)
 
 // 反向遍历链表
 /**
@@ -274,12 +274,12 @@ static inline void list_join_given_first(struct list_head *first_new, struct lis
          pos = n, n = list_next_entry(n, member))
 
 // given first head
-#define list_for_each_entry_safe_given_first(pos, n, head_f, member, flag)       \
-    for (pos = head_f, \
-        n = list_next_entry(pos, member);                    \
-        flag || &pos->member != (&head_f->member);                             \
-        pos = n, n = list_next_entry(n, member), flag=0)
-         
+#define list_for_each_entry_safe_given_first(pos, n, head_f, member, flag) \
+    for (pos = head_f,                                                     \
+        n = list_next_entry(pos, member);                                  \
+         flag || &pos->member != (&head_f->member);                        \
+         pos = n, n = list_next_entry(n, member), flag = 0)
+
 // 反向安全遍历链表（反向遍历的同时删除节点）
 #define list_for_each_entry_safe_reverse(pos, n, head, member) \
     for (pos = list_last_entry(head, typeof(*pos), member),    \

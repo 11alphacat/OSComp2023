@@ -36,8 +36,8 @@ void cond_signal(struct cond *cond) {
         p = Waiting_Q_provide(&cond->waiting_queue);
         if (p == NULL)
             panic("cond signal : this cond has no object waiting queue");
-        if (p->state != SLEEPING){
-            printf("%s\n",p->state);
+        if (p->state != SLEEPING) {
+            printf("%s\n", p->state);
             panic("cond signal : this proc is not sleeping");
         }
         acquire(&p->lock);
@@ -53,8 +53,8 @@ void cond_broadcast(struct cond *cond) {
         p = Waiting_Q_provide(&cond->waiting_queue);
         if (p == NULL)
             panic("cond signal : this cond has no object waiting queue");
-        if (p->state != SLEEPING){
-            printf("%s\n",p->state);
+        if (p->state != SLEEPING) {
+            printf("%s\n", p->state);
             panic("cond signal : this proc is not sleeping");
         }
         acquire(&p->lock);

@@ -61,14 +61,13 @@ void wrap_release(char *file, int line, struct spinlock *lock) {
 // Acquire the lock.
 // Loops (spins) until the lock is acquired.
 void _acquire(struct spinlock *lk) {
-
     push_off(); // disable interrupts to avoid deadlock.
     // Log("%s\n",lk->name);// debug
-    if (holding(lk)){
-        printf("%s\n",lk->name);
+    if (holding(lk)) {
+        printf("%s\n", lk->name);
         panic("acquire");
     }
-        
+
     // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
     //   a5 = 1
     //   s1 = &lk->locked
@@ -88,10 +87,9 @@ void _acquire(struct spinlock *lk) {
 
 // Release the lock.
 void _release(struct spinlock *lk) {
-    if (!holding(lk)){
-        printf("%s\n",lk->name);
+    if (!holding(lk)) {
+        printf("%s\n", lk->name);
         panic("release");
-
     }
     lk->cpu = 0;
 

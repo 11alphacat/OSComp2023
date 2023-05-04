@@ -60,7 +60,7 @@ void initlog(int dev, struct superblock *sb) {
         panic("initlog: too big logheader");
 
     initlock(&log.lock, "log");
-    
+
     // sema_init();
     log.start = sb->logstart;
     log.size = sb->nlog;

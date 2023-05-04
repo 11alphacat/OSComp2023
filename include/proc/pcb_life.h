@@ -56,7 +56,7 @@ struct proc {
     struct proc *parent; // Parent process
 
     struct list_head state_list;   // its state queue
-    struct proc* first_child; // its first child!!!!!!!
+    struct proc *first_child;      // its first child!!!!!!!
     struct list_head sibling_list; // its sibling
 
     int sigpending;                   // have signal?
@@ -65,10 +65,10 @@ struct proc {
     struct sigpending pending;        // pending (private)
     struct sigpending shared_pending; // pending (shared)
 
-    tgid_t tgid;               // thread group id
-    int thread_cnt;            // the count of threads
+    tgid_t tgid;                   // thread group id
+    int thread_cnt;                // the count of threads
     struct list_head thread_group; // thread group
-    struct proc *group_leader; // its proc thread group leader
+    struct proc *group_leader;     // its proc thread group leader
 
     pgrp_t pgid; // proc group id
 
@@ -138,9 +138,9 @@ void forkret(void);
 struct proc *allocproc(void);
 void freeproc(struct proc *p);
 struct proc *find_get_pid(pid_t);
-void deleteChild(struct proc* parent, struct proc* child);
-void appendChild(struct proc* parent, struct proc* child);
-void procChildrenChain(struct proc* p);
+void deleteChild(struct proc *parent, struct proc *child);
+void appendChild(struct proc *parent, struct proc *child);
+void procChildrenChain(struct proc *p);
 
 // 2. the lifetime of proc
 int do_fork(void);
@@ -150,7 +150,7 @@ int do_wait(uint64);
 int waitpid(pid_t, uint64, int);
 
 void reparent(struct proc *p);
-void wakeup_proc(struct proc* p);
+void wakeup_proc(struct proc *p);
 // 3. debug
 void procdump(void);
 

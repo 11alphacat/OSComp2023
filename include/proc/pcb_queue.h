@@ -42,7 +42,7 @@ static inline struct proc *PCB_Q_pop(PCB_Q_t *pcb_q, int remove) {
     if (PCB_Q_isempty(pcb_q))
         return NULL;
     struct proc *p = list_first_entry(&(pcb_q->list), struct proc, state_list);
-    if(remove)
+    if (remove)
         PCB_Q_remove(p);
     return p;
 }

@@ -49,7 +49,6 @@ uint64 uart_tx_r; // read next from uart_tx_buf[uart_tx_r % UART_TX_BUF_SIZE]
 
 struct semaphore uart_tx_r_sem;
 
-
 extern volatile int panicked; // from printf.c
 
 void uartstart();
@@ -151,10 +150,10 @@ void uartstart() {
         uart_tx_r += 1;
 
         // maybe uartputc() is waiting for space in the buffer.
-        
+
         // wakeup(&uart_tx_r);
         sema_signal(&uart_tx_r_sem);
-    
+
         WriteReg(THR, c);
     }
 }
