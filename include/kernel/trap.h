@@ -3,10 +3,18 @@
 
 #include "common.h"
 
+#define INSTUCTION_PAGEFAULT 12
+#define LOAD_PAGEFAULT 13
+#define STORE_PAGEFAULT 15
+
 struct context;
+struct file;
 
 // syscall.c
 void argint(int, int *);
+void argulong(int, unsigned long *);
+void arglong(int, long *);
+int argfd(int n, int *pfd, struct file **pf);
 int argstr(int, char *, int);
 void argaddr(int, uint64 *);
 int fetchstr(uint64, char *, int);
@@ -24,4 +32,6 @@ void usertrapret(void);
 
 void swtch(struct context *, struct context *);
 
+// pagefault.c
+int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval);
 #endif // __TRAP_H__

@@ -46,4 +46,7 @@ void backtrace();
 
 #define PTE(format, ...) \
     printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
+
+#define VMA(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
 #endif // __DEBUG_H__

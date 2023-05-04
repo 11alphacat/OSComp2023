@@ -22,6 +22,7 @@ void userinit(void);
 void kinit(void);
 void iinit();
 void fileinit(void);
+void vmas_init();
 #ifdef KCSAN
 void kcsaninit();
 #endif
@@ -41,6 +42,7 @@ void main() {
         printf("\n");
 
         mm_init();
+        vmas_init();
         kvminit();          // create kernel page table
         kvminithart();      // turn on paging
         procinit();         // process table

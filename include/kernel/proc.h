@@ -5,6 +5,7 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
+#include "memory/vma.h"
 
 struct file;
 struct inode;
@@ -27,6 +28,7 @@ struct proc {
     int xstate;           // Exit status to be returned to parent's wait
     int pid;              // Process ID
 
+    struct list_head head_vma;
     // wait_lock must be held when using this:
     struct proc *parent; // Parent process
 

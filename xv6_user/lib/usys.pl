@@ -37,3 +37,6 @@ entry("sbrk");
 entry("sleep");
 entry("uptime");
 entry("print_pgtable");
+entry("mmap");
+entry("munmap");
+entry("print_vma");

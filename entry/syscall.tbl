@@ -49,6 +49,7 @@
 
 # debug
 400 print_pgtable sys_print_pgtable
+401 print_vma     sys_print_vma
 
 
 

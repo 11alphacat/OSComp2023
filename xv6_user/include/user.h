@@ -23,6 +23,12 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int print_pgtable(void);
+int print_vma(void);
+
+typedef unsigned long size_t;
+typedef long int off_t;
+void *mmap(void *, size_t, int, int, int, off_t);
+int munmap(void *start, size_t len);
 
 // ulib.c
 int stat(const char*, struct stat*);

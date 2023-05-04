@@ -372,6 +372,7 @@ sfence_vma() {
 #define PTE_X (1L << 3)
 #define PTE_U (1L << 4) // user can access
 #define PTE_A (1L << 6)
+#define PTE_D (1L << 7)
 #define PTE_SHARE (1L << 8)    // identify if the page is shared
 #define PTE_READONLY (1L << 9) //
 

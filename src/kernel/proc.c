@@ -142,6 +142,7 @@ found:
     p->context.ra = (uint64)forkret;
     p->context.sp = p->kstack + PGSIZE;
 
+    INIT_LIST_HEAD(&p->head_vma);
     return p;
 }
 
@@ -193,7 +194,7 @@ proc_pagetable(struct proc *p) {
     if (mappages(pagetable, TRAPFRAME, PGSIZE,
                  (uint64)(p->trapframe), PTE_R | PTE_W, 0)
         < 0) {
-        uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+        uvmunmap(pagetable, TRAMPOLINE, 1, 0, 0);
         uvmfree(pagetable, 0);
         return 0;
     }
@@ -204,8 +205,8 @@ proc_pagetable(struct proc *p) {
 // Free a process's page table, and free the
 // physical memory it refers to.
 void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
-    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0, 0);
+    uvmunmap(pagetable, TRAPFRAME, 1, 0, 0);
     uvmfree(pagetable, sz);
 }
 
@@ -277,6 +278,13 @@ int fork(void) {
         return -1;
     }
 
+    /* Copy vma */
+    if (vmacopy(np) < 0) {
+        freeproc(np);
+        release(&np->lock);
+        return -1;
+    }
+
     // Copy user memory from parent to child.
     if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
         freeproc(np);
@@ -303,9 +311,9 @@ int fork(void) {
 
     release(&np->lock);
 
-    acquire(&wait_lock);
+    // acquire(&wait_lock);
     np->parent = p;
-    release(&wait_lock);
+    // release(&wait_lock);
 
     acquire(&np->lock);
     np->state = RUNNABLE;
@@ -335,6 +343,8 @@ void exit(int status) {
 
     if (p == initproc)
         panic("init exiting");
+
+    vmafree(p);
 
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {

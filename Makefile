@@ -119,7 +119,7 @@ $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/inode/stat.h
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
 xv6U=xv6_user
 oscompU=user
-FILE=brk open
+FILE=brk open mnt mmap
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 user:
 	@echo "$(YELLOW)build user:$(RESET)"
@@ -127,7 +127,7 @@ user:
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
-	@cp $(TESTFILE) $(FSIMG)/
+	@cp -r $(TESTFILE) $(FSIMG)/
 
 clean-all: clean
 	-@make -C $(xv6U)/ clean

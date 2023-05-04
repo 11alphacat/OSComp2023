@@ -81,9 +81,11 @@ void usertrap(void) {
         //     (*pte & PTE_READONLY) > 0, (*pte & PTE_SHARE) > 0,
         //     (*pte & PTE_U) > 0, (*pte & PTE_X) > 0,
         //     (*pte & PTE_W) > 0, (*pte & PTE_R) > 0);
-        if (r_scause() == 0xf) {
-            // store page fault
-            if (cow(p->pagetable, r_stval()) < 0) {
+        uint64 cause = r_scause();
+        if (cause == INSTUCTION_PAGEFAULT
+            || cause == LOAD_PAGEFAULT
+            || cause == STORE_PAGEFAULT) {
+            if (pagefault(cause, p->pagetable, r_stval()) < 0) {
                 setkilled(p);
             }
         } else {

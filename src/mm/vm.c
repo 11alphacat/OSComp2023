@@ -115,8 +115,7 @@ int walk(pagetable_t pagetable, uint64 va, int alloc, int lowlevel, pte_t **pte)
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
-uint64
-walkaddr(pagetable_t pagetable, uint64 va) {
+uint64 walkaddr(pagetable_t pagetable, uint64 va) {
     pte_t *pte;
     uint64 pa;
 
@@ -202,7 +201,9 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm,
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
-void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
+/* on_demand option: use for on-demand mapping, only unmap the mapping pages 
+                     and skip the unmapping pages */
+void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int on_demand) {
     uint64 a;
     pte_t *pte;
 
@@ -214,10 +215,17 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
     for (a = va; a < endva; a += PGSIZE) {
         int level = walk(pagetable, a, 0, 0, &pte);
         if (pte == 0) {
+            if (on_demand == 1) {
+                continue;
+            }
             panic("uvmunmap: walk");
         }
         if ((*pte & PTE_V) == 0) {
+            if (on_demand == 1) {
+                continue;
+            }
             vmprint(pagetable, 1, 0, 0, 0);
+            printf("va is %x\n", va);
             panic("uvmunmap: not mapped");
         }
         if (PTE_FLAGS(*pte) == PTE_V)
@@ -244,8 +252,7 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
 
 // create an empty user page table.
 // returns 0 if out of memory.
-pagetable_t
-uvmcreate() {
+pagetable_t uvmcreate() {
     pagetable_t pagetable;
     pagetable = (pagetable_t)kalloc();
     if (pagetable == 0)
@@ -256,8 +263,7 @@ uvmcreate() {
 
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
-uint64
-uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
+uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
     char *mem;
 
     if (newsz < oldsz)
@@ -323,14 +329,13 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
-uint64
-uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
+uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
     if (newsz >= oldsz)
         return oldsz;
 
     if (PGROUNDUP(newsz) < PGROUNDUP(oldsz)) {
         int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
-        uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
+        uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1, 0);
     }
 
     return newsz;
@@ -358,7 +363,7 @@ void freewalk(pagetable_t pagetable) {
 // then free page-table pages.
 void uvmfree(pagetable_t pagetable, uint64 sz) {
     if (sz > 0)
-        uvmunmap(pagetable, 0, PGROUNDUP(sz) / PGSIZE, 1);
+        uvmunmap(pagetable, 0, PGROUNDUP(sz) / PGSIZE, 1, 0);
     freewalk(pagetable);
 }
 
@@ -409,7 +414,7 @@ int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
     return 0;
 
 err:
-    uvmunmap(new, 0, i / PGSIZE, 0);
+    uvmunmap(new, 0, i / PGSIZE, 0, 0);
     return -1;
 }
 
@@ -599,6 +604,10 @@ int cow(pagetable_t pagetable, uint64 stval) {
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
 
+    /* guard page for stack */
+    if ((flags & PTE_U) == 0) {
+        return -1;
+    }
     /* write to an unshared page is illegal */
     if ((flags & PTE_SHARE) == 0) {
         printf("try to write a readonly page");

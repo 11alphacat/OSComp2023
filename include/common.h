@@ -20,7 +20,10 @@ typedef unsigned int uint32;
 typedef unsigned long uint64;
 typedef unsigned long uintptr_t;
 typedef unsigned long size_t;
+typedef uint64 paddr_t;
+typedef uint64 vaddr_t;
 typedef long ssize_t;
+typedef long off_t;
 typedef unsigned short mode_t;
 
 typedef uint8 uint8_t;
