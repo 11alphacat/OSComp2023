@@ -1,19 +1,18 @@
 #include "common.h"
 #include "param.h"
-#include "memory/memlayout.h"
+#include "debug.h"
 #include "riscv.h"
 #include "atomic/spinlock.h"
 #include "kernel/proc.h"
-#include "memory/list_alloc.h"
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
+#include "memory/memlayout.h"
+#include "memory/list_alloc.h"
 #include "memory/vm.h"
-#include "fs/inode/fs.h"
-#include "fs/inode/file.h"
+#include "fs/vfs/fs.h"
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_disk.h"
-#include "fs/vfs/fs.h"
-#include "debug.h"
+#include "fs/fat/fat32_file.h"
 
 struct cpu cpus[NCPU];
 
@@ -242,9 +241,7 @@ void _userinit(void) {
     console.f_mode = O_RDWR;
     console.f_major = CONSOLE;
     
-    p->_ofile[0] = &console;
-    p->_ofile[1] = &console;
-    p->_ofile[2] = &console;
+    // p->_ofile[0] = &console;
     release(&p->lock);
     
     return;
@@ -296,9 +293,9 @@ int fork(void) {
 
     // increment reference counts on open file descriptors.
     for (i = 0; i < NOFILE; i++)
-        if (p->ofile[i])
-            np->ofile[i] = filedup(p->ofile[i]);
-    np->cwd = idup(p->cwd);
+        if (p->_ofile[i])
+            np->_ofile[i] = fat32_filedup(p->_ofile[i]);
+    np->_cwd = fat32_inode_dup(p->_cwd);
 
     safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -341,17 +338,15 @@ void exit(int status) {
 
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {
-        if (p->ofile[fd]) {
-            struct file *f = p->ofile[fd];
-            fileclose(f);
-            p->ofile[fd] = 0;
+        if (p->_ofile[fd]) {
+            struct _file *f = p->_ofile[fd];
+            fat32_fileclose(f);
+            p->_ofile[fd] = 0;
         }
     }
 
-    begin_op();
-    iput(p->cwd);
-    end_op();
-    p->cwd = 0;
+    fat32_inode_put(p->_cwd);
+    p->_cwd = 0;
 
     acquire(&wait_lock);
 
@@ -508,9 +503,9 @@ void forkret(void) {
         
         myproc()->_cwd = fat32_name_inode("/");
         // console.f_tp.f_inode = fat32_inode_create("console.dev",T_DEVICE);
-        struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
-        ASSERT(ip!=NULL);
-        console.f_tp.f_inode = ip;
+        // struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
+        // ASSERT(ip!=NULL);
+        // console.f_tp.f_inode = ip;
         char *argv[] = {"init", 0};
         myproc()->trapframe->a0 = exec("/init", argv);
     }

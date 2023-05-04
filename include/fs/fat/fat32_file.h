@@ -15,7 +15,7 @@ int fat32_fileread(struct _file *, uint64, int n);
 int fat32_filestat(struct _file *, uint64 addr);
 int fat32_filewrite(struct _file *, uint64, int n);
 void fat32_getcwd(char *buf);
-
+ssize_t fat32_getdents(struct _inode* dp, char* buf, size_t len);
 // implement file_operations( ==ignore== )
 // char *fat32_getcwd(char *__user buf, size_t size);
 // int fat32_pipe2(int fd[2], int flags);

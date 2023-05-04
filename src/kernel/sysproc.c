@@ -14,6 +14,14 @@ sys_exit(void) {
     return 0; // not reached
 }
 
+uint64 oscomp_sys_exit(void) {
+	int n;
+    argint(0, &n);
+    exit(n);
+	
+    return 0; // not reached
+}
+
 uint64
 sys_getpid(void) {
     return myproc()->pid;
@@ -30,6 +38,16 @@ sys_wait(void) {
     argaddr(0, &p);
     return wait(p);
 }
+
+// temporary version
+uint64 oscomp_sys_wait4(void) {
+	uint64 p;
+    argaddr(0, &p);
+    return wait(p);
+	// ASSERT(0);
+	// return 0;
+}
+
 
 uint64
 sys_sbrk(void) {

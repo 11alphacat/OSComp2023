@@ -115,20 +115,29 @@ qemu: _kernel fat32.img
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
 xv6U=xv6_user
 oscompU=user
-FILE=brk openat close 
+FILE= mnt text.txt \
+    chdir close dup2 dup \
+    fstat getcwd mkdir_ write \
+    openat open read test_echo \
+    brk clone execve exit fork \
+    getpid getppid sleep times \
+    gettimeofday mmap munmap \
+    uname wait waitpid yield \
+    getdents unlink mount umount pipe 
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 # user: oscomp
 # 	@echo "$(YELLOW)build user:$(RESET)"
 # 	@make -C $(xv6U)
 
-user: 
+user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
 
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
-	@cp $(TESTFILE) $(FSIMG)/
+	@cp -r $(TESTFILE) $(FSIMG)/
+# cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/
 
 clean-all: clean
 	-@make -C $(xv6U)/ clean

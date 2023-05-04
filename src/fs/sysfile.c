@@ -84,38 +84,39 @@ static struct _inode *find_inode(char *path, int dirfd, char* name) {
     struct proc *p = myproc();
     if (*path == '/' || dirfd == AT_FDCWD ) {
         // 绝对路径 || 相对于当前路径，忽略 dirfd 
-        acquire(&p->tlock);
+        // acquire(&p->tlock);
         ip = (!name) ? fat32_name_inode(path):fat32_name_inode_parent(path,name);
         if (ip == 0) {
-            release(&p->tlock);
+            // release(&p->tlock);
             return 0;
         } else {
-            release(&p->tlock);
+            // release(&p->tlock);
             return ip;
         }
     } 
     else {
         // path为相对于 dirfd目录的路径
         struct _file* f;
-        acquire(&p->tlock);
+        // acquire(&p->tlock);
         if (dirfd < 0 || dirfd >= NOFILE || (f = p->_ofile[dirfd])==0 ) {
-            release(&p->tlock);
+            // release(&p->tlock);
             return 0;
         }
         struct _inode *oldcwd = p->_cwd;
         p->_cwd = f->f_tp.f_inode;
         ip = (!name) ? fat32_name_inode(path):fat32_name_inode_parent(path,name);
         if (ip == 0) {
-            release(&p->tlock);
+            // release(&p->tlock);
             return 0;
         }
         p->_cwd = oldcwd;
-        release(&p->tlock);
+        // release(&p->tlock);
     }
     return ip;
 }
 
-struct _inode *inode_create(char *path, int dirfd, uchar type) {
+static struct _inode *inode_create(char *path, int dirfd, uchar type) {
+    ASSERT(type > 0 && type < 4);
     // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     struct _inode *ip = NULL, *dp = NULL;
     char name[NAME_LONG_MAX];
@@ -130,9 +131,10 @@ struct _inode *inode_create(char *path, int dirfd, uchar type) {
         fat32_inode_unlock_put(dp);
         fat32_inode_lock(ip);
         // if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
-        //     return ip;
+        if (type == ip->i_type)
+            return ip;
         fat32_inode_unlock_put(ip);
-        return ip;
+        return 0;
         // return 0;
     }
 
@@ -143,7 +145,7 @@ struct _inode *inode_create(char *path, int dirfd, uchar type) {
     }
 
     fat32_inode_lock(ip);
-    ip->i_nlink = 1;
+    // ip->i_nlink = 1;
     fat32_inode_update(ip);
 
     if (type == T_DIR) { // Create . and .. entries.
@@ -186,6 +188,24 @@ struct _inode *inode_create(char *path, int dirfd, uchar type) {
 }
 
 
+uint64 oscomp_sys_mknod(void) {
+  struct _inode *ip;
+  char path[MAXPATH];
+  int major, minor;
+
+  argint(1, &major);
+  argint(2, &minor);
+  
+  // TODO() handle major and minor
+
+  if((argstr(0, path, MAXPATH)) < 0 ||
+     (ip = fat32_inode_create(path, T_DEVICE, major, minor)) == 0){
+    return -1;
+  }
+  fat32_inode_unlock_put(ip);
+  return 0;
+}
+
 
 // 功能：获取当前工作目录；
 // 输入：
@@ -201,15 +221,16 @@ uint64 oscomp_sys_getcwd(void) {
     size_t size;
     struct proc *p = myproc();
     argaddr(0, &buf);
-    argint(1, (int*)&size);
+    arglong(1, &size);
 
     char kbuf[PATH_LONG_MAX];
+    memset(kbuf,0,PATH_LONG_MAX);   // important! init before use!
     fat32_getcwd(kbuf);
     if (!buf && (buf = (uint64)kalloc()) == 0) {
         return NULL;
     }
 
-    if (copyout(p->pagetable, buf, kbuf, sizeof(kbuf)) < 0) {
+    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf,PATH_LONG_MAX)) < 0) {
         return NULL;
     } else {
         return buf;
@@ -276,6 +297,18 @@ uint64 oscomp_sys_dup3(void) {
     return newfd;
 }
 
+// * 功能：挂载文件系统；
+// * 输入：
+//   - special: 挂载设备；
+//   - dir: 挂载点；
+//   - fstype: 挂载的文件系统类型；
+//   - flags: 挂载参数；
+//   - data: 传递给文件系统的字符串参数，可为NULL；
+// * 返回值：成功返回0，失败返回-1；
+// uint64 oscomp_sys_mount(void) {
+//     return 0;
+// }
+
 // 功能：打开或创建一个文件；
 // 输入：
 // - fd：文件所在目录的文件描述符。
@@ -296,20 +329,22 @@ uint64 oscomp_sys_openat(void) {
 
         If pathname is absolute, then dirfd is ignored.
     */
+   
     char path[PATH_LONG_MAX];
     int dirfd, flags, omode;
     struct _file *f;
     struct _inode *ip;
     int n;
-    argint(0, &dirfd);
+    argint(0, &dirfd);  // no need to check dirfd, because dirfd maybe AT_FDCWD(<0) 
+                        // find_inode will do the check
     if ((n = argstr(1, path, PATH_LONG_MAX)) < 0)
         return -1;
     argint(2, &flags);
     argint(3, &omode);
 
     // 如果是要求创建文件，则调用 create
-    if (flags & O_CREAT) {
-        if ( (ip = fat32_inode_create(path, T_FILE)) == 0) {
+    if ( (flags & O_CREATE) == O_CREATE) {
+        if ( (ip = inode_create(path, dirfd, T_FILE)) == 0) {
             return -1;
         }
     } else {
@@ -319,8 +354,11 @@ uint64 oscomp_sys_openat(void) {
         }
         ASSERT(ip); // 这里 ip 应该已绑定到 path 找到的文件inode节点
         fat32_inode_lock(ip);
-        if (ip->i_type == T_DIR && flags != O_RDONLY) {
-            // openat 不允许试图写一个目录文件
+        // if (ip->i_type == T_DIR && flags != O_RDONLY) {
+        //     fat32_inode_unlock_put(ip);
+        //     return -1;
+        // }
+        if ( (flags & O_DIRECTORY) && ip->i_type != T_DIR ) {
             fat32_inode_unlock_put(ip);
             return -1;
         }
@@ -331,7 +369,7 @@ uint64 oscomp_sys_openat(void) {
         return -1;
     }
 
-    // 下面inode文件分配一个打开文件表项，为进程分配一个文件描述符
+    // 下面为inode文件分配一个打开文件表项，为进程分配一个文件描述符
     int fd;
     if ((f = fat32_filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
         if (f)
@@ -349,9 +387,9 @@ uint64 oscomp_sys_openat(void) {
         f->f_pos = 0;
     }
     f->f_tp.f_inode = ip;
-    f->f_flags = flags;
-    f->f_mode = omode;
-
+    f->f_flags = flags;     // TODO(): &
+    f->f_mode = omode;      // TODO(): &
+    f->f_count = 1;
     /*  for VFS
     f_owner = TODO();
     f_op = TODO();
@@ -365,6 +403,21 @@ uint64 oscomp_sys_openat(void) {
     fat32_inode_unlock(ip);
 
     return fd;
+}
+
+// 功能：关闭一个文件描述符；
+// 输入：
+// - fd：要关闭的文件描述符。
+// 返回值：成功执行，返回0。失败，返回-1。
+uint64 oscomp_sys_close(void) {
+    int fd;
+    struct _file *f;
+
+    if (argfd(0, &fd, &f) < 0)
+        return -1;
+    myproc()->_ofile[fd] = 0;
+    fat32_fileclose(f);
+    return 0;
 }
 
 // 功能：从一个文件描述符中读取；
@@ -412,52 +465,42 @@ uint64 oscomp_sys_write(void) {
 // - newpath：文件的新名字。newpath的使用规则同oldpath。
 // - flags：在2.6.18内核之前，应置为0。其它的值详见`man 2 linkat`。
 // 返回值：成功执行，返回0。失败，返回-1。
-// uint64 oscomp_sys_linkat(void) {
-// char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
-//     struct inode *dp, *ip;
+uint64 oscomp_sys_linkat(void) {
+    char newpath[MAXPATH], oldpath[MAXPATH];
+    int olddirfd, newdirfd, flags;
 
-//     if (argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
-//         return -1;
+    if (argstr(1, oldpath, MAXPATH) < 0 || argstr(3, newpath, MAXPATH) < 0) {
+        return -1;
+    }
+    argint(0,&olddirfd);
+    argint(2,&newdirfd);
+    argint(4,&flags);
+    ASSERT(flags == 0);
+    
+    char oldname[MAXPATH], newname[MAXPATH]; 
+    struct _inode* oldip, *newdp;
+    if ( (newdp = find_inode(newpath,newdirfd,newname)) == 0 ) {
+        // 新路径的目录不存在
+        return -1;
+    }
+    if ( (oldip = find_inode(oldpath, olddirfd, oldname) ) == 0) {
+        // 旧文件的inode不存在
+        return -1;
+    }
+    if ( fat32_inode_dirlookup(newdp,newname,0) != 0 ) {
+        // 新文件已存在
+        return 0;
+    }
 
-//     begin_op();
-//     if ((ip = namei(old)) == 0) {
-//         end_op();
-//         return -1;
-//     }
+    // 往 newdp 中 写入一个代表 oldip 的项
+    
+    // TODO()    
+    // if ( fat32_dirlink(olddp, newdp) < 0) {
+    //     return -1;
+    // }
 
-//     ilock(ip);
-//     if (ip->type == T_DIR) {
-//         iunlockput(ip);
-//         end_op();
-//         return -1;
-//     }
-
-//     ip->nlink++;
-//     iupdate(ip);
-//     iunlock(ip);
-
-//     if ((dp = nameiparent(new, name)) == 0)
-//         goto bad;
-//     ilock(dp);
-//     if (dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0) {
-//         iunlockput(dp);
-//         goto bad;
-//     }
-//     iunlockput(dp);
-//     iput(ip);
-
-//     end_op();
-
-//     return 0;
-
-// bad:
-//     ilock(ip);
-//     ip->nlink--;
-//     iupdate(ip);
-//     iunlockput(ip);
-//     end_op();
-//     return -1;
-// }
+    return 0;
+}
 
 // 功能：移除指定文件的链接(可用于删除文件)；
 // 输入：
@@ -535,8 +578,9 @@ uint64 oscomp_sys_mkdirat(void) {
     mode_t mode;
     struct _inode *ip;
     argint(0,&dirfd);
-    argint(2,(int*)&mode);
-    if (argstr(1, path, PATH_LONG_MAX) < 0 || (ip = inode_create(path, dirfd,T_DIR)) == 0) {
+    if ( argint(2,(int*)&mode) < 0 )
+        return -1;
+    if (argstr(1, path, PATH_LONG_MAX) < 0 || (ip = inode_create(path, dirfd, T_DIR)) == 0) {
         return -1;
     }
     ip->i_mode = mode;
@@ -545,20 +589,6 @@ uint64 oscomp_sys_mkdirat(void) {
 }
 
 
-// 功能：关闭一个文件描述符；
-// 输入：
-// - fd：要关闭的文件描述符。
-// 返回值：成功执行，返回0。失败，返回-1。
-uint64 oscomp_sys_close(void) {
-    int fd;
-    struct _file *f;
-
-    if (argfd(0, &fd, &f) < 0)
-        return -1;
-    myproc()->_ofile[fd] = 0;
-    fat32_fileclose(f);
-    return 0;
-}
 
 /*
 struct dirent {
@@ -576,18 +606,40 @@ struct dirent {
 // - buf：一个缓存区，用于保存所读取目录的信息。
 // - len：buf的大小。
 // 返回值：成功执行，返回读取的字节数。当到目录结尾，则返回0。失败，则返回-1。
-// uint64 oscomp_sys_getdents64(void) {
-//     struct _file *f;
-//     uint64 buf; // user pointer to struct dirent
-//     int len;
-//     if (argfd(0, 0, &f) < 0)
-//         return -1;
-//     argaddr(1, &buf);
-//     argint(2, &len);
+uint64 oscomp_sys_getdents64(void) {
+    struct _file *f;
+    uint64 buf; // user pointer to struct dirent
+    int len;
+    ssize_t nread;
+    const size_t MAXLEN = 2048;
 
-//     TODO();
+    if (argfd(0, 0, &f) < 0)
+        return -1;
+    
+    if (f->f_type != T_DIR) {
+        return -1;
+    }
 
-// }
+    if (f->f_pos == f->f_tp.f_inode->i_size) {
+        return 0;
+    }
+    argaddr(1, &buf);
+    argint(2, &len);
+    if (len <= 0 ) {
+        return -1;
+    }
+    char kbuf[MAXLEN];
+    nread = fat32_getdents(f->f_tp.f_inode, kbuf, MAXLEN); 
+    if ( nread < 0 || nread > len ) {
+        return -1;
+    }
+    if (either_copyout(1,buf,kbuf, nread) < 0) {
+        return -1;
+    }
+
+    f->f_pos = f->f_tp.f_inode->i_size;
+    return nread;
+}
 
 // 功能：获取文件状态；
 // 输入：
@@ -615,17 +667,18 @@ uint64 oscomp_sys_chdir(void) {
     struct proc *p = myproc();
 
     // begin_op();
-    if (argstr(0, path, PATH_LONG_MAX) < 0 || (ip = fat32_name_inode(path)) == 0) {
+    if (argstr(0, path, PATH_LONG_MAX) < 0 || (ip = fat32_name_inode(path)) == 0) {     // bug: 修改了n_link
         // end_op();
         return -1;
     }
 
-    fat32_inode_lock(ip);
+    fat32_inode_lock(ip);       // bug:修改了 i_mode
     if (ip->i_type != T_DIR) {
         fat32_inode_unlock_put(ip);
         // end_op();
         return -1;
     }
+    
     fat32_inode_unlock(ip);
     fat32_inode_put(p->_cwd);
     // end_op();
@@ -654,7 +707,8 @@ uint64 oscomp_sys_pipe2(void) {
         fat32_fileclose(wf);
         return -1;
     }
-    if (copyout(p->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0 || copyout(p->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
+    if (copyout(p->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0
+        || copyout(p->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
         p->_ofile[fd0] = 0;
         p->_ofile[fd1] = 0;
         fat32_fileclose(rf);
@@ -662,4 +716,47 @@ uint64 oscomp_sys_pipe2(void) {
         return -1;
     }
     return 0;
+}
+
+
+// temporary version
+uint64 oscomp_sys_execve(void) {
+char path[MAXPATH], *argv[MAXARG];
+  int i;
+  uint64 uargv, uarg;
+
+  argaddr(1, &uargv);
+  if(argstr(0, path, MAXPATH) < 0) {
+    return -1;
+  }
+  memset(argv, 0, sizeof(argv));
+  for(i=0;; i++){
+    if(i >= NELEM(argv)){
+      goto bad;
+    }
+    if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
+      goto bad;
+    }
+    if(uarg == 0){
+      argv[i] = 0;
+      break;
+    }
+    argv[i] = kalloc();
+    if(argv[i] == 0)
+      goto bad;
+    if(fetchstr(uarg, argv[i], PGSIZE) < 0)
+      goto bad;
+  }
+
+  int ret = exec(path, argv);
+
+  for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
+    kfree(argv[i]);
+
+  return ret;
+
+ bad:
+  for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
+    kfree(argv[i]);
+  return -1;
 }

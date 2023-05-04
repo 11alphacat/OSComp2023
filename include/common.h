@@ -25,7 +25,7 @@ typedef long int64;
 typedef unsigned long uintptr_t;
 typedef unsigned long size_t;
 typedef long ssize_t;
-typedef unsigned short mode_t;
+
 
 // used in struct kstat
 typedef unsigned long int dev_t;

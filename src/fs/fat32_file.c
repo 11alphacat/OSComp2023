@@ -15,8 +15,10 @@
 #include "fs/fat/fat32_stack.h"
 #include "fs/fat/fat32_file.h"
 
-#define F_WRITEABLE(fp)     ( ((fp)->f_mode & (O_WRONLY | O_RDWR)) == 0 ? 0 : 1)
-#define F_READABLE(fp)     ( (fp)->f_mode == O_RDONLY || (fp)->f_mode == O_RDWR )
+// #define _O_READ              (~O_WRONLY)
+// #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
+#define F_WRITEABLE(fp)      ( (fp)->f_flags > 0 ? 1 : 0 )
+#define F_READABLE(fp)       ( ((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1 )
 
 // struct devsw devsw[NDEV];
 struct {
@@ -50,7 +52,7 @@ struct _file* fat32_filealloc(void) {
 // Increment ref count for file f.
 // 语义：将 f 指向的 file 文件的引用次数自增，并返回该指针
 // 实现：给 _ftable 加锁后，f->f_count++
-struct _file*  fat32_filedup(struct _file *f) {
+struct _file* fat32_filedup(struct _file *f) {
     acquire(&_ftable.lock);
     if (f->f_count < 1)
         panic("filedup");
@@ -94,7 +96,10 @@ void fat32_fileclose(struct _file *f) {
 int fat32_filestat(struct _file *f, uint64 addr) {
     struct proc *p = myproc();
     struct kstat st;
-
+    ASSERT(sizeof(st) == 128);
+// printf("KERNEL: sizeof kstat = %d\n",sizeof(st));
+    memset(&st,0,sizeof(st));   // avoid leak kernel data to user
+    
     if (f->f_type == FD_INODE || f->f_type == FD_DEVICE) {
         fat32_inode_lock(f->f_tp.f_inode);
         fat32_inode_stati(f->f_tp.f_inode, &st);
@@ -210,12 +215,38 @@ static void get_absolute_path(struct _inode *ip, char *buf) {
 // which is of length size.
 // make sure sizeof buf is big enough to hold a absolute path!
 void fat32_getcwd(char *buf) {
+    // note: buf must have size PATH_LONG_MAX
     if (!buf) return;
+    // ASSERT(strnlen(buf,PATH_LONG_MAX) >= PATH_LONG_MAX);
     struct proc *p = myproc();
     get_absolute_path(p->_cwd, buf);
     size_t n = strlen(buf);
     if (n > 1) {
-        buf[n - 1] = 0; // clear '/'
+        buf[n-1] = 0; // clear '/'
     }
     return;
+}
+
+struct __dirent {
+    uint64 d_ino;	// 索引结点号
+    int64 d_off;	// 到下一个dirent的偏移
+    unsigned short d_reclen;	// 当前dirent的长度
+    unsigned char d_type;	// 文件类型
+    char d_name[];	//文件名
+};
+
+// 将 dp 目录下的所有目录项解析成 struct _dirent，填入 buf 中
+// len 为 buf 的最大长度
+// 不用检查参数
+// 返回读取的字节数
+ssize_t fat32_getdents(struct _inode* dp, char* buf, size_t len) {
+    // TODO();
+    return 0;
+}
+
+
+// 往 dp 目录文件中 写入 代表 ip 的 fcb
+// 成功返回 0，失败返回 -1
+int fat32_dirlink(struct _inode* dp, struct _inode* ip) {
+    return 0;
 }

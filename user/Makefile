@@ -43,14 +43,14 @@ else ifeq ($(CHAPTER), 7)
 	CH_TESTS += $(CH7_TESTS)
 endif
 
-# CH_TESTS += oscomp/open oscomp/write
+# CH_TESTS += oscomp/mkdir__
 
 binary:
 	@mkdir -p build
 	@cd build && cmake $(cmake_build_args) .. && make
 	@$(CP) src/oscomp/run-all.sh src/oscomp/text.txt build/riscv64/
-	@mkdir build/riscv64/mnt && touch build/riscv64/mnt/test_mount
-	@ln -s build/riscv64/ .
+	@mkdir -p build/riscv64/mnt && touch build/riscv64/mnt/test_mount
+	@ln -sf build/riscv64/ .
 
 pre:
 	@rm -rf $(out_dir)

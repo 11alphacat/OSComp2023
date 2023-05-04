@@ -96,7 +96,7 @@ void usertrapret(void) {
     // we're about to switch the destination of traps from
     // kerneltrap() to usertrap(), so turn off interrupts until
     // we're back in user space, where usertrap() is correct.
-    intr_off();
+    intr_off(); // 关闭中断以保证切换的原子性
 
     // send syscalls, interrupts, and exceptions to uservec in trampoline.S
     uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);

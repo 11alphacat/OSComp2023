@@ -3,17 +3,16 @@
 
 // oscomp syscalls that haven't been implemented
 
-uint64 oscomp_sys_getdents64(void) {
-	ASSERT(0);
-	return 0;
-}
 
+// uint64 oscomp_sys_getdents64(void) {
+// 	ASSERT(0);
+// 	return 0;
+// }
 
-
-uint64 oscomp_sys_linkat(void) {
-	ASSERT(0);
-	return 0;
-}
+// uint64 oscomp_sys_linkat(void) {
+// 	ASSERT(0);
+// 	return 0;
+// }
 
 
 uint64 oscomp_sys_umount2(void) {
@@ -32,20 +31,23 @@ uint64 oscomp_sys_clone(void) {
 	return 0;
 }
 
-uint64 oscomp_sys_execve(void) {
-	ASSERT(0);
-	return 0;
-}
+// uint64 oscomp_sys_execve(void) {
+// 	ASSERT(0);
+// 	return 0;
+// }
 
-uint64 oscomp_sys_wait4(void) {
-	ASSERT(0);
-	return 0;
-}
+// uint64 oscomp_sys_wait4(void) {
+	// ASSERT(0);
+	// return 0;
+// }
 
-uint64 oscomp_sys_exit(void) {
-	ASSERT(0);
-	return 0;
-}
+// uint64 oscomp_sys_exit(void) {
+// 	int n;
+//     argint(0, &n);
+//     exit(n);
+
+//     return 0; // not reached
+// }
 
 uint64 oscomp_sys_getppid(void) {
 	ASSERT(0);

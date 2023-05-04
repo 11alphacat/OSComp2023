@@ -13,7 +13,6 @@ void test_fstat() {
 	int ret = fstat(fd, &kst);
 	printf("fstat ret: %d\n", ret);
 	assert(ret >= 0);
-
 	printf("fstat: dev: %d, inode: %d, mode: %d, nlink: %d, size: %d, atime: %d, mtime: %d, ctime: %d\n",
 	      kst.st_dev, kst.st_ino, kst.st_mode, kst.st_nlink, kst.st_size, kst.st_atime_sec, kst.st_mtime_sec, kst.st_ctime_sec);
 

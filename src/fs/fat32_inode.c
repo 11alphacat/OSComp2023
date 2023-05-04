@@ -205,11 +205,13 @@ void fat32_fat_set(uint cluster, uint value) {
 //   skepelem("///a//bb", name) = "bb", setting name = "a"
 //   skepelem("a", name) = "", setting name = "a"
 //   skepelem("", name) = skepelem("////", name) = 0
+
+//   skepelem("./mnt", name) = "", setting name = "mnt"
 static char *skepelem(char *path, char *name) {
     char *s;
     int len;
 
-    while (*path == '/')
+    while (*path == '/' || *path == '.')
         path++;
     if (*path == 0)
         return 0;
@@ -322,6 +324,7 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
 }
 
 // Write data to fat32 inode
+// 写 inode 文件，从偏移量 off 起， 写 src 的 n 个字节的内容
 uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, uint n) {
     uint tot = 0, m;
     struct buffer_head *bp;
@@ -727,7 +730,7 @@ int fat32_inode_dirlink(struct _inode *dp, char *name) {
 }
 
 // create a new inode
-struct _inode *fat32_inode_create(char *path, uchar type) {
+struct _inode *fat32_inode_create(char *path, uchar type, short major, short minor) {
     // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     struct _inode *ip = NULL, *dp = NULL;
     char name[NAME_LONG_MAX];
@@ -740,10 +743,10 @@ struct _inode *fat32_inode_create(char *path, uchar type) {
     // have existed?
     if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
         fat32_inode_unlock_put(dp);
-        fat32_inode_lock(ip);
+        fat32_inode_lock(ip);       
         // if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
-        //     return ip;
-        fat32_inode_unlock_put(ip);
+        //     return ip;   
+        fat32_inode_unlock_put(ip); 
         return ip;
         // return 0;
     }
@@ -756,6 +759,8 @@ struct _inode *fat32_inode_create(char *path, uchar type) {
 
     fat32_inode_lock(ip);
     ip->i_nlink = 1;
+    ip->i_rdev = mkrdev(major,minor);
+    ip->i_type = type;
     fat32_inode_update(ip);
 
     if (type == T_DIR) { // Create . and .. entries.
@@ -781,21 +786,15 @@ struct _inode *fat32_inode_create(char *path, uchar type) {
     // if (fat32_inode_dirlink(dp, name) < 0)
     //     goto fail;
 
-    // if (type == T_DIR) {
-    //     // now that success is guaranteed:
-    //     fat32_inode_update(dp);
-    // }
+    if (type == T_DIR) {
+        // now that success is guaranteed:
+        fat32_inode_update(dp);
+    }
 
     fat32_inode_unlock_put(dp);// !!! bug
-    fat32_inode_unlock(ip); // !!!! bug
+
     return ip;
 }
-// fail:
-//     ip->i_nlink = 0;
-//     fat32_inode_update(ip);
-//     fat32_inode_unlock_put(ip);
-//     fat32_inode_unlock_put(dp);
-//     return 0;
 
 
 // allocate a new inode
@@ -834,13 +833,16 @@ struct _inode *fat32_inode_alloc(struct _inode *dp, char *name, uchar type) {
 
     ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset);
     ip_new->i_nlink = 1;
+    ip_new->ref = 1;
     ip_new->parent = dp;
+    ip_new->i_type = type;
     // uint fat_num_dp = SECTOR_TO_FATINUM(first_sector, 0); // debug
     // uint sector_pos = FirstSectorofCluster(ip_new->fat32_i.cluster_start) * 512; // debug
     return ip_new;
 }
 
 // fcb init
+// 为 long_name 初始化若干个 dirent_l_t 和一个dirent_s_t，写入 fcb_char中，返回需要的 fcb 总数
 int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr, char *fcb_char) {
     dirent_s_t dirent_s_cur;
     memset((void *)&dirent_s_cur, 0, sizeof(dirent_s_cur));
@@ -1008,6 +1010,7 @@ uint fat32_find_same_name_cnt(struct _inode *ip, char *name) {
 }
 
 // 获取fcb的插入位置(可以插入到碎片中)
+// 在目录节点中找到能插入 fcb_cnt_req 个 fcb 的启始偏移位置，并返回它
 uint fat32_dir_fcb_insert_offset(struct _inode *ip, uchar fcb_cnt_req) {
     struct buffer_head *bp;
     FAT_entry_t iter_n = ip->fat32_i.cluster_start;
@@ -1103,6 +1106,7 @@ int fat32_date_parser(FAT_date_t *date_in, char *str) {
 }
 
 void fat32_inode_stati(struct _inode* ip, struct kstat* st) {
+    ASSERT(ip && st);
     st->st_atime_sec = ip->i_atime;
     st->st_atime_nsec = ip->i_atime * 1000000000;
     st->st_blksize = ip->i_blksize;
@@ -1110,7 +1114,7 @@ void fat32_inode_stati(struct _inode* ip, struct kstat* st) {
     st->st_ctime_sec = ip->i_ctime;
     st->st_ctime_nsec = ip->i_ctime * 1000000000;
     st->st_dev = ip->i_dev;
-    st->st_gid = ip->i_uid;
+    st->st_gid = ip->i_gid;
     st->st_ino = ip->i_ino;
     st->st_mode = ip->i_mode;
     st->st_mtime_sec = ip->i_mtime;

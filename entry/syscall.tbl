@@ -1,11 +1,13 @@
+#系统调用号   宏定义(会补上SYS_的前缀)    函数指针名                
+
 17    getcwd              oscomp_sys_getcwd
 59    pipe2           oscomp_sys_pipe2
 23    dup             oscomp_sys_dup
 24    dup3            oscomp_sys_dup3
 49    chdir           oscomp_sys_chdir
-56    openat              oscomp_sys_openat
+56    openat          oscomp_sys_openat
 57    close           oscomp_sys_close
-61    getdents64              oscomp_sys_getdents64
+61    getdents64      oscomp_sys_getdents64
 63    read            oscomp_sys_read
 64    write           oscomp_sys_write
 37    linkat              oscomp_sys_linkat
@@ -15,14 +17,13 @@
 40    mount           oscomp_sys_mount
 80    fstat           oscomp_sys_fstat
 220   clone           oscomp_sys_clone
-221   execve              oscomp_sys_execve
 260   wait4           oscomp_sys_wait4
 
-93    exit            
+93    exit            oscomp_sys_exit
 
 173   getppid             oscomp_sys_getppid
 
-172   getpid              
+172   getpid              sys_getpid
 
 214   brk             oscomp_sys_brk
 215   munmap              oscomp_sys_munmap
@@ -34,12 +35,13 @@
 101   nanosleep           oscomp_sys_nanosleep
 
 # proc
-372  getpid         sys_getpid
+372  getpidxv6        sys_getpid
 300   fork            sys_fork
-393   exit            sys_exit
+#393   exit            sys_exit
 302   wait            sys_wait
 305   kill            sys_kill
 306   exec            sys_exec
+221   execve            oscomp_sys_execve
 311  sbrk            sys_sbrk
 
 
@@ -48,8 +50,9 @@
 319  mkdir           sys_mkdir
 318  link            sys_link
 327  unlink          sys_unlink
-316  mknod           sys_mknod
-303   pipe            sys_pipe
+316  mknod           oscomp_sys_mknod
+303  pipe            sys_pipe
+361  getdents        oscomp_sys_getdents64
 
 # misc
 313  uptime          sys_uptime

@@ -14,10 +14,19 @@ sub entry {
     print " ecall\n";
     print " ret\n";
 }
-	
+
+
+# oscomp: xv6 user codes can also use these syscall
+entry("openat");
+entry("execve");
+entry("getdents");
+entry("chdir");
+entry("getcwd");
+
+# xv6
 entry("fork");
 entry("exit");
-entry("wait");
+entry("wait");      
 entry("pipe");
 entry("read");
 entry("write");
@@ -30,7 +39,6 @@ entry("unlink");
 entry("fstat");
 entry("link");
 entry("mkdir");
-entry("chdir");
 entry("dup");
 entry("getpid");
 entry("sbrk");

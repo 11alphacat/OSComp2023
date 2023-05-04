@@ -84,8 +84,8 @@ runcmd(struct cmd *cmd)
   case REDIR:
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);
-    if(open(rcmd->file, rcmd->mode) < 0){
-      fprintf(2, "open %s failed\n", rcmd->file);
+    if(openat(AT_FDCWD, rcmd->file, rcmd->mode) < 0){
+      fprintf(2, "openat %s failed\n", rcmd->file);
       exit(1);
     }
     runcmd(rcmd->cmd);
@@ -132,10 +132,12 @@ runcmd(struct cmd *cmd)
   exit(0);
 }
 
+char cwd[128];
 int
 getcmd(char *buf, int nbuf)
 {
-  write(2, "$ ", 2);
+  printf("%s",cwd);
+  write(2, "> ", 2);
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
   if(buf[0] == 0) // EOF
@@ -146,11 +148,20 @@ getcmd(char *buf, int nbuf)
 int
 main(void)
 {
+
+  printf("We are in sh\n\n");
+  printf("██╗      ██████╗ ███████╗████████╗██╗    ██╗ █████╗ ██╗  ██╗███████╗██╗   ██╗██████╗ \n");
+  printf("██║     ██╔═══██╗██╔════╝╚══██╔══╝██║    ██║██╔══██╗██║ ██╔╝██╔════╝██║   ██║██╔══██╗\n");
+  printf("██║     ██║   ██║███████╗   ██║   ██║ █╗ ██║███████║█████╔╝ █████╗  ██║   ██║██████╔╝\n");
+  printf("██║     ██║   ██║╚════██║   ██║   ██║███╗██║██╔══██║██╔═██╗ ██╔══╝  ██║   ██║██╔═══╝ \n");
+  printf("███████╗╚██████╔╝███████║   ██║   ╚███╔███╔╝██║  ██║██║  ██╗███████╗╚██████╔╝██║     \n");
+  printf("╚══════╝ ╚═════╝ ╚══════╝   ╚═╝    ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     \n");
+  printf("\n");
   static char buf[100];
   int fd;
-
-  // Ensure that three file descriptors are open.
-  while((fd = open("console", O_RDWR)) >= 0){
+  getcwd(cwd,128);
+  // Ensure that three file descriptors are openat.
+  while((fd = openat(AT_FDCWD,"console.dev", O_RDWR)) >= 0){
     if(fd >= 3){
       close(fd);
       break;
@@ -162,8 +173,12 @@ main(void)
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
-      if(chdir(buf+3) < 0)
+      if(chdir(buf+3) < 0){
         fprintf(2, "cannot cd %s\n", buf+3);
+      } 
+      else {
+        getcwd(cwd,128);
+      }
       continue;
     }
     if(fork1() == 0)
