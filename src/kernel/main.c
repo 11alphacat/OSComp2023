@@ -23,7 +23,7 @@ void userinit(void);
 void _userinit(void);
 void kinit(void);
 void iinit();
-void fileinit(void);
+void fat32_fileinit(void);
 void inode_table_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
@@ -61,7 +61,8 @@ void main() {
 
         // origin
         iinit();    // inode table
-        fileinit(); // file table
+        // fileinit(); // file table
+        fat32_fileinit();
         inode_table_init();
 
         // fat32

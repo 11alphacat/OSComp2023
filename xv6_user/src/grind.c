@@ -48,6 +48,8 @@ rand(void)
     return (do_rand(&rand_next));
 }
 
+
+
 void
 go(int which_child)
 {

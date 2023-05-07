@@ -15,23 +15,26 @@ int mknod(const char*, short, short);
 int unlink(const char*);
 int fstat(int fd, struct stat*);
 int link(const char*, const char*);
-int mkdir(const char*);
 // int chdir(const char*);
 int dup(int);
 int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int mkdir(const char*);
 
 // ssize_t getdents(int,void *, size_t);
 
 
 // test oscomp syscall in xv6 user programs(init.c, sh.c)
 typedef uint64 size_t;
+typedef unsigned int mode_t;
 int openat(int, const char*, unsigned short);
 int execve(const char*, char**, char**);   
 int chdir(const char *path);
 char *getcwd(char*, size_t);
+int mkdirat(int, const char*, mode_t);
+
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -49,3 +52,5 @@ void free(void*);
 int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
+
+char* strcat(char* dest, const char* src);

@@ -22,6 +22,7 @@ entry("execve");
 entry("getdents");
 entry("chdir");
 entry("getcwd");
+entry("mkdirat");
 
 # xv6
 entry("fork");
@@ -38,8 +39,8 @@ entry("mknod");
 entry("unlink");
 entry("fstat");
 entry("link");
-entry("mkdir");
 entry("dup");
+entry("mkdir");
 entry("getpid");
 entry("sbrk");
 entry("sleep");

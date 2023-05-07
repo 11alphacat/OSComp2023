@@ -77,7 +77,10 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(1);
-    exec(ecmd->argv[0], ecmd->argv);
+
+    char cmdpath[20] = "/";
+    strcat(cmdpath,ecmd->argv[0]);
+    exec(cmdpath, ecmd->argv);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
@@ -160,7 +163,7 @@ main(void)
   static char buf[100];
   int fd;
   getcwd(cwd,128);
-  // Ensure that three file descriptors are openat.
+  // Ensure that three file descriptors are open.
   while((fd = openat(AT_FDCWD,"console.dev", O_RDWR)) >= 0){
     if(fd >= 3){
       close(fd);

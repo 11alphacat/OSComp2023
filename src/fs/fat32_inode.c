@@ -207,11 +207,13 @@ void fat32_fat_set(uint cluster, uint value) {
 //   skepelem("", name) = skepelem("////", name) = 0
 
 //   skepelem("./mnt", name) = "", setting name = "mnt"
+//   skepelem("../mnt", name) = "", setting name = "mnt"   
+//   skepelem("..", name) = "", setting name = 0   
 static char *skepelem(char *path, char *name) {
     char *s;
     int len;
 
-    while (*path == '/' || *path == '.')
+    while (*path == '/' || *path == '.' )
         path++;
     if (*path == 0)
         return 0;
@@ -232,11 +234,15 @@ static char *skepelem(char *path, char *name) {
 
 static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name) {
     struct _inode *ip = NULL, *next = NULL;
-
+    
     if (*path == '/')
         ip = fat32_inode_dup(fat32_sb.fat32_sb_info.root_entry);
-    else
+    else if ( strncmp(path, "..",2)==0 ) {
+        ip = fat32_inode_dup(myproc()->_cwd->parent);
+    } 
+    else {
         ip = fat32_inode_dup(myproc()->_cwd);
+    }
 
     while ((path = skepelem(path, name)) != 0) {
         fat32_inode_lock(ip);
@@ -439,7 +445,7 @@ struct _inode *fat32_inode_get(uint dev, uint inum, char *name, uint parentoff) 
     ip->valid = 0;
     ip->fat32_i.parent_off = parentoff;
 
-    strncpy(ip->fat32_i.fname, name, strlen(name));
+    safestrcpy(ip->fat32_i.fname, name, strlen(name));
 
     release(&inode_table.lock);
     return ip;
@@ -559,6 +565,7 @@ void fat32_inode_trunc(struct _inode *ip) {
     ip->i_rdev = 0;
     ip->i_mode = IMODE_NONE;
     ip->i_size = 0;
+    ip->parent = 0;
     fat32_inode_update(ip);
 }
 
@@ -831,7 +838,7 @@ struct _inode *fat32_inode_alloc(struct _inode *dp, char *name, uchar type) {
     // uint sec_pos = DEBUG_SECTOR(dp, sector_num); // debug
     // printf("%d\n",sec_pos); // debug
 
-    ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset);
+    ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset);    
     ip_new->i_nlink = 1;
     ip_new->ref = 1;
     ip_new->parent = dp;

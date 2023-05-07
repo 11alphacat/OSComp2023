@@ -146,3 +146,15 @@ memcpy(void *dst, const void *src, uint n)
 {
   return memmove(dst, src, n);
 }
+
+char* strcat(char* dest, const char* src) {
+    char* p = dest;
+    while (*p) {
+        ++p;
+    }
+    while (*src) {
+        *p++ = *src++;
+    }
+    *p = '\0';
+    return dest;
+}
