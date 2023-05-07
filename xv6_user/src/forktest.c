@@ -3,7 +3,7 @@
 
 #define USER
 #include "types.h"
-#include "fs/inode/stat.h"
+#include "fs/stat.h"
 #include "user.h"
 
 #define N  100000

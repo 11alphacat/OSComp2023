@@ -8,7 +8,4 @@ pagetable_t proc_pagetable(struct proc *);
 void proc_freepagetable(pagetable_t, uint64);
 int growproc(int);
 
-int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
-int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
-
 #endif

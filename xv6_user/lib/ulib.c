@@ -1,8 +1,9 @@
 #define USER
-#include "types.h"
-#include "fs/inode/stat.h"
-#include "fs/fcntl.h"
-#include "user.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 
 //
 // wrapper so that it's OK if main() does not call exit().
@@ -34,8 +35,7 @@ strcmp(const char *p, const char *q)
   return (uchar)*p - (uchar)*q;
 }
 
-uint
-strlen(const char *s)
+size_t strlen(const char *s)
 {
   int n;
 
@@ -45,7 +45,7 @@ strlen(const char *s)
 }
 
 void*
-memset(void *dst, int c, uint n)
+memset(void *dst, int c, size_t n)
 {
   char *cdst = (char *) dst;
   int i;
@@ -82,19 +82,19 @@ gets(char *buf, int max)
   return buf;
 }
 
-int
-stat(const char *n, struct stat *st)
-{
-  int fd;
-  int r;
+// int
+// stat(const char *n, struct stat *st)
+// {
+//   int fd;
+//   int r;
 
-  fd = open(n, O_RDONLY);
-  if(fd < 0)
-    return -1;
-  r = fstat(fd, st);
-  close(fd);
-  return r;
-}
+//   fd = open(n, O_RDONLY);
+//   if(fd < 0)
+//     return -1;
+//   r = fstat(fd, st);
+//   close(fd);
+//   return r;
+// }
 
 int
 atoi(const char *s)

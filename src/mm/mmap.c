@@ -6,6 +6,7 @@
 #include "fs/fcntl.h"
 #include "memory/vm.h"
 #include "riscv.h"
+#include "fs/vfs/fs.h"
 
 // return (void *)0xfffff...ff to indicate fail
 #define MAP_FAILED ((void *)-1)
@@ -41,7 +42,7 @@ void *sys_mmap(void) {
     int flags;
     int fd;
     off_t offset;
-    struct file *fp;
+    struct _file *fp;
 
     argaddr(0, &addr);
     argulong(1, &length);

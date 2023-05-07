@@ -1,11 +1,34 @@
 #define USER
-#include "types.h"
-#include "fs/inode/stat.h"
-#include "user.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 
 #include <stdarg.h>
 
 static char digits[] = "0123456789ABCDEF";
+
+int getchar()
+{
+    char byte = 0;
+    read(stdin, &byte, 1);
+    return byte;
+}
+
+int putchar(int c)
+{
+    char byte = c;
+    return write(stdout, &byte, 1);
+}
+
+int puts(const char *s)
+{
+    int r;
+    //r = -(write(stdout, s, strlen(s)) < 0 || putchar('\n') < 0);
+    r = -(write(stdout, s, strlen(s)) < 0);
+    return r;
+}
 
 static void
 putc(int fd, char c)

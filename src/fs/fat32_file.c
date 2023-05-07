@@ -1,0 +1,331 @@
+#include "common.h"
+#include "atomic/spinlock.h"
+#include "kernel/trap.h"
+#include "debug.h"
+#include "param.h"
+#include "proc/pcb_life.h"
+#include "proc/pipe.h"
+#include "fs/bio.h"
+#include "fs/stat.h"
+#include "fs/vfs/fs.h"
+#include "fs/fcntl.h"
+#include "fs/fat/fat32_disk.h"
+#include "fs/fat/fat32_mem.h"
+#include "fs/fat/fat32_stack.h"
+#include "fs/fat/fat32_file.h"
+
+// #define _O_READ              (~O_WRONLY)
+// #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
+#define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)
+#define F_READABLE(fp) (((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1)
+
+struct devsw devsw[NDEV];
+struct {
+    struct spinlock lock;
+    struct _file file[NFILE];
+} _ftable;
+
+void fat32_fileinit(void) {
+    initlock(&_ftable.lock, "_ftable");
+}
+
+// Allocate a file structure.
+// 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
+struct _file *fat32_filealloc(void) {
+    struct _file *f;
+
+    acquire(&_ftable.lock);
+    for (f = _ftable.file; f < _ftable.file + NFILE; f++) {
+        if (f->f_count == 0) {
+            f->f_count = 1;
+            release(&_ftable.lock);
+            return f;
+        }
+    }
+    release(&_ftable.lock);
+    return 0;
+}
+
+// Increment ref count for file f.
+// 语义：将 f 指向的 file 文件的引用次数自增，并返回该指针
+// 实现：给 _ftable 加锁后，f->f_count++
+struct _file *fat32_filedup(struct _file *f) {
+    acquire(&_ftable.lock);
+    if (f->f_count < 1)
+        panic("filedup");
+    f->f_count++;
+    release(&_ftable.lock);
+    return f;
+}
+
+// Close file f.  (Decrement ref count, close when reaches 0.)
+// 语义：自减 f 指向的file的引用次数，如果为0，则关闭
+// 对于管道文件，调用pipeclose
+// 否则，调用iput归还inode节点
+void fat32_fileclose(struct _file *f) {
+    struct _file ff;
+
+    acquire(&_ftable.lock);
+    if (f->f_count < 1)
+        panic("fileclose");
+    if (--f->f_count > 0) {
+        release(&_ftable.lock);
+        return;
+    }
+    ff = *f;
+    f->f_count = 0;
+    f->f_type = FD_NONE;
+    release(&_ftable.lock);
+
+    if (ff.f_type == FD_PIPE) {
+        int wrable = F_WRITEABLE(&ff);
+        pipeclose(ff.f_tp.f_pipe, wrable);
+    } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
+        // begin_op();
+        fat32_inode_put(ff.f_tp.f_inode);
+        // end_op();
+    }
+}
+
+// Get metadata about file f.
+// addr is a user virtual address, pointing to a struct stat.
+// 语义：获取文件 f 的相关属性，写入 addr 指向的用户空间
+int fat32_filestat(struct _file *f, uint64 addr) {
+    struct proc *p = current();
+    struct kstat st;
+    ASSERT(sizeof(st) == 128);
+    // printf("KERNEL: sizeof kstat = %d\n",sizeof(st));
+    memset(&st, 0, sizeof(st)); // avoid leak kernel data to user
+
+    if (f->f_type == FD_INODE || f->f_type == FD_DEVICE) {
+        fat32_inode_lock(f->f_tp.f_inode);
+        fat32_inode_stati(f->f_tp.f_inode, &st);
+        fat32_inode_unlock(f->f_tp.f_inode);
+        if (copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+            return -1;
+        return 0;
+    }
+    return -1;
+}
+
+// Read from file f.
+// addr is a user virtual address.
+// 语义：读取文件 f ，从 偏移量 f->f_pos 起始，读取 n 个字节到 addr 指向的用户空间
+int fat32_fileread(struct _file *f, uint64 addr, int n) {
+    int r = 0;
+
+    if (F_READABLE(f) == 0)
+        return -1;
+
+    if (f->f_type == FD_PIPE) {
+        r = piperead(f->f_tp.f_pipe, addr, n);
+    } else if (f->f_type == FD_DEVICE) {
+        if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
+            return -1;
+        r = devsw[f->f_major].read(1, addr, n);
+    } else if (f->f_type == FD_INODE) {
+        fat32_inode_lock(f->f_tp.f_inode);
+        if ((r = fat32_inode_read(f->f_tp.f_inode, 1, addr, f->f_pos, n)) > 0)
+            f->f_pos += r;
+        fat32_inode_unlock(f->f_tp.f_inode);
+    } else {
+        panic("fileread");
+    }
+
+    return r;
+}
+
+// Write to file f.
+// addr is a user virtual address.
+// 语义：写文件 f ，从 f->f_pos开始，把用户空间 addr 起始的 n 个字节的内容写入文件 f
+int fat32_filewrite(struct _file *f, uint64 addr, int n) {
+    int r, ret = 0;
+
+    if (F_WRITEABLE(f) == 0)
+        return -1;
+
+    if (f->f_type == FD_PIPE) {
+        ret = pipewrite(f->f_tp.f_pipe, addr, n);
+    } else if (f->f_type == FD_DEVICE) {
+        if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].write)
+            return -1;
+        ret = devsw[f->f_major].write(1, addr, n);
+    } else if (f->f_type == FD_INODE) {
+        // write a few blocks at a time to avoid exceeding
+        // the maximum log transaction size, including
+        // i-node, indirect block, allocation blocks,
+        // and 2 blocks of slop for non-aligned writes.
+        // this really belongs lower down, since writei()
+        // might be writing a device like the console.
+        int max = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
+        int i = 0;
+        while (i < n) {
+            int n1 = n - i;
+            if (n1 > max)
+                n1 = max;
+
+            // begin_op();
+            fat32_inode_lock(f->f_tp.f_inode);
+            if ((r = fat32_inode_write(f->f_tp.f_inode, 1, addr + i, f->f_pos, n1)) > 0)
+                f->f_pos += r;
+            fat32_inode_unlock(f->f_tp.f_inode);
+            // end_op();
+
+            if (r != n1) {
+                // error from writei
+                break;
+            }
+            i += r;
+        }
+        ret = (i == n ? n : -1);
+    } else {
+        panic("filewrite");
+    }
+
+    return ret;
+}
+
+// 查询 ip 指向的 inode 文件的绝对路径
+// 不做参数检查
+// buf 最后以 / 结尾
+// 感觉目录项得有，不然inode缓存一下子就被污染了
+static void get_absolute_path(struct _inode *ip, char *buf) {
+    // acquiresleep(&ip->i_sem);
+    fat32_inode_lock(ip);
+    if (ip->fat32_i.fname[0] != '/') {
+        get_absolute_path(ip->parent, buf);
+    } else {
+        ;
+    }
+    size_t n0 = strlen(buf), n1 = strlen(ip->fat32_i.fname);
+    strncpy(buf + n0, ip->fat32_i.fname, n1);
+    if (ip->fat32_i.fname[0] != '/') {
+        safestrcpy(buf + n0 + n1, "/", 1);
+    }
+    // releasesleep(&ip->i_sem);
+    fat32_inode_unlock(ip);
+    return;
+}
+
+//  The  getcwd()  function  copies  an  absolute  pathname
+// of the current working directory to the array pointed to by buf,
+// which is of length size.
+// make sure sizeof buf is big enough to hold a absolute path!
+void fat32_getcwd(char *buf) {
+    // note: buf must have size PATH_LONG_MAX
+    if (!buf) return;
+    // ASSERT(strnlen(buf,PATH_LONG_MAX) >= PATH_LONG_MAX);
+    struct proc *p = current();
+    get_absolute_path(p->_cwd, buf);
+    size_t n = strlen(buf);
+    if (n > 1) {
+        buf[n - 1] = 0; // clear '/'
+    }
+    return;
+}
+
+struct __dirent {
+    uint64 d_ino;            // 索引结点号
+    int64 d_off;             // 到下一个dirent的偏移 (start from 1)
+    unsigned short d_reclen; // 当前dirent的长度
+    unsigned char d_type;    // 文件类型
+    char d_name[];           // 文件名
+};
+
+#define dirent_len(dirent) (sizeof(dirent.d_ino) + sizeof(dirent.d_off) + sizeof(dirent.d_type) + sizeof(dirent.d_reclen) + strlen(dirent.d_name))
+
+// 将 dp 目录下的所有目录项解析成 struct _dirent，填入 buf 中
+// len 为 buf 的最大长度
+// 不用检查参数
+// 返回读取的字节数
+ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
+    if (!DIR_BOOL((dp->fat32_i.Attr)))
+        panic("getdents : not DIR");
+    struct buffer_head *bp;
+    struct _inode *ip_buf;
+    struct __dirent dirent_buf;
+
+    ssize_t nread = 0;
+    char name_buf[NAME_LONG_MAX];
+    memset(name_buf, 0, sizeof(name_buf));
+    Stack_t fcb_stack;
+    stack_init(&fcb_stack);
+    FAT_entry_t iter_n = dp->fat32_i.cluster_start;
+
+    int first_sector;
+    uint off = 0;
+    uint cnt = 0;
+    // FAT seek cluster chains
+    while (!ISEOF(iter_n)) {
+        first_sector = FirstSectorofCluster(iter_n);
+        // sectors in a cluster
+        for (int s = 0; s < (dp->i_sb->sectors_per_block); s++) {
+            // uint sec_pos = DEBUG_SECTOR(dp, first_sector + s); // debug
+            // printf("%d\n",sec_pos); // debug
+            bp = bread(dp->i_dev, first_sector + s);
+            dirent_s_t *fcb_s = (dirent_s_t *)(bp->data);
+            dirent_l_t *fcb_l = (dirent_l_t *)(bp->data);
+            int idx = 0;
+            // FCB in a sector
+            while (idx < FCB_PER_BLOCK) {
+                // long dirctory item push into the stack
+                int first_long_flag = (dp == fat32_sb.fat32_sb_info.root_entry && idx == 0);
+
+                if (NAME0_FREE_ALL(fcb_s[idx].DIR_Name[0])) {
+                    brelse(bp);
+                    goto finish;
+                }
+                while ((LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) || first_long_dir(dp)) && idx < FCB_PER_BLOCK) {
+                    stack_push(&fcb_stack, fcb_l[idx++]);
+                    off++;
+                }
+                // pop stack
+                if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
+                    memset(name_buf, 0, sizeof(name_buf));
+                    ushort nlinks = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
+                    // if it is . or ..
+                    if (nlinks == 0) {
+                        strncpy(name_buf, (const char *)fcb_s[idx].DIR_Name, sizeof(fcb_s[idx].DIR_Name));
+                        nlinks = dp->i_nlink;
+                    }
+                    // speciall judgement for the first long directory in the data region
+                    if (first_long_flag) {
+                        nlinks = 1;
+                    }
+                    cnt++;
+
+                    ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
+                    ip_buf->parent = dp;
+                    ip_buf->i_nlink = nlinks; // number of hard links
+                    brelse(bp);               // !!!!
+
+                    fat32_inode_lock(ip_buf);
+                    dirent_buf.d_ino = ip_buf->i_ino;
+                    dirent_buf.d_off = cnt;
+                    dirent_buf.d_type = ip_buf->i_type;
+                    int fname_len = strlen(ip_buf->fat32_i.fname);
+                    safestrcpy(dirent_buf.d_name, ip_buf->fat32_i.fname, fname_len);
+                    dirent_buf.d_reclen = dirent_len(dirent_buf);
+                    memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
+
+                    nread += dirent_buf.d_reclen;
+                    fat32_inode_unlock_put(ip_buf);
+
+                    bp = bread(dp->i_dev, first_sector + s);
+                }
+                idx++;
+                off++;
+            }
+            brelse(bp);
+        }
+        iter_n = fat32_next_cluster(iter_n);
+    }
+finish:
+    return nread;
+}
+
+// 往 dp 目录文件中 写入 代表 ip 的 fcb
+// 成功返回 0，失败返回 -1
+int fat32_dirlink(struct _inode *dp, struct _inode *ip) {
+    return 0;
+}

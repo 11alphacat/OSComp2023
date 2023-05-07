@@ -46,7 +46,7 @@ OBJS_KCSAN = \
 endif
 
 ifeq ($(LOCKTRACE), 1)
-CFLAGS += -D__DEBUG__
+CFLAGS += -D__LOCKTRACE__
 endif
 ifeq ($(DEBUG_PROC), 1)
 CFLAGS += -D__DEBUG_PROC__
@@ -88,7 +88,8 @@ endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 130M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
-QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+# QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 # try to generate a unique GDB port
@@ -101,47 +102,75 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: _kernel .gdbinit fs.img
+# qemu-gdb: _kernel .gdbinit fs.img
+# 	@echo "*** Now run 'gdb' in another window." 1>&2
+# 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+
+qemu-gdb: _kernel .gdbinit fat32.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
 
 # target =================================================================================
 format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 
-qemu: _kernel fs.img
+# qemu: _kernel fs.img
+# 	$(QEMU) $(QEMUOPTS)
+
+qemu: _kernel fat32.img
 	$(QEMU) $(QEMUOPTS)
 
-fs.img: $(SCRIPTS)/mkfs user README.md
-	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
+# fs.img: $(SCRIPTS)/mkfs user README.md
+# 	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
 
-$(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/inode/stat.h include/param.h
-	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
+# $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/stat.h include/param.h
+# 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
 
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
 xv6U=xv6_user
 oscompU=user
-FILE=brk open mnt mmap getppid
+FILE= mnt text.txt \
+    chdir close dup2 dup \
+    fstat getcwd mkdir_ write \
+    openat open read test_echo \
+    brk clone execve exit fork \
+    getpid getppid sleep times \
+    gettimeofday mmap munmap \
+    uname wait waitpid yield \
+    getdents unlink mount umount pipe 
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 # user: oscomp
 # 	@echo "$(YELLOW)build user:$(RESET)"
 # 	@make -C $(xv6U)
 
-user: 
+user:
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
+
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
 	@cp -r $(TESTFILE) $(FSIMG)/
+# cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/
 
 clean-all: clean
 	-@make -C $(xv6U)/ clean
 	-@make -C $(oscompU)/ clean
 
 clean: 
-	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img $(GENINC) -rf $(FSIMG)/*
+	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img fat32.img $(GENINC) -rf $(FSIMG)/*
+
+MNT_DIR=build/mnt
+$(shell mkdir -p $(MNT_DIR))
+fat32.img: _kernel user
+	@dd if=/dev/zero of=$@ bs=1M count=128
+	@mkfs.vfat -F 32 -s 2 $@
+	@sudo mount $@ $(MNT_DIR)
+	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
+	@sudo umount $(MNT_DIR)
 
 .PHONY: qemu clean user clean-all format test oscomp
 

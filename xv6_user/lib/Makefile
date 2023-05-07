@@ -1,14 +1,11 @@
 BUILD=../build/lib
-ULIB = $(BUILD)/ulib.o $(BUILD)/usys.o $(BUILD)/printf.o $(BUILD)/umalloc.o
+# CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS += -Wno-error
+ULIB = $(BUILD)/ulib.o $(BUILD)/printf.o $(BUILD)/umalloc.o $(BUILD)/syscall.o $(BUILD)/clone.o
 OBJS=$(ULIB)
 ARCHIVE=lib.a
 
 all: $(ARCHIVE)
-
-$(BUILD)/usys.S : usys.pl
-	@perl usys.pl > $(BUILD)/usys.S
-$(BUILD)/usys.o : $(BUILD)/usys.S
-	@$(CC) $(CFLAGS) -c -o $(BUILD)/usys.o $(BUILD)/usys.S
 
 include $(SCRIPTS)/rules.mk
 

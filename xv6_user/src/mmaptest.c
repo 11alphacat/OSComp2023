@@ -1,17 +1,15 @@
 #define USER
-#include "types.h"
-#include "fs/inode/stat.h"
-#include "user.h"
-#include "param.h"
-#include "fs/fcntl.h"
-#include "fs/inode/fs.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 #include "riscv.h"
+#include "fs/vfs/fs_macro.h"
 
 void mmap_test();
 void fork_test();
 char buf[BSIZE];
 
-#define MAP_FAILED ((char *) -1)
 
 int
 main(int argc, char *argv[])
@@ -20,6 +18,7 @@ main(int argc, char *argv[])
   fork_test();
   printf("mmaptest: all tests succeeded\n");
   exit(0);
+  return 0;
 }
 
 char *testname = "???";

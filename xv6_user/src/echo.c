@@ -1,7 +1,8 @@
 #define USER
-#include "types.h"
-#include "fs/inode/stat.h"
-#include "user.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 
 int
 main(int argc, char *argv[])
@@ -17,4 +18,5 @@ main(int argc, char *argv[])
     }
   }
   exit(0);
+  return 0;
 }

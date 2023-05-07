@@ -3,10 +3,12 @@
 //
 
 #define USER
-#include "types.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 #include "memory/memlayout.h"
 #include "memory/buddy.h"
-#include "user.h"
 
 // allocate more than half of physical memory,
 // then fork. this will fail in the default
@@ -196,4 +198,5 @@ main(int argc, char *argv[])
   printf("ALL COW TESTS PASSED\n");
 
   exit(0);
+  return 0;
 }

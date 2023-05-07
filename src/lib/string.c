@@ -80,7 +80,7 @@ safestrcpy(char *s, const char *t, int n) {
     os = s;
     if (n <= 0)
         return os;
-    while (--n > 0 && (*s++ = *t++) != 0)
+    while (n-- > 0 && (*s++ = *t++) != 0)
         ;
     *s = 0;
     return os;
@@ -119,4 +119,27 @@ void str_tolower(char *str) {
             str++;
         }
     }
+}
+char *strchr(const char *str, int c) {
+    while (*str != '\0') {
+        if (*str == (char)c) {
+            return (char *)str;
+        }
+        str++;
+    }
+    if (c == '\0') {
+        return (char *)str;
+    }
+    return NULL;
+}
+
+int str_split(const char *str, const char ch, char *str1, char *str2) {
+    char *p = strchr(str, ch);
+    if (p == NULL) {
+        return -1;
+    }
+    strncpy(str1, str, p - str);
+    strncpy(str2, p + 1, strlen(str) - 1 - (p - str));
+
+    return 1;
 }

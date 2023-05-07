@@ -8,8 +8,7 @@
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
 #include "memory/vm.h"
-#include "fs/inode/fs.h"
-#include "fs/inode/file.h"
+
 #include "debug.h"
 #include "atomic/atomic.h"
 #include "proc/sched.h"
@@ -22,6 +21,9 @@
 #include "proc/cond.h"
 #include "test.h"
 #include "proc/options.h"
+#include "fs/stat.h"
+#include "fs/vfs/fs.h"
+#include "fs/fat/fat32_file.h"
 
 struct proc proc[NPROC];
 struct proc *initproc;
@@ -43,6 +45,9 @@ struct proc *current(void) {
     push_off();
     struct cpu *c = mycpu();
     struct proc *p = c->proc;
+    // if (p == NULL) {
+    //     Log("here!");
+    // }
     pop_off();
     return p;
 }
@@ -51,26 +56,56 @@ int allocpid() {
     return atomic_inc_return(&nextpid);
 }
 
-// Set up first user process.
-void userinit(void) {
+// // Set up first user process.
+// void userinit(void) {
+//     struct proc *p;
+
+//     p = allocproc();
+//     initproc = p;
+
+//     p->sz = 0;
+//     p->_cwd = namei("/");
+//     // p->_cwd = fat32_inode_name("/");
+
+//     PCB_Q_changeState(p, RUNNABLE);
+
+//     release(&p->lock);
+// }
+
+struct _file console;
+void _userinit(void) {
     struct proc *p;
 
     p = allocproc();
     initproc = p;
-
+    safestrcpy(p->name, "/init", 10);
     p->sz = 0;
-    p->cwd = namei("/");
-    // p->cwd = fat32_inode_name("/");
+    p->state = RUNNABLE;
+
+    console.f_type = T_DEVICE;
+    console.f_mode = O_RDWR;
+    console.f_major = CONSOLE;
 
     PCB_Q_changeState(p, RUNNABLE);
-
+    // p->__ofile[0] = &console;
     release(&p->lock);
+
+    return;
 }
 
 void initret(void) {
-    fsinit(ROOTDEV);
+    extern struct _superblock fat32_sb;
+    fat32_fs_mount(ROOTDEV, &fat32_sb);
+    current()->_cwd = fat32_name_inode("/");
+    // console.f_tp.f_inode = fat32_inode_create("console.dev",T_DEVICE);
+    // struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
+    // ASSERT(ip!=NULL);
+    // console.f_tp.f_inode = ip;
     char *argv[] = {"init", 0};
     current()->trapframe->a0 = do_execve("/init", argv, NULL);
+    // fsinit(ROOTDEV);
+    // char *argv[] = {"init", 0};
+    // current()->trapframe->a0 = do_execve("/init", argv, NULL);
 }
 
 // initialize the proc table.
@@ -241,9 +276,9 @@ int do_fork(void) {
 
     // increment reference counts on open file descriptors.
     for (i = 0; i < NOFILE; i++)
-        if (p->ofile[i])
-            np->ofile[i] = filedup(p->ofile[i]);
-    np->cwd = idup(p->cwd);
+        if (p->_ofile[i])
+            np->_ofile[i] = fat32_filedup(p->_ofile[i]);
+    np->_cwd = fat32_inode_dup(p->_cwd);
 
     safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -273,6 +308,34 @@ void forkret(void) {
     }
     usertrapret();
 }
+// // A fork child's very first scheduling by scheduler()
+// // will swtch to forkret.
+// void forkret(void) {
+//     // extern FATFS_t global_fatfs;
+//     static int first = 1;
+
+//     // Still holding p->lock from scheduler.
+//     release(&current()->lock);
+
+//     if (first) {
+//         // File system initialization must be run in the context of a
+//         // regular process (e.g., because it calls sleep), and thus cannot
+//         // be run from main().
+//         first = 0;
+//         // fsinit(ROOTDEV);
+//         fat32_fs_mount(ROOTDEV, &fat32_sb);
+
+//         current()->__cwd = fat32_name_inode("/");
+//         // console.f_tp.f_inode = fat32_inode_create("console.dev",T_DEVICE);
+//         // struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
+//         // ASSERT(ip!=NULL);
+//         // console.f_tp.f_inode = ip;
+//         char *argv[] = {"init", 0};
+//         current()->trapframe->a0 = do_execve("/init", argv, NULL);
+//     }
+
+//     usertrapret();
+// }
 
 int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     struct proc *np;
@@ -301,14 +364,14 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     // TODO : fdtable
     if (flags & CLONE_FILES) {
         for (int i = 0; i < NOFILE; i++)
-            if (p->ofile[i])
-                np->ofile[i] = filedup(p->ofile[i]);
+            if (p->_ofile[i])
+                np->_ofile[i] = fat32_filedup(p->_ofile[i]);
     } else {
         // TODO : clone a completely same fdtable
     }
 
     // TODO : vfs inode cmd
-    np->cwd = idup(p->cwd);
+    np->_cwd = fat32_inode_dup(p->_cwd);
     // TODO : signal
     if (flags & CLONE_SIGHAND) {
         np->sig = p->sig;
@@ -366,19 +429,17 @@ void do_exit(int status) {
 
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {
-        if (p->ofile[fd]) {
-            struct file *f = p->ofile[fd];
-            fileclose(f);
-            p->ofile[fd] = 0;
+        if (p->_ofile[fd]) {
+            struct _file *f = p->_ofile[fd];
+            fat32_fileclose(f);
+            p->_ofile[fd] = 0;
         }
     }
     // TODO: fat32 file system
 
-    begin_op();
-    iput(p->cwd);
-    // fat32_inode_put(p->cwd);
-    end_op();
-    p->cwd = 0;
+    fat32_inode_put(p->_cwd);
+    // fat32_inode_put(p->_cwd);
+    p->_cwd = 0;
 
     // Give any children to init.
     reparent(p);

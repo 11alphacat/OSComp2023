@@ -20,7 +20,7 @@ fsimg
 *.a
 include/syscall_gen
 compile_commands.json
-.vscode
 !.vscode/launch.json
 !.vscode/tasks.json
+.vscode
 user/riscv64

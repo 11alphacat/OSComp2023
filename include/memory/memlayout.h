@@ -1,6 +1,13 @@
 #ifndef __MEMLAYOUT_H__
 #define __MEMLAYOUT_H__
 
+/*
+                    Sv39 Virtual Address
++--------+-------------+-------------+-------------+--------+
+| (zero) | level-2 idx | level-1 idx | level-0 idx | offset |
+| 63..39 |   38..30    |   29..21    |    20..12   |  11..0 |
++--------+-------------+-------------+-------------+--------+
+*/
 // Physical memory layout
 
 // qemu -machine virt is set up like this,
@@ -33,7 +40,6 @@
 // #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8 * (hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
 #define CLINT_INTERVAL 1000000       // cycles; about 1/10th second in qemu.
-
 // qemu puts platform-level interrupt controller (PLIC) here.
 #define PLIC 0x0c000000L
 #define PLIC_PRIORITY (PLIC + 0x0)

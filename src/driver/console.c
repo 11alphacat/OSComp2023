@@ -14,8 +14,7 @@
 #include "common.h"
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "fs/inode/fs.h"
-#include "fs/inode/file.h"
+
 #include "memory/memlayout.h"
 #include "riscv.h"
 #include "proc/pcb_life.h"
@@ -24,7 +23,10 @@
 #include "proc/signal.h"
 #include "proc/cond.h"
 #include "atomic/semaphore.h"
+#include "kernel/trap.h"
+#include "fs/stat.h"
 
+void uartinit(void);
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x
 

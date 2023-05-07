@@ -3,7 +3,7 @@
 #include "memory/memlayout.h"
 #include "proc/exec.h"
 #include "riscv.h"
-#include "fs/inode/fs.h"
+
 #include "memory/vm.h"
 #include "debug.h"
 #include "memory/allocator.h"

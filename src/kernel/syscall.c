@@ -48,9 +48,21 @@ argraw(int n) {
 }
 
 // Fetch the nth 32-bit system call argument.
-void argint(int n, int *ip) {
+int argint(int n, int *ip) {
     *ip = argraw(n);
+    if (*ip < 0)
+        return -1;
+    else
+        return 0;
 }
+
+// int arglong(int n, uint64 *ip) {
+//     *ip = argraw(n);
+//     if (*ip < 0)
+//         return -1;
+//     else
+//         return 0;
+// }
 
 void argulong(int n, unsigned long *ulip) {
     *ulip = argraw(n);
@@ -63,8 +75,12 @@ void arglong(int n, long *lip) {
 // Retrieve an argument as a pointer.
 // Doesn't check for legality, since
 // copyin/copyout will do that.
-void argaddr(int n, uint64 *ip) {
+int argaddr(int n, uint64 *ip) {
     *ip = argraw(n);
+    if (*ip < 0)
+        return -1;
+    else
+        return 0;
 }
 
 // Fetch the nth word-sized system call argument as a null-terminated string.

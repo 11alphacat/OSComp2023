@@ -11,6 +11,7 @@ struct semaphore {
     spinlock_t sem_lock;
     struct cond sem_cond;
 };
+
 typedef struct semaphore sem;
 
 void sema_init(sem *S, int value, char *name);

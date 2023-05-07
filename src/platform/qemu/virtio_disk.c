@@ -11,8 +11,7 @@
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
 
-#include "fs/inode/fs.h"
-#include "fs/buf.h"
+#include "fs/bio.h"
 #include "driver/virtio.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
@@ -48,7 +47,7 @@ static struct disk {
     // for use when completion interrupt arrives.
     // indexed by first descriptor index of chain.
     struct {
-        struct buf *b;
+        struct buffer_head *b;
         char status;
     } info[NUM];
 
@@ -210,7 +209,7 @@ alloc3_desc(int *idx) {
     return 0;
 }
 
-void virtio_disk_rw(struct buf *b, int write) {
+void virtio_disk_rw(struct buffer_head *b, int write) {
     uint64 sector = b->blockno * (BSIZE / 512);
 
     acquire(&disk.vdisk_lock);
@@ -263,7 +262,7 @@ void virtio_disk_rw(struct buf *b, int write) {
     disk.desc[idx[2]].flags = VRING_DESC_F_WRITE; // device writes the status
     disk.desc[idx[2]].next = 0;
 
-    // record struct buf for virtio_disk_intr().
+    // record struct buffer_head for virtio_disk_intr().
     b->disk = 1;
     disk.info[idx[0]].b = b;
 
@@ -316,7 +315,7 @@ void virtio_disk_intr() {
         if (disk.info[id].status != 0)
             panic("virtio_disk_intr status");
 
-        struct buf *b = disk.info[id].b;
+        struct buffer_head *b = disk.info[id].b;
         b->disk = 0; // disk is done with buf
         // wakeup(b);
         sema_signal(&b->sem_disk_done);

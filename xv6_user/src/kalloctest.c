@@ -1,11 +1,9 @@
 #define USER
-#include "param.h"
-#include "types.h"
-#include "fs/inode/stat.h"
-#include "riscv.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 #include "memory/memlayout.h"
-#include "fs/fcntl.h"
-#include "user.h"
 #include "memory/buddy.h"
 
 #define NCHILD 2
@@ -24,6 +22,7 @@ main(int argc, char *argv[])
   test2();
   test3();
   exit(0);
+  return 0;
 }
 
 // int ntas(int print)

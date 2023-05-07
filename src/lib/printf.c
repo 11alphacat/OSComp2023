@@ -8,8 +8,6 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 
-#include "fs/inode/fs.h"
-#include "fs/inode/file.h"
 #include "memory/memlayout.h"
 #include "riscv.h"
 #include "driver/console.h"
@@ -309,4 +307,26 @@ void backtrace() {
         fp = *(uint64 *)(fp - 16);
         printf("%p\n", last_ra);
     }
+}
+
+void Show_bytes(byte_pointer b, int len) {
+    size_t i;
+    printf("0x");
+    for (i = 0; i < len; i++)
+        printf("%X ", b[i]);
+    printf("\n");
+}
+
+void printf_bin(uchar *num, int len) {
+    for (int i = 0; i < len; i++) {
+        unsigned char *p = (unsigned char *)&num[i];
+        for (int k = 7; k >= 0; k--) {
+            if (*p & (1 << k))
+                printf("1");
+            else
+                printf("0");
+        }
+        printf(" ");
+    }
+    printf("\r\n");
 }

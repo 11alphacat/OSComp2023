@@ -1,6 +1,6 @@
 #define USER
 #include "types.h"
-#include "fs/inode/stat.h"
+
 #include "user.h"
 
 #define N  1000

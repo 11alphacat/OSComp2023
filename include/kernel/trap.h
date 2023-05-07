@@ -8,15 +8,16 @@
 #define STORE_PAGEFAULT 15
 
 struct context;
-struct file;
+struct _file;
 
 // syscall.c
-void argint(int, int *);
+int argint(int, int *);
 void argulong(int, unsigned long *);
 void arglong(int, long *);
-int argfd(int n, int *pfd, struct file **pf);
+int argfd(int n, int *pfd, struct _file **pf);
 int argstr(int, char *, int);
-void argaddr(int, uint64 *);
+int argaddr(int, uint64 *);
+// int arglong(int, uint64 *);
 int fetchstr(uint64, char *, int);
 int fetchaddr(uint64, uint64 *);
 void syscall();
@@ -24,6 +25,8 @@ void syscall();
 int copyout(pagetable_t, uint64, char *, uint64);
 int copyin(pagetable_t, char *, uint64, uint64);
 int copyinstr(pagetable_t, char *, uint64, uint64);
+int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
+int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 
 // trap.c
 extern uint ticks;

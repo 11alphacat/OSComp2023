@@ -1,12 +1,12 @@
 #include "common.h"
-#include "fs/inode/fs.h"
-#include "fs/inode/file.h"
+
 #include "memory/vma.h"
 #include "riscv.h"
 #include "kernel/trap.h"
 #include "proc/pcb_life.h"
 #include "memory/vm.h"
 #include "memory/allocator.h"
+#include "fs/vfs/fs.h"
 
 static uint32 perm_vma2pte(uint32 vma_perm) {
     uint32 pte_perm = 0;
@@ -43,9 +43,9 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
                 || (cause == INSTUCTION_PAGEFAULT && (vma->perm & PERM_EXEC))) {
                 uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
                 paddr_t pa = walkaddr(pagetable, stval);
-                ilock(vma->fp->ip);
-                readi(vma->fp->ip, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
-                iunlock(vma->fp->ip);
+                fat32_inode_lock(vma->fp->f_tp.f_inode);
+                fat32_inode_read(vma->fp->f_tp.f_inode, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
+                fat32_inode_unlock(vma->fp->f_tp.f_inode);
             }
         }
         return 0;

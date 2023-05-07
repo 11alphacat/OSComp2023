@@ -1,8 +1,10 @@
 #define USER
-#include "types.h"
-#include "fs/inode/stat.h"
-#include "user.h"
-#include "param.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
+// #include "param.h"
 
 // Memory allocator by Kernighan and Ritchie,
 // The C programming Language, 2nd ed.  Section 8.7.

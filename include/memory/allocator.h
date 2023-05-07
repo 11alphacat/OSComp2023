@@ -1,6 +1,8 @@
 #ifndef __ALLOCATOR_H__
 #define __ALLOCATOR_H__
 
+#include "common.h"
+
 /* reserve this to be compatible with the old kalloc call
  * use kmalloc(PGSIZE) instead 
  */
@@ -14,4 +16,4 @@ void share_page(uint64 pa);
 /* get available memory size */
 uint64 get_free_mem();
 
-#endif // __LIST_ALLOC_H__
+#endif // __ALLOCATOR_H__

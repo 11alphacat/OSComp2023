@@ -2,7 +2,7 @@
 #define __PARAM_H__
 
 #define NCPU 3                    // maximum number of CPUs
-#define NOFILE 16                 // open files per process
+#define NOFILE 128                // open files per process
 #define NFILE 100                 // open files per system
 #define NINODE 50                 // maximum number of active i-nodes
 #define NDEV 10                   // maximum major device number
@@ -15,4 +15,6 @@
 #define FSSIZE 2000               // size of file system in blocks
 #define MAXPATH 128               // maximum file path name
 
+// // in xv6
+// #define MAXPATH 128 // maximum file path name
 #endif // __PARAM_H__

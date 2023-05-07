@@ -25,6 +25,13 @@ sys_getpid(void) {
     return current()->pid;
 }
 
+uint64 sys_exit(void) {
+    int n;
+    argint(0, &n);
+    do_exit(n);
+    return 0; // not reached
+}
+
 /*
  * 功能：获取父进程ID；
  * 输入：系统调用ID；
@@ -32,9 +39,9 @@ sys_getpid(void) {
  */
 uint64
 sys_getppid(void) {
-    acquire(&wait_lock);
+    acquire(&current()->lock);
     uint64 ppid = current()->parent->pid;
-    release(&wait_lock);
+    release(&current()->lock);
     return ppid;
 }
 
@@ -94,16 +101,17 @@ sys_wait4(void) {
     argaddr(1, &status);
     argint(2, &options);
 
-    return waitpid(p, status, options);
+    return do_wait(status);
+    // return waitpid(p, status, options);
 }
 
-uint64
-sys_exit(void) {
-    int n;
-    argint(0, &n);
-    do_exit(n);
-    return 0; // not reached
-}
+// uint64
+// sys_exit(void) {
+//     int n;
+//     argint(0, &n);
+//     do_exit(n);
+//     return 0; // not reached
+// }
 
 /*
 * 功能：执行一个指定的程序；
@@ -114,17 +122,27 @@ sys_exit(void) {
 * 返回值：成功不返回，失败返回-1；
 */
 // const char *path, char *const argv[], char *const envp[];
-uint64 sys_execve(void) {
-    char path[MAXPATH];
-    char *argv[MAXARG];
-    char *envp[MAXENV];
+// uint64 sys_execve(void) {
+//     char path[MAXPATH];
+//     char *argv[MAXARG];
+//     char *envp[MAXENV];
 
-    if (argstr(0, path, MAXPATH) < 0) {
-        return -1;
-    }
-    // TODO : 获取一个字符串数组 （argv 和 envp）
-    return do_execve(path, argv, envp);
-}
+//     if (argstr(0, path, MAXPATH) < 0) {
+//         return -1;
+//     }
+//     // TODO : 获取一个字符串数组 （argv 和 envp）
+//     return do_execve(path, argv, envp);
+// }
+
+// // temporary version
+// uint64 sys_wait4(void) {
+//     return sys_wait4();
+//     // uint64 p;
+//     // argaddr(0, &p);
+//     // return wait(p);
+//     // // ASSERT(0);
+//     // // return 0;
+// }
 
 uint64
 sys_sbrk(void) {

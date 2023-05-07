@@ -24,6 +24,7 @@ void backtrace();
 
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
+#define RED(str) "\e[31;1m" str "\e[0m"
 /* #define STRACE(format, ...) \
    printf(ANSI_FMT(format, ANSI_FG_YELLOW), ## __VA_ARGS__) */
 #define DEBUG_ACQUIRE(format, ...) \
@@ -41,7 +42,7 @@ void backtrace();
     } while (0)
 
 #define Log(format, ...)                             \
-    printf("\33[1;35m[%s,%d,%s] " format "\33[0m\n", \
+    printf("\33[1;31m[%s,%d,%s] " format "\33[0m\n", \
            __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
 #define PTE(format, ...) \
@@ -70,5 +71,11 @@ void backtrace();
     printf("\33[1;37m" format "\33[0m", \
            ##__VA_ARGS__)
 
+#define Info(fmt, ...) printf("[INFO] " fmt "", ##__VA_ARGS__);
+
+#define Info_R(fmt, ...) printf("[INFO] " RED(fmt) "", ##__VA_ARGS__);
+
 #define TODO() 0
+
+#define DEBUG_SECTOR(dp, sec_num) ((sec_num) * (dp->i_sb->sector_size))
 #endif // __DEBUG_H__

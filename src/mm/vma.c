@@ -7,7 +7,9 @@
 #include "list.h"
 #include "debug.h"
 #include "memory/vm.h"
-#include "fs/inode/file.h"
+
+#include "fs/fat/fat32_file.h"
+#include "fs/vfs/fs.h"
 
 struct vma vmas[NVMA];
 struct spinlock vmas_lock;
@@ -91,11 +93,11 @@ static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
 }
 
 int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
-                 int fd, off_t offset, struct file *fp) {
+                 int fd, off_t offset, struct _file *fp) {
     struct vma *vma;
     /* the file isn't writable and perm has PERM_WRITE is illegal 
        but if the PERM_SHARED is not set(means PERM_PRIVATE), then it's ok */
-    if (fp->writable == 0 && ((perm & PERM_WRITE) && (perm & PERM_SHARED))) {
+    if (F_WRITEABLE(fp) && ((perm & PERM_WRITE) && (perm & PERM_SHARED))) {
         return -1;
     }
     if ((vma = vma_map_range(p, va, len, perm, type)) == NULL) {
@@ -104,7 +106,7 @@ int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type
     vma->fd = fd;
     vma->offset = offset;
     vma->fp = fp;
-    filedup(vma->fp);
+    fat32_filedup(vma->fp);
     return 0;
 }
 
@@ -145,7 +147,7 @@ free_vma:
     return 0;
 }
 
-static void writeback(pagetable_t pagetable, struct file *fp, vaddr_t start, size_t len) {
+static void writeback(pagetable_t pagetable, struct _file *fp, vaddr_t start, size_t len) {
     ASSERT(start % PGSIZE == 0);
     ASSERT(len % PGSIZE == 0);
     ASSERT(fp != NULL);
@@ -159,7 +161,7 @@ static void writeback(pagetable_t pagetable, struct file *fp, vaddr_t start, siz
         }
         /* only writeback dirty pages(pages with PTE_D) */
         if (PTE_FLAGS(*pte) && PTE_D) {
-            filewrite(fp, addr, PGSIZE);
+            fat32_filewrite(fp, addr, PGSIZE);
         }
     }
 }
@@ -201,7 +203,7 @@ int vmspace_unmap(struct proc *p, vaddr_t va, size_t len) {
         return 0;
     } else {
         if (vma->type == VMA_MAP_FILE) {
-            fileclose(vma->fp);
+            fat32_fileclose(vma->fp);
         }
     }
 

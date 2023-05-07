@@ -4,10 +4,10 @@
 #include "riscv.h"
 #include "proc/pcb_life.h"
 #include "kernel/cpu.h"
+#include "fs/fat/fat32_mem.h"
 #include "test.h"
 #include "memory/vm.h"
 #include "proc/sched.h"
-
 volatile static int started = 0;
 void printfinit(void);
 void consoleinit(void);
@@ -19,14 +19,18 @@ void plicinit(void);
 void plicinithart(void);
 void virtio_disk_init(void);
 void binit(void);
-void userinit(void);
+void fat32_fileinit(void);
+// void userinit(void);
 void iinit();
-void fileinit(void);
+// void fileinit(void);
 void vmas_init();
 #ifdef KCSAN
 void kcsaninit();
 #endif
 void mm_init();
+void _userinit(void);
+void inode_table_init(void);
+
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
 int debug_lock = 0;
@@ -36,26 +40,43 @@ void main() {
         consoleinit();
         printfinit();
         debug_lock = 1;
-        printf("\n");
-        printf("xv6 kernel is booting\n");
-        printf("\n");
+
+        printf("\nxv6 kernel is booting\n\n");
 
         mm_init();
         vmas_init();
+        // KVM
         kvminit();     // create kernel page table
         kvminithart(); // turn on paging
-        procinit();    // process table
 
-        trapinit();         // trap vectors
-        trapinithart();     // install kernel trap vector
-        plicinit();         // set up interrupt controller
-        plicinithart();     // ask PLIC for device interrupts
-        binit();            // buffer cache
-        iinit();            // inode table
-        fileinit();         // file table
+        // Proc management
+        procinit(); // process table
+
+        // Trap
+        trapinit();     // trap vectors
+        trapinithart(); // install kernel trap vector
+
+        // PLIC
+        plicinit();     // set up interrupt controller
+        plicinithart(); // ask PLIC for device interrupts
+
+        // File System
+        binit(); // buffer cache
+
+        // origin
+        // iinit();    // inode table
+        // fileinit(); // file table
+        fat32_fileinit();
+        inode_table_init();
+
+        // fat32
+        // fat32_fat_entry_init();
+
+        // virtual disk
         virtio_disk_init(); // emulated hard disk
-        userinit();         // first user process
 
+        // First user process
+        _userinit(); // first user process
 #ifdef KCSAN
         kcsaninit();
 #endif

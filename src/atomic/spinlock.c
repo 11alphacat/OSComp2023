@@ -21,7 +21,8 @@ void _release(struct spinlock *lk);
 #define DEBUG_LOCK_NUM 1
 // cannot use to debug pr(printf's lock)!!!
 char *debug_lockname[DEBUG_LOCK_NUM] = {
-    "proc_0"};
+    "inode_table",
+};
 
 void initlock(struct spinlock *lk, char *name) {
     lk->name = name;
