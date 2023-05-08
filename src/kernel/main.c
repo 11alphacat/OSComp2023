@@ -21,7 +21,6 @@ void virtio_disk_init(void);
 void binit(void);
 void fat32_fileinit(void);
 // void userinit(void);
-void iinit();
 // void fileinit(void);
 void vmas_init();
 #ifdef KCSAN
@@ -64,7 +63,6 @@ void main() {
         binit(); // buffer cache
 
         // origin
-        // iinit();    // inode table
         // fileinit(); // file table
         fat32_fileinit();
         inode_table_init();

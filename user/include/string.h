@@ -12,5 +12,4 @@ size_t strlen(const char *);
 size_t strnlen(const char *s, size_t n);
 char *strncpy(char *restrict d, const char *restrict s, size_t n);
 int strncmp(const char *_l, const char *_r, size_t n);
-
 #endif // __STRING_H__

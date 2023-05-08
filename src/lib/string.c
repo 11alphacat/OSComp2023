@@ -143,3 +143,15 @@ int str_split(const char *str, const char ch, char *str1, char *str2) {
 
     return 1;
 }
+
+char *strcat(char *dest, const char *src) {
+    char *p = dest;
+    while (*p) {
+        ++p;
+    }
+    while (*src) {
+        *p++ = *src++;
+    }
+    *p = '\0';
+    return dest;
+}

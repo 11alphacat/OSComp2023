@@ -190,20 +190,18 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
 // buf 最后以 / 结尾
 // 感觉目录项得有，不然inode缓存一下子就被污染了
 static void get_absolute_path(struct _inode *ip, char *buf) {
-    // acquiresleep(&ip->i_sem);
-    fat32_inode_lock(ip);
     if (ip->fat32_i.fname[0] != '/') {
         get_absolute_path(ip->parent, buf);
     } else {
         ;
     }
+
     size_t n0 = strlen(buf), n1 = strlen(ip->fat32_i.fname);
     strncpy(buf + n0, ip->fat32_i.fname, n1);
     if (ip->fat32_i.fname[0] != '/') {
         safestrcpy(buf + n0 + n1, "/", 1);
     }
-    // releasesleep(&ip->i_sem);
-    fat32_inode_unlock(ip);
+
     return;
 }
 

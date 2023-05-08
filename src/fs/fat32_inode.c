@@ -208,6 +208,8 @@ void fat32_fat_set(uint cluster, uint value) {
 //   skepelem("", name) = skepelem("////", name) = 0
 
 //   skepelem("./mnt", name) = "", setting name = "mnt"
+//   skepelem("../mnt", name) = "", setting name = "mnt"
+//   skepelem("..", name) = "", setting name = 0
 static char *skepelem(char *path, char *name) {
     char *s;
     int len;
@@ -236,9 +238,10 @@ static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name)
 
     if (*path == '/')
         ip = fat32_inode_dup(fat32_sb.fat32_sb_info.root_entry);
-    else {
-        struct proc *p = current();
-        ip = fat32_inode_dup(p->_cwd);
+    else if (strncmp(path, "..", 2) == 0) {
+        ip = fat32_inode_dup(current()->_cwd->parent);
+    } else {
+        ip = fat32_inode_dup(current()->_cwd);
     }
 
     while ((path = skepelem(path, name)) != 0) {
