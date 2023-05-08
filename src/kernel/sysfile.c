@@ -106,7 +106,6 @@ static struct _inode *find_inode(char *path, int dirfd, char *name) {
         ip = (!name) ? fat32_name_inode(path) : fat32_name_inode_parent(path, name);
         if (ip == 0) {
             // release(&p->tlock);
-            // p->_cwd = oldcwd;
             return 0;
         }
         p->_cwd = oldcwd;
@@ -120,7 +119,6 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
     // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     struct _inode *ip = NULL, *dp = NULL;
     char name[NAME_LONG_MAX];
-    memset(name, 0, NAME_LONG_MAX);
 
     // without parent fat_entry
     if ((dp = find_inode(path, dirfd, name)) == 0)
@@ -147,7 +145,6 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
 
     fat32_inode_lock(ip);
     // ip->i_nlink = 1;
-    ip->parent = dp; //
     fat32_inode_update(ip);
 
     if (type == T_DIR) { // Create . and .. entries.
@@ -179,7 +176,6 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
     }
 
     fat32_inode_unlock_put(dp);
-
     return ip;
 
     // fail:
@@ -224,14 +220,14 @@ uint64 sys_getcwd(void) {
     argulong(1, &size);
 
     char kbuf[PATH_LONG_MAX];
-    memset(kbuf, 0, PATH_LONG_MAX); // important! initialize before use!
+    memset(kbuf, 0, PATH_LONG_MAX); // important! init before use!
     fat32_getcwd(kbuf);
     if (!buf && (buf = (uint64)kalloc()) == 0) {
-        return 0;
+        return (uint64)NULL;
     }
 
-    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX - 1) + 1) < 0) {
-        return 0;
+    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX)) < 0) {
+        return (uint64)NULL;
     } else {
         return buf;
     }
@@ -629,7 +625,7 @@ uint64 sys_getdents64(void) {
         return -1;
     }
     char kbuf[MAXLEN];
-    // uint cluster_cnt = f->f_tp.f_inode->fat32_i.cluster_cnt;
+    memset(kbuf, 0, sizeof(kbuf)); // !!!!
     nread = fat32_getdents(f->f_tp.f_inode, kbuf, MAXLEN);
     if (nread < 0 || nread > len) {
         return -1;
@@ -680,7 +676,7 @@ uint64 sys_chdir(void) {
     }
 
     fat32_inode_unlock(ip);
-    // fat32_inode_put(p->_cwd); // don't put! we don't have cache
+    fat32_inode_put(p->_cwd);
     // end_op();
     p->_cwd = ip;
     return 0;

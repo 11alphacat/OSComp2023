@@ -17,7 +17,6 @@ void test_sleep() {
 	assert(ret == 0);
 	int time2 = get_time();
 	assert(time2 >= 0);
-
 	if(time2 - time1 >= 1){	
 		printf("sleep success.\n");
 	}else{

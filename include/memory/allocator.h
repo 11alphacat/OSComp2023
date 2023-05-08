@@ -4,7 +4,7 @@
 #include "common.h"
 
 /* reserve this to be compatible with the old kalloc call
- * use kmalloc(PGSIZE) instead 
+ * use kmalloc(PGSIZE) instead
  */
 void *kalloc(void);
 

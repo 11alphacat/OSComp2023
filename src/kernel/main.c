@@ -40,7 +40,7 @@ void main() {
         printfinit();
         debug_lock = 1;
 
-        printf("\nxv6 kernel is booting\n\n");
+        printf("\nOur LostWakeup OS kernel is booting\n\n");
 
         mm_init();
         vmas_init();

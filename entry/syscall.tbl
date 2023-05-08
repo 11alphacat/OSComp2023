@@ -44,9 +44,6 @@
 153  times           sys_times
 160  uname           sys_uname
 169  gettimeofday    sys_gettimeofday
-
-
-0   fork            sys_fork
 17 getcwd           sys_getcwd
 
 # debug

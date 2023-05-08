@@ -25,6 +25,7 @@
 #include "atomic/semaphore.h"
 #include "kernel/trap.h"
 #include "fs/stat.h"
+#include "debug.h"
 
 void uartinit(void);
 #define BACKSPACE 0x100
@@ -57,6 +58,7 @@ struct {
     uint e; // Edit index
 
     struct semaphore sem_r;
+    struct semaphore sem_w;
 } cons;
 
 //
@@ -65,12 +67,14 @@ struct {
 int consolewrite(int user_src, uint64 src, int n) {
     int i;
 
+    // sema_wait(&cons.sem_w);
     for (i = 0; i < n; i++) {
         char c;
         if (either_copyin(&c, user_src, src + i, 1) == -1)
             break;
         uartputc(c);
     }
+    // sema_signal(&cons.sem_w);
 
     return i;
 }
@@ -185,6 +189,7 @@ void consoleintr(int c) {
 void consoleinit(void) {
     initlock(&cons.lock, "cons");
     sema_init(&cons.sem_r, 0, "cons_sema_r");
+    sema_init(&cons.sem_w, 1, "cons_sema_w");
     uartinit();
 
     // connect read and write system calls

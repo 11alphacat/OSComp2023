@@ -47,25 +47,25 @@ int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
     sb->fat32_sb_info.nxt_free = fsinfo->Nxt_Free;
 
     ////////////////////////////////////////////////////////////////////////////////
-    Info_R("=============FSINFO==========\n");
-    Info("LeadSig : ");
-    Show_bytes((byte_pointer)&fsinfo->LeadSig, sizeof(fsinfo->LeadSig));
+    Info("=============FSINFO==========\n");
+    // Info("LeadSig : ");
+    // Show_bytes((byte_pointer)&fsinfo->LeadSig, sizeof(fsinfo->LeadSig));
 
-    Info("StrucSig : ");
-    Show_bytes((byte_pointer)&fsinfo->StrucSig, sizeof(fsinfo->StrucSig));
+    // Info("StrucSig : ");
+    // Show_bytes((byte_pointer)&fsinfo->StrucSig, sizeof(fsinfo->StrucSig));
 
-    Info_R("Free_Count : %d\n", fsinfo->Free_Count);
+    Info("Free_Count : %d\n", fsinfo->Free_Count);
 
-    Info_R("Nxt_Free : %d\n", fsinfo->Nxt_Free);
+    Info("Nxt_Free : %d\n", fsinfo->Nxt_Free);
 
-    Info("TrailSig : ");
+    // Info("TrailSig : ");
 
-    Show_bytes((byte_pointer)&fsinfo->TrailSig, sizeof(fsinfo->TrailSig));
+    // Show_bytes((byte_pointer)&fsinfo->TrailSig, sizeof(fsinfo->TrailSig));
     return FR_OK;
 }
 
 int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
-    Info_R("=============BOOT Sector==========\n");
+    Info("=============BOOT Sector==========\n");
     /* superblock initialization */
     // common
     sb->sector_size = fat_bpb->BytsPerSec;
@@ -84,65 +84,65 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
 
     //////////////////////////////////////////////////////////////////
     /*然后是打印fat32的所有信息*/
-    Info_R("Jmpboot : ");
-    Show_bytes((byte_pointer)&fat_bpb->Jmpboot, sizeof(fat_bpb->Jmpboot));
-    Info_R("OEMNAME : %s\n", fat_bpb->OEMName);
+    // Info_R("Jmpboot : ");
+    // Show_bytes((byte_pointer)&fat_bpb->Jmpboot, sizeof(fat_bpb->Jmpboot));
+    Info("OEMNAME : %s\n", fat_bpb->OEMName);
 
-    Info_R("BytsPerSec : %d\n", fat_bpb->BytsPerSec);
-    Info_R("SecPerClus : %d\n", fat_bpb->SecPerClus);
+    Info("BytsPerSec : %d\n", fat_bpb->BytsPerSec);
+    Info("SecPerClus : %d\n", fat_bpb->SecPerClus);
 
-    Info_R("RsvdSecCnt : %d\n", fat_bpb->RsvdSecCnt);
+    Info("RsvdSecCnt : %d\n", fat_bpb->RsvdSecCnt);
 
-    Info_R("NumFATs : %d\n", fat_bpb->NumFATs);
+    Info("NumFATs : %d\n", fat_bpb->NumFATs);
 
-    Info("RootEntCnt : ");
-    Show_bytes((byte_pointer)&fat_bpb->RootEntCnt, sizeof(fat_bpb->RootEntCnt));
+    // Info("RootEntCnt : ");
+    // Show_bytes((byte_pointer)&fat_bpb->RootEntCnt, sizeof(fat_bpb->RootEntCnt));
 
-    Info("TotSec16 : %d\n", fat_bpb->TotSec16);
-    Info("Media : ");
-    Show_bytes((byte_pointer)&fat_bpb->Media, sizeof(fat_bpb->Media));
+    // Info("TotSec16 : %d\n", fat_bpb->TotSec16);
+    // Info("Media : ");
+    // Show_bytes((byte_pointer)&fat_bpb->Media, sizeof(fat_bpb->Media));
 
-    Info("FATSz16 : ");
-    Show_bytes((byte_pointer)&fat_bpb->FATSz16, sizeof(fat_bpb->FATSz16));
+    // Info("FATSz16 : ");
+    // Show_bytes((byte_pointer)&fat_bpb->FATSz16, sizeof(fat_bpb->FATSz16));
 
-    Info_R("SecPerTrk : %d\n", fat_bpb->SecPerTrk);
-    Info_R("NumHeads : %d\n", fat_bpb->NumHeads);
-    Info("HiddSec : %d\n", fat_bpb->HiddSec);
+    Info("SecPerTrk : %d\n", fat_bpb->SecPerTrk);
+    Info("NumHeads : %d\n", fat_bpb->NumHeads);
+    // Info("HiddSec : %d\n", fat_bpb->HiddSec);
 
-    Info_R("TotSec32 : %d\n", fat_bpb->TotSec32);
+    Info("TotSec32 : %d\n", fat_bpb->TotSec32);
 
-    Info_R("FATSz32 : %d\n", fat_bpb->FATSz32);
+    Info("FATSz32 : %d\n", fat_bpb->FATSz32);
 
-    Info("ExtFlags : ");
-    printf_bin(fat_bpb->ExtFlags, sizeof(fat_bpb->ExtFlags));
+    // Info("ExtFlags : ");
+    // printf_bin(fat_bpb->ExtFlags, sizeof(fat_bpb->ExtFlags));
 
-    Info("FSVer : ");
-    Show_bytes((byte_pointer)&fat_bpb->FSVer, sizeof(fat_bpb->FSVer));
+    // Info("FSVer : ");
+    // Show_bytes((byte_pointer)&fat_bpb->FSVer, sizeof(fat_bpb->FSVer));
 
     Info("RootClus : %d\n", fat_bpb->RootClus);
 
-    Info_R("FSInfo : %d\n", fat_bpb->FSInfo);
+    Info("FSInfo : %d\n", fat_bpb->FSInfo);
 
-    Info_R("BkBootSec : %d\n", fat_bpb->BkBootSec);
+    Info("BkBootSec : %d\n", fat_bpb->BkBootSec);
 
-    Info("DrvNum : %d\n", fat_bpb->DrvNum);
-    Info("BootSig : ");
-    Show_bytes((byte_pointer)&fat_bpb->BootSig, sizeof(fat_bpb->BootSig));
+    // Info("DrvNum : %d\n", fat_bpb->DrvNum);
+    // Info("BootSig : ");
+    // Show_bytes((byte_pointer)&fat_bpb->BootSig, sizeof(fat_bpb->BootSig));
 
-    Info("VolID : ");
-    Show_bytes((byte_pointer)&fat_bpb->VolID, sizeof(fat_bpb->VolID));
+    // Info("VolID : ");
+    // Show_bytes((byte_pointer)&fat_bpb->VolID, sizeof(fat_bpb->VolID));
 
-    Info("VolLab : ");
-    Show_bytes((byte_pointer)&fat_bpb->VolLab, sizeof(fat_bpb->VolLab));
+    // Info("VolLab : ");
+    // Show_bytes((byte_pointer)&fat_bpb->VolLab, sizeof(fat_bpb->VolLab));
 
     Info("FilSysType : ");
     printf("%.5s\n", fat_bpb->FilSysType);
 
-    Info("BootCode : ");
-    Show_bytes((byte_pointer)&fat_bpb->BootCode, sizeof(fat_bpb->BootCode));
+    // Info("BootCode : ");
+    // Show_bytes((byte_pointer)&fat_bpb->BootCode, sizeof(fat_bpb->BootCode));
 
-    Info("BootSign : ");
-    Show_bytes((byte_pointer)&fat_bpb->BootSign, sizeof(fat_bpb->BootSign));
+    // Info("BootSign : ");
+    // Show_bytes((byte_pointer)&fat_bpb->BootSign, sizeof(fat_bpb->BootSign));
 
     // panic("boot sector parser");
     return FR_OK;

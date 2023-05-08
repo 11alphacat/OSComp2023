@@ -95,7 +95,7 @@ static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
 int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
                  int fd, off_t offset, struct _file *fp) {
     struct vma *vma;
-    /* the file isn't writable and perm has PERM_WRITE is illegal 
+    /* the file isn't writable and perm has PERM_WRITE is illegal
        but if the PERM_SHARED is not set(means PERM_PRIVATE), then it's ok */
     if (!F_WRITEABLE(fp) && ((perm & PERM_WRITE) && (perm & PERM_SHARED))) {
         return -1;

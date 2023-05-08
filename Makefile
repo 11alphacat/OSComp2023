@@ -142,14 +142,13 @@ FILE= mnt text.txt \
     uname wait waitpid yield \
     getdents unlink mount umount pipe 
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
-# user: oscomp
-# 	@echo "$(YELLOW)build user:$(RESET)"
-# 	@make -C $(xv6U)
-
 user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
 
+# user:
+# 	@echo "$(YELLOW)build user:$(RESET)"
+# 	@make -C $(xv6U)
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7

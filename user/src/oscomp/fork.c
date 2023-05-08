@@ -15,7 +15,6 @@ void test_fork(void){
     int cpid, wstatus;
     cpid = fork();
     assert(cpid != -1);
-
     if(cpid > 0){
 	wait(&wstatus);
 	printf("  parent process. wstatus:%d\n", wstatus);

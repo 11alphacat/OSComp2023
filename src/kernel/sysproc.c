@@ -45,11 +45,6 @@ sys_getppid(void) {
     return ppid;
 }
 
-uint64
-sys_fork(void) {
-    return do_fork();
-}
-
 /*
 * 功能：创建一个子进程；
 * 输入：
@@ -76,13 +71,6 @@ sys_clone(void) {
     return do_clone(flags, stack, ptid, tls, (pid_t *)ctid);
 }
 
-uint64
-sys_wait(void) {
-    uint64 p;
-    argaddr(0, &p);
-    return do_wait(p);
-}
-
 /*
 * 功能：等待进程改变状态;
 * 输入：
@@ -101,17 +89,8 @@ sys_wait4(void) {
     argaddr(1, &status);
     argint(2, &options);
 
-    return do_wait(status);
-    // return waitpid(p, status, options);
+    return waitpid(p, status, options);
 }
-
-// uint64
-// sys_exit(void) {
-//     int n;
-//     argint(0, &n);
-//     do_exit(n);
-//     return 0; // not reached
-// }
 
 /*
 * 功能：执行一个指定的程序；
@@ -132,16 +111,6 @@ sys_wait4(void) {
 //     }
 //     // TODO : 获取一个字符串数组 （argv 和 envp）
 //     return do_execve(path, argv, envp);
-// }
-
-// // temporary version
-// uint64 sys_wait4(void) {
-//     return sys_wait4();
-//     // uint64 p;
-//     // argaddr(0, &p);
-//     // return wait(p);
-//     // // ASSERT(0);
-//     // // return 0;
 // }
 
 uint64

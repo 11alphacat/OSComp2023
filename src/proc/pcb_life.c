@@ -56,22 +56,6 @@ int allocpid() {
     return atomic_inc_return(&nextpid);
 }
 
-// // Set up first user process.
-// void userinit(void) {
-//     struct proc *p;
-
-//     p = allocproc();
-//     initproc = p;
-
-//     p->sz = 0;
-//     p->_cwd = namei("/");
-//     // p->_cwd = fat32_inode_name("/");
-
-//     PCB_Q_changeState(p, RUNNABLE);
-
-//     release(&p->lock);
-// }
-
 struct _file console;
 void _userinit(void) {
     struct proc *p;
@@ -123,7 +107,7 @@ void procinit(void) {
         sprintf(proc_lock_name[i], "proc_%d", i);
         initlock(&p->lock, proc_lock_name[i]);
         // initlock(&p->wait_lock, "proc_wait_lock");
-
+        sema_init(&p->sem_wait_chan_self, 0, "proc_sema_chan_self");
         p->state = UNUSED;
         p->kstack = KSTACK((int)(p - proc));
         PCB_Q_push_back(&unused_q, p);
@@ -149,7 +133,7 @@ allocproc(void) {
     PCB_Q_changeState(p, USED);
     p->first_child = NULL;
     INIT_LIST_HEAD(&p->sibling_list);
-    sema_init(&p->sem_wait_chan, 0, "proc_sema_chan");
+    sema_init(&p->sem_wait_chan_parent, 0, "proc_sema_chan_parent");
 
     // Allocate a trapframe page.
     if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -195,9 +179,6 @@ void freeproc(struct proc *p) {
     p->exit_state = 0;
 
     PCB_Q_changeState(p, UNUSED);
-
-    // p->first_child = NULL;
-    // list_del(&p->sibling_list);
 }
 
 // find the proc we search
@@ -240,64 +221,6 @@ void appendChild(struct proc *parent, struct proc *child) {
     }
 }
 
-// Create a new process, copying the parent.
-// Sets up child kernel stack to return as if from fork() system call.
-int do_fork(void) {
-    int i, pid;
-    struct proc *np;
-    struct proc *p = current();
-
-    // Allocate process.
-    if ((np = allocproc()) == 0) {
-        // procdump();
-        return -1;
-    }
-
-    /* Copy vma */
-    if (vmacopy(np) < 0) {
-        freeproc(np);
-        release(&np->lock);
-        return -1;
-    }
-
-    // Copy user memory from parent to child.
-    if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
-        freeproc(np);
-        release(&np->lock);
-        return -1;
-    }
-    np->sz = p->sz;
-
-    // copy saved user registers.
-    *(np->trapframe) = *(p->trapframe);
-
-    // Cause fork to return 0 in the child.
-    np->trapframe->a0 = 0;
-
-    // increment reference counts on open file descriptors.
-    for (i = 0; i < NOFILE; i++)
-        if (p->_ofile[i])
-            np->_ofile[i] = fat32_filedup(p->_ofile[i]);
-    np->_cwd = fat32_inode_dup(p->_cwd);
-
-    safestrcpy(np->name, p->name, sizeof(p->name));
-
-    pid = np->pid;
-    np->parent = p;
-    appendChild(p, np);
-
-    release(&np->lock);
-
-#ifdef __DEBUG_PROC__
-    printfRed("fork : %d -> %d\n", p->pid, np->pid); //debug
-#endif
-
-    acquire(&np->lock);
-    PCB_Q_changeState(np, RUNNABLE);
-    release(&np->lock);
-    return pid;
-}
-
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void) {
@@ -308,46 +231,14 @@ void forkret(void) {
     }
     usertrapret();
 }
-// // A fork child's very first scheduling by scheduler()
-// // will swtch to forkret.
-// void forkret(void) {
-//     // extern FATFS_t global_fatfs;
-//     static int first = 1;
-
-//     // Still holding p->lock from scheduler.
-//     release(&current()->lock);
-
-//     if (first) {
-//         // File system initialization must be run in the context of a
-//         // regular process (e.g., because it calls sleep), and thus cannot
-//         // be run from main().
-//         first = 0;
-//         // fsinit(ROOTDEV);
-//         fat32_fs_mount(ROOTDEV, &fat32_sb);
-
-//         current()->__cwd = fat32_name_inode("/");
-//         // console.f_tp.f_inode = fat32_inode_create("console.dev",T_DEVICE);
-//         // struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
-//         // ASSERT(ip!=NULL);
-//         // console.f_tp.f_inode = ip;
-//         char *argv[] = {"init", 0};
-//         current()->trapframe->a0 = do_execve("/init", argv, NULL);
-//     }
-
-//     usertrapret();
-// }
 
 int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     int pid;
     struct proc *np;
     struct proc *p = current();
-    // uint64* long_p = &stack;
-    // uint64 fn = long_p[0];
-    // uint64 arg = long_p[1];
 
     // Allocate process.
     if ((np = allocproc()) == 0) {
-        // procdump();
         return -1;
     }
     // copy saved user registers.
@@ -377,14 +268,14 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     // increment reference counts on open file descriptors.
     // TODO : fdtable
     if (flags & CLONE_FILES) {
-        // np->_ofile = p->_ofile;
         // for (int i = 0; i < NOFILE; i++)
         //     if (p->_ofile[i])
-        //         np->_ofile[i] = fat32_filedup(p->_ofile[i]);
+        //         np->_ofile[i] = p->_ofile[i];
     } else {
         for (int i = 0; i < NOFILE; i++)
             if (p->_ofile[i])
                 np->_ofile[i] = fat32_filedup(p->_ofile[i]);
+        // TODO : clone a completely same fdtable
     }
     // TODO : vfs inode cmd
     np->_cwd = fat32_inode_dup(p->_cwd);
@@ -411,7 +302,9 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     if (flags & CLONE_CHILD_SETTID) {
         np->ctid = ctid;
     }
-
+    if (stack) {
+        np->trapframe->sp = stack;
+    }
     safestrcpy(np->name, p->name, sizeof(p->name));
 
     pid = np->pid;
@@ -419,7 +312,7 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     appendChild(p, np);
 
 #ifdef __DEBUG_PROC__
-    printfRed("clone : %d -> %d\n", p->pid, np->pid); //debug
+    printfRed("clone : %d -> %d\n", p->pid, np->pid); // debug
 #endif
 
     PCB_Q_changeState(np, RUNNABLE);
@@ -458,7 +351,9 @@ void do_exit(int status) {
     acquire(&p->lock);
     p->exit_state = status;
     PCB_Q_changeState(p, ZOMBIE);
-    sema_signal(&p->parent->sem_wait_chan);
+    sema_signal(&p->parent->sem_wait_chan_parent);
+
+    sema_signal(&p->sem_wait_chan_self);
 
 #ifdef __DEBUG_PROC__
     printfGreen("exit : %d has exited\n", p->pid);                // debug
@@ -469,11 +364,12 @@ void do_exit(int status) {
     panic("zombie exit");
 }
 
-// Wait for a child process to exit and return its pid.
-// Return -1 if this process has no children.
-int do_wait(uint64 addr) {
+int waitpid(pid_t pid, uint64 status, int options) {
     struct proc *p = current();
-    pid_t pid;
+    if (pid < -1)
+        pid = -pid;
+
+    ASSERT(pid != 0);
 
     if (nochildren(p)) {
 #ifdef __DEBUG_PROC__
@@ -489,7 +385,7 @@ int do_wait(uint64 addr) {
         return -1;
     }
     while (1) {
-        sema_wait(&p->sem_wait_chan);
+        sema_wait(&p->sem_wait_chan_parent);
 #ifdef __DEBUG_PROC__
         printfBlue("wait : %d wakeup\n", p->pid); // debug
 #endif
@@ -499,17 +395,22 @@ int do_wait(uint64 addr) {
         int flag = 1;
         list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
             // shell won't exit !!!
+            if (pid > 0 && p_child->pid == pid) {
+                sema_wait(&p_child->sem_wait_chan_self);
+            }
+
             acquire(&p_child->lock);
             if (p_child->state == ZOMBIE) {
                 // ASSERT(p_child->pid!=SHELL_PID);
                 pid = p_child->pid;
-                if (addr != 0 && copyout(p->pagetable, addr, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
+                if (status != 0 && copyout(p->pagetable, status, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
                     release(&p_child->lock);
                     return -1;
                 }
                 freeproc(p_child);
                 deleteChild(p, p_child);
                 release(&p_child->lock);
+
 #ifdef __DEBUG_PROC__
                 printfBlue("wait : %d delete %d\n", p->pid, pid); // debug
 #endif
@@ -517,62 +418,8 @@ int do_wait(uint64 addr) {
             }
             release(&p_child->lock);
         }
-        printf("%d", p->pid);
-        panic("====");
-    }
-}
-// Wait for a child to exit.
-// sleep(p, &wait_lock); // DOC: wait-sleep
-// sleep(p,&p->wait_lock);
-// }
-
-int waitpid(pid_t pid, uint64 status, int options) {
-    struct proc *p = current();
-    int havekids;
-    int havetarget;
-    if (pid < -1) {
-        pid = -pid;
-    }
-    acquire(&wait_lock);
-    for (;;) {
-        havekids = 0;
-        havetarget = 0;
-        for (struct proc *p_child = proc; p_child < &proc[NPROC]; p_child++) {
-            if (p_child->parent == p) {
-                havekids = 1;
-                // make sure the child isn't still in exit() or swtch().
-                acquire(&p_child->lock);
-
-                // TODO : thread
-
-                // TODO : proc group (进程组) pid = 0
-
-                if (pid != -1 && p_child->pid != pid) {
-                    release(&p_child->lock);
-                    continue;
-                }
-                havetarget = 1;
-                if (p_child->state == ZOMBIE) {
-                    // Found one.
-                    pid = p_child->pid;
-                    if (status != 0 && copyout(p->pagetable, status, (char *)&p_child->exit_state, sizeof(p_child->exit_state)) < 0) {
-                        release(&p_child->lock);
-                        release(&wait_lock);
-                        return -1;
-                    }
-                    freeproc(p_child);
-                    release(&p_child->lock);
-                    release(&wait_lock);
-                    return pid;
-                }
-                release(&p_child->lock);
-            }
-        }
-        if ((!havekids && (options & WNOHANG)) || killed(p) || !havetarget) {
-            release(&wait_lock);
-            return -1;
-        }
-        sleep(p, &wait_lock);
+        printf("%d\n", p->pid);
+        panic("waitpid : invalid wakeup for semaphore!");
     }
 }
 
@@ -597,7 +444,7 @@ void reparent(struct proc *p) {
 
             p_child->parent = initproc;
             if (p_child->state == ZOMBIE) {
-                sema_signal(&initproc->sem_wait_chan);
+                sema_signal(&initproc->sem_wait_chan_parent);
 #ifdef __DEBUG_PROC__
                 printfBWhite("reparent : zombie %d has exited\n", p_child->pid);      // debug
                 printfBWhite("reparent : zombie %d wakeup initproc\n", p_child->pid); // debug
@@ -619,13 +466,7 @@ void reparent(struct proc *p) {
     }
 }
 
-void wakeup_proc(struct proc *p) {
-    ASSERT(current() != p && p->state == SLEEPING);
-    acquire(&p->lock);
-    PCB_Q_changeState(p, RUNNABLE);
-    release(&p->lock);
-}
-
+// print children of proc p
 void procChildrenChain(struct proc *p) {
     char tmp_str[1000];
     int len = 0;

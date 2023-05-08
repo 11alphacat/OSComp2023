@@ -40,9 +40,9 @@ struct page *pagemeta_start;
 void mm_init() {
     // readonly! can not modify!
     pagemeta_start = (struct page *)PGROUNDUP((uint64)end);
-    Log("pagemeta_start %x", pagemeta_start);
-    Log("NPAGES: %d", NPAGES);
-    Log("PAGES PER CPU: %d", PAGES_PER_CPU);
+    printf("pagemeta_start %x\n", pagemeta_start);
+    printf("NPAGES: %d\n", NPAGES);
+    printf("PAGES PER CPU: %d\n", PAGES_PER_CPU);
     for (int i = 0; i < NCPU; i++) {
         init_buddy(&mempools[i],
                    (struct page *)PGROUNDUP((uint64)end) + i * PAGES_PER_CPU,
@@ -58,8 +58,8 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
     // Log("%d start_mem: %#x", cur, start_addr);
     // Log("%d end mem: %#x", cur, start_addr + mem_size);
     // Log("%d page_num %d", cur, page_num);
-    Log("%d pagemeta start: %x", cur, start_page);
-    Log("%d pagemeta end: %x", cur, (uint64)start_page + page_num * sizeof(struct page));
+    printf("%d pagemeta start: %x\n", cur, start_page);
+    printf("%d pagemeta end: %x\n", cur, (uint64)start_page + page_num * sizeof(struct page));
     ASSERT((uint64)start_page + page_num * sizeof(struct page) < START_MEM);
     pool->start_addr = start_addr;
     pool->page_metadata = start_page;
@@ -103,7 +103,7 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
         // Log("%d order chunks num: %d", i, pool->freelists[i].num);
         memsize += pool->freelists[i].num * PGSIZE * (1 << i);
     }
-    Log("memsize: %u", memsize / 1024 / 1024);
+    printf("memsize: %u\n", memsize / 1024 / 1024);
     ASSERT(memsize == pool->mem_size);
     return;
 }
