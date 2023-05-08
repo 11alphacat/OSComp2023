@@ -574,8 +574,9 @@ void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 va
             } else {
                 // a leaf-pte
                 printf("leaf pte %p pa %p ", pte, PTE2PA(pte));
-                PTE("RSW %d%d U %d X %d W %d R %d  va is %x\n",
+                PTE("RSW %d%d D %d U %d X %d W %d R %d  va is %x\n",
                     (pte & PTE_READONLY) > 0, (pte & PTE_SHARE) > 0,
+                    (pte & PTE_D) > 0,
                     (pte & PTE_U) > 0, (pte & PTE_X) > 0,
                     (pte & PTE_W) > 0, (pte & PTE_R) > 0,
                     vabase + i * vagap);

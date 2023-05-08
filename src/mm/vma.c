@@ -97,7 +97,7 @@ int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type
     struct vma *vma;
     /* the file isn't writable and perm has PERM_WRITE is illegal 
        but if the PERM_SHARED is not set(means PERM_PRIVATE), then it's ok */
-    if (F_WRITEABLE(fp) && ((perm & PERM_WRITE) && (perm & PERM_SHARED))) {
+    if (!F_WRITEABLE(fp) && ((perm & PERM_WRITE) && (perm & PERM_SHARED))) {
         return -1;
     }
     if ((vma = vma_map_range(p, va, len, perm, type)) == NULL) {
@@ -126,7 +126,6 @@ static struct vma *vma_map_range(struct proc *p, uint64 va, size_t len, uint64 p
     }
 
     // not support
-    ASSERT(len % PGSIZE == 0);
     ASSERT(va % PGSIZE == 0);
 
     vma->startva = PGROUNDDOWN(va);
@@ -149,7 +148,6 @@ free_vma:
 
 static void writeback(pagetable_t pagetable, struct _file *fp, vaddr_t start, size_t len) {
     ASSERT(start % PGSIZE == 0);
-    ASSERT(len % PGSIZE == 0);
     ASSERT(fp != NULL);
 
     pte_t *pte;
@@ -160,8 +158,8 @@ static void writeback(pagetable_t pagetable, struct _file *fp, vaddr_t start, si
             continue;
         }
         /* only writeback dirty pages(pages with PTE_D) */
-        if (PTE_FLAGS(*pte) && PTE_D) {
-            fat32_filewrite(fp, addr, PGSIZE);
+        if (PTE_FLAGS(*pte) & PTE_D) {
+            fat32_filewrite(fp, addr, (PGSIZE > (endva - addr) ? (endva - addr) : PGSIZE));
         }
     }
 }
@@ -184,14 +182,16 @@ int vmspace_unmap(struct proc *p, vaddr_t va, size_t len) {
         return -1;
     }
 
-    ASSERT(len % PGSIZE == 0);
+    // ASSERT(len % PGSIZE == 0);
+    size_t origin_len = len;
+    len = PGROUNDUP(len);
     ASSERT(size >= len);
     // len = PGROUNDUP(len);
 
     if (vma->type == VMA_MAP_FILE) {
         /* if the perm has PERM_SHREAD, call writeback */
         if ((vma->perm && PERM_SHARED) && (vma->perm && PERM_WRITE)) {
-            writeback(p->pagetable, vma->fp, start, len);
+            writeback(p->pagetable, vma->fp, start, origin_len);
         }
     }
 

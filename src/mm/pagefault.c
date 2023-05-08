@@ -1,5 +1,4 @@
 #include "common.h"
-
 #include "memory/vma.h"
 #include "riscv.h"
 #include "kernel/trap.h"
@@ -7,6 +6,7 @@
 #include "memory/vm.h"
 #include "memory/allocator.h"
 #include "fs/vfs/fs.h"
+#include "debug.h"
 
 static uint32 perm_vma2pte(uint32 vma_perm) {
     uint32 pte_perm = 0;

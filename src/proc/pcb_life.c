@@ -338,19 +338,31 @@ void forkret(void) {
 // }
 
 int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
+    int pid;
     struct proc *np;
-    // Allocate process.
-    if ((np = allocproc()) == 0) {
-        return -1;
-    }
+    struct proc *p = current();
     // uint64* long_p = &stack;
     // uint64 fn = long_p[0];
     // uint64 arg = long_p[1];
-    struct proc *p = current();
 
-    // copy the trapframe
+    // Allocate process.
+    if ((np = allocproc()) == 0) {
+        // procdump();
+        return -1;
+    }
+    // copy saved user registers.
     *(np->trapframe) = *(p->trapframe);
+    // Cause fork to return 0 in the child.
+    np->trapframe->a0 = 0;
 
+    /* Copy vma */
+    if (vmacopy(np) < 0) {
+        freeproc(np);
+        release(&np->lock);
+        return -1;
+    }
+
+    // Copy user memory from parent to child.
     // TODO : mmap
     if (flags & CLONE_VM) {
         np->pagetable = p->pagetable;
@@ -361,24 +373,28 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
             return -1;
         }
     }
+    np->sz = p->sz;
+    // increment reference counts on open file descriptors.
     // TODO : fdtable
     if (flags & CLONE_FILES) {
+        // np->_ofile = p->_ofile;
+        // for (int i = 0; i < NOFILE; i++)
+        //     if (p->_ofile[i])
+        //         np->_ofile[i] = fat32_filedup(p->_ofile[i]);
+    } else {
         for (int i = 0; i < NOFILE; i++)
             if (p->_ofile[i])
                 np->_ofile[i] = fat32_filedup(p->_ofile[i]);
-    } else {
-        // TODO : clone a completely same fdtable
     }
-
     // TODO : vfs inode cmd
     np->_cwd = fat32_inode_dup(p->_cwd);
+
     // TODO : signal
     if (flags & CLONE_SIGHAND) {
         np->sig = p->sig;
     } else {
         // TODO : create a new signal
     }
-
     // TODO : mount point CLONE_FS
 
     // store the parent pid
@@ -389,31 +405,26 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     // set the tls (Thread-local Storage，TLS)
     // RISC-V使用TP寄存器
     if (flags & CLONE_SETTLS) {
-        np->trapframe->tp = tls;
+        // np->trapframe->tp = tls;
     }
     // 子线程中存储子线程 ID 的变量指针
     if (flags & CLONE_CHILD_SETTID) {
         np->ctid = ctid;
     }
 
-    // copy the name of proc
     safestrcpy(np->name, p->name, sizeof(p->name));
 
-    // avoid parent miss this new child
-    acquire(&wait_lock);
+    pid = np->pid;
     np->parent = p;
-    release(&wait_lock);
+    appendChild(p, np);
 
-    // same as fork, its child return 0
-    np->trapframe->a0 = 0;
+#ifdef __DEBUG_PROC__
+    printfRed("clone : %d -> %d\n", p->pid, np->pid); //debug
+#endif
 
-    // change its state tp RUNNABLE
-    // acquire(&np->lock);
     PCB_Q_changeState(np, RUNNABLE);
     release(&np->lock);
-
-    // its parent return child's pid
-    return np->pid;
+    return pid;
 }
 
 // Exit the current process.  Does not return.

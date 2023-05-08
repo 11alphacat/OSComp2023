@@ -146,7 +146,7 @@ TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 # 	@echo "$(YELLOW)build user:$(RESET)"
 # 	@make -C $(xv6U)
 
-user:
+user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
 
