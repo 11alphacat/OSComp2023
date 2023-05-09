@@ -352,7 +352,6 @@ void do_exit(int status) {
     p->exit_state = status;
     PCB_Q_changeState(p, ZOMBIE);
     sema_signal(&p->parent->sem_wait_chan_parent);
-
     sema_signal(&p->sem_wait_chan_self);
 
 #ifdef __DEBUG_PROC__
@@ -397,6 +396,9 @@ int waitpid(pid_t pid, uint64 status, int options) {
             // shell won't exit !!!
             if (pid > 0 && p_child->pid == pid) {
                 sema_wait(&p_child->sem_wait_chan_self);
+                #ifdef __DEBUG_PROC__
+                    printfBlue("wait : %d wakeup self\n", p->pid); // debug
+                #endif
             }
 
             acquire(&p_child->lock);
@@ -419,6 +421,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
             release(&p_child->lock);
         }
         printf("%d\n", p->pid);
+        printf("%d\n", p->sem_wait_chan_parent.value);
         panic("waitpid : invalid wakeup for semaphore!");
     }
 }
@@ -442,6 +445,7 @@ void reparent(struct proc *p) {
             appendChild(initproc, p_child);
             release(&initproc->lock);
 
+            acquire(&p_child->lock);
             p_child->parent = initproc;
             if (p_child->state == ZOMBIE) {
                 sema_signal(&initproc->sem_wait_chan_parent);
@@ -450,6 +454,8 @@ void reparent(struct proc *p) {
                 printfBWhite("reparent : zombie %d wakeup initproc\n", p_child->pid); // debug
 #endif
             }
+            release(&p_child->lock);
+            
 #ifdef __DEBUG_PROC__
             printf("reparent : %d reparent %d -> initproc\n", p->pid, p_child->pid); // debug
 #endif

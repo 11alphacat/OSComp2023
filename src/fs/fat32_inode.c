@@ -397,13 +397,17 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             ip->fat32_i.cluster_end = fat_new;
         }
     }
+    // printf("fileSize: %d\n", fileSize);
+    // printf("i_size : %d\n", ip->i_size);
+    // printf("off+n : %d\n", off+n);
 
     if (off + n > fileSize) {
         if (ip->i_type == T_FILE)
-            ip->i_size += ip->i_sb->cluster_size;
-        else
             ip->i_size = off + n;
+        else
+            ip->i_size = CEIL_DIVIDE(off+n, ip->i_sb->cluster_size)*(ip->i_sb->cluster_size);
     }
+    // printf("i_size : %d\n", ip->i_size);
 
     fat32_inode_update(ip);
     return tot;
@@ -553,7 +557,10 @@ void fat32_inode_trunc(struct _inode *ip) {
 
     // truncate the data
     while (!ISEOF(iter_n)) {
+        // printf("%d\n", iter_n);
+        // printf("%d\n", FAT_CLUSTER_MAX);
         FAT_entry_t fat_next = fat32_next_cluster(iter_n);
+        // printf("%d\n", fat_next);
         fat32_fat_set(iter_n, EOC);
         iter_n = fat_next;
     }
@@ -885,9 +892,13 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
     // 数据文件
     if (!DIR_BOOL(attr)) {
         if (str_split((const char *)long_name, '.', file_name, file_ext) == -1) {
-            // TODO()
-            // try other methods
-            panic("fcb init : str split");
+            // printf("%s\n",long_name);
+            // printf("%s\n",file_name);
+            // printf("%s\n",file_ext);
+
+            printfRed("it is a file without extname\n");
+            strncpy(file_name, (char *)long_name, 8);
+            // panic("fcb init : str split");
         }
         str_toupper(file_ext);
         strncpy((char *)dirent_s_cur.DIR_Name + 8, file_ext, 3); // extend name

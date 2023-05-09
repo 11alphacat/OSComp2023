@@ -354,6 +354,10 @@ uint64 sys_openat(void) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
         // }
+        if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
+            fat32_inode_unlock_put(ip);
+            return -1;
+        }
         if ((flags & O_DIRECTORY) && ip->i_type != T_DIR) {
             fat32_inode_unlock_put(ip);
             return -1;
@@ -392,7 +396,7 @@ uint64 sys_openat(void) {
     f_version = TODO();
     */
 
-    if ((omode & O_TRUNC) && ip->i_type == T_FILE) {
+    if ((flags & O_TRUNC) && ip->i_type == T_FILE) {
         fat32_inode_trunc(ip);
     }
 
@@ -431,6 +435,7 @@ uint64 sys_read(void) {
     argint(2, &n);
     if (argfd(0, 0, &f) < 0)
         return -1;
+    // printf("%d\n", f->f_tp.f_inode->fat32_i.DIR_FileSize);
     return fat32_fileread(f, p, n);
 }
 
@@ -449,7 +454,6 @@ uint64 sys_write(void) {
     argint(2, &n);
     if (argfd(0, 0, &f) < 0)
         return -1;
-
     return fat32_filewrite(f, p, n);
 }
 

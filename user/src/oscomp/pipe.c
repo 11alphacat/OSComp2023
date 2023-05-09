@@ -20,13 +20,13 @@ void test_pipe(void){
 
     if(cpid > 0){
         close(fd[1]);
+        printf("close ok\n");
         while(read(fd[0], buf, 1) > 0)
             write(STDOUT, buf, 1);
         write(STDOUT, "\n", 1);
         close(fd[0]);
         wait(NULL);
-    }
-    else{
+    }else{
         close(fd[0]);
         write(fd[1], data, strlen(data));
         close(fd[1]);

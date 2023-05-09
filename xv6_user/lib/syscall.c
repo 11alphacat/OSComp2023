@@ -233,6 +233,10 @@ char *sbrk(int increment) {
     return syscall(SYS_sbrk, increment);
 }
 
+int kill(int pid) {
+    return syscall(SYS_kill, pid);
+}
+
 /* debug */
 int print_pgtable() {
     return syscall(SYS_print_pgtable);

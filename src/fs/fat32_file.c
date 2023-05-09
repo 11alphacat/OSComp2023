@@ -113,10 +113,10 @@ int fat32_filestat(struct _file *f, uint64 addr) {
 // 语义：读取文件 f ，从 偏移量 f->f_pos 起始，读取 n 个字节到 addr 指向的用户空间
 int fat32_fileread(struct _file *f, uint64 addr, int n) {
     int r = 0;
-
+    
     if (F_READABLE(f) == 0)
         return -1;
-
+        
     if (f->f_type == FD_PIPE) {
         r = piperead(f->f_tp.f_pipe, addr, n);
     } else if (f->f_type == FD_DEVICE) {
