@@ -226,7 +226,7 @@ uint64 sys_getcwd(void) {
         return (uint64)NULL;
     }
 
-    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX)) < 0) {
+    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX) + 1) < 0) {   // rember add 1 for '\0'
         return (uint64)NULL;
     } else {
         return buf;
@@ -683,8 +683,7 @@ uint64 sys_chdir(void) {
     }
 
     fat32_inode_unlock(ip);
-    fat32_inode_put(p->_cwd);
-    // end_op();
+    // fat32_inode_put(p->_cwd);
     p->_cwd = ip;
     return 0;
 }
