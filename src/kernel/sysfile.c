@@ -603,8 +603,9 @@ uint64 sys_getdents64(void) {
     struct _file *f;
     uint64 buf; // user pointer to struct dirent
     int len;
-    ssize_t nread;
-    const size_t MAXLEN = 2048;
+    ssize_t nread, sz;
+    char* kbuf;
+    // const size_t MAXLEN = 2048;
 
     if (argfd(0, 0, &f) < 0)
         return -1;
@@ -624,16 +625,22 @@ uint64 sys_getdents64(void) {
     if (len <= 0) {
         return -1;
     }
-    char kbuf[MAXLEN];
-    memset(kbuf, 0, sizeof(kbuf)); // !!!!
-    nread = fat32_getdents(f->f_tp.f_inode, kbuf, MAXLEN);
-    if (nread < 0 || nread > len) {
+    sz = f->f_tp.f_inode->fat32_i.cluster_cnt * f->f_tp.f_inode->i_sb->cluster_size;
+    // ASSERT(sz > len);
+    if ( (kbuf = kmalloc(sz)) == 0 ) {
         return -1;
     }
-    if (either_copyout(1, buf, kbuf, nread) < 0) {
+    memset(kbuf, 0, len); // !!!!
+    if ( ( nread = fat32_getdents(f->f_tp.f_inode, kbuf, sz) ) < 0 ) {
+        kfree(kbuf);
         return -1;
     }
-
+    len = len > sz ? sz : len;
+    if (either_copyout(1, buf, kbuf, len) < 0) {    // copy lenth may less than nread
+        kfree(kbuf);
+        return -1;
+    }
+    kfree(kbuf);
     f->f_pos = f->f_tp.f_inode->i_size;
     return nread;
 }

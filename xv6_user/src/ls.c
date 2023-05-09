@@ -1,87 +1,81 @@
 #define USER
-#include "types.h"
-#include "fs/stat.h"
-#include "user.h"
- 
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdlib.h"
 
-char*
-fmtname(char *path)
-{
-  static char buf[DIRSIZ+1];
-  char *p;
+#define handle_error(msg) \
+               do { printf("%s\n",msg); exit(-1); } while (0)
 
-  // Find first character after last slash.
-  for(p=path+strlen(path); p >= path && *p != '/'; p--)
-    ;
-  p++;
+#define BUF_SIZE 4096
 
-  // Return blank-padded name.
-  if(strlen(p) >= DIRSIZ)
-    return p;
-  memmove(buf, p, strlen(p));
-  memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
-  return buf;
-}
-
-void
-ls(char *path)
-{
-  char buf[512], *p;
-  int fd;
-  struct dirent de;
-  struct stat st;
-
-  if((fd = open(path, 0)) < 0){
-    fprintf(2, "ls: cannot open %s\n", path);
-    return;
-  }
-
-  if(fstat(fd, &st) < 0){
-    fprintf(2, "ls: cannot stat %s\n", path);
-    close(fd);
-    return;
-  }
-
-  switch(st.type){
-  case T_DEVICE:
-  case T_FILE:
-    printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
-    break;
-
-  case T_DIR:
-    if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
-      printf("ls: path too long\n");
-      break;
+int main(int argc, char *argv[]) {
+    int fd, nread;
+    // char buf[BUF_SIZE];
+    char *buf = (char*)malloc(BUF_SIZE);
+    struct linux_dirent64 *d;
+    int bpos;
+    unsigned char d_type;
+    
+    // printf("hello ls; %d\n",argc);
+    fd = open(argc > 1 ? argv[1] : ".", O_RDONLY | O_DIRECTORY);
+    if (fd == -1) {
+      handle_error("getdents");
     }
-    strcpy(buf, path);
-    p = buf+strlen(buf);
-    *p++ = '/';
-    while(read(fd, &de, sizeof(de)) == sizeof(de)){
-      if(de.inum == 0)
-        continue;
-      memmove(p, de.name, DIRSIZ);
-      p[DIRSIZ] = 0;
-      if(stat(buf, &st) < 0){
-        printf("ls: cannot stat %s\n", buf);
-        continue;
-      }
-      printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+
+    for (;;) {
+        nread = getdents(fd, (struct linux_dirent64 *)buf, BUF_SIZE); 
+        if (nread == -1)
+            handle_error("getdents");
+
+        if (nread == 0)
+            break;
+
+        // printf("--------------- nread=%d ---------------\n", nread);
+        // printf("inode#    file type  d_reclen  d_off   d_name\n");
+        int ctr = 0;
+        for (bpos = 0; bpos < nread;) {
+            d = (struct linux_dirent64 *)(buf + bpos);
+            d_type = d->d_type;
+/*
+            printf("inode: %d      ", d->d_ino);
+            printf("dtype: %d      ", d_type);
+            printf("%s   ", (d_type == T_FILE)  ? "regular" :
+                             (d_type == T_DIR)  ? "directory" :
+                            //  (d_type == DT_FIFO) ? "FIFO" :
+                            //  (d_type == DT_SOCK) ? "socket" :
+                            //  (d_type == DT_LNK)  ? "symlink" :
+                             (d_type == T_DEVICE)  ? "dev" :
+                            //  (d_type == DT_CHR)  ? "char dev" :
+                                                   "???");
+            printf("%d %d %s \n", d->d_reclen,
+                   d->d_off, d->d_name);
+*/
+            switch (d_type) {
+            case T_DIR: 
+                printf("\033[34;1m%s\t\033[0m",d->d_name);
+                break;
+            case T_DEVICE: 
+                printf("\033[38;5;214m%s\t\033[0m",d->d_name);
+                break;
+            default:
+                printf("%s\t",d->d_name);
+                break;
+            }
+            
+            bpos += d->d_reclen;
+            if ( ++ctr == 6 ) {
+              write(STDOUT,"\n",1);
+              ctr = 0;
+            }
+
+            // break;
+        }
+        write(STDOUT,"\n",1);
+        // write(1, argv[i], strlen(argv[i]));
     }
-    break;
-  }
-  close(fd);
-}
-
-int
-main(int argc, char *argv[])
-{
-  int i;
-
-  if(argc < 2){
-    ls(".");
+    free(buf);
+    return 0;
     exit(0);
-  }
-  for(i=1; i<argc; i++)
-    ls(argv[i]);
-  exit(0);
 }

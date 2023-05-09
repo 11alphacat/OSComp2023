@@ -34,7 +34,7 @@ main(void)
   printf("███████╗╚██████╔╝███████║   ██║   ╚███╔███╔╝██║  ██║██║  ██╗███████╗╚██████╔╝██║     \n");
   printf("╚══════╝ ╚═════╝ ╚══════╝   ╚═╝    ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     \n");
   printf("\n");
-  printf("\n\tNow you come here, welcome my dear friend.\n\n");
+  // printf("\n\tNow you come here, welcome my dear friend.\n\n");
 
   for (;;) {
     printf("init: starting sh\n");

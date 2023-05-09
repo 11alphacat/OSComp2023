@@ -230,7 +230,7 @@ struct __dirent {
     char d_name[];           // 文件名
 };
 
-#define dirent_len(dirent) (sizeof(dirent.d_ino) + sizeof(dirent.d_off) + sizeof(dirent.d_type) + sizeof(dirent.d_reclen) + strlen(dirent.d_name))
+#define dirent_len(dirent) (sizeof(dirent.d_ino) + sizeof(dirent.d_off) + sizeof(dirent.d_type) + sizeof(dirent.d_reclen) + strlen(dirent.d_name) + 1)
 
 // 将 dp 目录下的所有目录项解析成 struct _dirent，填入 buf 中
 // len 为 buf 的最大长度
@@ -304,7 +304,8 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                     int fname_len = strlen(ip_buf->fat32_i.fname);
                     safestrcpy(dirent_buf.d_name, ip_buf->fat32_i.fname, fname_len);
                     dirent_buf.d_reclen = dirent_len(dirent_buf);
-                    memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
+                    // memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
+                    memmove((void *)(buf + nread), (void *)&dirent_buf, dirent_buf.d_reclen);
 
                     nread += dirent_buf.d_reclen;
                     fat32_inode_unlock_put(ip_buf);

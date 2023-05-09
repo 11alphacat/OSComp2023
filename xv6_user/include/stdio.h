@@ -5,6 +5,11 @@
 #define STDOUT 1
 #define STDERR 2
 
+// file type
+#define T_DIR 1    // Directory
+#define T_FILE 2   // File
+#define T_DEVICE 3 // Device
+
 //#define TEST_START(x) puts(x)
 #define TEST_START(x) puts("========== START ");puts(x);puts(" ==========\n");
 #define TEST_END(x) puts("========== END ");puts(x);puts(" ==========\n");

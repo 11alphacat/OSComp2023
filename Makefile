@@ -32,7 +32,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 
 ifdef KCSAN
 CFLAGS += -DKCSAN
@@ -142,6 +142,11 @@ FILE= mnt text.txt \
     uname wait waitpid yield \
     getdents unlink mount umount pipe 
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
+
+# user: oscomp
+# 	@echo "$(YELLOW)build user:$(RESET)"
+# 	@make -C $(xv6U)
+
 user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@make -C $(xv6U)
