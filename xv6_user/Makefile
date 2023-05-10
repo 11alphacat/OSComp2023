@@ -4,7 +4,8 @@ $(shell mkdir -p $(BUILD))
 $(shell mkdir -p $(FSIMG))
 
 # SRCS=$(shell find src -name "*.c" -o -name "*.S")
-SRCS=src/sh.c src/init.c src/echo.c src/cowtest src/kalloctest src/mmaptest src/mkdir src/user_test
+SRCS=src/sh.c src/init.c src/echo.c src/cowtest src/kalloctest src/mmaptest \
+	src/mkdir src/user_test src/ls 
 OBJS=$(addprefix $(BUILD)/, $(addsuffix .o, $(basename $(SRCS))))
 TARGET=$(addprefix $(FSIMG)/, $(basename $(notdir $(SRCS))))
 ARCHIVE=lib/lib.a

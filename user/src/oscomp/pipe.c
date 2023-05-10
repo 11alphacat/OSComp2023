@@ -8,7 +8,7 @@
  */
 static int fd[2];
 
-void test_pipe(void){
+void test_pipe(void) {
     TEST_START(__func__);
     int cpid;
     char buf[128] = {0};
@@ -17,16 +17,14 @@ void test_pipe(void){
     const char *data = "  Write to pipe successfully.\n";
     cpid = fork();
     printf("cpid: %d\n", cpid);
-
-    if(cpid > 0){
+    if (cpid > 0) {
         close(fd[1]);
-        printf("close ok\n");
-        while(read(fd[0], buf, 1) > 0)
+        while (read(fd[0], buf, 1) > 0)
             write(STDOUT, buf, 1);
         write(STDOUT, "\n", 1);
         close(fd[0]);
         wait(NULL);
-    }else{
+    } else {
         close(fd[0]);
         write(fd[1], data, strlen(data));
         close(fd[1]);
@@ -35,7 +33,7 @@ void test_pipe(void){
     TEST_END(__func__);
 }
 
-int main(void){
+int main(void) {
     test_pipe();
     return 0;
 }
