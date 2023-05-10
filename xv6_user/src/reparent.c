@@ -1,13 +1,9 @@
 #define USER
-#include "param.h"
-#include "types.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 
-#include "user.h"
- 
-#include "fs/fcntl.h"
-#include "syscall_gen/syscall_num.h"
-#include "memory/memlayout.h"
-#include "riscv.h"
 
 // try to find races in the reparenting
 // code that handles a parent exiting
@@ -16,6 +12,7 @@ void
 reparent(char *s)
 {
   int master_pid = getpid();
+  printf("hit");
   for(int i = 0; i < 200; i++){
     int pid = fork();
     if(pid < 0){
@@ -36,6 +33,7 @@ reparent(char *s)
       exit(0);
     }
   }
+  printf("reparent test OK\n");
   exit(0);
 }
 
@@ -45,4 +43,5 @@ main(void)
 {
   reparent("reparent");
   exit(0);
+  return 0;
 }
