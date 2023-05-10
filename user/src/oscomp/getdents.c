@@ -8,8 +8,8 @@ void test_getdents(void){
     int fd, nread;
     struct linux_dirent64 *dirp64;
     dirp64 = buf;
-    //fd = open(".", O_DIRECTORY);
-    fd = open(".", O_RDONLY);
+    fd = open(".", O_DIRECTORY);
+    // fd = open(".", O_RDONLY);
     printf("open fd:%d\n", fd);
 
 	nread = getdents(fd, dirp64, 512);

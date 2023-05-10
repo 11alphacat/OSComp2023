@@ -395,6 +395,8 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             iter_n = fat_new;
             ip->fat32_i.cluster_cnt++;
             ip->fat32_i.cluster_end = fat_new;
+        } else{
+            iter_n = next;
         }
     }
     // printf("fileSize: %d\n", fileSize);

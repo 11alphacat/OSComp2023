@@ -361,16 +361,16 @@ void truncate1()
 
 int main(void)
 {
-    // forktest();
-    // forkfork();
-    // opentest();
-    // exitwait();
-    // twochildren();
-    // reparent2();
-    // writetest();
-    // writebig();
-    // openiputtest();
-    truncate1();
+    forktest();
+    forkfork();
+    opentest();
+    exitwait();
+    twochildren();
+    reparent2();
+    writetest();
+    writebig();
+    openiputtest();
+    // truncate1();
 
     exit(0);
     return 0;
