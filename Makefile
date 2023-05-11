@@ -137,11 +137,12 @@ FILE= mnt text.txt \
     chdir close dup2 dup \
     fstat getcwd mkdir_ write \
     openat open read test_echo \
+	getdents unlink pipe \
     brk clone execve exit fork \
     getpid getppid sleep times \
     gettimeofday mmap munmap \
     uname wait waitpid yield \
-    getdents unlink mount umount pipe 
+    mount umount  
 TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 
 # user: oscomp

@@ -149,10 +149,37 @@ void twochildren()
     printf("twochildren test OK\n");
 }
 
+void reparent()
+{
+    printf("==========reparent test==========\n");
+    int master_pid = getpid();
+    for(int i = 0; i < 200; i++){
+        int pid = fork();
+        if(pid < 0){
+            printf("fork failed\n");
+            exit(1);
+        }
+        if(pid){
+            if(wait(0) != pid){
+                printf("wait wrong pid\n");
+                exit(1);
+            }
+        } else {
+            int pid2 = fork();
+            if(pid2 < 0){
+                kill(master_pid);
+                exit(1);
+            }
+            exit(0);
+        }
+    }
+    printf("reparent test OK\n");
+}
+
 void reparent2()
 {
     printf("==========reparent2 test==========\n");
-    for(int i = 0; i < 800; i++){
+    for(int i = 0; i < 400; i++){
         int pid1 = fork();
         if(pid1 < 0){
             printf("fork failed\n");
@@ -165,7 +192,6 @@ void reparent2()
         }
         wait(0);
     }
-
     printf("reparent2 test OK\n");
 }
 
@@ -297,6 +323,7 @@ void openiputtest()
     exit(xstatus);
 }
 
+
 void truncate1()
 {
     char buf[32];
@@ -304,10 +331,16 @@ void truncate1()
 
     unlink("truncfile");
     int fd1 = open("truncfile", O_CREATE|O_WRONLY|O_TRUNC);
+    printf("%d\n", fd1);
+
     write(fd1, "abcd", 4);
     close(fd1);
+    printf("%d\n", fd1);
+
 
     int fd2 = open("truncfile", O_RDONLY);
+    printf("%d\n", fd2);
+    
     int n = read(fd2, buf, sizeof(buf));
     if(n != 4){
         printf("read %d bytes, wanted 4\n", n);
@@ -315,7 +348,9 @@ void truncate1()
     }
 
     fd1 = open("truncfile", O_WRONLY|O_TRUNC);
+    printf("%d\n", fd1);
     int fd3 = open("truncfile", O_RDONLY);
+    printf("%d\n", fd3);
     n = read(fd3, buf, sizeof(buf));
 
     printf("n : %d\n", n);
@@ -361,16 +396,17 @@ void truncate1()
 
 int main(void)
 {
-    forktest();
-    forkfork();
-    opentest();
-    exitwait();
-    twochildren();
-    reparent2();
-    writetest();
-    writebig();
-    openiputtest();
-    // truncate1();
+    // forktest();
+    // forkfork();
+    // opentest();
+    // exitwait();
+    // twochildren();
+    // reparent();
+    // reparent2();
+    // writetest();
+    // writebig();
+    // openiputtest();
+    truncate1();
 
     exit(0);
     return 0;

@@ -354,6 +354,7 @@ uint64 sys_openat(void) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
         // }
+        
         // if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;

@@ -654,10 +654,7 @@ void fat32_inode_trunc(struct _inode *ip) {
 
     // truncate the data
     while (!ISEOF(iter_n)) {
-        // printf("%d\n", iter_n);
-        // printf("%d\n", FAT_CLUSTER_MAX);
         FAT_entry_t fat_next = fat32_next_cluster(iter_n);
-        // printf("%d\n", fat_next);
         fat32_fat_set(iter_n, EOC);
         iter_n = fat_next;
     }

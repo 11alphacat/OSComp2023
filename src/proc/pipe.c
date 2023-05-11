@@ -32,11 +32,13 @@ int _pipealloc(struct _file **f0, struct _file **f1) {
     sema_init(&pi->write_sem, 0, "write_sem");
 
     (*f0)->f_type = FD_PIPE;
+    (*f0)->f_flags = O_RDONLY;
+    (*f0)->f_tp.f_pipe = pi;
     // (*f0)->readable = 1;
     // (*f0)->writable = 0;
-    (*f0)->f_mode = O_RDONLY;
-    (*f0)->f_tp.f_pipe = pi;
     (*f1)->f_type = FD_PIPE;
+    (*f1)->f_flags = O_WRONLY;
+    (*f1)->f_tp.f_pipe = pi;
     // (*f1)->readable = 0;
     // (*f1)->writable = 1;
     return 0;

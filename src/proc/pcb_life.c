@@ -25,6 +25,8 @@
 #include "fs/vfs/fs.h"
 #include "fs/fat/fat32_file.h"
 
+int cnt_exit=0;
+int cnt_wakeup=0;
 struct proc proc[NPROC];
 struct proc *initproc;
 
@@ -309,7 +311,9 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
 
     pid = np->pid;
     np->parent = p;
+    acquire(&p->lock);
     appendChild(p, np);
+    release(&p->lock);
 
 #ifdef __DEBUG_PROC__
     printfRed("clone : %d -> %d\n", p->pid, np->pid); // debug
@@ -354,6 +358,10 @@ void do_exit(int status) {
     sema_signal(&p->parent->sem_wait_chan_parent);
     sema_signal(&p->sem_wait_chan_self);
 
+    // if(p->parent==initproc)
+    // {
+    //     printf("退出,pid : %d, %d\n",p->pid, ++cnt_exit);
+    // }
 #ifdef __DEBUG_PROC__
     printfGreen("exit : %d has exited\n", p->pid);                // debug
     printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug
@@ -403,6 +411,9 @@ int waitpid(pid_t pid, uint64 status, int options) {
 
             acquire(&p_child->lock);
             if (p_child->state == ZOMBIE) {
+                // if(p==initproc) 
+                //     printfRed("唤醒,pid : %d, %d\n",p_child->pid, ++cnt_wakeup); // debug
+
                 // ASSERT(p_child->pid!=SHELL_PID);
                 pid = p_child->pid;
                 if (status != 0 && copyout(p->pagetable, status, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
@@ -410,7 +421,11 @@ int waitpid(pid_t pid, uint64 status, int options) {
                     return -1;
                 }
                 freeproc(p_child);
+                
+                acquire(&p->lock);
                 deleteChild(p, p_child);
+                release(&p->lock);
+
                 release(&p_child->lock);
 
 #ifdef __DEBUG_PROC__
@@ -422,6 +437,9 @@ int waitpid(pid_t pid, uint64 status, int options) {
         }
         printf("%d\n", p->pid);
         printf("%d\n", p->sem_wait_chan_parent.value);
+        // if(p==initproc) {
+        //     procChildrenChain(initproc);
+        // }
         panic("waitpid : invalid wakeup for semaphore!");
     }
 }
@@ -439,25 +457,30 @@ void reparent(struct proc *p) {
         int flag = 1;
 
         list_for_each_entry_safe_given_first(p_child, p_tmp, p_first_c, sibling_list, flag) {
+            acquire(&p_child->lock);
+
+            acquire(&p->lock);
             deleteChild(p, p_child);
+            release(&p->lock);
             // maybe the lock of initproc can be removed
+
             acquire(&initproc->lock);
             appendChild(initproc, p_child);
             release(&initproc->lock);
 
-            acquire(&p_child->lock);
             p_child->parent = initproc;
             if (p_child->state == ZOMBIE) {
                 sema_signal(&initproc->sem_wait_chan_parent);
+                // printf("退出,pid : %d, %d\n",p_child->pid, ++cnt_exit);// debug
 #ifdef __DEBUG_PROC__
                 printfBWhite("reparent : zombie %d has exited\n", p_child->pid);      // debug
-                printfBWhite("reparent : zombie %d wakeup initproc\n", p_child->pid); // debug
+                printfBWhite("reparent : zombie %d wakeup 1\n", p_child->pid); // debug
 #endif
             }
             release(&p_child->lock);
 
 #ifdef __DEBUG_PROC__
-            printf("reparent : %d reparent %d -> initproc\n", p->pid, p_child->pid); // debug
+            printf("reparent : %d reparent %d -> 1\n", p->pid, p_child->pid); // debug
 #endif
             if (p->first_child == NULL) {
                 break; // !!!!
