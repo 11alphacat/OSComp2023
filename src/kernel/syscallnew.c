@@ -12,8 +12,3 @@ uint64 sys_mount(void) {
     ASSERT(0);
     return 0;
 }
-
-uint64 sys_brk(void) {
-    ASSERT(0);
-    return 0;
-}

@@ -113,10 +113,10 @@ int fat32_filestat(struct _file *f, uint64 addr) {
 // 语义：读取文件 f ，从 偏移量 f->f_pos 起始，读取 n 个字节到 addr 指向的用户空间
 int fat32_fileread(struct _file *f, uint64 addr, int n) {
     int r = 0;
-    
+
     if (F_READABLE(f) == 0)
         return -1;
-        
+
     if (f->f_type == FD_PIPE) {
         r = piperead(f->f_tp.f_pipe, addr, n);
     } else if (f->f_type == FD_DEVICE) {
@@ -199,7 +199,7 @@ static void get_absolute_path(struct _inode *ip, char *buf) {
     size_t n0 = strlen(buf), n1 = strlen(ip->fat32_i.fname);
     strncpy(buf + n0, ip->fat32_i.fname, n1);
     if (ip->fat32_i.fname[0] != '/') {
-        safestrcpy(buf + n0 + n1, "/", 1);
+        safestrcpy(buf + n0 + n1, "/", 2);
     }
 
     return;
@@ -294,8 +294,8 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
 
                     ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
                     ip_buf->parent = dp;
-                    ip_buf->i_nlink = nlinks; // number of hard links
-                    brelse(bp);               // !!!!
+                    ip_buf->i_nlink = 1; // number of hard links
+                    brelse(bp);          // !!!!
 
                     fat32_inode_lock(ip_buf);
                     dirent_buf.d_ino = ip_buf->i_ino;

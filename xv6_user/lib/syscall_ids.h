@@ -288,3 +288,4 @@
 #define SYS_fork 0
 #define SYS_print_pgtable 500
 #define SYS_print_vma 501
+#define SYS_print_rawfile 502

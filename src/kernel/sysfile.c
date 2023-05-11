@@ -226,7 +226,7 @@ uint64 sys_getcwd(void) {
         return (uint64)NULL;
     }
 
-    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX) + 1) < 0) {   // rember add 1 for '\0'
+    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX) + 1) < 0) { // rember add 1 for '\0'
         return (uint64)NULL;
     } else {
         return buf;
@@ -354,10 +354,10 @@ uint64 sys_openat(void) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
         // }
-        if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
-            fat32_inode_unlock_put(ip);
-            return -1;
-        }
+        // if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
+        //     fat32_inode_unlock_put(ip);
+        //     return -1;
+        // }
         if ((flags & O_DIRECTORY) && ip->i_type != T_DIR) {
             fat32_inode_unlock_put(ip);
             return -1;
@@ -545,7 +545,7 @@ uint64 sys_unlinkat(void) {
     // if (fat32_inode_write(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     //     panic("unlink: writei");
 
-    fat32_inode_delete(dp, ip);
+    // fat32_inode_delete(dp, ip);
 
     if (ip->i_type == T_DIR) {
         // 试图删除的是空的目录文件
@@ -608,7 +608,7 @@ uint64 sys_getdents64(void) {
     uint64 buf; // user pointer to struct dirent
     int len;
     ssize_t nread, sz;
-    char* kbuf;
+    char *kbuf;
     // const size_t MAXLEN = 2048;
 
     if (argfd(0, 0, &f) < 0)
@@ -631,16 +631,16 @@ uint64 sys_getdents64(void) {
     }
     sz = f->f_tp.f_inode->fat32_i.cluster_cnt * f->f_tp.f_inode->i_sb->cluster_size;
     // ASSERT(sz > len);
-    if ( (kbuf = kmalloc(sz)) == 0 ) {
+    if ((kbuf = kmalloc(sz)) == 0) {
         return -1;
     }
     memset(kbuf, 0, len); // !!!!
-    if ( ( nread = fat32_getdents(f->f_tp.f_inode, kbuf, sz) ) < 0 ) {
+    if ((nread = fat32_getdents(f->f_tp.f_inode, kbuf, sz)) < 0) {
         kfree(kbuf);
         return -1;
     }
     len = len > sz ? sz : len;
-    if (either_copyout(1, buf, kbuf, len) < 0) {    // copy lenth may less than nread
+    if (either_copyout(1, buf, kbuf, len) < 0) { // copy lenth may less than nread
         kfree(kbuf);
         return -1;
     }

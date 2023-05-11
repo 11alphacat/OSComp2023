@@ -1,5 +1,6 @@
 .DEFAULT_GOAL=qemu
 PLATFORM ?= qemu
+BUILD=build
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 FSIMG = fsimg
@@ -107,7 +108,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 # 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 
-qemu-gdb: _kernel .gdbinit fat32.img
+qemu-gdb: _kernel .gdbinit checkdep fat32.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
@@ -120,7 +121,7 @@ format:
 # qemu: _kernel fs.img
 # 	$(QEMU) $(QEMUOPTS)
 
-qemu: _kernel fat32.img
+qemu: _kernel user checkdep fat32.img
 	$(QEMU) $(QEMUOPTS)
 
 # fs.img: $(SCRIPTS)/mkfs user README.md
@@ -169,7 +170,11 @@ clean:
 
 MNT_DIR=build/mnt
 $(shell mkdir -p $(MNT_DIR))
-fat32.img: _kernel user
+
+checkdep:
+	sh $(SCRIPTS)/fat32dep.sh
+
+fat32.img: $(BUILD)/fat32.dep
 	@dd if=/dev/zero of=$@ bs=1M count=128
 	@mkfs.vfat -F 32 -s 2 $@
 	@sudo mount $@ $(MNT_DIR)

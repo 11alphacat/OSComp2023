@@ -1,7 +1,9 @@
 #define USER
-#include "types.h"
-#include "fs/stat.h"
-#include "user.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
+
 
 char buf[512];
 
@@ -38,5 +40,5 @@ int main(int argc, char *argv[])
     cat(fd);
     close(fd);
   }
-  exit(0);
+  return 0;
 }

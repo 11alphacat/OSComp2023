@@ -192,7 +192,6 @@ extern struct _superblock fat32_sb;
 
 // 3. is dir? and is long dir entry?
 #define DIR_BOOL(x) ((x)&ATTR_DIRECTORY)
-#define LONG_FILE_NAME_BOOL(x) ((x)&ATTR_LONG_NAME)
 
 // 4. set attr to dir and set attr to none dir
 #define DIR_SET(x) ((x) = ((x)&FREE_MASK) | ATTR_DIRECTORY)
@@ -255,6 +254,9 @@ extern struct _superblock fat32_sb;
 #define FCB_MAX_LENGTH 672 // (20+1)*32
 // 4. first long directory in the data region ?
 #define first_long_dir(ip) (ip == fat32_sb.fat32_sb_info.root_entry && idx == 0)
+
+// for debug: the start addr of the cluster in the fat32.img
+#define FSIMG_STARTADDR (FirstDataSector * __BPB_BytsPerSec)
 
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {

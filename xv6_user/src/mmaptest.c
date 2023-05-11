@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "riscv.h"
+#include "stdlib.h"
 #include "fs/vfs/fs_macro.h"
 
 void mmap_test();
@@ -80,6 +81,7 @@ void
 mmap_test(void)
 {
   int fd;
+  // int testfd;
   int i;
   const char * const f = "mmap.dur";
   printf("mmap_test starting\n");
@@ -91,6 +93,21 @@ mmap_test(void)
   // file.
   //
   makefile(f);
+  // struct kstat stat;
+  // if ((testfd = open(f, O_RDWR)) == -1)
+  //   err("open");
+  // fstat(testfd, &stat);
+
+  // printf("kstat is %d\n", stat.st_size);
+  // for (i = 0; i < stat.st_size; i += (PGSIZE / 2)){
+  //   // char b;
+  //   char *buf = (char *)malloc(PGSIZE / 2 + 1);
+  //   read(testfd, buf, (PGSIZE) / 2);
+  //   buf[PGSIZE / 2 + 1] = '\0';
+  //   printf("buf content is :\n%s\n", buf);
+  //   printf("i is %d\n", i);
+  // }
+  // close(testfd);
   if ((fd = open(f, O_RDONLY)) == -1)
     err("open");
 
@@ -161,13 +178,30 @@ mmap_test(void)
   if (close(fd) == -1)
     err("close");
 
+  // printf("hit 1\n");
   // check that the mapping still works after close(fd).
   _v1(p);
 
   // write the mapped memory.
   for (i = 0; i < PGSIZE*2; i++)
     p[i] = 'Z';
+  // printf("hit 2\n");
 
+  // printf("===============================================\n");
+  // if ((testfd = open(f, O_RDWR)) == -1)
+  //   err("open");
+  // fstat(testfd, &stat);
+
+  // printf("kstat is %d\n", stat.st_size);
+  // for (i = 0; i < stat.st_size; i += (PGSIZE / 2)){
+  //   // char b;
+  //   char *buf = (char *)malloc(PGSIZE / 2 + 1);
+  //   read(testfd, buf, (PGSIZE) / 2);
+  //   buf[PGSIZE / 2 + 1] = '\0';
+  //   printf("buf content is :\n%s\n", buf);
+  //   printf("i is %d\n", i);
+  // }
+  // close(testfd);
   // unmap just the first two of three pages of mapped memory.
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (3)");
@@ -180,12 +214,30 @@ mmap_test(void)
   // written to the file.
   if ((fd = open(f, O_RDWR)) == -1)
     err("open");
+  // printf("=======================================\n");
+  // if ((testfd = open(f, O_RDWR)) == -1)
+  //   err("open");
+  // fstat(testfd, &stat);
+
+  // printf("kstat is %d\n", stat.st_size);
+  // for (i = 0; i < PGSIZE + (PGSIZE/2); i += (PGSIZE / 2)){
+  //   // char b;
+  //   char *buf = (char *)malloc(PGSIZE / 2 + 1);
+  //   read(testfd, buf, (PGSIZE) / 2);
+  //   buf[PGSIZE / 2 + 1] = '\0';
+  //   printf("buf content is :\n%s\n", buf);
+  //   printf("i is %d\n", i);
+  // }
+  // close(testfd);
+
   for (i = 0; i < PGSIZE + (PGSIZE/2); i++){
     char b;
     if (read(fd, &b, 1) != 1)
       err("read (1)");
-    if (b != 'Z')
+    if (b != 'Z') {
+      printf("%d\n", i);
       err("file does not contain modifications");
+    }
   }
   if (close(fd) == -1)
     err("close");
@@ -201,6 +253,7 @@ mmap_test(void)
   printf("test not-mapped unmap: OK\n");
     
   printf("test mmap two files\n");
+  print_pgtable();
   
   //
   // mmap two files at the same time.
@@ -210,6 +263,8 @@ mmap_test(void)
     err("open mmap1");
   if(write(fd1, "12345", 5) != 5)
     err("write mmap1");
+  print_rawfile(fd1, 0);
+  printf("gap\n");
   char *p1 = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd1, 0);
   if(p1 == MAP_FAILED)
     err("mmap mmap1");

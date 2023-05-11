@@ -1,4 +1,3 @@
-BUILD=build
 ENTRY=entry
 
 # to make sure the entry.o is the first one

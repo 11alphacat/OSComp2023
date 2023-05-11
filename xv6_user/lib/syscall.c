@@ -245,3 +245,7 @@ int print_pgtable() {
 int print_vma() {
     return syscall(SYS_print_vma);
 }
+
+void print_rawfile(int fd, int printdir) {
+    return syscall(SYS_print_rawfile, fd, printdir);
+}

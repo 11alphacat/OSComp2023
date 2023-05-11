@@ -113,8 +113,7 @@ sys_wait4(void) {
 //     return do_execve(path, argv, envp);
 // }
 
-uint64
-sys_sbrk(void) {
+uint64 sys_sbrk(void) {
     uint64 addr;
     int n;
 
@@ -123,6 +122,25 @@ sys_sbrk(void) {
     if (growproc(n) < 0)
         return -1;
     return addr;
+}
+uint64 sys_brk(void) {
+    uintptr_t oldaddr;
+    uintptr_t newaddr;
+    intptr_t increment;
+
+    oldaddr = current()->sz;
+    argaddr(0, &newaddr);
+    /*  contest requirement: brk(0) return the current location of the program break
+        This is different from the behavior of the brk interface in Linux
+    */
+    if (newaddr == 0) {
+        return oldaddr;
+    }
+    increment = (intptr_t)newaddr - (intptr_t)oldaddr;
+
+    if (growproc(increment) < 0)
+        return -1;
+    return oldaddr;
 }
 
 uint64 sys_print_pgtable(void) {

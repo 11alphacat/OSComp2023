@@ -190,7 +190,7 @@ int vmspace_unmap(struct proc *p, vaddr_t va, size_t len) {
 
     if (vma->type == VMA_MAP_FILE) {
         /* if the perm has PERM_SHREAD, call writeback */
-        if ((vma->perm && PERM_SHARED) && (vma->perm && PERM_WRITE)) {
+        if ((vma->perm & PERM_SHARED) && (vma->perm & PERM_WRITE)) {
             writeback(p->pagetable, vma->fp, start, origin_len);
         }
     }

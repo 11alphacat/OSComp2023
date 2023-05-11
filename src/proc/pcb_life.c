@@ -396,9 +396,9 @@ int waitpid(pid_t pid, uint64 status, int options) {
             // shell won't exit !!!
             if (pid > 0 && p_child->pid == pid) {
                 sema_wait(&p_child->sem_wait_chan_self);
-                #ifdef __DEBUG_PROC__
-                    printfBlue("wait : %d wakeup self\n", p->pid); // debug
-                #endif
+#ifdef __DEBUG_PROC__
+                printfBlue("wait : %d wakeup self\n", p->pid); // debug
+#endif
             }
 
             acquire(&p_child->lock);
@@ -455,7 +455,7 @@ void reparent(struct proc *p) {
 #endif
             }
             release(&p_child->lock);
-            
+
 #ifdef __DEBUG_PROC__
             printf("reparent : %d reparent %d -> initproc\n", p->pid, p_child->pid); // debug
 #endif

@@ -1,7 +1,8 @@
 #define USER
-#include "types.h"
-#include "fs/stat.h"
-#include "user.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 
 int
 main(int argc, char **argv)
@@ -14,5 +15,5 @@ main(int argc, char **argv)
   }
   for(i=1; i<argc; i++)
     kill(atoi(argv[i]));
-  exit(0);
+  return 0;
 }

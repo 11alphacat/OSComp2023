@@ -1,9 +1,10 @@
 // Simple grep.  Only supports ^ . * $ operators.
 
 #define USER
-#include "types.h"
-#include "fs/stat.h"
-#include "user.h"
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
 
 char buf[1024];
 int match(char*, char*);
@@ -59,7 +60,7 @@ main(int argc, char *argv[])
     grep(pattern, fd);
     close(fd);
   }
-  exit(0);
+  return 0;
 }
 
 // Regexp matcher from Kernighan & Pike,

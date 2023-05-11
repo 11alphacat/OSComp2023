@@ -91,6 +91,9 @@ void usertrap(void) {
             || cause == LOAD_PAGEFAULT
             || cause == STORE_PAGEFAULT) {
             if (pagefault(cause, p->pagetable, r_stval()) < 0) {
+                printf("process %s\n", p->name);
+                printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+                printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
                 setkilled(p);
             }
         } else {

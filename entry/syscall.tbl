@@ -49,3 +49,4 @@
 # debug
 500 print_pgtable sys_print_pgtable
 501 print_vma     sys_print_vma
+502 print_rawfile    sys_print_rawfile

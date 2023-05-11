@@ -10,6 +10,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_disk.h"
 #include "kernel/trap.h"
+#include "ctype.h"
 
 extern struct file_operations fat32_fop;
 extern struct inode_operations fat32_iop;
@@ -24,6 +25,99 @@ struct inode_table_t {
     spinlock_t lock;
     struct _inode inode_entry[NENTRY];
 } inode_table;
+
+/* inefficient, use for debug only! */
+static void print_rawstr(const char *c, size_t len) {
+    for (int i = 0; i < len; i++) {
+        if (*(c + i) == ' ') {
+            printf(" ");
+        } else if (isalnum(*(c + i)) || *(c + i) == '.') {
+            printf("%c", *(c + i));
+        } else {
+            printf(" ");
+        }
+    }
+}
+
+static void print_short_dir(const dirent_s_t *buf) {
+    printf("(short) ");
+    printf("name: ", buf->DIR_Name);
+    print_rawstr((char *)buf->DIR_Name, FAT_SFN_LENGTH);
+    printf("  ");
+    printf("attr: %#x\t", buf->DIR_Attr);
+    printf("dev: %d\t", buf->DIR_Dev);
+    printf("filesize %d\n", buf->DIR_FileSize);
+    // printf("create_time_tenth %d\t", buf->DIR_CrtTimeTenth);
+    // printf("create_time %d\n", buf->DIR_CrtTime);
+    // printf("crea");
+}
+
+static void print_long_dir(const dirent_l_t *buf) {
+    printf("(long) ");
+    printf("name1: ");
+    print_rawstr((char *)buf->LDIR_Name1, 10);
+    printf("  ");
+    printf("name2: ");
+    print_rawstr((char *)buf->LDIR_Name2, 12);
+    printf("  ");
+    printf("name3: ");
+    print_rawstr((char *)buf->LDIR_Name3, 4);
+    printf("  ");
+    printf("attr %#x\n", buf->LDIR_Attr);
+}
+
+void sys_print_rawfile(void) {
+    int fd;
+    int printdir;
+    struct _file *f;
+
+    printfGreen("==============\n");
+    if (argfd(0, &fd, &f) < 0) {
+        printfGreen("file doesn't open!\n");
+        return;
+    }
+    argint(1, &printdir);
+
+    ASSERT(f->f_type == FD_INODE);
+    int cnt = 0;
+    int pos = 0;
+    uint64 iter_n = f->f_tp.f_inode->fat32_i.cluster_start;
+
+    printfGreen("fd is %d\n", fd);
+    struct _inode *ip = f->f_tp.f_inode;
+    if (ip->i_type != T_DIR && printdir == 1) {
+        printfGreen("the file is not a directory\n");
+        return;
+    }
+
+    // print logistic clu.no and address(in fat32.img)
+    while (!ISEOF(iter_n)) {
+        uint64 addr = (iter_n - fat32_sb.fat32_sb_info.root_cluster_s) * __BPB_BytsPerSec * __BPB_SecPerClus + FSIMG_STARTADDR;
+        printfGreen("cluster no: %d\t address: %p \toffset %d(%#p)\n", cnt++, addr, pos, pos);
+        if (printdir == 1) {
+            int first_sector = FirstSectorofCluster(iter_n);
+            int init_s_n = LOGISTIC_S_NUM(pos);
+            struct buffer_head *bp;
+            for (int s = init_s_n; s < __BPB_SecPerClus; s++) {
+                bp = bread(ip->i_dev, first_sector + s);
+                for (int i = 0; i < 512 && i < ip->i_size; i += 32) {
+                    dirent_s_t *tmp = (dirent_s_t *)(bp->data + i);
+                    if (LONG_NAME_BOOL(tmp->DIR_Attr)) {
+                        print_long_dir((dirent_l_t *)(bp->data + i));
+                    } else {
+                        print_short_dir((dirent_s_t *)(bp->data + i));
+                    }
+                }
+                brelse(bp);
+            }
+        }
+        pos += __BPB_BytsPerSec * __BPB_SecPerClus;
+        iter_n = fat32_next_cluster(iter_n);
+    }
+    printfGreen("file size is %d(%#p)\n", f->f_tp.f_inode->i_size, f->f_tp.f_inode->i_size);
+    printfGreen("==============\n");
+    return;
+}
 
 // init the global inode table
 void inode_table_init() {
@@ -395,7 +489,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             iter_n = fat_new;
             ip->fat32_i.cluster_cnt++;
             ip->fat32_i.cluster_end = fat_new;
-        } else{
+        } else {
             iter_n = next;
         }
     }
@@ -404,10 +498,11 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     // printf("off+n : %d\n", off+n);
 
     if (off + n > fileSize) {
-        if (ip->i_type == T_FILE)
+        if (ip->i_type == T_FILE) {
             ip->i_size = off + n;
-        else
-            ip->i_size = CEIL_DIVIDE(off+n, ip->i_sb->cluster_size)*(ip->i_sb->cluster_size);
+        } else {
+            ip->i_size = CEIL_DIVIDE(off + n, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
+        }
     }
     // printf("i_size : %d\n", ip->i_size);
 
@@ -566,6 +661,7 @@ void fat32_inode_trunc(struct _inode *ip) {
         fat32_fat_set(iter_n, EOC);
         iter_n = fat_next;
     }
+    fat32_inode_delete(ip->parent, ip);
     ip->fat32_i.cluster_start = 0;
     ip->fat32_i.cluster_end = 0;
     ip->fat32_i.parent_off = 0;
@@ -726,7 +822,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
 
                         ip_search = fat32_inode_get(ip->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name, off);
                         ip_search->parent = ip;
-                        ip_search->i_nlink = nlinks; // number of hard links
+                        ip_search->i_nlink = 1; // number of hard links
                         return ip_search;
                     }
                 }

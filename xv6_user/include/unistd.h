@@ -65,5 +65,6 @@ int kill(int);
 /* debug */
 int print_pgtable();
 int print_vma();
+void print_rawfile(int fd, int print);
 
 #endif // __UNISTD_H__
