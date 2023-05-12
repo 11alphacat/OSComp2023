@@ -5,7 +5,7 @@
 #define COMMONPAGE 0
 #define SUPERPAGE 1 /* 2MB superpage */
 
-void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm);
+void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm, int lowlevel);
 int walk(pagetable_t pagetable, uint64 va, int alloc, int lowlevel, pte_t **pte);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
 int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm, int lowlevel);

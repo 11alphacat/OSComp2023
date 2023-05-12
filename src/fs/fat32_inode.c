@@ -108,6 +108,7 @@ void sys_print_rawfile(void) {
                         print_short_dir((dirent_s_t *)(bp->data + i));
                     }
                 }
+                printfRed("===Sector %d end===\n", s);
                 brelse(bp);
             }
         }

@@ -27,31 +27,38 @@ kvmmake(void) {
     kpgtbl = (pagetable_t)kzalloc(PGSIZE);
 
     // uart registers
-    kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+    kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 
     // virtio mmio disk interface
-    kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+    kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 
     // PLIC
-    kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+    kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W, SUPERPAGE);
 
     // CLINT_MTIME
     // map in kernel pagetable, so we can access it in s-mode
-    kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R);
+    kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R, COMMONPAGE);
 
     // map kernel text executable and read-only.
-    kvmmap(kpgtbl, KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
+    vaddr_t super_aligned_sz = SUPERPG_DOWN((uint64)etext - KERNBASE);
+    if (super_aligned_sz != 0) {
+        kvmmap(kpgtbl, KERNBASE, KERNBASE, super_aligned_sz, PTE_R | PTE_X, SUPERPAGE);
+    }
+    kvmmap(kpgtbl, KERNBASE + super_aligned_sz, KERNBASE + super_aligned_sz, (uint64)etext - KERNBASE - super_aligned_sz, PTE_R | PTE_X, COMMONPAGE);
 
     // map kernel data and the physical RAM we'll make use of.
-    kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+    super_aligned_sz = SUPERPG_DOWN(PHYSTOP - (uint64)etext);
+    kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext - super_aligned_sz, PTE_R | PTE_W, COMMONPAGE);
+    kvmmap(kpgtbl, SUPERPG_ROUNDUP((uint64)etext), SUPERPG_ROUNDUP((uint64)etext), super_aligned_sz, PTE_R | PTE_W, SUPERPAGE);
 
     // map the trampoline for trap entry/exit to
     // the highest virtual address in the kernel.
-    kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+    kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X, COMMONPAGE);
 
     // allocate and map a kernel stack for each process.
     proc_mapstacks(kpgtbl);
 
+    // vmprint(kpgtbl, 1, 0, 0, 0);
     return kpgtbl;
 }
 
@@ -144,8 +151,8 @@ uint64 walkaddr(pagetable_t pagetable, uint64 va) {
 // add a mapping to the kernel page table.
 // only used when booting.
 // does not flush TLB or enable paging.
-void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm) {
-    if (mappages(kpgtbl, va, sz, pa, perm, 0) != 0)
+void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm, int lowlevel) {
+    if (mappages(kpgtbl, va, sz, pa, perm, lowlevel) != 0)
         panic("kvmmap");
 }
 
