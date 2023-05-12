@@ -113,7 +113,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 # 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 
-qemu-gdb: _kernel .gdbinit checkdep fat32.img
+qemu-gdb: _kernel .gdbinit user checkdep fat32.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 

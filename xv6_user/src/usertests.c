@@ -288,34 +288,6 @@ void copyinstr3(char *s) {
 
 
 
-// does exit() call iput(p->cwd) in a transaction?
-void exitiputtest(char *s) {
-    int pid, xstatus;
-
-    pid = fork();
-    if (pid < 0) {
-        printf("%s: fork failed\n", s);
-        exit(1);
-    }
-    if (pid == 0) {
-        if (mkdir("iputdir") < 0) {
-            printf("%s: mkdir failed\n", s);
-            exit(1);
-        }
-        if (chdir("iputdir") < 0) {
-            printf("%s: child chdir failed\n", s);
-            exit(1);
-        }
-        if (unlink("../iputdir") < 0) {
-            printf("%s: unlink ../iputdir failed\n", s);
-            exit(1);
-        }
-        exit(0);
-    }
-    wait(&xstatus);
-    exit(xstatus);
-}
-
 // does the error path in open() for attempt to write a
 // directory call iput() in a transaction?
 // needs a hacked kernel that pauses just after the namei()
@@ -328,26 +300,6 @@ void exitiputtest(char *s) {
 //        yield();
 //    }
 
-// many creates, followed by unlink test
-void createtest(char *s) {
-    int i, fd;
-    enum { N = 52 };
-
-    char name[3];
-    name[0] = 'a';
-    name[2] = '\0';
-    for (i = 0; i < N; i++) {
-        name[1] = '0' + i;
-        fd = open(name, O_CREATE | O_RDWR);
-        close(fd);
-    }
-    name[0] = 'a';
-    name[2] = '\0';
-    for (i = 0; i < N; i++) {
-        name[1] = '0' + i;
-        unlink(name);
-    }
-}
 
 void dirtest(char *s) {
     if (mkdir("dir0") < 0) {
@@ -1856,29 +1808,6 @@ void sbrkbugs(char *s) {
     exit(0);
 }
 
-// if process size was somewhat more than a page boundary, and then
-// shrunk to be somewhat less than that page boundary, can the kernel
-// still copyin() from addresses in the last page?
-void sbrklast(char *s) {
-    uint64 top = (uint64)sbrk(0);
-    if ((top % 4096) != 0)
-        sbrk(4096 - (top % 4096));
-    sbrk(4096);
-    sbrk(10);
-    sbrk(-20);
-    top = (uint64)sbrk(0);
-    char *p = (char *)(top - 64);
-    p[0] = 'x';
-    p[1] = '\0';
-    int fd = open(p, O_RDWR | O_CREATE);
-    write(fd, p, 1);
-    close(fd);
-    fd = open(p, O_RDWR);
-    p[0] = '\0';
-    read(fd, p, 1);
-    if (p[0] != 'x')
-        exit(1);
-}
 
 // does sbrk handle signed int32 wrap-around with
 // negative arguments?

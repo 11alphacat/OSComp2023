@@ -798,6 +798,7 @@ void truncate3() {
 
 // does chdir() call iput(p->cwd) in a transaction?
 void iputtest() {
+    printf("==========iput test==========\n");
     if (mkdir("iputdir", 0666) < 0) {
         printf("mkdir failed\n");
         exit(1);
@@ -814,6 +815,87 @@ void iputtest() {
         printf("chdir / failed\n");
         exit(1);
     }
+    printf("iput test OK\n");  
+}
+
+// does exit() call iput(p->cwd) in a transaction?
+void exitiputtest() {
+    int pid, xstatus;
+    printf("==========exitiput test==========\n");
+    pid = fork();
+    if (pid < 0) {
+        printf("fork failed\n");
+        exit(1);
+    }
+    if (pid == 0) {
+        if (mkdir("iputdir", 0666) < 0) {
+            printf("mkdir failed\n");
+            exit(1);
+        }
+        printf("???\n");
+        if (chdir("iputdir") < 0) {
+            printf("child chdir failed\n");
+            exit(1);
+        }
+        if (unlink("../iputdir") < 0) {
+            printf("unlink ../iputdir failed\n");
+            exit(1);
+        }
+        exit(0);
+    }
+    wait(&xstatus);
+    printf("exitiput test OK\n");   
+    exit(xstatus);
+}
+
+// many creates, followed by unlink test
+void createtest() {
+    printf("==========createtest test==========\n");
+    int i, fd;
+    int N = 50;
+    char name[3];
+    name[0] = 'a';
+    name[2] = '\0';
+    for (i = 0; i < N; i++) {
+        name[1] = '0' + i;
+        fd = open(name, O_CREATE | O_RDWR);
+        close(fd);
+    }
+    name[0] = 'a';
+    name[2] = '\0';
+    for (i = 0; i < N; i++) {
+        name[1] = '0' + i;
+        unlink(name);
+    }
+    printf("createtest test OK\n"); 
+}
+
+
+
+// if process size was somewhat more than a page boundary, and then
+// shrunk to be somewhat less than that page boundary, can the kernel
+// still copyin() from addresses in the last page?
+void sbrklast() {
+    printf("==========sbrklast test==========\n");
+    uint64 top = (uint64)sbrk(0);
+    if ((top % 4096) != 0)
+        sbrk(4096 - (top % 4096));
+    sbrk(4096);
+    sbrk(10);
+    sbrk(-20);
+    top = (uint64)sbrk(0);
+    char *p = (char *)(top - 64);
+    p[0] = 'x';
+    p[1] = '\0';
+    int fd = open(p, O_RDWR | O_CREATE);
+    write(fd, p, 1);
+    close(fd);
+    fd = open(p, O_RDWR);
+    p[0] = '\0';
+    read(fd, p, 1);
+    if (p[0] != 'x')
+        exit(1);
+    printf("sbrklast test OK\n"); 
 }
 
 int main(void) {
@@ -837,8 +919,10 @@ int main(void) {
     // copyinstr1();
     // truncate2();
     // truncate3();
-    iputtest();
-
+    // iputtest();
+    // exitiputtest();
+    // createtest();
+    sbrklast();
     exit(0);
     return 0;
 }

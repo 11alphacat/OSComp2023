@@ -253,7 +253,7 @@ extern struct _superblock fat32_sb;
 // 3. the maxium of FCB (short and long entry)
 #define FCB_MAX_LENGTH 672 // (20+1)*32
 // 4. first long directory in the data region ?
-#define first_long_dir(ip) (ip == fat32_sb.fat32_sb_info.root_entry && idx == 0)
+#define first_long_dir(ip) (ip == fat32_sb.fat32_sb_info.root_entry && off == 0)
 
 // for debug: the start addr of the cluster in the fat32.img
 #define FSIMG_STARTADDR (FirstDataSector * __BPB_BytsPerSec)

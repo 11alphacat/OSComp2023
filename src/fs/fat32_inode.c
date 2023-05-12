@@ -735,7 +735,8 @@ ushort fat32_longname_popstack(Stack_t *fcb_stack, uchar *fcb_s_name, char *name
         if (nlinks == 0) {
             nlinks = (fcb_l_tmp.LDIR_Nlinks == 0) ? 1 : fcb_l_tmp.LDIR_Nlinks;
         }
-        if (fcb_l_tmp.LDIR_Chksum != ChkSum(fcb_s_name)) {
+        uchar checksum = ChkSum(fcb_s_name);
+        if (fcb_l_tmp.LDIR_Chksum != checksum) {
             panic("check sum error");
         }
         char l_tmp[14];
@@ -746,8 +747,6 @@ ushort fat32_longname_popstack(Stack_t *fcb_stack, uchar *fcb_s_name, char *name
         }
     }
     name_buf[name_idx] = '\0';
-    // if(nlinks == 0)
-    //     panic("pop stack nlinks error");
     return nlinks;
 }
 
@@ -776,6 +775,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
 
     int first_sector;
     uint off = 0;
+
     // FAT seek cluster chains
     while (!ISEOF(iter_n)) {
         first_sector = FirstSectorofCluster(iter_n);
@@ -794,7 +794,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                     brelse(bp);
                     return 0;
                 }
-                int first_long_flag = (ip == fat32_sb.fat32_sb_info.root_entry && idx == 0);
+                int first_long_flag = (ip == fat32_sb.fat32_sb_info.root_entry && off == 0);
                 while ((LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) || first_long_dir(ip)) && idx < FCB_PER_BLOCK) {
                     stack_push(&fcb_stack, fcb_l[idx++]);
                     off++;
@@ -803,6 +803,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                 if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
                     memset(name_buf, 0, sizeof(name_buf));
                     ushort nlinks = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
+                    
                     // if it is . or ..
                     if (nlinks == 0) {
                         strncpy(name_buf, (const char *)fcb_s[idx].DIR_Name, sizeof(fcb_s[idx].DIR_Name));
@@ -1046,6 +1047,9 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
     stack_init(&fcb_stack);
     // int iter_order = 1;      // the compiler says it's an unused variable
     uchar checksum = ChkSum(dirent_s_cur.DIR_Name);
+#ifdef __DEBUG_FS__
+    printf("inode init : pid %d, %s, checksum = %x \n", current()->pid, long_name, checksum);
+#endif
     int char_idx = 0;
     // every long name entry
     for (int i = 1; i <= name_len / FAT_LFN_LENGTH + 1; i++) {
@@ -1084,9 +1088,12 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
         // Attr  and  Type
         dirent_l_cur.LDIR_Attr = ATTR_LONG_NAME;
         dirent_l_cur.LDIR_Type = 0;
-
+        
         // check sum
         dirent_l_cur.LDIR_Chksum = checksum;
+
+        // must set to zero
+        dirent_l_cur.LDIR_Nlinks = 0;
         stack_push(&fcb_stack, dirent_l_cur);
     }
 
