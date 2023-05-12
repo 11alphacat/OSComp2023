@@ -3,6 +3,7 @@ PLATFORM ?= qemu
 BUILD=build
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
+DEBUG_FS ?= 0
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -52,6 +53,10 @@ endif
 ifeq ($(DEBUG_PROC), 1)
 CFLAGS += -D__DEBUG_PROC__
 endif
+ifeq ($(DEBUG_FS), 1)
+CFLAGS += -D__DEBUG_FS__
+endif
+
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -151,6 +156,7 @@ TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 
 user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
+	@cp READ.md $(FSIMG)/
 	@make -C $(xv6U)
 
 # user:

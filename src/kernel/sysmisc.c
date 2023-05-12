@@ -153,6 +153,10 @@ uint64 sys_nanosleep(void) {
     uint interval_ns = SEPC2NS(ts_buf);
     uint interval_tick = NS2TICK(interval_ns);
 
+#ifdef __DEBUG_PROC__
+    printfYELLOW("sleep : pid %d sleep(%d)s start...\n", current()->pid, interval_tick / 10); // debug
+#endif
+
     acquire(&tickslock);
     ticks0 = ticks;
     while (ticks - ticks0 < interval_tick) {
@@ -163,6 +167,10 @@ uint64 sys_nanosleep(void) {
         sleep(&ticks, &tickslock);
     }
     release(&tickslock);
+
+#ifdef __DEBUG_PROC__
+    printfYELLOW("sleep : pid %d sleep(%d)s over...", current()->pid, interval_tick / 10); // debug
+#endif
 
     return 0;
 }

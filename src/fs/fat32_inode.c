@@ -254,6 +254,7 @@ uint fat32_cluster_alloc(uint dev) {
     bwrite(bp);
     brelse(bp);
 
+    fat32_zero_cluster(free_num);
     return free_num;
 }
 
@@ -396,6 +397,7 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
     int init_s_n = LOGISTIC_S_NUM(off);
     int init_s_offset = LOGISTIC_S_OFFSET(off);
 
+    uint ret = 0;
     // read the target sector
     while (!ISEOF(iter_n) && tot < n) {
         int first_sector = FirstSectorofCluster(iter_n);
@@ -405,7 +407,7 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
 
             if (either_copyout(user_dst, dst, bp->data + init_s_offset, m) == -1) {
                 brelse(bp);
-                tot = -1;
+                ret = -1;
                 break;
             }
             brelse(bp);
@@ -414,13 +416,16 @@ uint fat32_inode_read(struct _inode *ip, int user_dst, uint64 dst, uint off, uin
             dst += m;
             init_s_offset = 0;
         }
-        if (tot == n)
+        if (tot == n || ret == -1)
             break;
         init_s_n = 0;
 
         iter_n = fat32_next_cluster(iter_n);
     }
-    return tot;
+    if (ret == 0)
+        return tot;
+    else
+        return ret;
 }
 
 // Write data to fat32 inode
@@ -461,6 +466,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
     int init_s_n = LOGISTIC_S_NUM(off);
     int init_s_offset = LOGISTIC_S_OFFSET(off);
 
+    uint ret = 0;
     // read the target sector
     while ((!ISEOF(iter_n) && tot < n)) {
         int first_sector = FirstSectorofCluster(iter_n);
@@ -470,7 +476,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
 
             if (either_copyin(bp->data + init_s_offset, user_src, src, m) == -1) {
                 brelse(bp);
-                tot = -1;
+                ret = -1;
                 break;
             }
             bwrite(bp); // !!!!
@@ -479,7 +485,7 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             src += m;
             init_s_offset = 0;
         }
-        if (tot == n)
+        if (tot == n || ret == -1)
             break;
         init_s_n = 0;
         next = fat32_next_cluster(iter_n);
@@ -493,21 +499,17 @@ uint fat32_inode_write(struct _inode *ip, int user_src, uint64 src, uint off, ui
             iter_n = next;
         }
     }
-    // printf("fileSize: %d\n", fileSize);
-    // printf("i_size : %d\n", ip->i_size);
-    // printf("off+n : %d\n", off+n);
-
     if (off + n > fileSize) {
-        if (ip->i_type == T_FILE) {
-            ip->i_size = off + n;
-        } else {
-            ip->i_size = CEIL_DIVIDE(off + n, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
-        }
+        if (ip->i_type == T_FILE)
+            ip->i_size = off + tot;
+        else
+            ip->i_size = CEIL_DIVIDE(off + tot, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
     }
-    // printf("i_size : %d\n", ip->i_size);
-
     fat32_inode_update(ip);
-    return tot;
+    if (ret == 0)
+        return tot;
+    else
+        return ret;
 }
 
 struct _inode *fat32_inode_dup(struct _inode *ip) {
@@ -664,7 +666,6 @@ void fat32_inode_trunc(struct _inode *ip) {
     ip->fat32_i.parent_off = 0;
     ip->fat32_i.cluster_cnt = 0;
     ip->fat32_i.DIR_FileSize = 0;
-
     ip->i_rdev = 0;
     ip->i_mode = IMODE_NONE;
     ip->i_size = 0;
@@ -819,7 +820,8 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
 
                         ip_search = fat32_inode_get(ip->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name, off);
                         ip_search->parent = ip;
-                        ip_search->i_nlink = 1; // number of hard links
+                        // ip_search->i_nlink = nlinks; // number of hard links
+                        ip_search->i_nlink = 1;
                         return ip_search;
                     }
                 }
@@ -850,7 +852,6 @@ int fat32_inode_dirlink(struct _inode *dp, char *name) {
 
 // create a new inode
 struct _inode *fat32_inode_create(char *path, uchar type, short major, short minor) {
-    // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     struct _inode *ip = NULL, *dp = NULL;
     char name[NAME_LONG_MAX];
 
@@ -875,7 +876,14 @@ struct _inode *fat32_inode_create(char *path, uchar type, short major, short min
         fat32_inode_unlock_put(dp);
         return 0;
     }
-
+#ifdef __DEBUG_FS__
+    if (type == T_FILE)
+        printfRed("create : create file, %s\n", path);
+    else if (type == T_DEVICE)
+        printfRed("create : create device, %s\n", path);
+    else if (type == T_DIR)
+        printfRed("create : create directory, %s\n", path);
+#endif
     fat32_inode_lock(ip);
     ip->i_nlink = 1;
     ip->i_rdev = mkrdev(major, minor);
@@ -987,16 +995,22 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
     // 数据文件
     if (!DIR_BOOL(attr)) {
         if (str_split((const char *)long_name, '.', file_name, file_ext) == -1) {
-            // printf("%s\n",long_name);
-            // printf("%s\n",file_name);
-            // printf("%s\n",file_ext);
-
-            printfRed("it is a file without extname\n");
+            // printfRed("it is a file without extname\n");
             strncpy(file_name, (char *)long_name, 8);
-            // panic("fcb init : str split");
+            dirent_s_cur.DIR_Name[8] = 0x20;
+            dirent_s_cur.DIR_Name[9] = 0x20;
+            dirent_s_cur.DIR_Name[10] = 0x20;
+        } else {
+            str_toupper(file_ext);
+            strncpy((char *)dirent_s_cur.DIR_Name + 8, file_ext, 3); // extend name
+            if (strlen(file_ext) == 2) {
+                dirent_s_cur.DIR_Name[10] = 0x20;
+            }
+            if (strlen(file_ext) == 1) {
+                dirent_s_cur.DIR_Name[10] = 0x20;
+                dirent_s_cur.DIR_Name[9] = 0x20;
+            }
         }
-        str_toupper(file_ext);
-        strncpy((char *)dirent_s_cur.DIR_Name + 8, file_ext, 3); // extend name
 
         str_toupper(file_name);
         strncpy((char *)dirent_s_cur.DIR_Name, (char *)file_name, 8);
@@ -1199,34 +1213,6 @@ uint fat32_isdirempty(struct _inode *ip) {
     return 1;
 }
 
-// get time string
-// int fat32_time_parser(uint16 *time_in, char *str, int ms) {
-//     uint CreateTimeMillisecond;
-//     uint TimeSecond = time_in->second_per_2 << 1;
-//     uint TimeMinute = time_in->minute;
-//     uint TimeHour = time_in->hour;
-
-//     if (ms) {
-//         CreateTimeMillisecond = (uint)(ms)*10; // 计算毫秒数
-//         sprintf(str, "%d:%02d:%02d.%03d", TimeHour, TimeMinute, TimeSecond, CreateTimeMillisecond);
-//     } else {
-//         sprintf(str, "%d:%02d:%02d", TimeHour, TimeMinute, TimeSecond);
-//     }
-
-//     return 1;
-// }
-
-// get date string
-// int fat32_date_parser(uint16 *date_in, char *str) {
-//     uint TimeDay = date_in->day;
-//     uint TimeMonth = date_in->month;
-//     uint TimeYear = date_in->year + 1980;
-
-//     sprintf(str, "%04d-%02d-%02d", TimeYear, TimeMonth, TimeDay);
-
-//     return 1;
-// }
-
 void fat32_inode_stati(struct _inode *ip, struct kstat *st) {
     ASSERT(ip && st);
     st->st_atime_sec = ip->i_atime;
@@ -1263,6 +1249,48 @@ int fat32_inode_delete(struct _inode *dp, struct _inode *ip) {
     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
     return 0;
 }
+
+// zero cluster
+void fat32_zero_cluster(uint64 c_num) {
+    struct buffer_head *bp;
+    int first_sector;
+    first_sector = FirstSectorofCluster(c_num);
+    for (int s = 0; s < (fat32_sb.sectors_per_block); s++) {
+        bp = bread(fat32_sb.s_dev, first_sector + s);
+        memset(bp->data, 0, BSIZE);
+        bwrite(bp);
+        brelse(bp);
+    }
+    return;
+}
+
+// get time string
+// int fat32_time_parser(uint16 *time_in, char *str, int ms) {
+//     uint CreateTimeMillisecond;
+//     uint TimeSecond = time_in->second_per_2 << 1;
+//     uint TimeMinute = time_in->minute;
+//     uint TimeHour = time_in->hour;
+
+//     if (ms) {
+//         CreateTimeMillisecond = (uint)(ms)*10; // 计算毫秒数
+//         sprintf(str, "%d:%02d:%02d.%03d", TimeHour, TimeMinute, TimeSecond, CreateTimeMillisecond);
+//     } else {
+//         sprintf(str, "%d:%02d:%02d", TimeHour, TimeMinute, TimeSecond);
+//     }
+
+//     return 1;
+// }
+
+// get date string
+// int fat32_date_parser(uint16 *date_in, char *str) {
+//     uint TimeDay = date_in->day;
+//     uint TimeMonth = date_in->month;
+//     uint TimeYear = date_in->year + 1980;
+
+//     sprintf(str, "%04d-%02d-%02d", TimeYear, TimeMonth, TimeDay);
+
+//     return 1;
+// }
 
 // get time now
 // uint16 fat32_inode_get_time(int *ms) {

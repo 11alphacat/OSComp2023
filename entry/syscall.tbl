@@ -39,7 +39,6 @@
 
 # misc
 13  uptime          sys_uptime
-12  sleep           sys_sleep
 101  nanosleep       sys_nanosleep
 153  times           sys_times
 160  uname           sys_uname

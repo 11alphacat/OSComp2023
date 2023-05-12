@@ -25,8 +25,8 @@
 #include "fs/vfs/fs.h"
 #include "fs/fat/fat32_file.h"
 
-int cnt_exit=0;
-int cnt_wakeup=0;
+int cnt_exit = 0;
+int cnt_wakeup = 0;
 struct proc proc[NPROC];
 struct proc *initproc;
 
@@ -411,7 +411,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
 
             acquire(&p_child->lock);
             if (p_child->state == ZOMBIE) {
-                // if(p==initproc) 
+                // if(p==initproc)
                 //     printfRed("唤醒,pid : %d, %d\n",p_child->pid, ++cnt_wakeup); // debug
 
                 // ASSERT(p_child->pid!=SHELL_PID);
@@ -421,7 +421,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
                     return -1;
                 }
                 freeproc(p_child);
-                
+
                 acquire(&p->lock);
                 deleteChild(p, p_child);
                 release(&p->lock);
@@ -473,8 +473,8 @@ void reparent(struct proc *p) {
                 sema_signal(&initproc->sem_wait_chan_parent);
                 // printf("退出,pid : %d, %d\n",p_child->pid, ++cnt_exit);// debug
 #ifdef __DEBUG_PROC__
-                printfBWhite("reparent : zombie %d has exited\n", p_child->pid);      // debug
-                printfBWhite("reparent : zombie %d wakeup 1\n", p_child->pid); // debug
+                printfBWhite("reparent : zombie %d has exited\n", p_child->pid); // debug
+                printfBWhite("reparent : zombie %d wakeup 1\n", p_child->pid);   // debug
 #endif
             }
             release(&p_child->lock);

@@ -113,6 +113,48 @@ sys_wait4(void) {
 //     return do_execve(path, argv, envp);
 // }
 
+// temporary version
+uint64 sys_execve(void) {
+    char path[MAXPATH], *argv[MAXARG];
+    int i;
+    uint64 uargv, uarg;
+
+    argaddr(1, &uargv);
+    if (argstr(0, path, MAXPATH) < 0) {
+        return -1;
+    }
+    memset(argv, 0, sizeof(argv));
+    for (i = 0;; i++) {
+        if (i >= NELEM(argv)) {
+            goto bad;
+        }
+        if (fetchaddr(uargv + sizeof(uint64) * i, (uint64 *)&uarg) < 0) {
+            goto bad;
+        }
+        if (uarg == 0) {
+            argv[i] = 0;
+            break;
+        }
+        argv[i] = kalloc();
+        if (argv[i] == 0)
+            goto bad;
+        if (fetchstr(uarg, argv[i], PGSIZE) < 0)
+            goto bad;
+    }
+
+    int ret = do_execve(path, argv, NULL);
+
+    for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
+        kfree(argv[i]);
+
+    return ret;
+
+bad:
+    for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
+        kfree(argv[i]);
+    return -1;
+}
+
 uint64 sys_sbrk(void) {
     uint64 addr;
     int n;
@@ -123,6 +165,7 @@ uint64 sys_sbrk(void) {
         return -1;
     return addr;
 }
+
 uint64 sys_brk(void) {
     uintptr_t oldaddr;
     uintptr_t newaddr;
@@ -148,25 +191,6 @@ uint64 sys_print_pgtable(void) {
     vmprint(p->pagetable, 0, 0, 0, 0);
     uint64 memsize = get_free_mem();
     Log("%dM", memsize / 1024 / 1024);
-    return 0;
-}
-
-uint64
-sys_sleep(void) {
-    int n;
-    uint ticks0;
-
-    argint(0, &n);
-    acquire(&tickslock);
-    ticks0 = ticks;
-    while (ticks - ticks0 < n) {
-        if (killed(current())) {
-            release(&tickslock);
-            return -1;
-        }
-        sleep(&ticks, &tickslock);
-    }
-    release(&tickslock);
     return 0;
 }
 

@@ -142,7 +142,14 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
         fat32_inode_unlock_put(dp);
         return 0;
     }
-
+#ifdef __DEBUG_FS__
+    if (type == T_FILE)
+        printfRed("create : pid %d, create file, %s\n", current()->pid, path);
+    else if (type == T_DEVICE)
+        printfRed("create : pid %d, create device, %s\n", current()->pid, path);
+    else if (type == T_DIR)
+        printfRed("create : pid %d, create directory, %s\n", current()->pid, path);
+#endif
     fat32_inode_lock(ip);
     // ip->i_nlink = 1;
     fat32_inode_update(ip);
@@ -333,8 +340,9 @@ uint64 sys_openat(void) {
     int n;
     argint(0, &dirfd); // no need to check dirfd, because dirfd maybe AT_FDCWD(<0)
                        // find_inode will do the check
-    if ((n = argstr(1, path, PATH_LONG_MAX)) < 0)
+    if ((n = argstr(1, path, PATH_LONG_MAX)) < 0) {
         return -1;
+    }
     argint(2, &flags);
     argint(3, &omode);
 
@@ -343,18 +351,24 @@ uint64 sys_openat(void) {
         if ((ip = inode_create(path, dirfd, T_FILE)) == 0) {
             return -1;
         }
+#ifdef __DEBUG_FS__
+        printfBlue("openat : pid %d, create file, %s\n", current()->pid, path);
+#endif
     } else {
         // 否则，我们先调用 find_inode找到path对应的文件inode节点
         if ((ip = find_inode(path, dirfd, 0)) == 0) {
             return -1;
         }
+#ifdef __DEBUG_FS__
+        printfBlue("openat : pid %d, open existed file, %s\n", current()->pid, path);
+#endif
         ASSERT(ip); // 这里 ip 应该已绑定到 path 找到的文件inode节点
         fat32_inode_lock(ip);
         // if (ip->i_type == T_DIR && flags != O_RDONLY) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
         // }
-        
+
         // if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
@@ -398,11 +412,19 @@ uint64 sys_openat(void) {
     */
 
     if ((flags & O_TRUNC) && ip->i_type == T_FILE) {
-        fat32_inode_trunc(ip);
+        // fat32_inode_trunc(ip);
+        ip->i_size = 0;
+        f->f_pos = 0;
+#ifdef __DEBUG_FS__
+        printfBlue("openat : pid %d, truncate file, %s\n", current()->pid, path);
+#endif
     }
 
     fat32_inode_unlock(ip);
 
+#ifdef __DEBUG_FS__
+    printfBlue("openat : pid %d, fd = %d\n", current()->pid, fd);
+#endif
     return fd;
 }
 
@@ -417,6 +439,9 @@ uint64 sys_close(void) {
     if (argfd(0, &fd, &f) < 0)
         return -1;
     current()->_ofile[fd] = 0;
+#ifdef __DEBUG_FS__
+    printfCYAN("close : pid %d, fd = %d\n", current()->pid, fd);
+#endif
     fat32_fileclose(f);
     return 0;
 }
@@ -433,10 +458,19 @@ uint64 sys_read(void) {
     uint64 p;
 
     argaddr(1, &p);
-    argint(2, &n);
+    if (argint(2, &n) < 0) {
+        return -1;
+    }
     if (argfd(0, 0, &f) < 0)
         return -1;
-    // printf("%d\n", f->f_tp.f_inode->fat32_i.DIR_FileSize);
+
+#ifdef __DEBUG_FS__
+    if (f->f_type == FD_INODE) {
+        int fd;
+        argint(0, &fd);
+        printfMAGENTA("read : pid %d, fd = %d\n", current()->pid, fd);
+    }
+#endif
     return fat32_fileread(f, p, n);
 }
 
@@ -455,6 +489,14 @@ uint64 sys_write(void) {
     argint(2, &n);
     if (argfd(0, 0, &f) < 0)
         return -1;
+
+#ifdef __DEBUG_FS__
+    if (f->f_type == FD_INODE) {
+        int fd;
+        argint(0, &fd);
+        printfYELLOW("write : pid %d, fd = %d\n", current()->pid, fd);
+    }
+#endif
     return fat32_filewrite(f, p, n);
 }
 
@@ -530,8 +572,12 @@ uint64 sys_unlinkat(void) {
     if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0)
         goto bad;
 
-    if ((ip = fat32_inode_dirlookup(dp, name, &off)) == 0)
+    if ((ip = fat32_inode_dirlookup(dp, name, &off)) == 0) {
+#ifdef __DEBUG_FS__
+        printfGreen("unlinkat : pid %d, no file, %s\n", current()->pid, path);
+#endif
         goto bad;
+    }
 
     fat32_inode_lock(ip);
     if (ip->i_nlink < 1)
@@ -556,6 +602,9 @@ uint64 sys_unlinkat(void) {
     fat32_inode_unlock_put(dp);
 
     ip->i_nlink--;
+#ifdef __DEBUG_FS__
+    printfGreen("unlinkat : pid %d, file (%s) nlinks %d -> %d\n", current()->pid, ip->fat32_i.fname, ip->i_nlink + 1, ip->i_nlink);
+#endif
     fat32_inode_update(ip);
     fat32_inode_unlock_put(ip);
 
@@ -723,46 +772,4 @@ uint64 sys_pipe2(void) {
         return -1;
     }
     return 0;
-}
-
-// temporary version
-uint64 sys_execve(void) {
-    char path[MAXPATH], *argv[MAXARG];
-    int i;
-    uint64 uargv, uarg;
-
-    argaddr(1, &uargv);
-    if (argstr(0, path, MAXPATH) < 0) {
-        return -1;
-    }
-    memset(argv, 0, sizeof(argv));
-    for (i = 0;; i++) {
-        if (i >= NELEM(argv)) {
-            goto bad;
-        }
-        if (fetchaddr(uargv + sizeof(uint64) * i, (uint64 *)&uarg) < 0) {
-            goto bad;
-        }
-        if (uarg == 0) {
-            argv[i] = 0;
-            break;
-        }
-        argv[i] = kalloc();
-        if (argv[i] == 0)
-            goto bad;
-        if (fetchstr(uarg, argv[i], PGSIZE) < 0)
-            goto bad;
-    }
-
-    int ret = do_execve(path, argv, NULL);
-
-    for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-        kfree(argv[i]);
-
-    return ret;
-
-bad:
-    for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-        kfree(argv[i]);
-    return -1;
 }

@@ -67,8 +67,16 @@ void backtrace();
     printf("\33[1;36m" format "\33[0m", \
            ##__VA_ARGS__)
 
+#define printfYELLOW(format, ...)       \
+    printf("\33[1;33m" format "\33[0m", \
+           ##__VA_ARGS__)
+
 #define printfBWhite(format, ...)       \
     printf("\33[1;37m" format "\33[0m", \
+           ##__VA_ARGS__)
+
+#define printfMAGENTA(format, ...)      \
+    printf("\33[1;35m" format "\33[0m", \
            ##__VA_ARGS__)
 
 #define Info(fmt, ...) printf("[INFO] " fmt "", ##__VA_ARGS__);

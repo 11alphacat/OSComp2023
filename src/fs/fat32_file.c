@@ -81,9 +81,7 @@ void fat32_fileclose(struct _file *f) {
         int wrable = F_WRITEABLE(&ff);
         pipeclose(ff.f_tp.f_pipe, wrable);
     } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
-        // begin_op();
         fat32_inode_put(ff.f_tp.f_inode);
-        // end_op();
     }
 }
 
@@ -119,15 +117,25 @@ int fat32_fileread(struct _file *f, uint64 addr, int n) {
 
     if (f->f_type == FD_PIPE) {
         r = piperead(f->f_tp.f_pipe, addr, n);
+#ifdef __DEBUG_FS__
+        printfMAGENTA("read : read %d chars of pipe file (no name pipe) starting from %d \n", r, f->f_tp.f_pipe->nread - r);
+#endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
             return -1;
         r = devsw[f->f_major].read(1, addr, n);
     } else if (f->f_type == FD_INODE) {
+        n = MIN(n, f->f_tp.f_inode->i_size);
         fat32_inode_lock(f->f_tp.f_inode);
         if ((r = fat32_inode_read(f->f_tp.f_inode, 1, addr, f->f_pos, n)) > 0)
             f->f_pos += r;
         fat32_inode_unlock(f->f_tp.f_inode);
+#ifdef __DEBUG_FS__
+        if (r < 0)
+            printfMAGENTA("read : error, reading chars of inode file %s starting from %d \n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
+        else
+            printfMAGENTA("read : read %d chars of inode file %s starting from %d \n", r, f->f_tp.f_inode->fat32_i.fname, f->f_pos - r);
+#endif
     } else {
         panic("fileread");
     }
@@ -146,6 +154,9 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
 
     if (f->f_type == FD_PIPE) {
         ret = pipewrite(f->f_tp.f_pipe, addr, n);
+#ifdef __DEBUG_FS__
+        printfYELLOW("write : write %d chars -> pipe file (no name pipe) starting from %d\n", ret, f->f_tp.f_pipe->nwrite - ret);
+#endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].write)
             return -1;
@@ -157,13 +168,12 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
         // and 2 blocks of slop for non-aligned writes.
         // this really belongs lower down, since writei()
         // might be writing a device like the console.
-        int max = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
+        // int max = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
         int i = 0;
         while (i < n) {
             int n1 = n - i;
-            if (n1 > max)
-                n1 = max;
-
+            // if (n1 > max)
+            //     n1 = max;
             // begin_op();
             fat32_inode_lock(f->f_tp.f_inode);
             if ((r = fat32_inode_write(f->f_tp.f_inode, 1, addr + i, f->f_pos, n1)) > 0)
@@ -178,6 +188,12 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
             i += r;
         }
         ret = (i == n ? n : -1);
+#ifdef __DEBUG_FS__
+        if (ret < 0)
+            printfYELLOW("write : error writing chars -> inode file %s starting from %d\n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
+        else
+            printfYELLOW("write : write %d chars -> inode file %s starting from %d\n", i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
+#endif
     } else {
         panic("filewrite");
     }
@@ -294,8 +310,9 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
 
                     ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
                     ip_buf->parent = dp;
-                    ip_buf->i_nlink = 1; // number of hard links
-                    brelse(bp);          // !!!!
+                    // ip_buf->i_nlink = nlinks; // number of hard links
+                    ip_buf->i_nlink = 1;
+                    brelse(bp); // !!!!
 
                     fat32_inode_lock(ip_buf);
                     dirent_buf.d_ino = ip_buf->i_ino;

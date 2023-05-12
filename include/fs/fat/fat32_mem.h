@@ -168,4 +168,7 @@ uint16 fat32_inode_get_time(int *);
 // 32. acquire the date now
 uint16 fat32_inode_get_date();
 
+// 33. zero the cluster given cluster num
+void fat32_zero_cluster(uint64 c_num);
+
 #endif
