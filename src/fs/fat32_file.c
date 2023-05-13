@@ -283,7 +283,7 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
             // FCB in a sector
             while (idx < FCB_PER_BLOCK) {
                 // long dirctory item push into the stack
-                int first_long_flag = (dp == fat32_sb.fat32_sb_info.root_entry && idx == 0);
+                int first_long_flag = (dp == fat32_sb.fat32_sb_info.root_entry && off == 0);
 
                 if (NAME0_FREE_ALL(fcb_s[idx].DIR_Name[0])) {
                     brelse(bp);
@@ -308,6 +308,9 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                     }
                     cnt++;
 
+                    if(fat32_namecmp(name_buf, "console.dev") == 0) {
+                        printf("ready\n");
+                    }
                     ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
                     ip_buf->parent = dp;
                     // ip_buf->i_nlink = nlinks; // number of hard links
@@ -319,7 +322,12 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                     dirent_buf.d_off = cnt;
                     dirent_buf.d_type = ip_buf->i_type;
                     int fname_len = strlen(ip_buf->fat32_i.fname);
-                    safestrcpy(dirent_buf.d_name, ip_buf->fat32_i.fname, fname_len);
+                    safestrcpy(dirent_buf.d_name, name_buf, fname_len);
+                    // for(int i=0;i<fname_len;i++) {
+                    //     dirent_buf.d_name[i] = name_buf[i];
+                    // }
+                    dirent_buf.d_name[fname_len]='\0';
+                    
                     dirent_buf.d_reclen = dirent_len(dirent_buf);
                     // memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
                     memmove((void *)(buf + nread), (void *)&dirent_buf, dirent_buf.d_reclen);

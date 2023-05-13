@@ -15,9 +15,6 @@
 extern struct file_operations fat32_fop;
 extern struct inode_operations fat32_iop;
 
-// compare the s and t
-#define fat32_namecmp(s, t) (strncmp(s, t, PATH_LONG_MAX))
-
 struct _superblock fat32_sb;
 // maximum file inode in memory
 #define NENTRY 10
@@ -775,7 +772,6 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
 
     int first_sector;
     uint off = 0;
-
     // FAT seek cluster chains
     while (!ISEOF(iter_n)) {
         first_sector = FirstSectorofCluster(iter_n);
@@ -796,11 +792,13 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                 }
                 int first_long_flag = (ip == fat32_sb.fat32_sb_info.root_entry && off == 0);
                 while ((LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) || first_long_dir(ip)) && idx < FCB_PER_BLOCK) {
+                    // printf("%d, %d, %d\n",LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr), first_long_dir(ip), idx < FCB_PER_BLOCK);
                     stack_push(&fcb_stack, fcb_l[idx++]);
                     off++;
                 }
                 // pop stack
-                if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
+                if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0]) && idx < FCB_PER_BLOCK) {
+
                     memset(name_buf, 0, sizeof(name_buf));
                     ushort nlinks = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
                     
@@ -959,7 +957,7 @@ struct _inode *fat32_inode_alloc(struct _inode *dp, char *name, uchar type) {
     // uint sec_pos = DEBUG_SECTOR(dp, sector_num); // debug
     // printf("%d\n",sec_pos); // debug
 
-    ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset);
+    ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset + fcb_cnt - 1);
     ip_new->i_nlink = 1;
     ip_new->ref = 1;
     ip_new->parent = dp;
@@ -1136,7 +1134,7 @@ uint fat32_find_same_name_cnt(struct _inode *ip, char *name) {
                 if (!LONG_NAME_BOOL(fcb_s[idx].DIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
                     // is our search for?
                     // extend name should be matched!!!
-                    if (!strncmp((char *)fcb_s[idx].DIR_Name, name, 6) && !strncmp((char *)fcb_s[idx].DIR_Name + 8, name + 8, 3)) {
+                    if (!strncmp((char *)fcb_s[idx].DIR_Name, name, 6)&&fcb_s[idx].DIR_Name[6]=='~') {
                         ret++;
                     }
                 }
@@ -1253,6 +1251,9 @@ int fat32_inode_delete(struct _inode *dp, struct _inode *ip) {
     for (int i = 0; i < long_dir_len + 1; i++)
         fcb_char[i * 32] = 0xE5;
     ASSERT(off - long_dir_len > 0);
+#ifdef __DEBUG_FS__
+    printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", current()->pid, ip->fat32_i.fname, off, long_dir_len);
+#endif
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
     return 0;

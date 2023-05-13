@@ -207,33 +207,7 @@ void cowtest(char *s) {
 }
 
 // new tests
-void uvmfree(char *s) {
-    enum { BIG = 100 * 1024 * 1024 };
-    char *a, *p;
-    uint64 amt;
 
-    int pid = fork();
-    if (pid == 0) {
-        // oldbrk = sbrk(0);
-
-        // can one grow address space to something big?
-        a = sbrk(0);
-        amt = BIG - (uint64)a;
-        p = sbrk(amt);
-        if (p != a) {
-            printf("%s: sbrk test failed to grow big address space; enough phys mem?\n", s);
-            exit(1);
-        }
-        printf("child done\n");
-        exit(0);
-    } else if (pid > 0) {
-        wait((int *)0);
-        exit(0);
-    } else {
-        printf("fork failed");
-        exit(1);
-    }
-}
 
 //
 // Section with tests that run fairly quickly.  Use -q if you want to
@@ -301,79 +275,6 @@ void copyinstr3(char *s) {
 //    }
 
 
-void dirtest(char *s) {
-    if (mkdir("dir0") < 0) {
-        printf("%s: mkdir failed\n", s);
-        exit(1);
-    }
-
-    if (chdir("dir0") < 0) {
-        printf("%s: chdir dir0 failed\n", s);
-        exit(1);
-    }
-
-    if (chdir("..") < 0) {
-        printf("%s: chdir .. failed\n", s);
-        exit(1);
-    }
-
-    if (unlink("dir0") < 0) {
-        printf("%s: unlink dir0 failed\n", s);
-        exit(1);
-    }
-}
-
-void exectest(char *s) {
-    int fd, xstatus, pid;
-    char *echoargv[] = {"echo", "OK", 0};
-    char buf[3];
-
-    unlink("echo-ok");
-    pid = fork();
-    if (pid < 0) {
-        printf("%s: fork failed\n", s);
-        exit(1);
-    }
-    if (pid == 0) {
-        close(1);
-        fd = open("echo-ok", O_CREATE | O_WRONLY);
-        if (fd < 0) {
-            printf("%s: create failed\n", s);
-            exit(1);
-        }
-        if (fd != 1) {
-            printf("%s: wrong fd\n", s);
-            exit(1);
-        }
-        if (exec("echo", echoargv) < 0) {
-            printf("%s: exec echo failed\n", s);
-            exit(1);
-        }
-        // won't get to here
-    }
-    if (wait(&xstatus) != pid) {
-        printf("%s: wait failed!\n", s);
-    }
-    if (xstatus != 0)
-        exit(xstatus);
-
-    fd = open("echo-ok", O_RDONLY);
-    if (fd < 0) {
-        printf("%s: open failed\n", s);
-        exit(1);
-    }
-    if (read(fd, buf, 2) != 2) {
-        printf("%s: read failed\n", s);
-        exit(1);
-    }
-    unlink("echo-ok");
-    if (buf[0] == 'O' && buf[1] == 'K')
-        exit(0);
-    else {
-        printf("%s: wrong output\n", s);
-        exit(1);
-    }
-}
 
 // simple fork and pipe read/write
 
@@ -1900,48 +1801,6 @@ struct test {
     {0, 0},
 };
 
-//
-// Section with tests that take a fair bit of time
-//
-
-// directory that uses indirect blocks
-void bigdir(char *s) {
-    enum { N = 500 };
-    int i, fd;
-    char name[10];
-
-    unlink("bd");
-
-    fd = open("bd", O_CREATE);
-    if (fd < 0) {
-        printf("%s: bigdir create failed\n", s);
-        exit(1);
-    }
-    close(fd);
-
-    for (i = 0; i < N; i++) {
-        name[0] = 'x';
-        name[1] = '0' + (i / 64);
-        name[2] = '0' + (i % 64);
-        name[3] = '\0';
-        if (link("bd", name) != 0) {
-            printf("%s: bigdir link(bd, %s) failed\n", s, name);
-            exit(1);
-        }
-    }
-
-    unlink("bd");
-    for (i = 0; i < N; i++) {
-        name[0] = 'x';
-        name[1] = '0' + (i / 64);
-        name[2] = '0' + (i % 64);
-        name[3] = '\0';
-        if (unlink(name) != 0) {
-            printf("%s: bigdir unlink failed", s);
-            exit(1);
-        }
-    }
-}
 
 // concurrent writes to try to provoke deadlock in the virtio disk
 // driver.

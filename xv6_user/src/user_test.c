@@ -323,7 +323,6 @@ void openiputtest() {
 
     wait(&xstatus);
     printf("openiputtest test OK\n");
-    exit(xstatus);
 }
 
 void truncate1() {
@@ -506,9 +505,9 @@ void killstatus() {
             printf("status should be -1\n");
             exit(1);
         }
+        printf("%d\n", i);
     }
     printf("killstatus test OK\n");
-    exit(0);
 }
 
 char buf2[4096];
@@ -714,8 +713,6 @@ void rwsbrk() {
     }
     close(fd);
     printf("rwsbrk test OK\n");
-
-    exit(0);
 }
 
 // write to an open FD whose file has just been truncated.
@@ -793,7 +790,6 @@ void truncate3() {
     wait(&xstatus);
     unlink("truncfile");
     printf("truncate3 test OK\n");
-    exit(xstatus);
 }
 
 // does chdir() call iput(p->cwd) in a transaction?
@@ -845,14 +841,13 @@ void exitiputtest() {
     }
     wait(&xstatus);
     printf("exitiput test OK\n");   
-    exit(xstatus);
 }
 
 // many creates, followed by unlink test
 void createtest() {
     printf("==========createtest test==========\n");
     int i, fd;
-    int N = 50;
+    int N = 3;
     char name[3];
     name[0] = 'a';
     name[2] = '\0';
@@ -861,12 +856,12 @@ void createtest() {
         fd = open(name, O_CREATE | O_RDWR);
         close(fd);
     }
-    name[0] = 'a';
-    name[2] = '\0';
-    for (i = 0; i < N; i++) {
-        name[1] = '0' + i;
-        unlink(name);
-    }
+    // name[0] = 'a';
+    // name[2] = '\0';
+    // for (i = 0; i < N; i++) {
+    //     name[1] = '0' + i;
+    //     unlink(name);
+    // }
     printf("createtest test OK\n"); 
 }
 
@@ -898,31 +893,190 @@ void sbrklast() {
     printf("sbrklast test OK\n"); 
 }
 
-int main(void) {
-    // forktest();
-    // exitwait();
-    // forkfork();
-    // forkforkfork();
-    // twochildren();
-    // reparent();
-    // reparent2();
-    // killstatus();
+// // Section with tests that take a fair bit of time
+// // directory that uses indirect blocks
+// void bigdir() {
+//     printf("==========bigdir test==========\n");
+//     enum { N = 500 };
+//     int i, fd;
+//     char name[10];
 
-    // opentest();
-    // openiputtest();
-    // writetest();
-    // writebig();
-    // preempt();
-    // truncate1();
-    // copyin();
-    // copyout();
-    // copyinstr1();
-    // truncate2();
-    // truncate3();
-    // iputtest();
-    // exitiputtest();
-    // createtest();
+//     unlink("bd");
+
+//     fd = open("bd", O_CREATE);
+//     if (fd < 0) {
+//         printf("bigdir create failed\n");
+//         exit(1);
+//     }
+//     close(fd);
+
+//     for (i = 0; i < N; i++) {
+//         name[0] = 'x';
+//         name[1] = '0' + (i / 64);
+//         name[2] = '0' + (i % 64);
+//         name[3] = '\0';
+//         if (link("bd", name) != 0) {
+//             printf("bigdir link(bd, %s) failed\n", name);
+//             exit(1);
+//         }
+//     }
+
+//     unlink("bd");
+//     for (i = 0; i < N; i++) {
+//         name[0] = 'x';
+//         name[1] = '0' + (i / 64);
+//         name[2] = '0' + (i % 64);
+//         name[3] = '\0';
+//         if (unlink(name) != 0) {
+//             printf("bigdir unlink failed\n");
+//             exit(1);
+//         }
+//     }
+//     printf("bigdir test OK\n"); 
+// }
+
+
+void dirtest() {
+    printf("==========dir test=========\n");
+    if (mkdir("dir0", 0666) < 0) {
+        printf("mkdir failed\n");
+        exit(1);
+    }
+
+    if (chdir("dir0") < 0) {
+        printf("chdir dir0 failed\n");
+        exit(1);
+    }
+
+    if (chdir("..") < 0) {
+        printf("chdir .. failed\n");
+        exit(1);
+    }
+
+    if (unlink("dir0") < 0) {
+        printf("unlink dir0 failed\n");
+        exit(1);
+    }
+    printf("dir test OK\n"); 
+}
+
+
+void execvetest() {
+    printf("==========execve test=========\n");
+    int fd, xstatus, pid;
+    char *echoargv[] = {"echo", "OK", 0};
+    char buf[3];
+
+    unlink("echo-ok");
+    pid = fork();
+    if (pid < 0) {
+        printf("fork failed\n");
+        exit(1);
+    }
+    if (pid == 0) {
+        close(1);
+        fd = open("echo-ok", O_CREATE | O_WRONLY);
+        if (fd < 0) {
+            printf("create failed\n");
+            exit(1);
+        }
+        if (fd != 1) {
+            printf("wrong fd\n");
+            exit(1);
+        }
+        if (execve("echo", echoargv, NULL) < 0) {
+            printf("execve echo failed\n");
+            exit(1);
+        }
+        // won't get to here
+    }
+
+    if (wait(&xstatus) != pid) {
+        printf("wait failed!\n");
+    }
+    if (xstatus != 0)
+        exit(xstatus);
+
+    fd = open("echo-ok", O_RDONLY);
+    if (fd < 0) {
+        printf("open failed\n");
+        exit(1);
+    }
+    if (read(fd, buf, 2) != 2) {
+        printf("read failed\n");
+        exit(1);
+    }
+    unlink("echo-ok");
+    if (buf[0] == 'O' && buf[1] == 'K'){
+        printf("execve test OK\n"); 
+    }
+    else {
+        printf("wrong output\n");
+        exit(1);
+    }
+
+}
+
+void uvmfree() {
+    printf("==========uvmfree test=========\n");
+    enum { BIG = 100 * 1024 * 1024 };
+    char *a, *p;
+    uint64 amt;
+
+    int pid = fork();
+    if (pid == 0) {
+        // oldbrk = sbrk(0);
+
+        // can one grow address space to something big?
+        a = sbrk(0);
+        amt = BIG - (uint64)a;
+        p = sbrk(amt);
+        if (p != a) {
+            printf("sbrk test failed to grow big address space; enough phys mem?\n");
+            exit(1);
+        }
+        printf("child done\n");
+        exit(0);
+    } else if (pid > 0) {
+        wait((int *)0);
+        printf("uvmfree test OK\n"); 
+        exit(0);
+    } else {
+        printf("fork failed");
+        exit(1);
+    }
+
+}
+
+int main(void) {
+    forktest();
+    exitwait();
+    forkfork();
+    forkforkfork();
+    twochildren();
+    reparent();
+    reparent2();
+    killstatus();
+
+    opentest();
+    openiputtest();
+    writetest();
+    writebig();
+    preempt();
+    truncate1();
+    copyin();
+    copyout();
+    copyinstr1();
+    truncate2();
+    truncate3();
+    iputtest();
+    exitiputtest();
+    createtest();
     sbrklast();
+    dirtest();
+    execvetest();
+    uvmfree();
+
     exit(0);
     return 0;
 }

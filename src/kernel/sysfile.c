@@ -136,7 +136,7 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
         return 0;
         // return 0;
     }
-
+    
     // haven't exited
     if ((ip = fat32_inode_alloc(dp, name, type)) == 0) {
         fat32_inode_unlock_put(dp);
@@ -144,11 +144,11 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
     }
 #ifdef __DEBUG_FS__
     if (type == T_FILE)
-        printfRed("create : pid %d, create file, %s\n", current()->pid, path);
+        printfRed("inode_create : pid %d, create file, %s\n", current()->pid, path);
     else if (type == T_DEVICE)
-        printfRed("create : pid %d, create device, %s\n", current()->pid, path);
+        printfRed("inode_create : pid %d, create device, %s\n", current()->pid, path);
     else if (type == T_DIR)
-        printfRed("create : pid %d, create directory, %s\n", current()->pid, path);
+        printfRed("inode_create : pid %d, create directory, %s\n", current()->pid, path);
 #endif
     fat32_inode_lock(ip);
     // ip->i_nlink = 1;
