@@ -246,7 +246,7 @@ struct __dirent {
     char d_name[];           // 文件名
 };
 
-#define dirent_len(dirent) (sizeof(dirent.d_ino) + sizeof(dirent.d_off) + sizeof(dirent.d_type) + sizeof(dirent.d_reclen) + strlen(dirent.d_name) + 1)
+#define dirent_len(dirent) (sizeof(dirent->d_ino) + sizeof(dirent->d_off) + sizeof(dirent->d_type) + sizeof(dirent->d_reclen) + strlen(dirent->d_name) + 1)
 
 // 将 dp 目录下的所有目录项解析成 struct _dirent，填入 buf 中
 // len 为 buf 的最大长度
@@ -257,18 +257,21 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
         panic("getdents : not DIR");
     struct buffer_head *bp;
     struct _inode *ip_buf;
-    struct __dirent dirent_buf;
+    char buf_tmp[NAME_LONG_MAX + 30];
+    struct __dirent *dirent_buf = (struct __dirent *)buf_tmp;
 
     ssize_t nread = 0;
     char name_buf[NAME_LONG_MAX];
     memset(name_buf, 0, sizeof(name_buf));
     Stack_t fcb_stack;
     stack_init(&fcb_stack);
+
     FAT_entry_t iter_n = dp->fat32_i.cluster_start;
 
     int first_sector;
     uint off = 0;
     uint cnt = 0;
+    int fname_len = 0;
     // FAT seek cluster chains
     while (!ISEOF(iter_n)) {
         first_sector = FirstSectorofCluster(iter_n);
@@ -308,9 +311,6 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                     }
                     cnt++;
 
-                    if(fat32_namecmp(name_buf, "console.dev") == 0) {
-                        printf("ready\n");
-                    }
                     ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
                     ip_buf->parent = dp;
                     // ip_buf->i_nlink = nlinks; // number of hard links
@@ -318,21 +318,21 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                     brelse(bp); // !!!!
 
                     fat32_inode_lock(ip_buf);
-                    dirent_buf.d_ino = ip_buf->i_ino;
-                    dirent_buf.d_off = cnt;
-                    dirent_buf.d_type = ip_buf->i_type;
-                    int fname_len = strlen(ip_buf->fat32_i.fname);
-                    safestrcpy(dirent_buf.d_name, name_buf, fname_len);
+                    dirent_buf->d_ino = ip_buf->i_ino;
+                    dirent_buf->d_off = cnt;
+                    dirent_buf->d_type = ip_buf->i_type;
+                    fname_len = strlen(ip_buf->fat32_i.fname);
+                    safestrcpy(dirent_buf->d_name, name_buf, fname_len); // !!!!!
                     // for(int i=0;i<fname_len;i++) {
                     //     dirent_buf.d_name[i] = name_buf[i];
                     // }
-                    dirent_buf.d_name[fname_len]='\0';
-                    
-                    dirent_buf.d_reclen = dirent_len(dirent_buf);
-                    // memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
-                    memmove((void *)(buf + nread), (void *)&dirent_buf, dirent_buf.d_reclen);
+                    dirent_buf->d_name[fname_len] = '\0';
 
-                    nread += dirent_buf.d_reclen;
+                    dirent_buf->d_reclen = dirent_len(dirent_buf);
+                    // memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
+                    memmove((void *)(buf + nread), (void *)dirent_buf, dirent_buf->d_reclen);
+
+                    nread += dirent_buf->d_reclen;
                     fat32_inode_unlock_put(ip_buf);
 
                     bp = bread(dp->i_dev, first_sector + s);
@@ -344,7 +344,10 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
         }
         iter_n = fat32_next_cluster(iter_n);
     }
+    stack_free(&fcb_stack);
+    return nread;
 finish:
+    stack_free(&fcb_stack);
     return nread;
 }
 

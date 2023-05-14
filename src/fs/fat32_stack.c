@@ -1,8 +1,10 @@
 #include "fs/fat/fat32_stack.h"
+#include "memory/allocator.h"
 #include "common.h"
 
 // 初始化栈
 void stack_init(Stack_t *stack) {
+    stack->data = kmalloc(30 * 32);
     stack->top = -1;
 }
 
@@ -38,4 +40,8 @@ elemtype stack_peek(Stack_t *stack) {
         panic("Stack is empty!");
     }
     return stack->data[stack->top];
+}
+
+void stack_free(Stack_t *stack) {
+    kfree(stack->data);
 }

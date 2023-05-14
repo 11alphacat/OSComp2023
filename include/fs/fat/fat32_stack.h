@@ -9,7 +9,7 @@ typedef dirent_l_t elemtype;
 
 struct Stack {
     int top;
-    elemtype data[CAPACITY];
+    elemtype *data;
 };
 typedef struct Stack Stack_t;
 
@@ -31,4 +31,6 @@ elemtype stack_pop(Stack_t *);
 // 6. 获取栈顶元素
 elemtype stack_peek(Stack_t *);
 
+// 7. 释放栈分配的空间
+void stack_free(Stack_t *);
 #endif

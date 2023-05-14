@@ -28,7 +28,7 @@ static void print_rawstr(const char *c, size_t len) {
     for (int i = 0; i < len; i++) {
         if (*(c + i) == ' ') {
             printf(" ");
-        } else if (isalnum(*(c + i)) || *(c + i) == '.') {
+        } else if (isalnum(*(c + i)) || *(c + i) == '.' || *(c + i) == '~' || *(c + i) == '_') {
             printf("%c", *(c + i));
         } else {
             printf(" ");
@@ -86,7 +86,7 @@ void sys_print_rawfile(void) {
         printfGreen("the file is not a directory\n");
         return;
     }
-
+    int off = 0;
     // print logistic clu.no and address(in fat32.img)
     while (!ISEOF(iter_n)) {
         uint64 addr = (iter_n - fat32_sb.fat32_sb_info.root_cluster_s) * __BPB_BytsPerSec * __BPB_SecPerClus + FSIMG_STARTADDR;
@@ -99,6 +99,7 @@ void sys_print_rawfile(void) {
                 bp = bread(ip->i_dev, first_sector + s);
                 for (int i = 0; i < 512 && i < ip->i_size; i += 32) {
                     dirent_s_t *tmp = (dirent_s_t *)(bp->data + i);
+                    printf("%x ", off++);
                     if (LONG_NAME_BOOL(tmp->DIR_Attr)) {
                         print_long_dir((dirent_l_t *)(bp->data + i));
                     } else {
@@ -788,6 +789,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                 // the first long directory in the data region
                 if (NAME0_FREE_ALL(fcb_s[idx].DIR_Name[0])) {
                     brelse(bp);
+                    stack_free(&fcb_stack);
                     return 0;
                 }
                 int first_long_flag = (ip == fat32_sb.fat32_sb_info.root_entry && off == 0);
@@ -796,12 +798,15 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                     stack_push(&fcb_stack, fcb_l[idx++]);
                     off++;
                 }
+
                 // pop stack
                 if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0]) && idx < FCB_PER_BLOCK) {
-
                     memset(name_buf, 0, sizeof(name_buf));
                     ushort nlinks = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
-                    
+
+                    // if(fat32_namecmp(name_buf, "console.dev") == 0) {
+                    //     Log("ready\n");
+                    // }
                     // if it is . or ..
                     if (nlinks == 0) {
                         strncpy(name_buf, (const char *)fcb_s[idx].DIR_Name, sizeof(fcb_s[idx].DIR_Name));
@@ -822,6 +827,8 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                         ip_search->parent = ip;
                         // ip_search->i_nlink = nlinks; // number of hard links
                         ip_search->i_nlink = 1;
+
+                        stack_free(&fcb_stack);
                         return ip_search;
                     }
                 }
@@ -832,6 +839,7 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
         }
         iter_n = fat32_next_cluster(iter_n);
     }
+    stack_free(&fcb_stack);
     return 0;
 }
 
@@ -1086,7 +1094,7 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
         // Attr  and  Type
         dirent_l_cur.LDIR_Attr = ATTR_LONG_NAME;
         dirent_l_cur.LDIR_Type = 0;
-        
+
         // check sum
         dirent_l_cur.LDIR_Chksum = checksum;
 
@@ -1105,6 +1113,7 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
     // the first long dirent
     fcb_l_tmp.LDIR_Nlinks = 1;
     memmove(fcb_char, &dirent_s_cur, sizeof(dirent_s_cur));
+    stack_free(&fcb_stack);
     return ret_cnt + 1;
     // TODO: 获取当前时间和日期，还有TimeTenth
 }
@@ -1134,7 +1143,7 @@ uint fat32_find_same_name_cnt(struct _inode *ip, char *name) {
                 if (!LONG_NAME_BOOL(fcb_s[idx].DIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
                     // is our search for?
                     // extend name should be matched!!!
-                    if (!strncmp((char *)fcb_s[idx].DIR_Name, name, 6)&&fcb_s[idx].DIR_Name[6]=='~') {
+                    if (!strncmp((char *)fcb_s[idx].DIR_Name, name, 6) && fcb_s[idx].DIR_Name[6] == '~') {
                         ret++;
                     }
                 }

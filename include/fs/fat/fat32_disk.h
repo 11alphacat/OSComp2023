@@ -220,7 +220,7 @@ extern struct _superblock fat32_sb;
 #define LAST_LONG_ENTRY 0x40
 #define LONG_DIRENT_CNT 20
 
-#define LONG_NAME_BOOL(x) (((x)^ATTR_LONG_NAME)==0)
+#define LONG_NAME_BOOL(x) (((x) ^ ATTR_LONG_NAME) == 0)
 #define LAST_LONG_ENTRY_BOOL(x) ((x)&LAST_LONG_ENTRY)
 #define LAST_LONG_ENTRY_SET(x) ((x) = ((x) | LAST_LONG_ENTRY))
 
@@ -260,7 +260,6 @@ extern struct _superblock fat32_sb;
 
 // compare the s and t
 #define fat32_namecmp(s, t) (strncmp(s, t, PATH_LONG_MAX))
-
 
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {

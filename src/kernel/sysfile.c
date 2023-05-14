@@ -136,7 +136,7 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
         return 0;
         // return 0;
     }
-    
+
     // haven't exited
     if ((ip = fat32_inode_alloc(dp, name, type)) == 0) {
         fat32_inode_unlock_put(dp);
