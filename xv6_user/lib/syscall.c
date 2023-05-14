@@ -237,6 +237,10 @@ int kill(int pid) {
     return syscall(SYS_kill, pid);
 }
 
+void shutdown() {
+    return syscall(SYS_shutdown);
+}
+
 /* debug */
 int print_pgtable() {
     return syscall(SYS_print_pgtable);

@@ -61,6 +61,7 @@ int unlink(const char *path);
 int mknod(const char* path, short major, short minor);
 char *sbrk(int);
 int kill(int);
+void shutdown();
 
 /* debug */
 int print_pgtable();

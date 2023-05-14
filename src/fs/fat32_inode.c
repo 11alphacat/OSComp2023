@@ -804,9 +804,6 @@ struct _inode *fat32_inode_dirlookup(struct _inode *ip, char *name, uint *poff) 
                     memset(name_buf, 0, sizeof(name_buf));
                     ushort nlinks = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
 
-                    // if(fat32_namecmp(name_buf, "console.dev") == 0) {
-                    //     Log("ready\n");
-                    // }
                     // if it is . or ..
                     if (nlinks == 0) {
                         strncpy(name_buf, (const char *)fcb_s[idx].DIR_Name, sizeof(fcb_s[idx].DIR_Name));

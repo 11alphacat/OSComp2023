@@ -6,6 +6,7 @@
 #define EXTENSION_BASE 1
 #define FUNCTION_BASE_GET_SPEC_VERSION 1
 #define LEGACY_SET_TIMER 0x00L
+#define SHUTDOWN_EXT 0x08L
 #define TIMER_EXT 0x54494D45
 
 #define SBI_CALL(ext, funct, arg0, arg1, arg2, arg3) ({        \
@@ -33,10 +34,6 @@ struct sbiret {
     long value;
 };
 
-// static inline sbiret get_spec_version() {
-//     SBI_CALL_0(EXTENSION_BASE, FUNCTION_BASE_GET_SPEC_VERSION);
-// }
-
 static inline struct sbiret sbi_set_timer(uint64 stime_value) {
     // stime_value is in absolute time.
     return SBI_CALL_1(TIMER_EXT, 0, stime_value);
@@ -44,6 +41,10 @@ static inline struct sbiret sbi_set_timer(uint64 stime_value) {
 
 static inline struct sbiret sbi_legacy_set_timer(uint64 stime_value) {
     return SBI_CALL_1(LEGACY_SET_TIMER, 0, stime_value);
+}
+
+static inline struct sbiret sbi_shutdown() {
+    return SBI_CALL_0(SHUTDOWN_EXT, 0);
 }
 
 #endif // __SBI_H__

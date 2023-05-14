@@ -3,6 +3,7 @@
 #include "proc/pcb_mm.h"
 #include "kernel/trap.h"
 #include "proc/sched.h"
+#include "sbi.h"
 extern uint ticks;
 
 struct tms {
@@ -173,4 +174,9 @@ uint64 sys_nanosleep(void) {
 #endif
 
     return 0;
+}
+
+uint64 sys_shutdown() {
+    sbi_shutdown();
+    panic("shutdown: can not reach here");
 }

@@ -44,6 +44,7 @@
 160  uname           sys_uname
 169  gettimeofday    sys_gettimeofday
 17 getcwd           sys_getcwd
+210 shutdown        sys_shutdown
 
 # debug
 500 print_pgtable sys_print_pgtable
