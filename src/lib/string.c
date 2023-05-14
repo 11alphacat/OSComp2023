@@ -1,4 +1,5 @@
 #include "common.h"
+#include "debug.h"
 
 void *
 memset(void *dst, int c, uint n) {
@@ -37,11 +38,17 @@ memmove(void *dst, const void *src, uint n) {
     if (s < d && s + n > d) {
         s += n;
         d += n;
-        while (n-- > 0)
+        while (n-- > 0) {
             *--d = *--s;
+        }
+
     } else
-        while (n-- > 0)
+        while (n-- > 0) {
+            if (d == NULL || s == NULL) {
+                Log("ready\n");
+            }
             *d++ = *s++;
+        }
 
     return dst;
 }

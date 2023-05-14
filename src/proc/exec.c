@@ -60,6 +60,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         return -1;
     }
     fat32_inode_lock(ip);
+    // fat32_inode_load_from_disk(ip);
 
     // Check ELF header
     if (fat32_inode_read(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))

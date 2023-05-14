@@ -229,12 +229,13 @@ extern struct _superblock fat32_sb;
 #define LONG_NAME_CHAR_VALID(x) (((x) != 0x0000) && ((x) != 0xFFFF))
 #define LONG_NAME_CHAR_SET(x) (((ushort)(x)) & 0x00FF)
 
-// NOTE: inum index from 0
+// NOTE: inum index from 0 (root is 0)
 // allocate an ino for each fat32 short entry
 #define FCB_PER_BLOCK ((__BPB_BytsPerSec) / sizeof(dirent_s_t))
-#define SECTOR_TO_FATINUM(s, offset) (((s)-FirstDataSector) * (FCB_PER_BLOCK) + (offset))
-#define FATINUM_TO_SECTOR(ino) ((ino) / (FCB_PER_BLOCK) + FirstDataSector)
-#define FATINUM_TO_OFFSET(ino) ((ino) % (FCB_PER_BLOCK))
+#define SECTOR_TO_FATINUM(s, offset) (((s)-FirstDataSector) * (FCB_PER_BLOCK) + (offset) + 1)
+#define INUM_TRANSFER(ino) ((ino == 0) ? 0 : ino - 1)
+#define FATINUM_TO_SECTOR(ino) (INUM_TRANSFER(ino) / (FCB_PER_BLOCK) + FirstDataSector)
+#define FATINUM_TO_OFFSET(ino) (INUM_TRANSFER(ino) % (FCB_PER_BLOCK))
 
 // the logistic number of cluster for position : off
 // start from 0

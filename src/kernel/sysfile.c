@@ -124,12 +124,14 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
     if ((dp = find_inode(path, dirfd, name)) == 0)
         return 0;
     fat32_inode_lock(dp);
+    // fat32_inode_load_from_disk(dp);
 
     // have existed?
     if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
         fat32_inode_unlock_put(dp);
         fat32_inode_lock(ip);
-        // if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
+        // fat32_inode_load_from_disk(ip);
+        //  if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
         if (type == ip->i_type)
             return ip;
         fat32_inode_unlock_put(ip);
@@ -151,6 +153,8 @@ static struct _inode *inode_create(char *path, int dirfd, uchar type) {
         printfRed("inode_create : pid %d, create directory, %s\n", current()->pid, path);
 #endif
     fat32_inode_lock(ip);
+    // fat32_inode_load_from_disk(ip);
+
     // ip->i_nlink = 1;
     fat32_inode_update(ip);
 
@@ -364,10 +368,11 @@ uint64 sys_openat(void) {
 #endif
         ASSERT(ip); // 这里 ip 应该已绑定到 path 找到的文件inode节点
         fat32_inode_lock(ip);
-        // if (ip->i_type == T_DIR && flags != O_RDONLY) {
-        //     fat32_inode_unlock_put(ip);
-        //     return -1;
-        // }
+        // fat32_inode_load_from_disk(ip);
+        //  if (ip->i_type == T_DIR && flags != O_RDONLY) {
+        //      fat32_inode_unlock_put(ip);
+        //      return -1;
+        //  }
 
         // if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
         //     fat32_inode_unlock_put(ip);
@@ -568,7 +573,8 @@ uint64 sys_unlinkat(void) {
     }
 
     fat32_inode_lock(dp);
-    // Cannot unlink "." or "..".
+    // fat32_inode_load_from_disk(dp);
+    //  Cannot unlink "." or "..".
     if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0)
         goto bad;
 
@@ -580,6 +586,7 @@ uint64 sys_unlinkat(void) {
     }
 
     fat32_inode_lock(ip);
+    // fat32_inode_load_from_disk(ip);
     if (ip->i_nlink < 1)
         panic("unlink: nlink < 1");
     if (ip->i_type == T_DIR && !fat32_isdirempty(ip)) {
@@ -730,6 +737,11 @@ uint64 sys_chdir(void) {
     }
 
     fat32_inode_lock(ip); // bug:修改了 i_mode
+    // if(fat32_inode_load_from_disk(ip)==-1) {
+    //     fat32_inode_unlock(ip);
+    //     return -1;
+    // }
+
     if (ip->i_type != T_DIR) {
         fat32_inode_unlock_put(ip);
         // end_op();

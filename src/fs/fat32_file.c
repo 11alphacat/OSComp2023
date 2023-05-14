@@ -97,6 +97,8 @@ int fat32_filestat(struct _file *f, uint64 addr) {
 
     if (f->f_type == FD_INODE || f->f_type == FD_DEVICE) {
         fat32_inode_lock(f->f_tp.f_inode);
+        // fat32_inode_load_from_disk(f->f_tp.f_inode);
+
         fat32_inode_stati(f->f_tp.f_inode, &st);
         fat32_inode_unlock(f->f_tp.f_inode);
         if (copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
@@ -127,6 +129,8 @@ int fat32_fileread(struct _file *f, uint64 addr, int n) {
     } else if (f->f_type == FD_INODE) {
         n = MIN(n, f->f_tp.f_inode->i_size);
         fat32_inode_lock(f->f_tp.f_inode);
+        // fat32_inode_load_from_disk(f->f_tp.f_inode);
+
         if ((r = fat32_inode_read(f->f_tp.f_inode, 1, addr, f->f_pos, n)) > 0)
             f->f_pos += r;
         fat32_inode_unlock(f->f_tp.f_inode);
@@ -176,6 +180,8 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
             //     n1 = max;
             // begin_op();
             fat32_inode_lock(f->f_tp.f_inode);
+            // fat32_inode_load_from_disk(f->f_tp.f_inode);
+
             if ((r = fat32_inode_write(f->f_tp.f_inode, 1, addr + i, f->f_pos, n1)) > 0)
                 f->f_pos += r;
             fat32_inode_unlock(f->f_tp.f_inode);
@@ -286,29 +292,23 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
             // FCB in a sector
             while (idx < FCB_PER_BLOCK) {
                 // long dirctory item push into the stack
-                int first_long_flag = (dp == fat32_sb.fat32_sb_info.root_entry && off == 0);
-
                 if (NAME0_FREE_ALL(fcb_s[idx].DIR_Name[0])) {
                     brelse(bp);
                     goto finish;
                 }
-                while ((LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) || first_long_dir(dp)) && idx < FCB_PER_BLOCK) {
+                while ((LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr)) && idx < FCB_PER_BLOCK) {
                     stack_push(&fcb_stack, fcb_l[idx++]);
                     off++;
                 }
                 // pop stack
                 if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
                     memset(name_buf, 0, sizeof(name_buf));
-                    ushort nlinks = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
-                    // if it is . or ..
-                    if (nlinks == 0) {
-                        strncpy(name_buf, (const char *)fcb_s[idx].DIR_Name, sizeof(fcb_s[idx].DIR_Name));
-                        nlinks = dp->i_nlink;
+                    ushort long_valid = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
+                    // if long directory is invalid
+                    if (!long_valid) {
+                        fat32_short_name_parser(fcb_s[idx], name_buf);
                     }
                     // speciall judgement for the first long directory in the data region
-                    if (first_long_flag) {
-                        nlinks = 1;
-                    }
                     cnt++;
 
                     ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
@@ -318,14 +318,14 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                     brelse(bp); // !!!!
 
                     fat32_inode_lock(ip_buf);
+                    // //fat32_inode_load_from_disk(ip_buf);
+
                     dirent_buf->d_ino = ip_buf->i_ino;
                     dirent_buf->d_off = cnt;
                     dirent_buf->d_type = ip_buf->i_type;
                     fname_len = strlen(ip_buf->fat32_i.fname);
                     safestrcpy(dirent_buf->d_name, name_buf, fname_len); // !!!!!
-                    // for(int i=0;i<fname_len;i++) {
-                    //     dirent_buf.d_name[i] = name_buf[i];
-                    // }
+
                     dirent_buf->d_name[fname_len] = '\0';
 
                     dirent_buf->d_reclen = dirent_len(dirent_buf);

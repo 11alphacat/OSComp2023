@@ -3,7 +3,7 @@ PLATFORM ?= qemu
 BUILD=build
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
-DEBUG_FS ?= 0
+DEBUG_FS ?= 1
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -156,12 +156,11 @@ TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 
 user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
-	@cp READ.md $(FSIMG)/
+	@cp README.md $(FSIMG)/
 	@make -C $(xv6U)
 
 # user:
 # 	@echo "$(YELLOW)build user:$(RESET)"
-# 	@make -C $(xv6U)
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
@@ -183,10 +182,10 @@ checkdep:
 
 fat32.img: $(BUILD)/fat32.dep
 	@dd if=/dev/zero of=$@ bs=1M count=128
-	@mkfs.vfat -F 32 -s 2 $@
-	@sudo mount $@ $(MNT_DIR)
+	@mkfs.vfat -F 32 -s 8 -a $@ 
+	@sudo mount -t vfat $@ $(MNT_DIR)
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
-	@sudo umount $(MNT_DIR)
+	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)
 
 .PHONY: qemu clean user clean-all format test oscomp
 

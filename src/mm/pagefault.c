@@ -44,6 +44,8 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
                 uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
                 paddr_t pa = walkaddr(pagetable, stval);
                 fat32_inode_lock(vma->fp->f_tp.f_inode);
+                // fat32_inode_load_from_disk(vma->fp->f_tp.f_inode);
+
                 fat32_inode_read(vma->fp->f_tp.f_inode, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
                 fat32_inode_unlock(vma->fp->f_tp.f_inode);
             }

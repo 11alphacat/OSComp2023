@@ -171,4 +171,10 @@ uint16 fat32_inode_get_date();
 // 33. zero the cluster given cluster num
 void fat32_zero_cluster(uint64 c_num);
 
+// 34. short name parser
+void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
+
+// 35. load inode from disk
+int fat32_inode_load_from_disk(struct _inode *ip);
+
 #endif

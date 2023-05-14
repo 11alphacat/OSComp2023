@@ -10,7 +10,6 @@
 
 #define NAME_MAX 10
 
-struct kstat;
 struct _superblock {
     struct semaphore sem; /* binary semaphore */
     uint8 s_dev;          // device number

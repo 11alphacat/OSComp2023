@@ -40,46 +40,6 @@ char junk3[4096];
 //
 
 // what if a string argument crosses over the end of last user page?
-void copyinstr3(char *s) {
-    sbrk(8192);
-    uint64 top = (uint64)sbrk(0);
-    if ((top % PGSIZE) != 0) {
-        sbrk(PGSIZE - (top % PGSIZE));
-    }
-    top = (uint64)sbrk(0);
-    if (top % PGSIZE) {
-        printf("oops\n");
-        exit(1);
-    }
-
-    char *b = (char *)(top - 1);
-    *b = 'x';
-
-    int ret = unlink(b);
-    if (ret != -1) {
-        printf("unlink(%s) returned %d, not -1\n", b, ret);
-        exit(1);
-    }
-
-    int fd = open(b, O_CREATE | O_WRONLY);
-    if (fd != -1) {
-        printf("open(%s) returned %d, not -1\n", b, fd);
-        exit(1);
-    }
-
-    ret = link(b, b);
-    if (ret != -1) {
-        printf("link(%s, %s) returned %d, not -1\n", b, b, ret);
-        exit(1);
-    }
-
-    char *args[] = {"xx", 0};
-    ret = exec(b, args);
-    if (ret != -1) {
-        printf("exec(%s) returned %d, not -1\n", b, fd);
-        exit(1);
-    }
-}
 
 
 

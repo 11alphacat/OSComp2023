@@ -172,6 +172,7 @@ void kerneltrap() {
         panic("kerneltrap: interrupts enabled");
 
     if ((which_dev = devintr()) == 0) {
+        backtrace();
         printf("scause %p\n", scause);
         printf("sepc=%p stval=%p\n", r_sepc(), r_stval());
         panic("kerneltrap");
