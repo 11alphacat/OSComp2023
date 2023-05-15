@@ -343,25 +343,19 @@ void do_exit(int status) {
             p->_ofile[fd] = 0;
         }
     }
-    // TODO: fat32 file system
-
     fat32_inode_put(p->_cwd);
-    // fat32_inode_put(p->_cwd);
     p->_cwd = 0;
 
     // Give any children to init.
     reparent(p);
 
     acquire(&p->lock);
-    p->exit_state = status;
+    p->exit_state = status << 8;
+
     PCB_Q_changeState(p, ZOMBIE);
     sema_signal(&p->parent->sem_wait_chan_parent);
     sema_signal(&p->sem_wait_chan_self);
 
-    // if(p->parent==initproc)
-    // {
-    //     printf("退出,pid : %d, %d\n",p->pid, ++cnt_exit);
-    // }
 #ifdef __DEBUG_PROC__
     printfGreen("exit : %d has exited\n", p->pid);                // debug
     printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug

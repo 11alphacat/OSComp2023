@@ -2574,68 +2574,59 @@ void subdir() {
     }
     close(fd);
 
-    // if (unlink("dd/dd/ff") != 0) {
-    //     printf("unlink dd/dd/ff failed\n");
-    //     exit(1);
-    // }
-    // if (open("dd/dd/ff", O_RDONLY) >= 0) {
-    //     printf("open (unlinked) dd/dd/ff succeeded\n");
-    //     exit(1);
-    // }
+    if (unlink("dd/dd/ff") != 0) {
+        printf("unlink dd/dd/ff failed\n");
+        exit(1);
+    }
+    if (open("dd/dd/ff", O_RDONLY) >= 0) {
+        printf("open (unlinked) dd/dd/ff succeeded\n");
+        exit(1);
+    }
 
-    // if (chdir("dd") != 0) {
-    //     printf("chdir dd failed\n");
-    //     exit(1);
-    // }
-    // if (chdir("dd/../../dd") != 0) {
-    //     printf("chdir dd/../../dd failed\n");
-    //     exit(1);
-    // }
-    // if (chdir("dd/../../../dd") != 0) {
-    //     printf("chdir dd/../../dd failed\n");
-    //     exit(1);
-    // }
-    // if (chdir("./..") != 0) {
-    //     printf("chdir ./.. failed\n");
-    //     exit(1);
-    // }
+    if (chdir("dd") != 0) {
+        printf("chdir dd failed\n");
+        exit(1);
+    }
+    if (chdir("dd/../../dd") != 0) {
+        printf("chdir dd/../../dd failed\n");
+        exit(1);
+    }
+    if (chdir("dd/../../../dd") != 0) {
+        printf("chdir dd/../../dd failed\n");
+        exit(1);
+    }
+    if (chdir("./..") != 0) {
+        printf("chdir ./.. failed\n");
+        exit(1);
+    }
 
-    // fd = open("dd/dd/ffff", 0);
-    // if (fd < 0) {
-    //     printf("open dd/dd/ffff failed\n");
-    //     exit(1);
-    // }
-    // if (read(fd, buf, sizeof(buf)) != 2) {
-    //     printf("read dd/dd/ffff wrong len\n");
-    //     exit(1);
-    // }
-    // close(fd);
 
-    // if (open("dd/dd/ff", O_RDONLY) >= 0) {
-    //     printf("open (unlinked) dd/dd/ff succeeded!\n");
-    //     exit(1);
-    // }
+    if (open("dd/dd/ff", O_RDONLY) >= 0) {
+        printf("open (unlinked) dd/dd/ff succeeded!\n");
+        exit(1);
+    }
 
-    // if (open("dd/ff/ff", O_CREATE | O_RDWR) >= 0) {
-    //     printf("create dd/ff/ff succeeded!\n");
-    //     exit(1);
-    // }
-    // if (open("dd/xx/ff", O_CREATE | O_RDWR) >= 0) {
-    //     printf("create dd/xx/ff succeeded!\n");
-    //     exit(1);
-    // }
-    // if (open("dd", O_CREATE) >= 0) {
-    //     printf("create dd succeeded!\n");
-    //     exit(1);
-    // }
-    // if (open("dd", O_RDWR) >= 0) {
-    //     printf("open dd rdwr succeeded!\n");
-    //     exit(1);
-    // }
-    // if (open("dd", O_WRONLY) >= 0) {
-    //     printf("open dd wronly succeeded!\n");
-    //     exit(1);
-    // }
+    if (open("dd/ff/ff", O_CREATE | O_RDWR) >= 0) {
+        printf("create dd/ff/ff succeeded!\n");
+        exit(1);
+    }
+    if (open("dd/xx/ff", O_CREATE | O_RDWR) >= 0) {
+        printf("create dd/xx/ff succeeded!\n");
+        exit(1);
+    }
+    if (open("dd", O_CREATE) >= 0) {
+        printf("create dd succeeded!\n");
+        exit(1);
+    }
+    if (open("dd", O_RDWR) >= 0) {
+        printf("open dd rdwr succeeded!\n");
+        exit(1);
+    }
+
+    if (open("dd", O_WRONLY) >= 0) {
+        printf("open dd wronly succeeded!\n");
+        exit(1);
+    }
 
     // if (mkdir("dd/ff/ff", 066) == 0) {
     //     printf("mkdir dd/ff/ff succeeded!\n");
@@ -2688,6 +2679,49 @@ void subdir() {
     // }
     printf("subdir test OK\n");
 }
+
+void dirfile() {
+    printf("==========dirfile test==========\n");
+    int fd;
+
+    fd = open("dirfile", O_CREATE);
+    if (fd < 0) {
+        printf("create dirfile failed\n");
+        exit(1);
+    }
+    close(fd);
+    if (chdir("dirfile") == 0) {
+        printf("chdir dirfile succeeded!\n");
+        exit(1);
+    }
+    fd = open("dirfile/xx", 0);
+    if (fd >= 0) {
+        printf("create dirfile/xx succeeded!\n");
+        exit(1);
+    }
+    fd = open("dirfile/xx", O_CREATE);
+    if (fd >= 0) {
+        printf("create dirfile/xx succeeded!\n");
+        exit(1);
+    }
+    if (mkdir("dirfile/xx", 0666) == 0) {
+        printf("mkdir dirfile/xx succeeded!\n");
+        exit(1);
+    }
+    if (unlink("dirfile/xx") == 0) {
+        printf("unlink dirfile/xx succeeded!\n");
+        exit(1);
+    }
+
+    if (unlink("dirfile") != 0) {
+        printf("unlink dirfile failed!\n");
+        exit(1);
+    }
+
+    close(fd);
+    printf("dirfile test OK\n");
+}
+
 
 int main(void) {
     // forktest();
@@ -2757,6 +2791,8 @@ int main(void) {
     // fourteen();
     // unlinkread();
     // subdir();
+    // dirfile();
+
     printf("ALL TESTS PASSED\n");
     exit(0);
     return 0;

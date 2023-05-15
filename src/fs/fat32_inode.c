@@ -308,7 +308,8 @@ static char *skepelem(char *path, char *name) {
     char *s;
     int len;
 
-    while (*path == '/' || *path == '.')
+    // while (*path == '/' || *path == '.')
+    while (*path == '/')
         path++;
     if (*path == 0)
         return 0;
@@ -339,7 +340,6 @@ static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name)
     }
 
     while ((path = skepelem(path, name)) != 0) {
-        printf("%s\n");
         fat32_inode_lock(ip);
         // fat32_inode_load_from_disk(ip);
         // not a directory?
@@ -352,10 +352,18 @@ static struct _inode *fat32_inode_namex(char *path, int nameeparent, char *name)
             fat32_inode_unlock(ip);
             return ip;
         }
-        if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {
-            fat32_inode_unlock_put(ip);
-            return 0;
+
+        if (strncmp(name, "..", 2) == 0) {
+            next = fat32_inode_dup(ip->parent);
+        } else if (strncmp(name, ".", 1) == 0) {
+            next = fat32_inode_dup(ip);
+        } else {
+            if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {
+                fat32_inode_unlock_put(ip);
+                return 0;
+            }
         }
+
         fat32_inode_unlock_put(ip);
         ip = next;
     }
@@ -807,9 +815,15 @@ ushort fat32_longname_popstack(Stack_t *fcb_stack, uchar *fcb_s_name, char *name
     if (stack_is_empty(fcb_stack)) {
         return 0;
     }
+    uchar cnt = 1;
     // reverse the stack to check every long directory entry
     while (!stack_is_empty(fcb_stack)) {
         fcb_l_tmp = stack_pop(fcb_stack);
+        if (!stack_is_empty(fcb_stack) && cnt != fcb_l_tmp.LDIR_Ord) {
+            return 0;
+        } else {
+            cnt++;
+        }
         uchar checksum = ChkSum(fcb_s_name);
         if (fcb_l_tmp.LDIR_Chksum != checksum) {
             panic("check sum error");
@@ -1129,14 +1143,14 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
 #endif
     int char_idx = 0;
     // every long name entry
-    for (int i = 1; i <= name_len / FAT_LFN_LENGTH + 1; i++) {
+    for (int i = 1; i <= name_len / FAT_LFN_LENGTH; i++) {
         dirent_l_t dirent_l_cur;
         memset((void *)&(dirent_l_cur), 0xFF, sizeof(dirent_l_cur));
         if (char_idx == name_len)
             break;
 
         // order
-        if (i == name_len / FAT_LFN_LENGTH + 1)
+        if (i == name_len / FAT_LFN_LENGTH)
             dirent_l_cur.LDIR_Ord = LAST_LONG_ENTRY_SET(i);
         else
             dirent_l_cur.LDIR_Ord = i;

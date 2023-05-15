@@ -304,6 +304,10 @@ ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
                 if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0])) {
                     memset(name_buf, 0, sizeof(name_buf));
                     ushort long_valid = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
+
+                    // if (fat32_namecmp(name_buf, "console.dev") == 0) {
+                    //     Log("ready\n");
+                    // }
                     // if long directory is invalid
                     if (!long_valid) {
                         fat32_short_name_parser(fcb_s[idx], name_buf);

@@ -4,7 +4,10 @@
 
 // 初始化栈
 void stack_init(Stack_t *stack) {
-    stack->data = kmalloc(30 * 32);
+    stack->data = (elemtype *)kmalloc(30 * 32);
+    if (stack->data == NULL) {
+        panic("stack_init : there is no free space\n");
+    }
     stack->top = -1;
 }
 

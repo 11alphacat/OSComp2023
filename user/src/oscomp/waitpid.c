@@ -9,18 +9,17 @@ void test_waitpid(void){
     cpid = fork();
     assert(cpid != -1);
     if(cpid == 0){
-	while(i--);
-	sched_yield();
-	printf("This is child process\n");
+        while(i--);
+        sched_yield();
+        printf("This is child process\n");
         exit(3);
     }else{
-	pid_t ret = waitpid(cpid, &wstatus, 0);
-	assert(ret != -1);
-	if(ret == cpid && WEXITSTATUS(wstatus) == 3)
-	    printf("waitpid successfully.\nwstatus: %x\n", WEXITSTATUS(wstatus));
-	else
-	    printf("waitpid error.\n");
-
+        pid_t ret = waitpid(cpid, &wstatus, 0);
+        assert(ret != -1);
+        if(ret == cpid && WEXITSTATUS(wstatus) == 3)
+            printf("waitpid successfully.\nwstatus: %x\n", WEXITSTATUS(wstatus));
+        else
+            printf("waitpid error.\n");
     }
     TEST_END(__func__);
 }

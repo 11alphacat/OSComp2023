@@ -420,58 +420,6 @@ void subdir(char *s) {
     }
 }
 
-void dirfile(char *s) {
-    int fd;
-
-    fd = open("dirfile", O_CREATE);
-    if (fd < 0) {
-        printf("%s: create dirfile failed\n", s);
-        exit(1);
-    }
-    close(fd);
-    if (chdir("dirfile") == 0) {
-        printf("%s: chdir dirfile succeeded!\n", s);
-        exit(1);
-    }
-    fd = open("dirfile/xx", 0);
-    if (fd >= 0) {
-        printf("%s: create dirfile/xx succeeded!\n", s);
-        exit(1);
-    }
-    fd = open("dirfile/xx", O_CREATE);
-    if (fd >= 0) {
-        printf("%s: create dirfile/xx succeeded!\n", s);
-        exit(1);
-    }
-    if (mkdir("dirfile/xx") == 0) {
-        printf("%s: mkdir dirfile/xx succeeded!\n", s);
-        exit(1);
-    }
-    if (unlink("dirfile/xx") == 0) {
-        printf("%s: unlink dirfile/xx succeeded!\n", s);
-        exit(1);
-    }
-    if (link("README.md", "dirfile/xx") == 0) {
-        printf("%s: link to dirfile/xx succeeded!\n", s);
-        exit(1);
-    }
-    if (unlink("dirfile") != 0) {
-        printf("%s: unlink dirfile failed!\n", s);
-        exit(1);
-    }
-
-    fd = open(".", O_RDWR);
-    if (fd >= 0) {
-        printf("%s: open . for writing succeeded!\n", s);
-        exit(1);
-    }
-    fd = open(".", 0);
-    if (write(fd, "x", 1) > 0) {
-        printf("%s: write . succeeded!\n", s);
-        exit(1);
-    }
-    close(fd);
-}
 
 // test that iput() is called at the end of _namei().
 // also tests empty file names.

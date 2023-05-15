@@ -350,6 +350,9 @@ uint64 sys_openat(void) {
     argint(2, &flags);
     argint(3, &omode);
 
+    // if(strncmp(path, "dd/dd/ffff", 10)==0){
+    //     printf("ready\n");
+    // }
     // 如果是要求创建文件，则调用 create
     if ((flags & O_CREATE) == O_CREATE) {
         if ((ip = inode_create(path, dirfd, T_FILE)) == 0) {
