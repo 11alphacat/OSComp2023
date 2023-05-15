@@ -23,6 +23,7 @@ main(void)
     openat(AT_FDCWD,"console.dev", O_RDWR);
   }
 
+  // printf("\n\tNow you come here, welcome my dear friend.\n\n");
   dup(0);  // stdout
   dup(0);  // stderr
 
@@ -34,7 +35,6 @@ main(void)
   printf("███████╗╚██████╔╝███████║   ██║   ╚███╔███╔╝██║  ██║██║  ██╗███████╗╚██████╔╝██║     \n");
   printf("╚══════╝ ╚═════╝ ╚══════╝   ╚═╝    ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     \n");
   printf("\n");
-  // printf("\n\tNow you come here, welcome my dear friend.\n\n");
 
   for (;;) {
     printf("init: starting sh\n");

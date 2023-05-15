@@ -23,6 +23,7 @@
 #include "proc/options.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
+#include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
 
 int cnt_exit = 0;
@@ -58,7 +59,7 @@ int allocpid() {
     return atomic_inc_return(&nextpid);
 }
 
-struct _file console;
+struct file console;
 void _userinit(void) {
     struct proc *p;
 
@@ -79,19 +80,14 @@ void _userinit(void) {
     return;
 }
 
+// init proc based on FAT32 file system
 void initret(void) {
     extern struct _superblock fat32_sb;
-    fat32_fs_mount(ROOTDEV, &fat32_sb);
-    current()->_cwd = fat32_name_inode("/");
-    // console.f_tp.f_inode = fat32_inode_create("console.dev",T_DEVICE);
-    // struct _inode* ip = fat32_inode_create("console.dev",T_DEVICE);
-    // ASSERT(ip!=NULL);
-    // console.f_tp.f_inode = ip;
+    fat32_fs_mount(ROOTDEV, &fat32_sb);  // initialize fat32 superblock obj and root inode obj. 
+    current()->_cwd = fat32_inode_dup(fat32_sb.root);
+
     char *argv[] = {"init", 0};
     current()->trapframe->a0 = do_execve("/init", argv, NULL);
-    // fsinit(ROOTDEV);
-    // char *argv[] = {"init", 0};
-    // current()->trapframe->a0 = do_execve("/init", argv, NULL);
 }
 
 // initialize the proc table.
@@ -121,8 +117,7 @@ void procinit(void) {
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
-struct proc *
-allocproc(void) {
+struct proc *allocproc(void) {
     struct proc *p;
 
     p = PCB_Q_provide(&unused_q, 1);
@@ -230,6 +225,7 @@ void forkret(void) {
     release(&current()->lock);
     if (current() == initproc) {
         initret();
+
     }
     usertrapret();
 }
@@ -338,8 +334,8 @@ void do_exit(int status) {
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {
         if (p->_ofile[fd]) {
-            struct _file *f = p->_ofile[fd];
-            fat32_fileclose(f);
+            struct file *f = p->_ofile[fd];
+            generic_fileclose(f);
             p->_ofile[fd] = 0;
         }
     }

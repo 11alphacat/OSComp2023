@@ -5,7 +5,7 @@
 #include "atomic/spinlock.h"
 #include "atomic/semaphore.h"
 
-struct _file;
+struct file;
 struct file;
 
 #define PIPESIZE 512
@@ -22,7 +22,6 @@ struct pipe {
     struct semaphore write_sem;
 };
 
-int _pipealloc(struct _file **f0, struct _file **f1);
 int pipealloc(struct file **f0, struct file **f1); // only for xv6
 void pipeclose(struct pipe *pi, int writable);
 int piperead(struct pipe *pi, uint64 addr, int n);

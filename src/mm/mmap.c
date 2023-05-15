@@ -42,7 +42,7 @@ void *sys_mmap(void) {
     int flags;
     int fd;
     off_t offset;
-    struct _file *fp;
+    struct file *fp;
 
     argaddr(0, &addr);
     argulong(1, &length);

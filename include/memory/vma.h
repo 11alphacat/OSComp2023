@@ -32,12 +32,12 @@ struct vma {
 
     int fd;
     uint64 offset;
-    struct _file *fp;
+    struct file *fp;
 };
 
 extern struct vma vmas[NVMA];
 int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
-                 int fd, off_t offset, struct _file *fp);
+                 int fd, off_t offset, struct file *fp);
 int vma_map(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type);
 int vmspace_unmap(struct proc *p, vaddr_t va, size_t len);
 

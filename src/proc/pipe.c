@@ -12,13 +12,14 @@
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
+#include "fs/vfs/ops.h"
 
-int _pipealloc(struct _file **f0, struct _file **f1) {
+int pipealloc(struct file **f0, struct file **f1) {
     struct pipe *pi;
 
     pi = 0;
     *f0 = *f1 = 0;
-    if ((*f0 = fat32_filealloc()) == 0 || (*f1 = fat32_filealloc()) == 0)
+    if ((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
         goto bad;
     if ((pi = (struct pipe *)kalloc()) == 0)
         goto bad;
@@ -47,9 +48,9 @@ bad:
     if (pi)
         kfree((char *)pi);
     if (*f0)
-        fat32_fileclose(*f0);
+        generic_fileclose(*f0);
     if (*f1)
-        fat32_fileclose(*f1);
+        generic_fileclose(*f1);
     return -1;
 }
 
@@ -81,9 +82,9 @@ bad:
 //     if (pi)
 //         kfree((char *)pi);
 //     if (*f0)
-//         fat32_fileclose(*f0);
+//         generic_fileclose(*f0);
 //     if (*f1)
-//         fat32_fileclose(*f1);
+//         generic_fileclose(*f1);
 //     return -1;
 // }
 
@@ -160,7 +161,7 @@ int piperead(struct pipe *pi, uint64 addr, int n) {
         ch = pi->data[pi->nread % PIPESIZE];
         if (copyout(pr->pagetable, addr + i, &ch, 1) == -1)
             break;
-        pi->nread++;
+        ++pi->nread;
     }
     // wakeup(&pi->nwrite); // DOC: piperead-wakeup
     sema_signal(&pi->write_sem);

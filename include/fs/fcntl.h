@@ -9,6 +9,12 @@
 #define O_DIRECTORY 0x0200000
 // #define O_CREATE 0x200      // for xv6
 #define O_TRUNC 0x400
+#define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)
+#define F_READABLE(fp) (((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1)
+
+// f_mode
+#define IMODE_READONLY 0x01
+#define IMODE_NONE 0x00
 
 #define PROT_NONE 0x0
 #define PROT_READ 0x1

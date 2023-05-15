@@ -8,7 +8,7 @@
 #define STORE_PAGEFAULT 15
 
 struct context;
-struct _file;
+struct file;
 
 // per-process data for the trap handling code in trampoline.S.
 // sits in a page by itself just under the trampoline page in the
@@ -65,7 +65,7 @@ struct trapframe {
 int argint(int, int *);
 void argulong(int, unsigned long *);
 void arglong(int, long *);
-int argfd(int n, int *pfd, struct _file **pf);
+int argfd(int n, int *pfd, struct file **pf);
 int argstr(int, char *, int);
 int argaddr(int, uint64 *);
 // int arglong(int, uint64 *);

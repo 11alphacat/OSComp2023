@@ -14,8 +14,8 @@
 #define INIT_PID 1
 #define SHELL_PID 2
 
-struct _file;
-struct _inode;
+struct file;
+struct inode;
 struct file;
 struct inode;
 
@@ -54,8 +54,8 @@ struct proc {
     pagetable_t pagetable;        // User page table
     struct trapframe *trapframe;  // data page for trampoline.S
     struct context context;       // swtch() here to run process
-    struct _file *_ofile[NOFILE]; // Open files
-    struct _inode *_cwd;          // Current directory
+    struct file *_ofile[NOFILE]; // Open files
+    struct inode *_cwd;          // Current directory
     // struct file *ofile[NOFILE];  // Open files(only in xv6)
     // struct inode *cwd;           // Current directory(only in xv6)
     char name[16]; // Process name (debugging)

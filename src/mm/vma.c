@@ -10,6 +10,7 @@
 
 #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
+#include "fs/vfs/ops.h"
 
 struct vma vmas[NVMA];
 struct spinlock vmas_lock;
@@ -93,7 +94,7 @@ static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
 }
 
 int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
-                 int fd, off_t offset, struct _file *fp) {
+                 int fd, off_t offset, struct file *fp) {
     struct vma *vma;
     /* the file isn't writable and perm has PERM_WRITE is illegal
        but if the PERM_SHARED is not set(means PERM_PRIVATE), then it's ok */
@@ -146,7 +147,7 @@ free_vma:
     return 0;
 }
 
-static void writeback(pagetable_t pagetable, struct _file *fp, vaddr_t start, size_t len) {
+static void writeback(pagetable_t pagetable, struct file *fp, vaddr_t start, size_t len) {
     ASSERT(start % PGSIZE == 0);
     ASSERT(fp != NULL);
 
@@ -203,7 +204,7 @@ int vmspace_unmap(struct proc *p, vaddr_t va, size_t len) {
         return 0;
     } else {
         if (vma->type == VMA_MAP_FILE) {
-            fat32_fileclose(vma->fp);
+            generic_fileclose(vma->fp);
         }
     }
 

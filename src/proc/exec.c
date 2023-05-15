@@ -9,8 +9,10 @@
 #include "memory/vm.h"
 #include "kernel/trap.h"
 #include "proc/pcb_mm.h"
+#include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
 #include "fs/fat/fat32_mem.h"
+
 int do_execve(char *path, char *const argv[], char *const envp[]);
 
 int flags2perm(int flags) {
@@ -27,7 +29,7 @@ int flags2perm(int flags) {
 // and the pages from va to va+sz must already be mapped.
 // Returns 0 on success, -1 on failure.
 static int
-loadseg(pagetable_t pagetable, uint64 va, struct _inode *ip, uint offset, uint sz) {
+loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz) {
     uint i, n;
     uint64 pa;
 
@@ -51,12 +53,12 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     int i, off;
     uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
     struct elfhdr elf;
-    struct _inode *ip;
+    struct inode *ip;
     struct proghdr ph;
     pagetable_t pagetable = 0, oldpagetable;
     struct proc *p = current();
 
-    if ((ip = fat32_name_inode(path)) == 0) {
+    if ((ip = namei(path)) == 0) {
         return -1;
     }
     fat32_inode_lock(ip);

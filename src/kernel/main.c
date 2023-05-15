@@ -19,7 +19,7 @@ void plicinit(void);
 void plicinithart(void);
 void virtio_disk_init(void);
 void binit(void);
-void fat32_fileinit(void);
+void fileinit(void);
 // void userinit(void);
 // void fileinit(void);
 void vmas_init();
@@ -64,7 +64,7 @@ void main() {
 
         // origin
         // fileinit(); // file table
-        fat32_fileinit();
+        fileinit();
         inode_table_init();
 
         // fat32

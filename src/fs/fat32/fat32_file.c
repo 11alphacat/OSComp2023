@@ -16,40 +16,17 @@
 
 // #define _O_READ              (~O_WRONLY)
 // #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
-#define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)
-#define F_READABLE(fp) (((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1)
 
-struct devsw devsw[NDEV];
-struct {
-    struct spinlock lock;
-    struct _file file[NFILE];
-} _ftable;
 
-void fat32_fileinit(void) {
+void fileinit(void) {
     initlock(&_ftable.lock, "_ftable");
 }
 
-// Allocate a file structure.
-// 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
-struct _file *fat32_filealloc(void) {
-    struct _file *f;
-
-    acquire(&_ftable.lock);
-    for (f = _ftable.file; f < _ftable.file + NFILE; f++) {
-        if (f->f_count == 0) {
-            f->f_count = 1;
-            release(&_ftable.lock);
-            return f;
-        }
-    }
-    release(&_ftable.lock);
-    return 0;
-}
 
 // Increment ref count for file f.
 // 语义：将 f 指向的 file 文件的引用次数自增，并返回该指针
 // 实现：给 _ftable 加锁后，f->f_count++
-struct _file *fat32_filedup(struct _file *f) {
+struct file *fat32_filedup(struct file *f) {
     acquire(&_ftable.lock);
     if (f->f_count < 1)
         panic("filedup");
@@ -58,37 +35,10 @@ struct _file *fat32_filedup(struct _file *f) {
     return f;
 }
 
-// Close file f.  (Decrement ref count, close when reaches 0.)
-// 语义：自减 f 指向的file的引用次数，如果为0，则关闭
-// 对于管道文件，调用pipeclose
-// 否则，调用iput归还inode节点
-void fat32_fileclose(struct _file *f) {
-    struct _file ff;
-
-    acquire(&_ftable.lock);
-    if (f->f_count < 1)
-        panic("fileclose");
-    if (--f->f_count > 0) {
-        release(&_ftable.lock);
-        return;
-    }
-    ff = *f;
-    f->f_count = 0;
-    f->f_type = FD_NONE;
-    release(&_ftable.lock);
-
-    if (ff.f_type == FD_PIPE) {
-        int wrable = F_WRITEABLE(&ff);
-        pipeclose(ff.f_tp.f_pipe, wrable);
-    } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
-        fat32_inode_put(ff.f_tp.f_inode);
-    }
-}
-
 // Get metadata about file f.
 // addr is a user virtual address, pointing to a struct stat.
 // 语义：获取文件 f 的相关属性，写入 addr 指向的用户空间
-int fat32_filestat(struct _file *f, uint64 addr) {
+int fat32_filestat(struct file *f, uint64 addr) {
     struct proc *p = current();
     struct kstat st;
     ASSERT(sizeof(st) == 128);
@@ -111,7 +61,7 @@ int fat32_filestat(struct _file *f, uint64 addr) {
 // Read from file f.
 // addr is a user virtual address.
 // 语义：读取文件 f ，从 偏移量 f->f_pos 起始，读取 n 个字节到 addr 指向的用户空间
-int fat32_fileread(struct _file *f, uint64 addr, int n) {
+ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
     int r = 0;
 
     if (F_READABLE(f) == 0)
@@ -150,7 +100,7 @@ int fat32_fileread(struct _file *f, uint64 addr, int n) {
 // Write to file f.
 // addr is a user virtual address.
 // 语义：写文件 f ，从 f->f_pos开始，把用户空间 addr 起始的 n 个字节的内容写入文件 f
-int fat32_filewrite(struct _file *f, uint64 addr, int n) {
+ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
     int r, ret = 0;
 
     if (F_WRITEABLE(f) == 0)
@@ -211,7 +161,7 @@ int fat32_filewrite(struct _file *f, uint64 addr, int n) {
 // 不做参数检查
 // buf 最后以 / 结尾
 // 感觉目录项得有，不然inode缓存一下子就被污染了
-static void get_absolute_path(struct _inode *ip, char *buf) {
+static void get_absolute_path(struct inode *ip, char *buf) {
     if (ip->fat32_i.fname[0] != '/') {
         get_absolute_path(ip->parent, buf);
     } else {
@@ -258,11 +208,11 @@ struct __dirent {
 // len 为 buf 的最大长度
 // 不用检查参数
 // 返回读取的字节数
-ssize_t fat32_getdents(struct _inode *dp, char *buf, size_t len) {
+ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
     if (!DIR_BOOL((dp->fat32_i.Attr)))
         panic("getdents : not DIR");
     struct buffer_head *bp;
-    struct _inode *ip_buf;
+    struct inode *ip_buf;
     char buf_tmp[NAME_LONG_MAX + 30];
     struct __dirent *dirent_buf = (struct __dirent *)buf_tmp;
 
@@ -357,6 +307,6 @@ finish:
 
 // 往 dp 目录文件中 写入 代表 ip 的 fcb
 // 成功返回 0，失败返回 -1
-int fat32_dirlink(struct _inode *dp, struct _inode *ip) {
+int fat32_dirlink(struct inode *dp, struct inode *ip) {
     return 0;
 }

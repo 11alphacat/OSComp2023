@@ -6,7 +6,7 @@
 #include "fat32_stack.h"
 #include "fs/stat.h"
 
-struct _inode;
+struct inode;
 
 // Oscomp
 struct fat_dirent_buf {
@@ -28,8 +28,6 @@ struct fat32_sb_info {
     // FSINFO ~ may modify
     uint free_count;
     uint nxt_free;
-
-    struct _inode *root_entry;
 };
 
 // fat32 inode information
@@ -54,10 +52,10 @@ struct fat32_inode_info {
 };
 
 // 0. init the root fat32 inode
-struct _inode *fat32_root_inode_init(struct _superblock *);
+struct inode *fat32_root_inode_init(struct _superblock *);
 
 // 1. traverse the fat32 chain
-uint fat32_fat_travel(struct _inode *, uint);
+uint fat32_fat_travel(struct inode *, uint);
 
 // 2. return the next cluster number
 uint fat32_next_cluster(uint);
@@ -72,53 +70,53 @@ uint fat32_fat_alloc();
 void fat32_fat_set(uint, uint);
 
 // 6. current fat32 inode
-struct _inode *fat32_name_inode(char *);
+// struct inode *namei(char *);
 
 // 7. the parent of current fat32 inode
-struct _inode *fat32_name_inode_parent(char *, char *);
+// struct inode *namei_parent(char *, char *);
 
-struct _inode *fat32_inode_dup(struct _inode *);
-void fat32_inode_update(struct _inode *);
-void fat32_inode_trunc(struct _inode *);
+struct inode *fat32_inode_dup(struct inode *);
+void fat32_inode_update(struct inode *);
+void fat32_inode_trunc(struct inode *);
 
-void fat32_inode_lock(struct _inode *);
-void fat32_inode_unlock(struct _inode *);
-void fat32_inode_put(struct _inode *);
-void fat32_inode_unlock_put(struct _inode *);
+void fat32_inode_lock(struct inode *);
+void fat32_inode_unlock(struct inode *);
+void fat32_inode_put(struct inode *);
+void fat32_inode_unlock_put(struct inode *);
 
 int fat32_filter_longname(dirent_l_t *, char *);
-struct _inode *fat32_inode_dirlookup(struct _inode *, char *, uint *);
-struct _inode *fat32_inode_get(uint, uint, char *, uint);
-void fat32_inode_stati(struct _inode *, struct kstat *);
+struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
+struct inode *fat32_inode_get(uint, uint, const char *, uint);
+void fat32_inode_stati(struct inode *, struct kstat *);
 
-uint fat32_inode_read(struct _inode *, int, uint64, uint, uint);
+uint fat32_inode_read(struct inode *, int, uint64, uint, uint);
 
 // 9. write the data given the fat32 inode, offset and length
-uint fat32_inode_write(struct _inode *, int, uint64, uint, uint);
+uint fat32_inode_write(struct inode *, int, uint64, uint, uint);
 
 // 10. dup a existed fat32 inode
-struct _inode *fat32_inode_dup(struct _inode *);
+struct inode *fat32_inode_dup(struct inode *);
 
 // 11. find a existed or new fat32 inode
-struct _inode *fat32_inode_get(uint, uint, char *, uint);
+struct inode *fat32_inode_get(uint, uint, const char *, uint);
 
 // 12. lock the fat32 inode
-void fat32_inode_lock(struct _inode *);
+void fat32_inode_lock(struct inode *);
 
 // 13. unlock the fat32 inode
-void fat32_inode_unlock(struct _inode *);
+void fat32_inode_unlock(struct inode *);
 
 // 14. put the fat32 inode
-void fat32_inode_put(struct _inode *);
+void fat32_inode_put(struct inode *);
 
 // 15. unlock and put the fat32 inode
-void fat32_inode_unlock_put(struct _inode *);
+void fat32_inode_unlock_put(struct inode *);
 
 // 16. truncate the fat32 inode
-void fat32_inode_trunc(struct _inode *);
+void fat32_inode_trunc(struct inode *);
 
 // 17. update the fat32 inode in the disk
-void fat32_inode_update(struct _inode *);
+void fat32_inode_update(struct inode *);
 
 // 18. cat the Name1, Name2 and Name3 of dirent_l
 int fat32_filter_longname(dirent_l_t *, char *);
@@ -130,28 +128,28 @@ ushort fat32_longname_popstack(Stack_t *, uchar *, char *);
 uchar ChkSum(uchar *);
 
 // 21. lookup the inode given its parent inode and name
-struct _inode *fat32_inode_dirlookup(struct _inode *, char *, uint *);
-struct _inode *fat32_inode_get(uint, uint, char *, uint);
-void fat32_inode_stati(struct _inode *, struct kstat *);
-int fat32_inode_delete(struct _inode *dp, struct _inode *ip);
+struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
+struct inode *fat32_inode_get(uint, uint, const char *, uint);
+void fat32_inode_stati(struct inode *, struct kstat *);
+int fat32_inode_delete(struct inode *dp, struct inode *ip);
 
 // 22. create the fat32 inode
-struct _inode *fat32_inode_create(char *path, uchar type, short major, short minor);
+struct inode *fat32_inode_create(char *path, uchar type, short major, short minor);
 
 // 23. allocate the fat32 inode
-struct _inode *fat32_inode_alloc(struct _inode *, char *, uchar);
+struct inode *fat32_inode_alloc(struct inode *, char *, uchar);
 
 // 24. init the fat32 fcb (short + long)
-int fat32_fcb_init(struct _inode *, const uchar *, uchar, char *);
+int fat32_fcb_init(struct inode *, const uchar *, uchar, char *);
 
 // 25. the number of files with the same name prefix
-uint fat32_find_same_name_cnt(struct _inode *, char *);
+uint fat32_find_same_name_cnt(struct inode *, char *);
 
 // 26. the right fcb insert offset ?
-uint fat32_dir_fcb_insert_offset(struct _inode *, uchar);
+uint fat32_dir_fcb_insert_offset(struct inode *, uchar);
 
 // 27. is empty?
-uint fat32_isdirempty(struct _inode *);
+int fat32_isdirempty(struct inode *);
 
 // 28. timer to string
 int fat32_time_parser(uint16 *, char *, int);
@@ -160,7 +158,7 @@ int fat32_time_parser(uint16 *, char *, int);
 int fat32_date_parser(uint16 *, char *);
 
 // 30. delete fat32 inode
-int fat32_inode_delete(struct _inode *, struct _inode *);
+int fat32_inode_delete(struct inode *, struct inode *);
 
 // 31. acquire the time now
 uint16 fat32_inode_get_time(int *);
@@ -175,6 +173,9 @@ void fat32_zero_cluster(uint64 c_num);
 void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
 
 // 35. load inode from disk
-int fat32_inode_load_from_disk(struct _inode *ip);
+int fat32_inode_load_from_disk(struct inode *ip);
+
+// 36. is the inode a directory?
+int fat32_isdir(struct inode *);
 
 #endif

@@ -13,6 +13,7 @@
 
 extern struct _superblock fat32_sb;
 
+// initialize superblock obj and root inode obj.
 int fat32_fs_mount(int dev, struct _superblock *sb) {
     /* superblock initialization */
     sb->s_op = TODO();
@@ -31,14 +32,14 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     brelse(bp);
 
     /* 调用fat32_root_entry_init，获取到root根目录的fat_entry*/
-    sb->fat32_sb_info.root_entry = fat32_root_inode_init(sb);
-    sb->s_mount = sb->fat32_sb_info.root_entry;
+    sb->root = fat32_root_inode_init(sb);
+    sb->s_mount = sb->root;
 
     // snprintf_test();
     // printf_test();
-    fat32_test_functions();
+    // fat32_test_functions();
     // panic("fs_mount");
-    return FR_OK;
+    return 0;
 }
 
 int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
@@ -61,7 +62,7 @@ int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
     // Info("TrailSig : ");
 
     // Show_bytes((byte_pointer)&fsinfo->TrailSig, sizeof(fsinfo->TrailSig));
-    return FR_OK;
+    return 0;
 }
 
 int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
@@ -145,5 +146,5 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
     // Show_bytes((byte_pointer)&fat_bpb->BootSign, sizeof(fat_bpb->BootSign));
 
     // panic("boot sector parser");
-    return FR_OK;
+    return 0;
 }

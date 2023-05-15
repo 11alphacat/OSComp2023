@@ -89,7 +89,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 # QEMU configuration======================================================================
 ifndef CPUS
-CPUS := 3
+CPUS := 2
 endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 130M -smp $(CPUS) -nographic

@@ -7,15 +7,15 @@ extern struct _superblock fat32_sb;
 
 void fat32_test_functions(void) {
     // fat_entry_t* fat_root = fat32_name_fat_entry(global_fatfs.root_entry.fname);
-    // struct _inode *inode_dir = fat32_name_inode("/hello");
+    // struct inode *inode_dir = namei("/hello");
 
-    // struct _inode *inode_new = fat32_inode_create("/hello/raw/applepeach",  ATTR_DIRECTORY);
-    // struct _inode *inode_new = fat32_inode_create("/apple/raw",  ATTR_DIRECTORY);
-    // struct _inode *inode_new = fat32_inode_create("/hello/b.txt",  T_FILE);
-    // struct _inode *inode_new = fat32_inode_create("/hello/userkernelapples.txt",  T_FILE);
-    // struct _inode *inode_new = fat32_inode_create("/test_dir/userkernelap.txt", T_FILE);
+    // struct inode *inode_new = fat32_inode_create("/hello/raw/applepeach",  ATTR_DIRECTORY);
+    // struct inode *inode_new = fat32_inode_create("/apple/raw",  ATTR_DIRECTORY);
+    // struct inode *inode_new = fat32_inode_create("/hello/b.txt",  T_FILE);
+    // struct inode *inode_new = fat32_inode_create("/hello/userkernelapples.txt",  T_FILE);
+    // struct inode *inode_new = fat32_inode_create("/test_dir/userkernelap.txt", T_FILE);
 
-    // struct _inode *inode_new = fat32_inode_create("/test_dir/apple.txt", T_FILE);
+    // struct inode *inode_new = fat32_inode_create("/test_dir/apple.txt", T_FILE);
     // uint sector_num = FATINUM_TO_SECTOR(inode_new->i_ino);
     // uint sec_pos = DEBUG_SECTOR(inode_new, sector_num);//debug
     // char tmp[30];
