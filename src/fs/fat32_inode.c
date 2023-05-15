@@ -1143,14 +1143,15 @@ int fat32_fcb_init(struct _inode *ip_parent, const uchar *long_name, uchar attr,
 #endif
     int char_idx = 0;
     // every long name entry
-    for (int i = 1; i <= name_len / FAT_LFN_LENGTH; i++) {
+    int ord_max = CEIL_DIVIDE(name_len, FAT_LFN_LENGTH);
+    for (int i = 1; i <= ord_max; i++) {
         dirent_l_t dirent_l_cur;
         memset((void *)&(dirent_l_cur), 0xFF, sizeof(dirent_l_cur));
         if (char_idx == name_len)
             break;
 
         // order
-        if (i == name_len / FAT_LFN_LENGTH)
+        if (i == ord_max)
             dirent_l_cur.LDIR_Ord = LAST_LONG_ENTRY_SET(i);
         else
             dirent_l_cur.LDIR_Ord = i;
