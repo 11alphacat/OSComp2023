@@ -172,7 +172,6 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     struct inode *ip = NULL, *next = NULL, *cwd = current()->_cwd;
     ASSERT(cwd);
     if (*path == '/') {
-        // ip = fat32_inode_dup(fat32_sb.root);
         ASSERT(cwd->i_sb);
         ASSERT(cwd->i_sb->root);
         struct inode *rip = cwd->i_sb->root; 
@@ -200,7 +199,7 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
         if (nameeparent && *path == '\0') {
             // Stop one level early.
             // fat32_inode_unlock(ip);
-            ip->i_op->iunlock_put(ip);
+            ip->i_op->iunlock(ip);
             return ip;
         }
         // if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {

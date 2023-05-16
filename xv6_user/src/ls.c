@@ -54,13 +54,13 @@ int main(int argc, char *argv[]) {
 */
             switch (d_type) {
             case T_DIR: 
-                printf("\033[34;1m%s\t\t\033[0m",d->d_name);
+                printf("\033[34;1m%s\t\033[0m",d->d_name);
                 break;
             case T_DEVICE: 
-                printf("\033[38;5;214m%s\t\t\033[0m",d->d_name);
+                printf("\033[38;5;214m%s\t\033[0m",d->d_name);
                 break;
             default:
-                printf("%s\t\t",d->d_name);
+                printf("%s\t",d->d_name);
                 break;
             }
             

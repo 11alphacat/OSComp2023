@@ -67,7 +67,7 @@ static void print_long_dir(const dirent_l_t *buf) {
 void sys_print_rawfile(void) {
     int fd;
     int printdir;
-    struct _file *f;
+    struct file *f;
 
     printfGreen("==============\n");
     if (argfd(0, &fd, &f) < 0) {
@@ -527,7 +527,6 @@ void fat32_inode_lock(struct inode *ip) {
         panic("inode lock");
     sema_wait(&ip->i_sem);
 
-    struct buffer_head *bp;
     if (ip->valid == 0) {
         uint sector_num = FATINUM_TO_SECTOR(ip->i_ino);
         uint sector_offset = FATINUM_TO_OFFSET(ip->i_ino);

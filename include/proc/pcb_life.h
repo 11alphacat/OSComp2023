@@ -8,7 +8,7 @@
 #include "list.h"
 #include "proc/signal.h"
 #include "atomic/semaphore.h"
-#include "fs/fat/fat32_disk.h"
+// #include "fs/fat/fat32_disk.h"
 
 #define NPROC 32 // maximum number of processes
 #define INIT_PID 1

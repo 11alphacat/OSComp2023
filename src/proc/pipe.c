@@ -9,8 +9,8 @@
 #include "memory/allocator.h"
 #include "proc/cond.h"
 #include "proc/signal.h"
-#include "fs/fat/fat32_mem.h"
-#include "fs/fat/fat32_file.h"
+// #include "fs/fat/fat32_mem.h"
+// #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 

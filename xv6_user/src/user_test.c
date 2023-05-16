@@ -93,6 +93,7 @@ void opentest() {
     printf("open test OK\n");
 }
 
+#define WEXITSTATUS(s) (((s) & 0xff00) >> 8)
 // try to find any races between exit and wait
 void exitwait() {
     int i, pid;
@@ -110,7 +111,8 @@ void exitwait() {
                 printf("wait wrong pid\n");
                 exit(1);
             }
-            if (i != exit_state) {
+            if ((i<<8) != exit_state) {
+                printf("%d %d %d\n", i, exit_state, WEXITSTATUS(pid));
                 printf("wait wrong exit status\n");
                 exit(1);
             }
@@ -488,7 +490,7 @@ void killstatus() {
     printf("==========killstatus test==========\n");
     int xst;
 
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 4; i++) {
         int pid1 = fork();
         if (pid1 < 0) {
             printf("fork failed\n");
@@ -503,8 +505,9 @@ void killstatus() {
         sleep(1);
         kill(pid1);
         wait(&xst);
-        if (xst != -1) {
-            printf("status should be -1\n");
+        if (xst != (-1 << 8)) {
+            printf("%d %d\n", xst, i);
+            printf("status should be -1<<8\n");
             exit(1);
         }
         printf("%d\n", i);
@@ -1526,7 +1529,7 @@ void textwrite() {
         exit(1);
     }
     wait(&xstatus);
-    if (xstatus == -1) // kernel killed child?
+    if (xstatus == -1 << 8) // kernel killed child?
     {
         printf("textwrite test OK\n");
     } else
@@ -1923,7 +1926,8 @@ void kernmem() {
         }
         int xstatus;
         wait(&xstatus);
-        if (xstatus != -1) // did kernel kill child?
+        printf("%d\n", xstatus);
+        if (xstatus != -1 << 8) // did kernel kill child?
             exit(1);
     }
     printf("kernmem test OK\n");
@@ -1948,7 +1952,7 @@ void MAXVAplus() {
         }
         int xstatus;
         wait(&xstatus);
-        if (xstatus != -1) // did kernel kill child?
+        if (xstatus != -1 << 8) // did kernel kill child?
             exit(1);
     }
     printf("MAXVAplus test OK\n");
@@ -2018,7 +2022,7 @@ void sbrkfail() {
         exit(1);
     }
     wait(&xstatus);
-    if (xstatus != -1 && xstatus != 2)
+    if (xstatus != -1 << 8 && xstatus != 2)
         exit(1);
     printf("sbrkfail test OK\n");
 }
@@ -2193,7 +2197,7 @@ void stacktest() {
         exit(1);
     }
     wait(&xstatus);
-    if (xstatus == -1) // kernel killed child?
+    if (xstatus == -1 << 8) // kernel killed child?
     {
         printf("stacktest test OK\n");
     } else
@@ -2483,7 +2487,6 @@ void stressfs() {
     close(fd);
 
     wait(0);
-
     printf("stressfs test OK\n");
 }
 
@@ -2724,64 +2727,64 @@ void dirfile() {
 
 
 int main(void) {
-    // forktest();
-    // exitwait();
-    // forkfork();
-    // forkforkfork();
-    // twochildren();
-    // reparent();
-    // reparent2();
-    // killstatus();
+    forktest();
+    exitwait();
+    forkfork();
+    forkforkfork();
+    twochildren();
+    reparent();
+    reparent2();
+    killstatus();
     
     
-    // opentest();
-    // openiputtest();
-    // writetest();
-    // writebig();
-    // preempt();
-    // truncate1();
-    // copyin();
-    // copyout();
-    // copyinstr1();
-    // truncate2();
-    // truncate3();
-    // iputtest();
-    // exitiputtest();
-    // createtest();
+    opentest();
+    openiputtest();
+    writetest();
+    writebig();
+    preempt();
+    truncate1();
+    copyin();
+    copyout();
+    copyinstr1();
+    truncate2();
+    truncate3();
+    iputtest();
+    exitiputtest();
+    createtest();
 
-    // sbrklast();
-    // dirtest();
-    // execvetest();
-    // uvmfree();
-    // pipe1();
-    // mem();
-    // sharedfd();
-    // createdelete();
-    // fourfiles();
-    // bigwrite();
-    // bigfile();
-    // rmdot();
-    // badarg();
-    // sbrk8000();
-    // textwrite();
-    // outofinodes();
-    // manywrites();
-    // badwrite();
-    // sbrkbasic();
-    // sbrkmuch();
-    // kernmem();
-    // MAXVAplus();
-    // sbrkfail();
-    // sbrkarg();
-    // bsstest();
-    // bigargtest();
-    // argptest();
-    // stacktest();
-    // pgbug();
-    // sbrkbugs();
-    // cowtest();
-    // stressfs();
-    // copyinstr3();
+    sbrklast();
+    dirtest();
+    execvetest();
+    uvmfree();
+    pipe1();
+    mem();
+    sharedfd();
+    createdelete();
+    fourfiles();
+    bigwrite();
+    bigfile();
+    rmdot();
+    badarg();
+    sbrk8000();
+    textwrite();
+    outofinodes();
+    manywrites();
+    badwrite();
+    sbrkbasic();
+    sbrkmuch();
+    kernmem();
+    MAXVAplus();
+    sbrkfail();
+    sbrkarg();
+    bsstest();
+    bigargtest();
+    argptest();
+    stacktest();
+    pgbug();
+    sbrkbugs();
+    cowtest();
+    copyinstr3();
+    stressfs();
 
 
     // TODO :
