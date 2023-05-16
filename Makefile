@@ -1,6 +1,9 @@
-.DEFAULT_GOAL=qemu
+## 1. Basic
+.DEFAULT_GOAL=kernel
 PLATFORM ?= qemu
 BUILD=build
+
+# debug options
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
@@ -10,6 +13,24 @@ SCRIPTS = $(ROOT)/scripts
 
 GENINC=include/syscall_gen
 $(shell mkdir -p $(GENINC))
+MNT_DIR=build/mnt
+$(shell mkdir -p $(MNT_DIR))
+
+xv6U=xv6_user
+oscompU=user
+FILE= mnt text.txt \
+    chdir close dup2 dup \
+    fstat getcwd mkdir_ write \
+    openat open read test_echo \
+	getdents unlink pipe \
+    brk clone execve exit fork \
+    getpid getppid sleep times \
+    gettimeofday mmap munmap \
+    uname wait waitpid yield \
+    mount umount  
+TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
+
+## 2. Compilation Flags 
 
 # Try to infer the correct TOOLPREFIX if not set
 ifndef TOOLPREFIX
@@ -33,7 +54,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-
+LDFLAGS = -z max-page-size=4096
 CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 
 ifdef KCSAN
@@ -72,10 +93,7 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-LDFLAGS = -z max-page-size=4096
-
-
-# file list===============================================================================
+## 3. File List
 
 # Include all filelist.mk to merge file lists
 FILELIST_MK = $(shell find ./src -name "filelist.mk")
@@ -87,7 +105,7 @@ SRCS-BLACKLIST-y += $(SRCS-BLACKLIST) $(shell find $(DIRS-BLACKLIST-y) -name "*.
 SRCS-y += $(shell find $(DIRS-y) -name "*.c" -o -name "*.S")
 SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
-# QEMU configuration======================================================================
+## 4. QEMU Configuration
 ifndef CPUS
 CPUS := 2
 endif
@@ -105,67 +123,44 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
-.gdbinit: .gdbinit.tmpl-riscv
-	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
+## 5. Targets
 
-# qemu-gdb: _kernel .gdbinit fs.img
-# 	@echo "*** Now run 'gdb' in another window." 1>&2
-# 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-
-qemu-gdb: _kernel .gdbinit user checkdep fat32.img
-	@echo "*** Now run 'gdb' in another window." 1>&2
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-
-# target =================================================================================
 format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
-
-# qemu: _kernel fs.img
-# 	$(QEMU) $(QEMUOPTS)
-
-qemu: _kernel user checkdep fat32.img
+all: _kernel image
 	$(QEMU) $(QEMUOPTS)
 
-# fs.img: $(SCRIPTS)/mkfs user README.md
-# 	@$(SCRIPTS)/mkfs fs.img README.md $(addprefix $(FSIMG)/, $(shell ls ./$(FSIMG)))
+kernel: _kernel
+	$(QEMU) $(QEMUOPTS)
 
-# $(SCRIPTS)/mkfs: $(SCRIPTS)/mkfs.c include/fs/inode/fs.h include/fs/stat.h include/param.h
-# 	@gcc -Werror -Wall -o $(SCRIPTS)/mkfs $(SCRIPTS)/mkfs.c
+qemu-gdb: _kernel .gdbinit image
+	@echo "*** Now run 'gdb' in another window." 1>&2
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+.gdbinit: .gdbinit.tmpl-riscv
+	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
 export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
-xv6U=xv6_user
-oscompU=user
-FILE= mnt text.txt \
-    chdir close dup2 dup \
-    fstat getcwd mkdir_ write \
-    openat open read test_echo \
-	getdents unlink pipe \
-    brk clone execve exit fork \
-    getpid getppid sleep times \
-    gettimeofday mmap munmap \
-    uname wait waitpid yield \
-    mount umount  
-TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
 
-# user: oscomp
-# 	@echo "$(YELLOW)build user:$(RESET)"
-# 	@make -C $(xv6U)
+image: user fat32.img
 
 user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/
 	@make -C $(xv6U)
 
-# user:
-# 	@echo "$(YELLOW)build user:$(RESET)"
-
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
 	@cp -r $(TESTFILE) $(FSIMG)/
 # cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/
+
+fat32.img: dep
+	@dd if=/dev/zero of=$@ bs=1M count=128
+	@mkfs.vfat -F 32 -s 2 -a $@ 
+	@sudo mount -t vfat $@ $(MNT_DIR)
+	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
+	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)
 
 clean-all: clean
 	-@make -C $(xv6U)/ clean
@@ -174,22 +169,12 @@ clean-all: clean
 clean: 
 	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img fat32.img $(GENINC) -rf $(FSIMG)/*
 
-MNT_DIR=build/mnt
-$(shell mkdir -p $(MNT_DIR))
+.PHONY: qemu clean user clean-all format test oscomp dep image
 
-checkdep:
-	sh $(SCRIPTS)/fat32dep.sh
-
-fat32.img: $(BUILD)/fat32.dep
-	@dd if=/dev/zero of=$@ bs=1M count=128
-	@mkfs.vfat -F 32 -s 8 -a $@ 
-	@sudo mount -t vfat $@ $(MNT_DIR)
-	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
-	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)
-
-.PHONY: qemu clean user clean-all format test oscomp
-
+## 6. Build Kernel
 include $(SCRIPTS)/build.mk
+
+## 7. misc
 include $(SCRIPTS)/colors.mk
 # test:
 #     $(foreach var,$(.VARIABLES),$(info $(var) = $($(var))))
