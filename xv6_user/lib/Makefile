@@ -1,7 +1,7 @@
 BUILD=../build/lib
 # CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -Wno-error
-ULIB = $(BUILD)/ulib.o $(BUILD)/printf.o $(BUILD)/umalloc.o $(BUILD)/syscall.o $(BUILD)/clone.o
+ULIB = $(BUILD)/ulib.o $(BUILD)/printf.o $(BUILD)/umalloc.o $(BUILD)/syscall.o $(BUILD)/clone.o $(BUILD)/sprintf.o
 OBJS=$(ULIB)
 ARCHIVE=lib.a
 

@@ -18,6 +18,7 @@ $(shell mkdir -p $(MNT_DIR))
 
 xv6U=xv6_user
 oscompU=user
+
 FILE= mnt text.txt \
     chdir close dup2 dup \
     fstat getcwd mkdir_ write \
@@ -28,7 +29,28 @@ FILE= mnt text.txt \
     gettimeofday mmap munmap \
     uname wait waitpid yield \
     mount umount  
-TESTFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
+ALLFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
+
+# Initial File in Directory
+TEST=user_test kalloctest mmaptest
+OSCOMP=chdir close dup2 dup \
+    fstat getcwd mkdir_ write \
+    openat open read test_echo \
+	getdents unlink pipe \
+    brk clone execve exit fork \
+    getpid getppid sleep times \
+    gettimeofday mmap munmap \
+    uname wait waitpid yield \
+    mount umount text.txt
+BIN=ls echo cat mkdir rawcwd rm shutdown wc kill
+
+TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
+OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
+BINFILE = $(addprefix $(FSIMG)/, $(BIN))
+$(shell mkdir -p $(FSIMG)/test)
+$(shell mkdir -p $(FSIMG)/oscomp)
+$(shell mkdir -p $(FSIMG)/bin)
+$(shell mkdir -p $(FSIMG)/dev)
 
 ## 2. Compilation Flags 
 
@@ -134,7 +156,8 @@ all: _kernel image
 kernel: _kernel
 	$(QEMU) $(QEMUOPTS)
 
-qemu-gdb: _kernel .gdbinit image
+gdb: _kernel .gdbinit
+	@echo "*** Please make sure to execute 'make image' before attempting to run gdb!!!" 1>&2
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
@@ -149,10 +172,13 @@ user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/
 	@make -C $(xv6U)
+	@mv $(BINFILE) $(FSIMG)/bin/
+	@mv $(OSCOMPFILE) $(FSIMG)/oscomp/
+	@mv $(TESTFILE) $(FSIMG)/test/
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
-	@cp -r $(TESTFILE) $(FSIMG)/
+	@cp -r $(ALLFILE) $(FSIMG)/
 # cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/
 
 fat32.img: dep

@@ -135,7 +135,7 @@ int fat32_inode_delete(struct inode *dp, struct inode *ip);
 
 // 22. create the fat32 inode
 struct inode *fat32_inode_create(char *path, uchar type, short major, short minor);
-struct inode *_fat32_inode_create(struct inode *dp, const char* name, uchar type, short major, short minor);    // now use this
+struct inode *_fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor); // now use this
 
 // 23. allocate the fat32 inode
 struct inode *fat32_inode_alloc(struct inode *, const char *, uchar);

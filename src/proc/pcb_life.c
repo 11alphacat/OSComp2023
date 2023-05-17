@@ -69,9 +69,9 @@ void _userinit(void) {
     p->sz = 0;
     p->state = RUNNABLE;
 
-    console.f_type = T_DEVICE;
-    console.f_mode = O_RDWR;
-    console.f_major = CONSOLE;
+    // console.f_type = T_DEVICE;
+    // console.f_mode = O_RDWR;
+    // console.f_major = CONSOLE;
 
     PCB_Q_changeState(p, RUNNABLE);
     // p->__ofile[0] = &console;
@@ -83,11 +83,10 @@ void _userinit(void) {
 // init proc based on FAT32 file system
 void initret(void) {
     extern struct _superblock fat32_sb;
-    fat32_fs_mount(ROOTDEV, &fat32_sb);  // initialize fat32 superblock obj and root inode obj. 
+    fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     current()->_cwd = fat32_inode_dup(fat32_sb.root);
 
-    char *argv[] = {"init", 0};
-    current()->trapframe->a0 = do_execve("/init", argv, NULL);
+    current()->trapframe->a0 = do_execve("/init", NULL, NULL);
 }
 
 // initialize the proc table.
@@ -225,7 +224,6 @@ void forkret(void) {
     release(&current()->lock);
     if (current() == initproc) {
         initret();
-
     }
     usertrapret();
 }

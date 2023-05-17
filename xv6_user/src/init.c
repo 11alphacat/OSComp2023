@@ -5,7 +5,8 @@
 #include "stdio.h"
 #include "string.h"
 
-char *argv[] = { "sh", 0 };
+char *argv[] = { "sh", 0};
+char *envp[] = {"PATH=/oscomp:/bin:/test", 0};
 
 #define CONSOLE 1
 int
@@ -46,7 +47,7 @@ main(void)
     }
     if (pid == 0) {
       printf("about to start sh\n");
-      execve("sh",argv,0);
+      execve("sh",argv,envp);
       printf("init: exec sh failed\n");
       exit(1);
     }

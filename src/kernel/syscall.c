@@ -8,7 +8,7 @@
 #include "syscall_gen/syscall_num.h"
 
 // Fetch the uint64 at addr from the current process.
-int fetchaddr(uint64 addr, uint64 *ip) {
+int fetchaddr(vaddr_t addr, uint64 *ip) {
     struct proc *p = current();
     if (addr >= p->sz || addr + sizeof(uint64) > p->sz) // both tests needed, in case of overflow
         return -1;

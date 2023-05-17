@@ -79,9 +79,9 @@ void opentest() {
     int fd;
     printf("==========open test==========\n");
 
-    fd = open("echo", 0);
+    fd = open("/README.md", 0);
     if (fd < 0) {
-        printf("open echo failed!\n");
+        printf("open /README.md failed!\n");
         exit(1);
     }
     close(fd);
@@ -569,9 +569,9 @@ void copyout() {
     for (int ai = 0; ai < 2; ai++) {
         uint64 addr = addrs[ai];
 
-        int fd = open("README.md", 0);
+        int fd = open("/README.md", 0);
         if (fd < 0) {
-            printf("open(README.md) failed\n");
+            printf("open(/README.md) failed\n");
             exit(1);
         }
         int n = read(fd, (void *)addr, 8192);
@@ -650,7 +650,7 @@ void rwsbrk() {
     close(fd);
     unlink("rwsbrk");
 
-    fd = open("README.md", O_RDONLY);
+    fd = open("/README.md", O_RDONLY);
     if (fd < 0) {
         printf("open(rwsbrk) failed\n");
         exit(1);
@@ -929,11 +929,11 @@ void execvetest() {
             printf("wrong fd\n");
             exit(1);
         }
-        if (execve("echo", echoargv, NULL) < 0) {
+        if (execve("/bin/echo", echoargv, NULL) < 0) {
             printf("execve echo failed\n");
             exit(1);
         }
-        // won't get to here
+        // won't get here
     }
 
     if (wait(&xstatus) != pid) {

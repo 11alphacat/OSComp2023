@@ -13,8 +13,8 @@ struct ftable _ftable;
 
 // == file layrer ==
 struct file *filealloc(void) {
-// Allocate a file structure.
-// 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
+    // Allocate a file structure.
+    // 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
     struct file *f;
 
     acquire(&_ftable.lock);
@@ -23,9 +23,9 @@ struct file *filealloc(void) {
             f->f_count = 1;
 
             // f->f_op = get_fat32_fileops();
-            ASSERT(current()->_cwd->fs_type==FAT32);
+            ASSERT(current()->_cwd->fs_type == FAT32);
             f->f_op = get_fileops[current()->_cwd->fs_type]();
-            
+
             release(&_ftable.lock);
             return f;
         }
@@ -35,10 +35,10 @@ struct file *filealloc(void) {
 }
 
 void generic_fileclose(struct file *f) {
-// Close file f.  (Decrement ref count, close when reaches 0.)
-// 语义：自减 f 指向的file的引用次数，如果为0，则关闭
-// 对于管道文件，调用pipeclose
-// 否则，调用iput归还inode节点
+    // Close file f.  (Decrement ref count, close when reaches 0.)
+    // 语义：自减 f 指向的file的引用次数，如果为0，则关闭
+    // 对于管道文件，调用pipeclose
+    // 否则，调用iput归还inode节点
     struct file ff;
 
     acquire(&_ftable.lock);
@@ -64,7 +64,7 @@ void generic_fileclose(struct file *f) {
     }
 }
 
-static inline const struct file_operations* get_fat32_fileops(void) {
+static inline const struct file_operations *get_fat32_fileops(void) {
     // Mayer's singleton
     static const struct file_operations fops_instance = {
         .dup = fat32_filedup,
@@ -76,29 +76,27 @@ static inline const struct file_operations* get_fat32_fileops(void) {
     return &fops_instance;
 }
 
-static inline const struct file_operations* get_ext2_fileops(void) {
+static inline const struct file_operations *get_ext2_fileops(void) {
     ASSERT(0);
     return NULL;
 }
 
-        // Not to be moved upward 
-const struct file_operations* (*get_fileops[])(void) = {
+// Not to be moved upward
+const struct file_operations *(*get_fileops[])(void) = {
     [FAT32] get_fat32_fileops,
     [EXT2] get_ext2_fileops,
 };
-
-
 
 // == inode layer ==
 static char *skepelem(char *path, char *name);
 static struct inode *inode_namex(char *path, int nameeparent, char *name);
 
 struct inode *find_inode(char *path, int dirfd, char *name) {
-// 如果path是相对路径，则它是相对于dirfd目录而言的。
-// 如果path是相对路径，且dirfd的值为AT_FDCWD，则它是相对于当前路径而言的。
-// 如果path是绝对路径，则dirfd被忽略。
-// 一般不对 path作检查
-// 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
+    // 如果path是相对路径，则它是相对于dirfd目录而言的。
+    // 如果path是相对路径，且dirfd的值为AT_FDCWD，则它是相对于当前路径而言的。
+    // 如果path是绝对路径，则dirfd被忽略。
+    // 一般不对 path作检查
+    // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
     ASSERT(path);
     struct inode *ip;
     struct proc *p = current();
@@ -113,8 +111,7 @@ struct inode *find_inode(char *path, int dirfd, char *name) {
             // release(&p->tlock);
             return ip;
         }
-    } 
-    else {
+    } else {
         // path为相对于 dirfd目录的路径
         struct file *f;
         // acquire(&p->tlock);
@@ -137,15 +134,15 @@ struct inode *find_inode(char *path, int dirfd, char *name) {
 }
 
 static char *skepelem(char *path, char *name) {
-// Examples:
-//   skepelem("a/bb/c", name) = "bb/c", setting name = "a"
-//   skepelem("///a//bb", name) = "bb", setting name = "a"
-//   skepelem("a", name) = "", setting name = "a"
-//   skepelem("", name) = skepelem("////", name) = 0
+    // Examples:
+    //   skepelem("a/bb/c", name) = "bb/c", setting name = "a"
+    //   skepelem("///a//bb", name) = "bb", setting name = "a"
+    //   skepelem("a", name) = "", setting name = "a"
+    //   skepelem("", name) = skepelem("////", name) = 0
 
-//   skepelem("./mnt", name) = "", setting name = "mnt"
-//   skepelem("../mnt", name) = "", setting name = "mnt"
-//   skepelem("..", name) = "", setting name = 0
+    //   skepelem("./mnt", name) = "", setting name = "mnt"
+    //   skepelem("../mnt", name) = "", setting name = "mnt"
+    //   skepelem("..", name) = "", setting name = 0
     char *s;
     int len;
 
@@ -174,14 +171,12 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     if (*path == '/') {
         ASSERT(cwd->i_sb);
         ASSERT(cwd->i_sb->root);
-        struct inode *rip = cwd->i_sb->root; 
+        struct inode *rip = cwd->i_sb->root;
         // ip = fat32_inode_dup(cwd->i_sb->root);
         ip = rip->i_op->idup(rip);
-    }
-    else if (strncmp(path, "..", 2) == 0) {
+    } else if (strncmp(path, "..", 2) == 0) {
         ip = cwd->parent->i_op->idup(cwd->parent);
-    } 
-    else {
+    } else {
         // ip = fat32_inode_dup(cwd);
         ip = cwd->i_op->idup(cwd);
     }
@@ -203,7 +198,7 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
             return ip;
         }
         // if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {
-        if ((next = ip->i_op->idirlookup(ip,name,0) ) == 0) {
+        if ((next = ip->i_op->idirlookup(ip, name, 0)) == 0) {
             // fat32_inode_unlock_put(ip);
             ip->i_op->iunlock_put(ip);
             return 0;
@@ -222,23 +217,23 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     if (!ip->i_op) {
         // Log("ip iop invalid!");
         // ip->i_op = get_fat32_iops();
-        ASSERT(cwd->fs_type==FAT32);
+        ASSERT(cwd->fs_type == FAT32);
         ip->i_op = get_inodeops[cwd->fs_type]();
     }
 
     return ip;
 }
 
-struct inode* namei(char *path) {
+struct inode *namei(char *path) {
     char name[NAME_LONG_MAX];
     return inode_namex(path, 0, name);
 }
 
-struct inode* namei_parent(char *path, char *name) {
+struct inode *namei_parent(char *path, char *name) {
     return inode_namex(path, 1, name);
 }
 
-static inline const struct inode_operations* get_fat32_iops(void) {
+static inline const struct inode_operations *get_fat32_iops(void) {
     static const struct inode_operations iops_instance = {
         .iunlock_put = fat32_inode_unlock_put,
         .iunlock = fat32_inode_unlock,
@@ -258,13 +253,13 @@ static inline const struct inode_operations* get_fat32_iops(void) {
     return &iops_instance;
 }
 
-static inline const struct inode_operations* get_ext2_iops(void) {
+static inline const struct inode_operations *get_ext2_iops(void) {
     ASSERT(0);
     return NULL;
 }
 
-        // Not to be moved upward
-const struct inode_operations* (*get_inodeops[])(void) = {
+// Not to be moved upward
+const struct inode_operations *(*get_inodeops[])(void) = {
     [FAT32] get_fat32_iops,
     [EXT2] get_ext2_iops,
 };

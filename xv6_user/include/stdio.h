@@ -36,5 +36,6 @@ void printf(const char *fmt, ...);
 /* add */
 void fprintf(int, const char*, ...);
 char* gets(char*, int max);
+int sprintf(char *buf, const char *fmt, ...);
 
 #endif // __STDIO_H__

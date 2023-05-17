@@ -17,6 +17,7 @@
 
 #define MAXARGS 10
 
+char **environ;
 struct cmd {
   int type;
 };
@@ -53,6 +54,57 @@ struct backcmd {
   struct cmd *cmd;
 };
 
+char *getenv(const char *name) {
+    char **p = environ;
+    size_t len = strlen(name);
+    for (; *p != NULL; p++) {
+        if (strncmp(name, *p, len) == 0 && (*p)[len] == '=') {
+            return &((*p)[len+1]);
+        }
+    }
+    return NULL;
+}
+
+// temporal version
+int execvp(const char *file, char *const argv[]) {
+    char *path = getenv("PATH");
+    char buf[100];
+    char *dir, *p;
+    int ret;
+
+    if (strlen(path) > 100) {
+      panic("the path is too long\n");
+    }
+    strcpy(buf, path);
+    /* 在 PATH 环境变量中查找可执行文件 */
+    for (p = buf; *p != '\0'; p++) {
+        dir = p;  
+        while (*p != ':' && *p != '\0') {
+            p++;
+        }
+        if (*p == ':') {
+            *p = '\0';
+        }
+
+        char path_buf[512];
+        sprintf(path_buf, "%s/%s", dir, file);
+
+        // printf("%s\n", path_buf);
+        // for (int i = 0; environ[i]; i++) {
+        //   printf("%d %s\n", i, environ[i]);
+        // }
+        // printf("%s");
+        /* 如果找到了可执行文件，则执行该程序 */
+        ret = execve(path_buf, argv, environ);
+        if (ret != -1) {
+            return 0;
+        }
+    }
+    execve(file, argv, environ);
+
+    return -1;
+}
+
 int fork1(void);  // Fork but panics on failure.
 void panic(char*);
 struct cmd *parsecmd(char*);
@@ -83,7 +135,9 @@ runcmd(struct cmd *cmd)
 
     char cmdpath[20] = "/";
     strcat(cmdpath,ecmd->argv[0]);
-    execve(cmdpath, ecmd->argv, NULL);
+    // printf("%s\n", cmdpath);
+    execvp(ecmd->argv[0], ecmd->argv);
+    // execve(cmdpath, ecmd->argv, NULL);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
@@ -151,10 +205,12 @@ getcmd(char *buf, int nbuf)
   return 0;
 }
 
-int
-main(void)
-{
-
+int main(int argc, char *argv[], char *envp[]) {
+  // printf("%d %p %p", argc, argv, envp); 
+  // for (int i = 0; envp[i]; i++) {
+  //   printf("%s\n", envp[i]);
+  // }
+  environ = envp;
   printf("We are in sh\n\n");
   // printf("██╗      ██████╗ ███████╗████████╗██╗    ██╗ █████╗ ██╗  ██╗███████╗██╗   ██╗██████╗ \n");
   // printf("██║     ██╔═══██╗██╔════╝╚══██╔══╝██║    ██║██╔══██╗██║ ██╔╝██╔════╝██║   ██║██╔══██╗\n");

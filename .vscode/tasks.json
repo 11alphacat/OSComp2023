@@ -5,7 +5,7 @@
             "label": "build",
             "type": "shell",
             "isBackground": true,
-            "command": "make qemu-gdb",
+            "command": "make gdb",
             "problemMatcher": [
                 {
                     "pattern": [

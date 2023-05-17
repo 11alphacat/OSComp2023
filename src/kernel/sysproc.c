@@ -100,59 +100,67 @@ sys_wait4(void) {
   - envp: 环境变量的数组指针
 * 返回值：成功不返回，失败返回-1；
 */
-// const char *path, char *const argv[], char *const envp[];
-// uint64 sys_execve(void) {
-//     char path[MAXPATH];
-//     char *argv[MAXARG];
-//     char *envp[MAXENV];
-
-//     if (argstr(0, path, MAXPATH) < 0) {
-//         return -1;
-//     }
-//     // TODO : 获取一个字符串数组 （argv 和 envp）
-//     return do_execve(path, argv, envp);
-// }
-
-// temporary version
 uint64 sys_execve(void) {
-    char path[MAXPATH], *argv[MAXARG];
-    int i;
-    uint64 uargv, uarg;
+    char path[MAXPATH];
+    vaddr_t uargv, uenvp;
+    paddr_t argv, envp;
+    vaddr_t temp;
 
-    argaddr(1, &uargv);
+    /* fetch the path str */
     if (argstr(0, path, MAXPATH) < 0) {
         return -1;
     }
-    memset(argv, 0, sizeof(argv));
-    for (i = 0;; i++) {
-        if (i >= NELEM(argv)) {
-            goto bad;
+
+    /* fetch the paddr of char **argv and char **envp */
+    argaddr(1, &uargv);
+    argaddr(2, &uenvp);
+    if (uargv == 0) {
+        argv = 0;
+    } else {
+        /* check if the argv parameters is legal */
+        for (int i = 0;; i++) {
+            if (i >= MAXARG) {
+                return -1;
+            }
+            if (fetchaddr(uargv + sizeof(vaddr_t) * i, (vaddr_t *)&temp) < 0) {
+                return -1;
+            }
+            if (temp == 0) {
+                break;
+            }
+            paddr_t cp;
+            if ((cp = walkaddr(current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+                return -1;
+            }
         }
-        if (fetchaddr(uargv + sizeof(uint64) * i, (uint64 *)&uarg) < 0) {
-            goto bad;
-        }
-        if (uarg == 0) {
-            argv[i] = 0;
-            break;
-        }
-        argv[i] = kalloc();
-        if (argv[i] == 0)
-            goto bad;
-        if (fetchstr(uarg, argv[i], PGSIZE) < 0)
-            goto bad;
+
+        argv = getphyaddr(current()->pagetable, uargv);
     }
 
-    int ret = do_execve(path, argv, NULL);
+    if (uenvp == 0) {
+        envp = 0;
+    } else {
+        /* check if the envp parameters is legal */
+        for (int i = 0;; i++) {
+            if (i >= MAXENV) {
+                return -1;
+            }
+            if (fetchaddr(uenvp + sizeof(vaddr_t) * i, (vaddr_t *)&temp) < 0) {
+                return -1;
+            }
+            if (temp == 0) {
+                break;
+            }
+            vaddr_t cp;
+            if ((cp = walkaddr(current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+                return -1;
+            }
+        }
 
-    for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-        kfree(argv[i]);
+        envp = getphyaddr(current()->pagetable, uenvp);
+    }
 
-    return ret;
-
-bad:
-    for (i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-        kfree(argv[i]);
-    return -1;
+    return do_execve(path, (char *const *)argv, (char *const *)envp);
 }
 
 uint64 sys_sbrk(void) {

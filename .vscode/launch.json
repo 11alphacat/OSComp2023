@@ -1,9 +1,8 @@
 {
     "version": "0.2.0",
     "configurations": [
-        
         {
-            "name": "xv6debug",
+            "name": "debug",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/_kernel",
@@ -24,10 +23,6 @@
                     "description": "set output radix 16",
                     "text": "set output-radix 16"
                 },
-                // {
-                //     "description": "Set charset to ASCII", 
-                //     "text": "-gdb-set charset ASCII"
-                // },
             ],
         }
     ]

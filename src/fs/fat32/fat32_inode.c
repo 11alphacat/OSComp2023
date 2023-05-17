@@ -902,12 +902,12 @@ int fat32_inode_dirlink(struct inode *dp, char *name) {
 
 // return a pointer to a new inode with lock on
 // no need to  lock dp before call this func
-struct inode *_fat32_inode_create(struct inode *dp, const char* name, uchar type, short major, short minor) {
+struct inode *_fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor) {
     struct inode *ip = NULL;
 
     ASSERT(dp);
     fat32_inode_lock(dp);
-     // have existed?
+    // have existed?
     if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
         fat32_inode_unlock_put(dp);
         fat32_inode_lock(ip);
@@ -915,7 +915,7 @@ struct inode *_fat32_inode_create(struct inode *dp, const char* name, uchar type
         // fat32_inode_load_from_disk(ip);
         //  if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
         //      return ip;
-        if ( type == ip->i_type ) {
+        if (type == ip->i_type) {
             return ip;
         }
         fat32_inode_unlock_put(ip);
@@ -975,7 +975,6 @@ struct inode *_fat32_inode_create(struct inode *dp, const char* name, uchar type
 
     return ip;
 }
-
 
 // create a new inode
 struct inode *fat32_inode_create(char *path, uchar type, short major, short minor) {
@@ -1094,7 +1093,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) 
     ip_new->ref = 1;
     ip_new->parent = dp;
     ip_new->i_type = type;
-    
+
     ip_new->i_op = get_inodeops[FAT32]();
     ip_new->fs_type = FAT32;
     // ip_new->i_sb = &fat32_sb;

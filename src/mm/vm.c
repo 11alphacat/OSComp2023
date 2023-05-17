@@ -120,6 +120,21 @@ int walk(pagetable_t pagetable, uint64 va, int alloc, int lowlevel, pte_t **pte)
     return 0;
 }
 
+/* since the kernel only has direct mapping, add this func to make things easy
+ * getphyaddr will return the physical address of the va
+ * return 0 if the va is not in the pagetable
+ */
+paddr_t getphyaddr(pagetable_t pagetable, vaddr_t va) {
+    vaddr_t aligned_va;
+    paddr_t aligned_pa;
+    aligned_va = PGROUNDDOWN(va);
+    aligned_pa = walkaddr(pagetable, va);
+    if (aligned_pa == 0) {
+        return 0;
+    }
+    return aligned_pa + (va - aligned_va);
+}
+
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.

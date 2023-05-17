@@ -14,12 +14,12 @@ struct kstat;
 extern struct ftable _ftable;
 
 union file_type {
-    struct pipe *f_pipe;    // FD_PIPE
+    struct pipe *f_pipe;   // FD_PIPE
     struct inode *f_inode; // FDINODE and FD_DEVICE
 };
 
 typedef enum {
-    FAT32=1,
+    FAT32 = 1,
     EXT2,
 } fs_t;
 
@@ -55,12 +55,11 @@ struct file {
     ushort f_count;
     short f_major; // FD_DEVICE
 
-    int f_owner;                        /* pid or -pgrp where SIGIO should be sent */
-    union file_type f_tp;               
+    int f_owner; /* pid or -pgrp where SIGIO should be sent */
+    union file_type f_tp;
     const struct file_operations *f_op; // don't use pointer (bug maybe)!!!!
     unsigned long f_version;
 };
-
 
 struct ftable {
     struct spinlock lock;
@@ -72,7 +71,6 @@ struct ftable {
 //     long d_ino;
 //     char d_name[NAME_MAX + 1];
 // };
-
 
 // abstract datas in disk
 struct inode {
@@ -112,36 +110,33 @@ struct inode {
         // struct ext2inode_info ext2_i;
         // void *generic_ip;
     };
-
 };
 
 struct file_operations {
-    struct file* (*alloc) (void);
-    struct file* (*dup) (struct file*);
-    ssize_t (*read) (struct file*, uint64 __user, int);
-    ssize_t (*write) (struct file*, uint64 __user, int);
-    int (*fstat) (struct file *, uint64 __user);
+    struct file *(*alloc)(void);
+    struct file *(*dup)(struct file *);
+    ssize_t (*read)(struct file *, uint64 __user, int);
+    ssize_t (*write)(struct file *, uint64 __user, int);
+    int (*fstat)(struct file *, uint64 __user);
 };
-
 
 struct inode_operations {
-    void (*iunlock_put) (struct inode* self);
-    void (*iunlock) (struct inode* self);
-    void (*iput) (struct inode* self);
-    void (*ilock) (struct inode* self);
-    void (*itrunc) (struct inode* self);
-    void (*iupdate) (struct inode* self);
-    struct inode* (*idup) (struct inode* self);
-    int (*idir) (struct inode* self);   // is self a directory
+    void (*iunlock_put)(struct inode *self);
+    void (*iunlock)(struct inode *self);
+    void (*iput)(struct inode *self);
+    void (*ilock)(struct inode *self);
+    void (*itrunc)(struct inode *self);
+    void (*iupdate)(struct inode *self);
+    struct inode *(*idup)(struct inode *self);
+    int (*idir)(struct inode *self); // is self a directory
 
     // for directory inode
-    struct inode* (*idirlookup) (struct inode* self, const char* name, uint* poff);
-    int (*idelete) (struct inode* self, struct inode* ip);
-    int (*idempty) (struct inode* self);
-    ssize_t (*igetdents) (struct inode *self, char *buf, size_t len);
-    struct inode* (*icreate) (struct inode *self, const char* name, uchar type, short major, short minor);
+    struct inode *(*idirlookup)(struct inode *self, const char *name, uint *poff);
+    int (*idelete)(struct inode *self, struct inode *ip);
+    int (*idempty)(struct inode *self);
+    ssize_t (*igetdents)(struct inode *self, char *buf, size_t len);
+    struct inode *(*icreate)(struct inode *self, const char *name, uchar type, short major, short minor);
 };
-
 
 struct linux_dirent {
     uint64 d_ino;            // 索引结点号
@@ -150,7 +145,5 @@ struct linux_dirent {
     unsigned char d_type;    // 文件类型
     char d_name[];           //文件名
 };
-
-
 
 #endif // __VFS_FS_H__

@@ -7,6 +7,7 @@
 
 void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm, int lowlevel);
 int walk(pagetable_t pagetable, uint64 va, int alloc, int lowlevel, pte_t **pte);
+paddr_t getphyaddr(pagetable_t pagetable, vaddr_t va);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
 int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm, int lowlevel);
 pagetable_t uvmcreate(void);

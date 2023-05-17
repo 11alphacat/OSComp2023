@@ -17,11 +17,9 @@
 // #define _O_READ              (~O_WRONLY)
 // #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
 
-
 void fileinit(void) {
     initlock(&_ftable.lock, "_ftable");
 }
-
 
 // Increment ref count for file f.
 // 语义：将 f 指向的 file 文件的引用次数自增，并返回该指针
