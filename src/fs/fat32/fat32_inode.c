@@ -900,6 +900,83 @@ int fat32_inode_dirlink(struct inode *dp, char *name) {
     return 0;
 }
 
+// return a pointer to a new inode with lock on
+// no need to  lock dp before call this func
+struct inode *_fat32_inode_create(struct inode *dp, const char* name, uchar type, short major, short minor) {
+    struct inode *ip = NULL;
+
+    ASSERT(dp);
+    fat32_inode_lock(dp);
+     // have existed?
+    if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
+        fat32_inode_unlock_put(dp);
+        fat32_inode_lock(ip);
+
+        // fat32_inode_load_from_disk(ip);
+        //  if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
+        //      return ip;
+        if ( type == ip->i_type ) {
+            return ip;
+        }
+        fat32_inode_unlock_put(ip);
+        return 0;
+    }
+
+    // haven't exited
+    if ((ip = fat32_inode_alloc(dp, name, type)) == 0) {
+        fat32_inode_unlock_put(dp);
+        return 0;
+    }
+#ifdef __DEBUG_FS__
+    if (type == T_FILE)
+        printfRed("create : create file, %s\n", path);
+    else if (type == T_DEVICE)
+        printfRed("create : create device, %s\n", path);
+    else if (type == T_DIR)
+        printfRed("create : create directory, %s\n", path);
+#endif
+    fat32_inode_lock(ip);
+    // fat32_inode_load_from_disk(ip);
+
+    ip->i_nlink = 1;
+    ip->i_rdev = mkrdev(major, minor);
+    ip->i_type = type;
+    fat32_inode_update(ip);
+
+    if (type == T_DIR) { // Create . and .. entries.
+        // // No ip->nlink++ for ".": avoid cyclic ref count.
+        // if (fat32_inode_dirlink(ip, ".") < 0 || fat32_inode_dirlink(ip, "..") < 0)
+        //     goto fail;
+        // TODO : dirlink
+
+        // direntory . and .. , write them to the disk
+        uchar fcb_dot_char[64];
+        memset(fcb_dot_char, 0, sizeof(fcb_dot_char));
+        fat32_fcb_init(ip, (const uchar *)".", ATTR_DIRECTORY, (char *)fcb_dot_char);
+        uint tot = fat32_inode_write(ip, 0, (uint64)fcb_dot_char, 0, 32);
+        ASSERT(tot == 32);
+
+        uchar fcb_dotdot_char[64];
+        memset(fcb_dotdot_char, 0, sizeof(fcb_dotdot_char));
+        fat32_fcb_init(ip, (const uchar *)"..", ATTR_DIRECTORY, (char *)fcb_dotdot_char);
+        tot = fat32_inode_write(ip, 0, (uint64)fcb_dotdot_char, 32, 32);
+        ASSERT(tot == 32);
+    }
+
+    // if (fat32_inode_dirlink(dp, name) < 0)
+    //     goto fail;
+
+    if (type == T_DIR) {
+        // now that success is guaranteed:
+        fat32_inode_update(dp);
+    }
+
+    fat32_inode_unlock_put(dp); // !!! bug
+
+    return ip;
+}
+
+
 // create a new inode
 struct inode *fat32_inode_create(char *path, uchar type, short major, short minor) {
     struct inode *ip = NULL, *dp = NULL;
@@ -979,7 +1056,7 @@ struct inode *fat32_inode_create(char *path, uchar type, short major, short mino
 }
 
 // allocate a new inode
-struct inode *fat32_inode_alloc(struct inode *dp, char *name, uchar type) {
+struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) {
     uchar attr;
     if (type == T_DIR)
         DIR_SET(attr);

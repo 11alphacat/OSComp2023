@@ -252,6 +252,7 @@ static inline const struct inode_operations* get_fat32_iops(void) {
         .igetdents = fat32_getdents,
         .idup = fat32_inode_dup,
         .idir = fat32_isdir,
+        .icreate = _fat32_inode_create,
     };
 
     return &iops_instance;

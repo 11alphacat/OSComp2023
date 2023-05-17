@@ -74,87 +74,15 @@ static int fdalloc(struct file *f) {
     return -1;
 }
 
-static struct inode *inode_create(char *path, int dirfd, uchar type) {
-    ASSERT(type > 0 && type < 4);
-    // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    struct inode *ip = NULL, *dp = NULL;
-    char name[NAME_LONG_MAX];
-
-    // without parent fat_entry
-    if ((dp = find_inode(path, dirfd, name)) == 0)
-        return 0;
-    fat32_inode_lock(dp);
-    // fat32_inode_load_from_disk(dp);
-
-    // have existed?
-    if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
-        fat32_inode_unlock_put(dp);
-        fat32_inode_lock(ip);
-        // fat32_inode_load_from_disk(ip);
-        //  if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
-        if (type == ip->i_type)
-            return ip;
-        fat32_inode_unlock_put(ip);
-        return 0;
-        // return 0;
-    }
-
-    // haven't exited
-    if ((ip = fat32_inode_alloc(dp, name, type)) == 0) {
-        fat32_inode_unlock_put(dp);
+static struct inode* assist_icreate(char *path, int dirfd, uchar type, short major, short minor) {
+    struct inode *dp = NULL, *ip = NULL;
+    char name[MAXPATH] = {0};
+    if ( (dp = find_inode(path, dirfd, name)) == 0 ) {
         return 0;
     }
-#ifdef __DEBUG_FS__
-    if (type == T_FILE)
-        printfRed("inode_create : pid %d, create file, %s\n", current()->pid, path);
-    else if (type == T_DEVICE)
-        printfRed("inode_create : pid %d, create device, %s\n", current()->pid, path);
-    else if (type == T_DIR)
-        printfRed("inode_create : pid %d, create directory, %s\n", current()->pid, path);
-#endif
-    fat32_inode_lock(ip);
-    // fat32_inode_load_from_disk(ip);
-
-    // ip->i_nlink = 1;
-    fat32_inode_update(ip);
-
-    if (type == T_DIR) { // Create . and .. entries.
-        // // No ip->nlink++ for ".": avoid cyclic ref count.
-        // if (fat32_inode_dirlink(ip, ".") < 0 || fat32_inode_dirlink(ip, "..") < 0)
-        //     goto fail;
-        // TODO : dirlink
-
-        // direntory . and .. , write them to the disk
-        char fcb_dot_char[64];
-        memset(fcb_dot_char, 0, sizeof(fcb_dot_char));
-        fat32_fcb_init(ip, (uchar *)".", ATTR_DIRECTORY, fcb_dot_char);
-        uint tot = fat32_inode_write(ip, 0, (uint64)fcb_dot_char, 0, 32);
-        ASSERT(tot == 32);
-
-        char fcb_dotdot_char[64];
-        memset(fcb_dotdot_char, 0, sizeof(fcb_dotdot_char));
-        fat32_fcb_init(ip, (uchar *)"..", ATTR_DIRECTORY, fcb_dotdot_char);
-        tot = fat32_inode_write(ip, 0, (uint64)fcb_dotdot_char, 32, 32);
-        ASSERT(tot == 32);
-    }
-
-    // if (fat32_inode_dirlink(dp, name) < 0)
-    //     goto fail;
-
-    if (type == T_DIR) {
-        // now that success is guaranteed:
-        fat32_inode_update(dp);
-    }
-
-    fat32_inode_unlock_put(dp);
+    ASSERT(dp->i_op);
+    ip = dp->i_op->icreate(dp,name,type,major, minor);  // don't check, caller will do this
     return ip;
-
-    // fail:
-    //     ip->i_nlink = 0;
-    //     fat32_inode_update(ip);
-    //     fat32_inode_unlock_put(ip);
-    //     fat32_inode_unlock_put(dp);
-    //     return 0;
 }
 
 uint64 sys_mknod(void) {
@@ -167,7 +95,13 @@ uint64 sys_mknod(void) {
 
     // TODO() handle major and minor
 
-    if ((argstr(0, path, MAXPATH)) < 0 || (ip = fat32_inode_create(path, T_DEVICE, major, minor)) == 0) {
+    // if ((argstr(0, path, MAXPATH)) < 0 || (ip = fat32_inode_create(path, T_DEVICE, major, minor)) == 0) {
+    //     return -1;
+    // }
+    if ( argstr(0, path, MAXPATH) < 0 ) {
+        return -1;
+    }
+    if ( (ip = assist_icreate(path, AT_FDCWD, T_DEVICE, major, minor)) == 0 ) {
         return -1;
     }
 
@@ -321,7 +255,10 @@ uint64 sys_openat(void) {
     // }
     // 如果是要求创建文件，则调用 create
     if ((flags & O_CREATE) == O_CREATE) {
-        if ((ip = inode_create(path, dirfd, T_FILE)) == 0) {
+        // if ((ip = inode_create(path, dirfd, T_FILE)) == 0) {
+        //     return -1;
+        // }
+        if ( (ip = assist_icreate(path, dirfd, T_FILE, 0, 0)) == 0 ) {
             return -1;
         }
 #ifdef __DEBUG_FS__
@@ -386,9 +323,9 @@ uint64 sys_openat(void) {
     f->f_flags = flags; // TODO(): &
     f->f_mode = omode;  // TODO(): &
     f->f_count = 1;
+
     /*  for VFS
     f_owner = TODO();
-    f_op = TODO();
     f_version = TODO();
     */
 
@@ -626,9 +563,16 @@ uint64 sys_mkdirat(void) {
     mode_t mode;
     struct inode *ip;
     argint(0, &dirfd);
-    if (argint(2, (int *)&mode) < 0)
+    if (argint(2, (int *)&mode) < 0) {
         return -1;
-    if (argstr(1, path, PATH_LONG_MAX) < 0 || (ip = inode_create(path, dirfd, T_DIR)) == 0) {
+    }
+    // if (argstr(1, path, PATH_LONG_MAX) < 0 || (ip = inode_create(path, dirfd, T_DIR)) == 0) {
+    //     return -1;
+    // }
+    if (argstr(1, path, PATH_LONG_MAX) < 0) {
+        return -1;
+    }
+    if ( (ip = assist_icreate(path, AT_FDCWD, T_DIR, 0, 0)) == 0 ) {
         return -1;
     }
     ip->i_mode = mode;

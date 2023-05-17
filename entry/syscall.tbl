@@ -35,7 +35,7 @@
 59  pipe2           sys_pipe2
 61  getdents64        sys_getdents64
 39  umount2         sys_umount2
-39  mount         sys_mount
+40  mount         sys_mount
 
 # misc
 13  uptime          sys_uptime

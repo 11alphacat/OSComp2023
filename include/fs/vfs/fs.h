@@ -136,9 +136,10 @@ struct inode_operations {
 
     // for directory inode
     struct inode* (*idirlookup) (struct inode* self, const char* name, uint* poff);
-    int (*idelete) (struct inode* dp, struct inode* ip);
-    int (*idempty) (struct inode* dp);
-    ssize_t (*igetdents) (struct inode *dp, char *buf, size_t len);
+    int (*idelete) (struct inode* self, struct inode* ip);
+    int (*idempty) (struct inode* self);
+    ssize_t (*igetdents) (struct inode *self, char *buf, size_t len);
+    struct inode* (*icreate) (struct inode *self, const char* name, uchar type, short major, short minor);
 };
 
 
