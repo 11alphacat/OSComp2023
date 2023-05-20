@@ -3,6 +3,7 @@
 
 #include "common.h"
 
+#define SYSCALL 8
 #define INSTUCTION_PAGEFAULT 12
 #define LOAD_PAGEFAULT 13
 #define STORE_PAGEFAULT 15
@@ -82,10 +83,13 @@ int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 // trap.c
 extern uint ticks;
 extern struct spinlock tickslock;
-void usertrapret(void);
+extern struct cond cond_ticks;
 
 void swtch(struct context *, struct context *);
 
 // pagefault.c
 int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval);
+
+void thread_usertrapret(void);
+
 #endif // __TRAP_H__

@@ -3,9 +3,11 @@
 #include "common.h"
 #include "proc/pcb_life.h"
 
-void proc_mapstacks(pagetable_t);
+void tcb_mapstacks(pagetable_t);
 pagetable_t proc_pagetable(struct proc *);
-void proc_freepagetable(pagetable_t, uint64);
+int thread_trapframe(struct tcb *t, int still);
+void proc_freepagetable(pagetable_t pagetable, uint64 sz, int maxoffset);
 int growproc(int);
+
 
 #endif

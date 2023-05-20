@@ -1,80 +1,135 @@
-#include "proc/pcb_life.h"
-#include "proc/sched.h"
-#include "proc/signal.h"
-#include "errno.h"
-#include "debug.h"
+// #include "proc/pcb_life.h"
+// #include "proc/sched.h"
+// #include "proc/signal.h"
+// #include "memory/allocator.h"
+// #include "errno.h"
+// #include "debug.h"
+// #include "list.h"
+// #include "atomic/atomic.h"
 
-extern struct proc proc[NPROC];
-extern PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
+// // delete signals related to the mask in the pending queue
+// int signal_queue_pop(uint64 mask, struct sigpending *queue) {
+//     ASSERT(queue != NULL);
+//     struct sigqueue *sig_cur;
+//     struct sigqueue *sig_tmp;
 
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
-int kill(int pid) {
-    struct proc *p;
+//     if (!sig_test_mask(queue->signal, mask))
+//         return 0;
 
-    if ((p = find_get_pid(pid)) == NULL)
-        return -1;
-    p->killed = 1;
+//     sig_del_set_mask(queue->signal, mask);
+//     list_for_each_entry_safe(sig_cur, sig_tmp, &queue->list, list) {
+//         if (valid_signal(sig_cur->info.si_signo) && (mask & sig_gen_mask(sig_cur->info.si_signo))) {
+//             list_del_reinit(&sig_cur->list);
+//             // free
+//         }
+//     }
+//     return 1;
+// }
 
-#ifdef __DEBUG_PROC__
-    printfCYAN("kill : kill %d\n", p->pid); // debug
-#endif
+// // delete all pending signals of queue
+// int signal_queue_flush(struct sigpending *queue) {
+//     ASSERT(queue != NULL);
+//     struct sigqueue *sig_cur;
+//     struct sigqueue *sig_tmp;
+//     sig_empty_set(&queue->signal);
+//     list_for_each_entry_safe(sig_cur, sig_tmp, &queue->list, list) {
+//         list_del_reinit(&sig_cur->list);
+//         // free
+//     }
+//     return 1;
+// }
 
-    if (p->state == SLEEPING) {
-        // Wake process from sleep().
-        PCB_Q_changeState(p, RUNNABLE);
-    }
-    release(&p->lock);
-    return 0;
-}
+// void signal_info_init(sig_t sig, struct sigqueue *q, siginfo_t *info) {
+//     ASSERT(info != NULL);
+//     ASSERT(q != NULL);
+//     if ((uint64)info == 0) {
+//         q->info.si_signo = sig;
+//         q->info.si_pid = proc_current()->pid;
+//         q->info.si_code = SI_USER;
+//     } else if ((uint64)info == 1) {
+//         q->info.si_signo = sig;
+//         q->info.si_pid = 0;
+//         q->info.si_code = SI_KERNEL;
+//     } else {
+//         q->info = *info;
+//     }
+// }
 
-void setkilled(struct proc *p) {
-    acquire(&p->lock);
-    p->killed = 1;
-    release(&p->lock);
-}
+// // signal send
+// int signal_send(sig_t sig, siginfo_t *info, struct proc *p) {
+//     ASSERT(p != NULL);
+//     ASSERT(info != NULL);
+//     if (sig_ignored(p, sig) || sig_existed(p, sig)) {
+//         return 0;
+//     }
+//     struct sigqueue *q;
+//     if ((q = (struct sigqueue *)kalloc()) == NULL) {
+//         printf("signal_send : no space in heap\n");
+//         return 0;
+//     }
+//     p->sig_pending_cnt = p->sig_pending_cnt + 1;
+//     list_add_tail(&q->list, &p->pending.list);
+//     sig_add_set(p->pending.signal, sig);
 
-int killed(struct proc *p) {
-    int k;
+//     return 1;
+// }
 
-    acquire(&p->lock);
-    k = p->killed;
-    release(&p->lock);
-    return k;
-}
+// void sigpending_init(struct sigpending *sig) {
+//     sig_empty_set(&sig->signal);
+//     INIT_LIST_HEAD(&sig->list);
+// }
 
-int do_kill(int sig, siginfo_t *info, int pid) {
-    if (!pid) {
-        // pid == 0
+// // signal handlle
+// int signal_handle(struct proc *p) {
+//     if (p->sig_pending_cnt == 0)
+//         return 0;
 
-    } else if (pid == -1) {
-        // pid == -1
+//     struct sigqueue *sig_cur = NULL;
+//     struct sigqueue *sig_tmp = NULL;
+//     // struct sighand* sig_hand=NULL;
+//     struct sigaction *sig_act = NULL;
 
-    } else if (pid < 0) {
-        // pid <0
+//     list_for_each_entry_safe(sig_cur, sig_tmp, &p->pending.list, list) {
+//         int sig_no = sig_cur->info.si_signo;
+//         if (valid_signal(sig_no)) {
+//             panic("signal handle : invalid signo\n");
+//         }
+//         if (sig_ignored(p, sig_no)) {
+//             continue;
+//         }
+//         sig_act = &sig_action(p, sig_no);
+//         if (sig_act->sa_handler == SIG_DFL) {
+//             signal_DFL(p, sig_no);
+//         } else if (sig_act->sa_handler == SIG_IGN) {
+//             continue;
+//         } else {
+//             do_handle(p, sig_no, sig_act);
+//         }
+//     }
 
-    } else {
-        // pid >0
-        return kill_proc_info(sig, info, pid);
-    }
-    return 1;
-}
+//     return 1;
+// }
 
-int kill_proc_info(int sig, siginfo_t *info, pid_t pid) {
-    int error = 0;
-    struct proc *p;
-    p = find_get_pid(pid);
-    acquire(&p->lock);
-    if (p != NULL)
-        error = send_sig_info(sig, info, p);
-    release(&p->lock);
-    return error;
-}
+// int do_handle(struct proc *p, int sig_no, struct sigaction *sig_act) {
+//     (*sig_act->sa_handler)(sig_no);
+//     return 1;
+// }
 
-int send_sig_info(int sig, siginfo_t *info, struct proc *p) {
-    if (!valid_signal(sig))
-        return -EINVAL;
-    // uint64 flags;
-    return 1;
-}
+// void signal_DFL(struct proc *p, int signo) {
+//     int cpid;
+//     uint64 wstatus = 0;
+//     switch (signo) {
+//     case SIGKILL:
+//         // case SIGSTOP:
+//         setkilled(p);
+//         break;
+//     case SIGCHLD:
+
+//         cpid = waitpid(-1, wstatus, 0);
+//         printfRed("child , pid = %d existed with status : %d", cpid, wstatus);
+//         break;
+//     default:
+//         panic("signal DFL : invalid signo\n");
+//         break;
+//     }
+// }

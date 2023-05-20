@@ -22,6 +22,7 @@
 
 struct spinlock tickslock;
 uint ticks;
+struct cond cond_ticks;
 
 extern char trampoline[], uservec[], userret[];
 
@@ -32,6 +33,7 @@ extern int devintr();
 
 void trapinit(void) {
     initlock(&tickslock, "time");
+    cond_init(&cond_ticks, "cond_ticks");
 }
 
 // set up to take exceptions and traps while in the kernel.
@@ -46,7 +48,7 @@ void trapinithart(void) {
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
-void usertrap(void) {
+void thread_usertrap(void) {
     int which_dev = 0;
 
     if ((r_sstatus() & SSTATUS_SPP) != 0)
@@ -56,20 +58,23 @@ void usertrap(void) {
     // since we're now in the kernel.
     w_stvec((uint64)kernelvec);
 
-    struct proc *p = current();
+    struct proc *p = proc_current();
+    struct tcb *t = thread_current();
+
 
     // save user program counter.
-    p->trapframe->epc = r_sepc();
+    t->trapframe->epc = r_sepc();
 
     if (r_scause() == 8) {
         // system call
 
-        if (killed(p))
+        if (proc_killed(p))
             do_exit(-1);
 
         // sepc points to the ecall instruction,
         // but we want to return to the next instruction.
-        p->trapframe->epc += 4;
+        t->trapframe->epc+=4;
+
 
         // an interrupt will change sepc, scause, and sstatus,
         // so enable only now that we're done with those registers.
@@ -94,36 +99,36 @@ void usertrap(void) {
                 printf("process %s\n", p->name);
                 printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
                 printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-                setkilled(p);
+                proc_setkilled(p);
             }
         } else {
             printf("process %s\n", p->name);
             printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
             printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-            setkilled(p);
+            proc_setkilled(p);
         }
     }
 
-    if (killed(p))
+    if (proc_killed(p))
         do_exit(-1);
 
     // give up the CPU if this is a timer interrupt.
     if (which_dev == 2)
-        yield();
+        thread_yield();
 
-    usertrapret();
+    thread_usertrapret();
 }
 
 //
 // return to user space
 //
-void usertrapret(void) {
-    struct proc *p = current();
-
+void thread_usertrapret() {
+    struct proc *p = proc_current();
+    struct tcb *t = thread_current();
     // we're about to switch the destination of traps from
     // kerneltrap() to usertrap(), so turn off interrupts until
     // we're back in user space, where usertrap() is correct.
-    intr_off(); // 关闭中断以保证切换的原子性
+    intr_off();
 
     // send syscalls, interrupts, and exceptions to uservec in trampoline.S
     uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
@@ -131,10 +136,11 @@ void usertrapret(void) {
 
     // set up trapframe values that uservec will need when
     // the process next traps into the kernel.
-    p->trapframe->kernel_satp = r_satp();         // kernel page table
-    p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
-    p->trapframe->kernel_trap = (uint64)usertrap;
-    p->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
+
+    t->trapframe->kernel_satp = r_satp();         // kernel page table
+    t->trapframe->kernel_sp = t->kstack + PGSIZE; // process's kernel stack
+    t->trapframe->kernel_trap = (uint64)thread_usertrap;
+    t->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()
 
     // set up the registers that trampoline.S's sret will use
     // to get to user space.
@@ -146,7 +152,7 @@ void usertrapret(void) {
     w_sstatus(x);
 
     // set S Exception Program Counter to the saved user pc.
-    w_sepc(p->trapframe->epc);
+    w_sepc(t->trapframe->epc);
 
     // tell trampoline.S the user page table to switch to.
     uint64 satp = MAKE_SATP(p->pagetable);
@@ -179,8 +185,9 @@ void kerneltrap() {
     }
 
     // give up the CPU if this is a timer interrupt.
-    if (which_dev == 2 && current() != 0 && current()->state == RUNNING)
-        yield();
+    if (which_dev == 2 && thread_current() != 0 && thread_current()->state == TCB_RUNNING)
+        thread_yield();
+
 
     // the yield() may have caused some traps to occur,
     // so restore trap registers for use by kernelvec.S's sepc instruction.
@@ -191,7 +198,7 @@ void kerneltrap() {
 void clockintr() {
     acquire(&tickslock);
     ticks++;
-    wakeup(&ticks);
+    cond_broadcast(&cond_ticks);
     release(&tickslock);
 }
 

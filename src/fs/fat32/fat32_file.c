@@ -37,7 +37,7 @@ struct file *fat32_filedup(struct file *f) {
 // addr is a user virtual address, pointing to a struct stat.
 // 语义：获取文件 f 的相关属性，写入 addr 指向的用户空间
 int fat32_filestat(struct file *f, uint64 addr) {
-    struct proc *p = current();
+    struct proc *p = proc_current();
     struct kstat st;
     ASSERT(sizeof(st) == 128);
     // printf("KERNEL: sizeof kstat = %d\n",sizeof(st));
@@ -183,7 +183,7 @@ void fat32_getcwd(char *buf) {
     // note: buf must have size PATH_LONG_MAX
     if (!buf) return;
     // ASSERT(strnlen(buf,PATH_LONG_MAX) >= PATH_LONG_MAX);
-    struct proc *p = current();
+    struct proc *p = proc_current();
     get_absolute_path(p->_cwd, buf);
     size_t n = strlen(buf);
     if (n > 1) {

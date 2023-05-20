@@ -27,7 +27,8 @@ void vmas_init();
 void kcsaninit();
 #endif
 void mm_init();
-void _userinit(void);
+void _user_init(void);
+void proc_init();
 void inode_table_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
@@ -49,7 +50,8 @@ void main() {
         kvminithart(); // turn on paging
 
         // Proc management
-        procinit(); // process table
+        proc_init(); // process table
+        tcb_init();
 
         // Trap
         trapinit();     // trap vectors
@@ -74,7 +76,7 @@ void main() {
         virtio_disk_init(); // emulated hard disk
 
         // First user process
-        _userinit(); // first user process
+        _user_init(); // first user process
 #ifdef KCSAN
         kcsaninit();
 #endif
@@ -90,5 +92,5 @@ void main() {
         plicinithart(); // ask PLIC for device interrupts
     }
 
-    scheduler();
+    thread_scheduler();
 }

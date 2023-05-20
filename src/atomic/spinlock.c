@@ -83,7 +83,7 @@ void _acquire(struct spinlock *lk) {
     __sync_synchronize();
 
     // Record info about lock acquisition for holding() and debugging.
-    lk->cpu = mycpu();
+    lk->cpu = t_mycpu();
 }
 
 // Release the lock.
@@ -118,7 +118,7 @@ void _release(struct spinlock *lk) {
 // Interrupts must be off.
 int holding(struct spinlock *lk) {
     int r;
-    r = (lk->locked && lk->cpu == mycpu());
+    r = (lk->locked && lk->cpu == t_mycpu());
     return r;
 }
 
@@ -130,13 +130,13 @@ void push_off(void) {
     int old = intr_get();
 
     intr_off();
-    if (mycpu()->noff == 0)
-        mycpu()->intena = old;
-    mycpu()->noff += 1;
+    if (t_mycpu()->noff == 0)
+        t_mycpu()->intena = old;
+    t_mycpu()->noff += 1;
 }
 
 void pop_off(void) {
-    struct cpu *c = mycpu();
+    struct thread_cpu *c = t_mycpu();
     if (intr_get())
         panic("pop_off - interruptible");
     if (c->noff < 1)

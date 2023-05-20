@@ -56,7 +56,7 @@ kvmmake(void) {
     kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X, COMMONPAGE);
 
     // allocate and map a kernel stack for each process.
-    proc_mapstacks(kpgtbl);
+    tcb_mapstacks(kpgtbl);
 
     // vmprint(kpgtbl, 1, 0, 0, 0);
     return kpgtbl;

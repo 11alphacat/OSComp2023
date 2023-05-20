@@ -108,11 +108,11 @@ void pipeclose(struct pipe *pi, int writable) {
 
 int pipewrite(struct pipe *pi, uint64 addr, int n) {
     int i = 0;
-    struct proc *pr = current();
+    struct proc *pr = proc_current();
 
     acquire(&pi->lock);
     while (i < n) {
-        if (pi->readopen == 0 || killed(pr)) {
+        if (pi->readopen == 0 || proc_killed(pr)) {
             release(&pi->lock);
             return -1;
         }
@@ -141,12 +141,12 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
 
 int piperead(struct pipe *pi, uint64 addr, int n) {
     int i;
-    struct proc *pr = current();
+    struct proc *pr = proc_current();
     char ch;
 
     acquire(&pi->lock);
     while (pi->nread == pi->nwrite && pi->writeopen) { // DOC: pipe-empty
-        if (killed(pr)) {
+        if (proc_killed(pr)) {
             release(&pi->lock);
             return -1;
         }

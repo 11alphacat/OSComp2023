@@ -1,7 +1,7 @@
 #include "kernel/cpu.h"
 #include "riscv.h"
 
-struct cpu cpus[NCPU];
+struct thread_cpu t_cpus[NCPU];
 
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
@@ -13,9 +13,9 @@ int cpuid() {
 
 // Return this CPU's cpu struct.
 // Interrupts must be disabled.
-struct cpu *
-mycpu(void) {
+struct thread_cpu *
+t_mycpu(void) {
     int id = cpuid();
-    struct cpu *c = &cpus[id];
+    struct thread_cpu *c = &t_cpus[id];
     return c;
 }

@@ -40,9 +40,11 @@ uint64 sys_times(void) {
     uint64 addr;
     argaddr(0, &addr);
 
-    struct proc *p = current();
+    // struct proc *p = proc_current();
     struct tms tms_buf;
-    tms_buf.tms_stime = p->tms_stime;
+    // tms_buf.tms_stime = p->tms_stime;
+
+    tms_buf.tms_stime = 0;
     tms_buf.tms_utime = 0;
     tms_buf.tms_cstime = 0;
     tms_buf.tms_cutime = 0;
@@ -53,7 +55,6 @@ uint64 sys_times(void) {
 
     return ticks;
 }
-
 /*
  * 功能：打印系统信息；
  * 输入：utsname结构体指针用于获得系统信息数据；
@@ -78,7 +79,7 @@ uint64 sys_uname(void) {
  */
 //
 uint64 sys_sched_yield(void) {
-    yield();
+    thread_yield();
     return 0;
 }
 
@@ -155,22 +156,23 @@ uint64 sys_nanosleep(void) {
     uint interval_tick = NS2TICK(interval_ns);
 
 #ifdef __DEBUG_PROC__
-    printfYELLOW("sleep : pid %d sleep(%d)s start...\n", current()->pid, interval_tick / 10); // debug
+    printfYELLOW("sleep : pid %d sleep(%d)s start...\n", proc_current()->pid, interval_tick / 10); // debug
 #endif
 
     acquire(&tickslock);
     ticks0 = ticks;
     while (ticks - ticks0 < interval_tick) {
-        if (killed(current())) {
+        if (proc_killed(proc_current())) {
             release(&tickslock);
             return -1;
         }
-        sleep(&ticks, &tickslock);
+        // sleep(&ticks, &tickslock);
+        cond_wait(&cond_ticks, &tickslock);
     }
     release(&tickslock);
 
 #ifdef __DEBUG_PROC__
-    printfYELLOW("sleep : pid %d sleep(%d)s over...", current()->pid, interval_tick / 10); // debug
+    printfYELLOW("sleep : pid %d sleep(%d)s over...", proc_current()->pid, interval_tick / 10); // debug
 #endif
 
     return 0;

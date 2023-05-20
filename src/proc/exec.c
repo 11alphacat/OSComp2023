@@ -12,6 +12,7 @@
 #include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
 #include "fs/fat/fat32_mem.h"
+#include "proc/pcb_thread.h"
 
 /* this will commit to trapframe after execve success */
 struct commit {
@@ -214,7 +215,8 @@ unlock_put:
 
 int do_execve(char *path, char *const argv[], char *const envp[]) {
     struct commit commit;
-    struct proc *p = current();
+    struct proc *p = proc_current();
+    struct tcb *t = thread_current();
     char *s, *last;
     uint64 sz = 0, sp;
     uint64 oldsz = p->sz;
@@ -255,22 +257,29 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     safestrcpy(p->name, last, sizeof(p->name));
 
     /* Commit to the user image */
-    p->trapframe->sp = commit.sp;
-    p->trapframe->a1 = commit.a1;
-    p->trapframe->a2 = commit.a2;
-    p->trapframe->epc = commit.entry; // initial program counter = main
+    // p->trapframe->sp = commit.sp;
+    // p->trapframe->a1 = commit.a1;
+    // p->trapframe->a2 = commit.a2;
+    // p->trapframe->epc = commit.entry; // initial program counter = main
+    
+    t->trapframe->sp = commit.sp;
+    t->trapframe->a1= commit.a1;
+    t->trapframe->a2 = commit.a2;
+    t->trapframe->epc = commit.entry;
+
     p->sz = sz;
 
     /* free the old pagetable and commit new pagetable */
     oldpagetable = p->pagetable;
-    proc_freepagetable(oldpagetable, oldsz);
+    proc_freepagetable(oldpagetable, oldsz, p->tg->thread_idx);
     p->pagetable = pagetable;
+    thread_trapframe(t, 1);
 
     return argc; // this ends up in a0, the first argument to main(argc, argv)
 
 bad:
     if (pagetable) {
-        proc_freepagetable(pagetable, sz);
+        proc_freepagetable(pagetable, sz, 0);
     }
     return -1;
 }

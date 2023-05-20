@@ -14,104 +14,73 @@
 #define INIT_PID 1
 #define SHELL_PID 2
 
-struct file;
-struct inode;
+
 struct file;
 struct inode;
 
-enum pid_type {
-    PIDTYPE_PID,  // 进程 ID 类型
-    PIDTYPE_PGID, // 进程组 ID 类型
-    PIDTYPE_MAX   // 最大的 PID 类型索引编号 + 1
-};
-
-enum procstate { UNUSED,
-                 USED,
-                 SLEEPING,
-                 RUNNABLE,
-                 RUNNING,
-                 ZOMBIE,
-                 STATEMAX };
+enum procstate { PCB_UNUSED,
+                 PCB_USED,
+                 PCB_ZOMBIE,
+                 PCB_STATEMAX };
 
 // Per-process state
 struct proc {
+    // the spinlock protecting proc
     struct spinlock lock;
 
     // p->lock must be held when using these:
+    pid_t pid;            // Process ID
     enum procstate state; // Process state
-    void *chan;           // If non-zero, sleeping on chan
-    int killed;           // If non-zero, have been killed
-    struct list_head head_vma;
-    int exit_state; // Exit status to be returned to parent's wait
-    pid_t pid;      // Process ID
 
-    // maybe also need thread lock to access, p->tlock must be held
-    struct spinlock tlock;
+    int exit_state; // Exit status to be returned to parent's wait
+    int killed;     // If non-zero, have been killed
+    struct list_head head_vma;
 
     // these are private to the process, so p->lock need not be held.
-    uint64 kstack;               // Virtual address of kernel stack
-    uint64 sz;                   // Size of process memory (bytes)
+    uint64 sz;                   // Size of proc memory (bytes)
     pagetable_t pagetable;       // User page table
-    struct trapframe *trapframe; // data page for trampoline.S
-    struct context context;      // swtch() here to run process
     struct file *_ofile[NOFILE]; // Open files
     struct inode *_cwd;          // Current directory
-    // struct file *ofile[NOFILE];  // Open files(only in xv6)
-    // struct inode *cwd;           // Current directory(only in xv6)
-    char name[16]; // Process name (debugging)
+    char name[16];               // Process name (debugging)
 
-    // wait_lock must be held when using this:
-    struct proc *parent; // Parent process
+    // proc state queue
+    struct list_head state_list; // its state queue
 
-    struct list_head state_list;   // its state queue
-    struct proc *first_child;      // its first child!!!!!!!
+    // proc children and siblings
+    struct proc *parent;           // Parent process
+    struct proc *first_child;      // its first child!!!! (one direction)
     struct list_head sibling_list; // its sibling
 
-    int sigpending;                   // have signal?
-    struct signal_struct *sig;        // signal
-    sigset_t blocked;                 // the blocked signal
-    struct sigpending pending;        // pending (private)
-    struct sigpending shared_pending; // pending (shared)
+    // thread group
+    struct thread_group *tg;
+    pid_t ctid;
 
-    tgid_t tgid;                   // thread group id
-    int thread_cnt;                // the count of threads
-    struct list_head thread_group; // thread group
-    struct proc *group_leader;     // its proc thread group leader
+    struct spinlock tlock;
 
-    pgrp_t pgid; // proc group id
-
-    struct list_head wait_list; // waiting  queue
-    pid_t *ctid;
-    // struct spinlock wait_lock;
-    struct semaphore sem_wait_chan_parent;
-    struct semaphore sem_wait_chan_self;
-
-    long tms_stime;   // system mode time(ticks)
-    long tms_utime;   // user mode time(ticks)
-    long create_time; // create time(ticks)
-    long enter_time;  // enter kernel time(ticks)
+    // long tms_stime;   // system mode time(ticks)
+    // long tms_utime;   // user mode time(ticks)
+    // long create_time; // create time(ticks)
+    // long enter_time;  // enter kernel time(ticks)
 };
 
-// 1. struct proc and pid
-void procinit(void);
-struct proc *current();
-int allocpid();
-void initret(void);
-void forkret(void);
-struct proc *allocproc(void);
-void freeproc(struct proc *p);
-struct proc *find_get_pid(pid_t);
 void deleteChild(struct proc *parent, struct proc *child);
 void appendChild(struct proc *parent, struct proc *child);
 void procChildrenChain(struct proc *p);
 
-// 2. the lifetime of proc
-int do_clone(int, uint64, pid_t, uint64, pid_t *);
-void do_exit(int);
-int waitpid(pid_t, uint64, int);
-
+struct proc *proc_current(void);
+struct proc *alloc_proc(void);
+struct proc *create_proc();
+void free_proc(struct proc *p);
+void init_ret(void);
+void proc_init(void);
+struct proc *find_get_pid(pid_t pid);
+int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid);
+void do_exit(int status);
+int waitpid(pid_t pid, uint64 status, int options);
 void reparent(struct proc *p);
-// 3. debug
-void procdump(void);
+int proc_kill(int pid);
+void proc_setkilled(struct proc *p);
+int proc_killed(struct proc *p);
+void proc_thread_print(void);
 
 #endif

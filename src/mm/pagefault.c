@@ -35,7 +35,7 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
         return -1;
     }
 
-    struct vma *vma = find_vma_for_va(current(), stval);
+    struct vma *vma = find_vma_for_va(proc_current(), stval);
     if (vma != NULL) {
         if (vma->type == VMA_MAP_FILE) {
             if ((cause == STORE_PAGEFAULT && (vma->perm & PERM_WRITE))

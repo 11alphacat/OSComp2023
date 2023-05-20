@@ -231,7 +231,7 @@ struct vma *find_vma_for_va(struct proc *p, vaddr_t addr) {
 
 #define MMAP_START 0x10000000
 vaddr_t find_mapping_space(vaddr_t start, size_t size) {
-    struct proc *p = current();
+    struct proc *p = proc_current();
     struct vma *pos;
     vaddr_t max = MMAP_START;
     list_for_each_entry(pos, &p->head_vma, node) {
@@ -245,15 +245,15 @@ vaddr_t find_mapping_space(vaddr_t start, size_t size) {
     // assert code: make sure the max address is not in pagetable(not mapping)
     pte_t *pte;
     int ret;
-    ret = walk(current()->pagetable, max, 0, 0, &pte);
+    ret = walk(proc_current()->pagetable, max, 0, 0, &pte);
     ASSERT(ret == -1 || *pte == 0);
     return max;
 }
 
 void sys_print_vma() {
-    struct proc *p = current();
+    struct proc *p = proc_current();
     struct vma *pos;
-    VMA("%s vmas:\n", current()->name);
+    VMA("%s vmas:\n", proc_current()->name);
     list_for_each_entry(pos, &p->head_vma, node) {
         VMA("%x-%x %dKB\t", pos->startva, pos->startva + pos->size, pos->size / PGSIZE);
         if (pos->perm & PERM_READ) {
@@ -281,7 +281,7 @@ void sys_print_vma() {
 }
 
 int vmacopy(struct proc *newproc) {
-    struct proc *p = current();
+    struct proc *p = proc_current();
     struct vma *pos;
     list_for_each_entry(pos, &p->head_vma, node) {
         if (pos->type == VMA_MAP_FILE) {

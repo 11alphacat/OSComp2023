@@ -1182,7 +1182,7 @@ int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar attr, 
     // int iter_order = 1;      // the compiler says it's an unused variable
     uchar checksum = ChkSum(dirent_s_cur.DIR_Name);
 #ifdef __DEBUG_FS__
-    printf("inode init : pid %d, %s, checksum = %x \n", current()->pid, long_name, checksum);
+    printf("inode init : pid %d, %s, checksum = %x \n", proc_current()->pid, long_name, checksum);
 #endif
     int char_idx = 0;
     // every long name entry
@@ -1422,7 +1422,7 @@ int fat32_inode_delete(struct inode *dp, struct inode *ip) {
         fcb_char[i * 32] = 0xE5;
     ASSERT(off - long_dir_len > 0);
 #ifdef __DEBUG_FS__
-    printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", current()->pid, ip->fat32_i.fname, off, long_dir_len);
+    printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
 #endif
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));

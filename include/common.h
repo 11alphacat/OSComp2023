@@ -50,7 +50,7 @@ typedef unsigned char *byte_pointer;
 #define NULL ((void *)0)
 
 typedef int pid_t;
-typedef int tgid_t;
+typedef int tid_t;
 typedef int pgrp_t;
 typedef uint64 pte_t;
 typedef uint64 pde_t;

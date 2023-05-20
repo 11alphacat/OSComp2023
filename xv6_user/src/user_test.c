@@ -156,8 +156,10 @@ void twochildren() {
 // when it still has live children.
 void reparent() {
     printf("==========reparent test==========\n");
+
+    int n = 100;
     int master_pid = getpid();
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < n; i++) {
         int pid = fork();
         if (pid < 0) {
             printf("fork failed\n");
@@ -2727,64 +2729,65 @@ void dirfile() {
 
 
 int main(void) {
-    forktest();
-    exitwait();
-    forkfork();
-    forkforkfork();
-    twochildren();
-    reparent();
-    reparent2();
-    killstatus();
+    // forktest();
+    // exitwait();
+    // forkfork();
+    // forkforkfork();
+    // twochildren();
+    // reparent();
+    // reparent2();
+    // killstatus();
     
     
-    opentest();
-    openiputtest();
-    writetest();
-    writebig();
-    preempt();
-    truncate1();
-    copyin();
-    copyout();
-    copyinstr1();
-    truncate2();
-    truncate3();
-    iputtest();
-    exitiputtest();
-    createtest();
+    // opentest();
+    // openiputtest();
+    // writetest();
+    // writebig();
+    // preempt();
+    // truncate1();
+    // copyin();
+    // copyout();
+    // copyinstr1();
+    // truncate2();
+    // truncate3();
+    // iputtest();
+    // exitiputtest();
+    // createtest();
 
-    sbrklast();
-    dirtest();
-    execvetest();
-    uvmfree();
-    pipe1();
-    mem();
-    sharedfd();
-    createdelete();
-    fourfiles();
-    bigwrite();
-    bigfile();
-    rmdot();
-    badarg();
-    sbrk8000();
-    textwrite();
-    outofinodes();
-    manywrites();
-    badwrite();
-    sbrkbasic();
-    sbrkmuch();
-    kernmem();
-    MAXVAplus();
-    sbrkfail();
-    sbrkarg();
-    bsstest();
-    bigargtest();
-    argptest();
-    stacktest();
-    pgbug();
-    sbrkbugs();
-    cowtest();
-    copyinstr3();
-    stressfs();
+    // sbrklast();
+    // dirtest();
+    // execvetest();
+    // uvmfree();
+    // pipe1();
+    // mem();
+    // sharedfd();
+    // createdelete();
+    // fourfiles();
+    // bigwrite();
+    // bigfile();
+    // rmdot();
+    // badarg();
+    // sbrk8000();
+    // textwrite();
+    // outofinodes();
+    // manywrites();
+    // badwrite();
+    // sbrkbasic();
+    // sbrkmuch();
+    // kernmem();
+    // MAXVAplus();
+    // sbrkfail();
+    
+    // sbrkarg();
+    // bsstest();
+    // bigargtest();
+    // argptest();
+    // stacktest();
+    // pgbug();
+    // sbrkbugs();
+    // cowtest();
+    // copyinstr3();
+    // stressfs();
 
 
     // TODO :

@@ -17,7 +17,4 @@ void cond_signal(struct cond *cond);
 
 void cond_broadcast(struct cond *cond);
 
-void sleep(void *, struct spinlock *);
-void wakeup(void *);
-
 #endif

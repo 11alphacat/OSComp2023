@@ -31,14 +31,14 @@
 int argfd(int n, int *pfd, struct file **pf) {
     int fd;
     struct file *f;
-    struct proc *p = current();
+    struct proc *p = proc_current();
     argint(n, &fd);
     if (fd < 0 || fd >= NOFILE)
         return -1;
 
     // in case another thread writes after the current thead reads
     acquire(&p->tlock);
-    if ((f = current()->_ofile[fd]) == 0) {
+    if ((f = proc_current()->_ofile[fd]) == 0) {
         release(&p->tlock);
         return -1;
     } else {
@@ -60,7 +60,7 @@ static inline int __namecmp(const char *s, const char *t) {
 // 它是线程安全的
 static int fdalloc(struct file *f) {
     int fd;
-    struct proc *p = current();
+    struct proc *p = proc_current();
 
     acquire(&p->tlock);
     for (fd = 0; fd < NOFILE; fd++) {
@@ -122,7 +122,7 @@ uint64 sys_mknod(void) {
 uint64 sys_getcwd(void) {
     uint64 buf;
     size_t size;
-    struct proc *p = current();
+    struct proc *p = proc_current();
     argaddr(0, &buf);
     argulong(1, &size);
 
@@ -169,7 +169,7 @@ uint64 sys_dup(void) {
 //    The steps of closing and reusing the file descriptor newfd are performed  atomically.
 uint64 sys_dup3(void) {
     struct file *f;
-    struct proc *p = current();
+    struct proc *p = proc_current();
     int oldfd, newfd, flags;
 
     if (argfd(0, &oldfd, &f) < 0) {
@@ -262,7 +262,7 @@ uint64 sys_openat(void) {
             return -1;
         }
 #ifdef __DEBUG_FS__
-        printfBlue("openat : pid %d, create file, %s\n", current()->pid, path);
+        printfBlue("openat : pid %d, create file, %s\n", proc_current()->pid, path);
 #endif
     } else {
         // 否则，我们先调用 find_inode找到path对应的文件inode节点
@@ -270,7 +270,7 @@ uint64 sys_openat(void) {
             return -1;
         }
 #ifdef __DEBUG_FS__
-        printfBlue("openat : pid %d, open existed file, %s\n", current()->pid, path);
+        printfBlue("openat : pid %d, open existed file, %s\n", proc_current()->pid, path);
 #endif
         ASSERT(ip); // 这里 ip 应该已绑定到 path 找到的文件inode节点
 
@@ -334,7 +334,7 @@ uint64 sys_openat(void) {
         ip->i_size = 0;
         f->f_pos = 0;
 #ifdef __DEBUG_FS__
-        printfBlue("openat : pid %d, truncate file, %s\n", current()->pid, path);
+        printfBlue("openat : pid %d, truncate file, %s\n", proc_current()->pid, path);
 #endif
     }
 
@@ -342,7 +342,7 @@ uint64 sys_openat(void) {
     ip->i_op->iunlock(ip);
 
 #ifdef __DEBUG_FS__
-    printfBlue("openat : pid %d, fd = %d\n", current()->pid, fd);
+    printfBlue("openat : pid %d, fd = %d\n", proc_current()->pid, fd);
 #endif
     return fd;
 }
@@ -358,9 +358,9 @@ uint64 sys_close(void) {
     if (argfd(0, &fd, &f) < 0) {
         return -1;
     }
-    current()->_ofile[fd] = 0;
+    proc_current()->_ofile[fd] = 0;
 #ifdef __DEBUG_FS__
-    printfCYAN("close : pid %d, fd = %d\n", current()->pid, fd);
+    printfCYAN("close : pid %d, fd = %d\n", proc_current()->pid, fd);
 #endif
     generic_fileclose(f);
 
@@ -389,7 +389,7 @@ uint64 sys_read(void) {
     if (f->f_type == FD_INODE) {
         int fd;
         argint(0, &fd);
-        printfMAGENTA("read : pid %d, fd = %d\n", current()->pid, fd);
+        printfMAGENTA("read : pid %d, fd = %d\n", proc_current()->pid, fd);
     }
 #endif
     return f->f_op->read(f, p, n);
@@ -415,7 +415,7 @@ uint64 sys_write(void) {
     if (f->f_type == FD_INODE) {
         int fd;
         argint(0, &fd);
-        printfYELLOW("write : pid %d, fd = %d\n", current()->pid, fd);
+        printfYELLOW("write : pid %d, fd = %d\n", proc_current()->pid, fd);
     }
 #endif
     return f->f_op->write(f, p, n);
@@ -500,7 +500,7 @@ uint64 sys_unlinkat(void) {
     // if ((ip = fat32_inode_dirlookup(dp, name, &off)) == 0) {
     if ((ip = dp->i_op->idirlookup(dp, name, &off)) == 0) {
 #ifdef __DEBUG_FS__
-        printfGreen("unlinkat : pid %d, no file, %s\n", current()->pid, path);
+        printfGreen("unlinkat : pid %d, no file, %s\n", proc_current()->pid, path);
 #endif
         goto bad;
     }
@@ -534,7 +534,7 @@ uint64 sys_unlinkat(void) {
 
     ip->i_nlink--;
 #ifdef __DEBUG_FS__
-    printfGreen("unlinkat : pid %d, file (%s) nlinks %d -> %d\n", current()->pid, ip->fat32_i.fname, ip->i_nlink + 1, ip->i_nlink);
+    printfGreen("unlinkat : pid %d, file (%s) nlinks %d -> %d\n", proc_current()->pid, ip->fat32_i.fname, ip->i_nlink + 1, ip->i_nlink);
 #endif
     // fat32_inode_update(ip);
     ip->i_op->iupdate(ip);
@@ -718,7 +718,7 @@ uint64 sys_fstat(void) {
 uint64 sys_chdir(void) {
     char path[PATH_LONG_MAX];
     struct inode *ip;
-    struct proc *p = current();
+    struct proc *p = proc_current();
 
     // begin_op();
     if (argstr(0, path, PATH_LONG_MAX) < 0 || (ip = namei(path)) == 0) { // bug: 修改了n_link
@@ -750,7 +750,7 @@ uint64 sys_pipe2(void) {
     uint64 fdarray; // user pointer to array of two integers
     struct file *rf, *wf;
     int fd0, fd1;
-    struct proc *p = current();
+    struct proc *p = proc_current();
 
     argaddr(0, &fdarray);
     if (pipealloc(&rf, &wf) < 0) // 分配两个 pipe 文件

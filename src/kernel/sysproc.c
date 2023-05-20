@@ -22,7 +22,7 @@ extern struct spinlock wait_lock;
  */
 uint64
 sys_getpid(void) {
-    return current()->pid;
+    return proc_current()->pid;
 }
 
 uint64 sys_exit(void) {
@@ -39,9 +39,9 @@ uint64 sys_exit(void) {
  */
 uint64
 sys_getppid(void) {
-    acquire(&current()->lock);
-    uint64 ppid = current()->parent->pid;
-    release(&current()->lock);
+    acquire(&proc_current()->lock);
+    uint64 ppid = proc_current()->parent->pid;
+    release(&proc_current()->lock);
     return ppid;
 }
 
@@ -129,12 +129,12 @@ uint64 sys_execve(void) {
                 break;
             }
             paddr_t cp;
-            if ((cp = walkaddr(current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+            if ((cp = walkaddr(proc_current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
                 return -1;
             }
         }
 
-        argv = getphyaddr(current()->pagetable, uargv);
+        argv = getphyaddr(proc_current()->pagetable, uargv);
     }
 
     if (uenvp == 0) {
@@ -152,12 +152,12 @@ uint64 sys_execve(void) {
                 break;
             }
             vaddr_t cp;
-            if ((cp = walkaddr(current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+            if ((cp = walkaddr(proc_current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
                 return -1;
             }
         }
 
-        envp = getphyaddr(current()->pagetable, uenvp);
+        envp = getphyaddr(proc_current()->pagetable, uenvp);
     }
 
     return do_execve(path, (char *const *)argv, (char *const *)envp);
@@ -168,7 +168,7 @@ uint64 sys_sbrk(void) {
     int n;
 
     argint(0, &n);
-    addr = current()->sz;
+    addr = proc_current()->sz;
     if (growproc(n) < 0)
         return -1;
     return addr;
@@ -179,9 +179,9 @@ uint64 sys_brk(void) {
     uintptr_t newaddr;
     intptr_t increment;
 
-    oldaddr = current()->sz;
+    oldaddr = proc_current()->sz;
     argaddr(0, &newaddr);
-    /*  contest requirement: brk(0) return the current location of the program break
+    /*  contest requirement: brk(0) return the proc_current location of the program break
         This is different from the behavior of the brk interface in Linux
     */
     if (newaddr == 0) {
@@ -195,7 +195,7 @@ uint64 sys_brk(void) {
 }
 
 uint64 sys_print_pgtable(void) {
-    struct proc *p = current();
+    struct proc *p = proc_current();
     vmprint(p->pagetable, 0, 0, 0, 0);
     uint64 memsize = get_free_mem();
     Log("%dM", memsize / 1024 / 1024);
@@ -207,7 +207,7 @@ sys_kill(void) {
     int pid;
 
     argint(0, &pid);
-    return kill(pid);
+    return proc_kill(pid);
 }
 
 // return how many clock tick interrupts have occurred

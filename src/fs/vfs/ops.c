@@ -23,8 +23,8 @@ struct file *filealloc(void) {
             f->f_count = 1;
 
             // f->f_op = get_fat32_fileops();
-            ASSERT(current()->_cwd->fs_type == FAT32);
-            f->f_op = get_fileops[current()->_cwd->fs_type]();
+            ASSERT(proc_current()->_cwd->fs_type == FAT32);
+            f->f_op = get_fileops[proc_current()->_cwd->fs_type]();
 
             release(&_ftable.lock);
             return f;
@@ -99,7 +99,7 @@ struct inode *find_inode(char *path, int dirfd, char *name) {
     // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
     ASSERT(path);
     struct inode *ip;
-    struct proc *p = current();
+    struct proc *p = proc_current();
     if (*path == '/' || dirfd == AT_FDCWD) {
         // 绝对路径 || 相对于当前路径，忽略 dirfd
         // acquire(&p->tlock);
@@ -166,7 +166,7 @@ static char *skepelem(char *path, char *name) {
 }
 
 static struct inode *inode_namex(char *path, int nameeparent, char *name) {
-    struct inode *ip = NULL, *next = NULL, *cwd = current()->_cwd;
+    struct inode *ip = NULL, *next = NULL, *cwd = proc_current()->_cwd;
     ASSERT(cwd);
     if (*path == '/') {
         ASSERT(cwd->i_sb);

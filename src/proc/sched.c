@@ -7,40 +7,51 @@
 #include "proc/sched.h"
 #include "kernel/trap.h"
 #include "proc/pcb_life.h"
+#include "proc/pcb_thread.h"
+#include "proc/tcb_queue.h"
 #include "debug.h"
 
-// UNUSED, USED, SLEEPING, RUNNABLE, ZOMBIE
-PCB_Q_t unused_q, used_q, runnable_q, sleeping_q, zombie_q;
-// the running process is on the cpu, so we do not need it (running queue).
-// create a mapping from emurate state to the address of queue
-PCB_Q_t *STATES[STATEMAX] = {
-    [UNUSED] & unused_q,
-    [USED] & used_q,
-    [RUNNABLE] & runnable_q,
-    [SLEEPING] & sleeping_q,
-    [ZOMBIE] & zombie_q};
+// UNUSED, SLEEPING, ZOMBIE
+PCB_Q_t unused_p_q, used_p_q, zombie_p_q;
+PCB_Q_t *STATES[PCB_STATEMAX] = {
+    [PCB_UNUSED] & unused_p_q,
+    [PCB_USED] & used_p_q,
+    [PCB_ZOMBIE] & zombie_p_q};
+
+// UNUSED, USED, SLEEPING, RUNNABLE
+// the running thread is on the cpu, so we do not need it (running queue).
+// create a mapping from emurate state to the address of queue.
+TCB_Q_t unused_t_q, used_t_q, runnable_t_q, sleeping_t_q;
+TCB_Q_t *T_STATES[TCB_STATEMAX] = {
+    [TCB_UNUSED] & unused_t_q,
+    [TCB_USED] & used_t_q,
+    [TCB_RUNNABLE] & runnable_t_q,
+    [TCB_SLEEPING] & sleeping_t_q};
 
 extern struct proc proc[NPROC];
+extern struct tcb thread[NTCB];
 
 void PCB_Q_ALL_INIT() {
-    PCB_Q_init(&unused_q, "UNUSED");
-    PCB_Q_init(&used_q, "USED");
-    PCB_Q_init(&runnable_q, "RUNNABLE");
-    PCB_Q_init(&sleeping_q, "SLEEPING");
-    PCB_Q_init(&zombie_q, "ZOMBIE");
+    PCB_Q_init(&unused_p_q, "PCB_UNUSED");
+    PCB_Q_init(&used_p_q, "PCB_USED");
+    PCB_Q_init(&zombie_p_q, "PCB_ZOMBIE");
+}
+
+void TCB_Q_ALL_INIT() {
+    TCB_Q_init(&unused_t_q, "TCB_UNUSED");
+    TCB_Q_init(&used_t_q, "TCB_USED");
+    TCB_Q_init(&runnable_t_q, "TCB_RUNNABLE");
+    TCB_Q_init(&sleeping_t_q, "TCB_SLEEPING");
 }
 
 void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
     PCB_Q_t *pcb_q_new = STATES[state_new];
     PCB_Q_t *pcb_q_old = STATES[p->state];
 
-    if (p->state != RUNNING) {
-        acquire(&pcb_q_old->lock);
-        PCB_Q_remove(p);
-        release(&pcb_q_old->lock);
-    } else {
-        PCB_Q_remove(p);
-    }
+    acquire(&pcb_q_old->lock);
+    PCB_Q_remove(p);
+    release(&pcb_q_old->lock);
+
     acquire(&pcb_q_new->lock);
     PCB_Q_push_back(pcb_q_new, p);
     release(&pcb_q_new->lock);
@@ -49,67 +60,70 @@ void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
     return;
 }
 
-// Give up the CPU for one scheduling round.
-void yield(void) {
-    struct proc *p = current();
-    acquire(&p->lock);
+void TCB_Q_changeState(struct tcb *t, enum thread_state state_new) {
+    TCB_Q_t *tcb_q_new = T_STATES[state_new];
+    TCB_Q_t *tcb_q_old = T_STATES[t->state];
 
-    // runnable queue
-    PCB_Q_changeState(p, RUNNABLE);
+    if (t->state != TCB_RUNNING) {
+        acquire(&tcb_q_old->lock);
+        TCB_Q_remove(t);
+        release(&tcb_q_old->lock);
+    } else {
+        TCB_Q_remove(t);
+    }
+    acquire(&tcb_q_new->lock);
+    TCB_Q_push_back(tcb_q_new, t);
+    release(&tcb_q_new->lock);
 
-    sched();
-    release(&p->lock);
+    t->state = state_new;
+    return;
 }
 
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
-void sched(void) {
-    int intena;
-    struct proc *p = current();
+void thread_yield(void) {
+    struct tcb *t = thread_current();
+    acquire(&t->lock);
 
-    if (!holding(&p->lock))
-        panic("sched p->lock");
-    if (mycpu()->noff != 1) {
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+
+    thread_sched();
+    release(&t->lock);
+}
+
+void thread_sched(void) {
+    int intena;
+    struct tcb *thread = thread_current();
+
+    if (!holding(&thread->lock))
+        panic("sched thread->lock");
+    if (t_mycpu()->noff != 1) {
         panic("sched locks");
     }
-    if (p->state == RUNNING)
+    if (thread->state == TCB_RUNNING)
         panic("sched running");
     if (intr_get())
         panic("sched interruptible");
 
-    intena = mycpu()->intena;
-    swtch(&p->context, &mycpu()->context);
-    mycpu()->intena = intena;
+    intena = t_mycpu()->intena;
+    swtch(&thread->context, &t_mycpu()->context);
+    t_mycpu()->intena = intena;
 }
 
-#include "debug.h"
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run.
-//  - swtch to start running that process.
-//  - eventually that process transfers control
-//    via swtch back to the scheduler.
-void scheduler(void) {
-    struct proc *p;
-    struct cpu *c = mycpu();
-    c->proc = 0;
+void thread_scheduler(void) {
+    struct tcb *t;
+    struct thread_cpu *c = t_mycpu();
+
+    c->thread = 0;
     for (;;) {
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
-        p = PCB_Q_provide(&runnable_q, 1);
-        if (p == NULL)
+        t = TCB_Q_provide(&runnable_t_q, 1);
+        if (t == NULL)
             continue;
-        acquire(&p->lock);
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-        c->proc = 0;
-        release(&p->lock);
+        acquire(&t->lock);
+        t->state = TCB_RUNNING;
+        c->thread = t;
+        swtch(&c->context, &t->context);
+        c->thread = 0;
+        release(&t->lock);
     }
 }

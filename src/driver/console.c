@@ -96,7 +96,7 @@ int consoleread(int user_dst, uint64 dst, int n) {
         // wait until interrupt handler has put some
         // input into cons.buffer.
         while (cons.r == cons.w) {
-            if (killed(current())) {
+            if (proc_killed(proc_current())) {
                 release(&cons.lock);
                 return -1;
             }
@@ -147,7 +147,7 @@ void consoleintr(int c) {
 
     switch (c) {
     case C('P'): // Print process list.
-        procdump();
+        // procdump();
         break;
     case C('U'): // Kill line.
         while (cons.e != cons.w && cons.buf[(cons.e - 1) % INPUT_BUF_SIZE] != '\n') {
