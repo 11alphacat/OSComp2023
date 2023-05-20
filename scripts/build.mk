@@ -12,9 +12,9 @@ include $(SCRIPTS)/rules.mk
 syscall_gen:
 	@sh ./$(ENTRY)/syscalltbl.sh $(ENTRY)/syscall.tbl $(GENINC)/syscall_num.h $(GENINC)/syscall_func.h $(GENINC)/syscall_def.h
 
-_kernel: syscall_gen $(OBJS) $(SCRIPTS)/kernel.ld $(OBJS_KCSAN)
-	$(LD) $(LDFLAGS) -T $(SCRIPTS)/kernel.ld -o _kernel $(OBJS) $(OBJS_KCSAN)
-	@$(OBJDUMP) -S _kernel > $(BUILD)/kernel.asm
-	@$(OBJDUMP) -t _kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD)/kernel.sym
+kernel-qemu: syscall_gen $(OBJS) $(SCRIPTS)/kernel.ld $(OBJS_KCSAN)
+	$(LD) $(LDFLAGS) -T $(SCRIPTS)/kernel.ld -o kernel-qemu $(OBJS) $(OBJS_KCSAN)
+	@$(OBJDUMP) -S kernel-qemu > $(BUILD)/kernel.asm
+	@$(OBJDUMP) -t kernel-qemu | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD)/kernel.sym
 
 .PHONY: syscall_gen

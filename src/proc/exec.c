@@ -261,9 +261,9 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     // p->trapframe->a1 = commit.a1;
     // p->trapframe->a2 = commit.a2;
     // p->trapframe->epc = commit.entry; // initial program counter = main
-    
+
     t->trapframe->sp = commit.sp;
-    t->trapframe->a1= commit.a1;
+    t->trapframe->a1 = commit.a1;
     t->trapframe->a2 = commit.a2;
     t->trapframe->epc = commit.entry;
 

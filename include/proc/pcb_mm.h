@@ -9,5 +9,4 @@ int thread_trapframe(struct tcb *t, int still);
 void proc_freepagetable(pagetable_t pagetable, uint64 sz, int maxoffset);
 int growproc(int);
 
-
 #endif

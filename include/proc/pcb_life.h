@@ -14,7 +14,6 @@
 #define INIT_PID 1
 #define SHELL_PID 2
 
-
 struct file;
 struct inode;
 

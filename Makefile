@@ -16,20 +16,8 @@ $(shell mkdir -p $(GENINC))
 MNT_DIR=build/mnt
 $(shell mkdir -p $(MNT_DIR))
 
-xv6U=xv6_user
-oscompU=user
-
-FILE= mnt text.txt \
-    chdir close dup2 dup \
-    fstat getcwd mkdir_ write \
-    openat open read test_echo \
-	getdents unlink pipe \
-    brk clone execve exit fork \
-    getpid getppid sleep times \
-    gettimeofday mmap munmap \
-    uname wait waitpid yield \
-    mount umount  
-ALLFILE=$(addprefix $(oscompU)/build/riscv64/, $(FILE))
+User=user
+oscompU=oscomp_user
 
 # Initial File in Directory
 TEST=user_test kalloctest mmaptest
@@ -41,16 +29,19 @@ OSCOMP=chdir close dup2 dup \
     getpid getppid sleep times \
     gettimeofday mmap munmap \
     uname wait waitpid yield \
-    mount umount text.txt
-BIN=ls echo cat mkdir rawcwd rm shutdown wc kill
+    mount umount text.txt run-all.sh mnt
+BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh
+BOOT=init
 
 TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
 OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
 BINFILE = $(addprefix $(FSIMG)/, $(BIN))
+BOOTFILE = $(addprefix $(FSIMG)/, $(BOOT))
 $(shell mkdir -p $(FSIMG)/test)
 $(shell mkdir -p $(FSIMG)/oscomp)
 $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
+$(shell mkdir -p $(FSIMG)/boot)
 
 ## 2. Compilation Flags 
 
@@ -129,10 +120,10 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 2
+CPUS := 3
 endif
 
-QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel _kernel -m 130M -smp $(CPUS) -nographic
+QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 # QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
@@ -150,13 +141,13 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
-all: _kernel image
+all: kernel-qemu image
 	$(QEMU) $(QEMUOPTS)
 
-kernel: _kernel
+kernel: kernel-qemu
 	$(QEMU) $(QEMUOPTS)
 
-gdb: _kernel .gdbinit
+gdb: kernel-qemu .gdbinit
 	@echo "*** Please make sure to execute 'make image' before attempting to run gdb!!!" 1>&2
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
@@ -164,22 +155,22 @@ gdb: _kernel .gdbinit
 .gdbinit: .gdbinit.tmpl-riscv
 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
 
-export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS xv6U
+export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS User
 
 image: user fat32.img
 
 user: oscomp
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/
-	@make -C $(xv6U)
+	@make -C $(User)
+	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
 	@mv $(BINFILE) $(FSIMG)/bin/
-	@mv $(OSCOMPFILE) $(FSIMG)/oscomp/
+	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/test/
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
-	@cp -r $(ALLFILE) $(FSIMG)/
-# cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/
+
 
 fat32.img: dep
 	@dd if=/dev/zero of=$@ bs=1M count=128
@@ -189,11 +180,11 @@ fat32.img: dep
 	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)
 
 clean-all: clean
-	-@make -C $(xv6U)/ clean
+	-@make -C $(User)/ clean
 	-@make -C $(oscompU)/ clean
 
 clean: 
-	-rm build/* $(SCRIPTS)/mkfs _kernel fs.img fat32.img $(GENINC) -rf $(FSIMG)/*
+	-rm build/* $(SCRIPTS)/mkfs kernel-qemu fs.img fat32.img $(GENINC) -rf $(FSIMG)/*
 
 .PHONY: qemu clean user clean-all format test oscomp dep image
 

@@ -33,7 +33,7 @@ typedef int64 intptr_t;
 typedef uint64 uintptr_t;
 #elif __riscv_xlen == 32
 typedef int32_t intptr_t;
-typedef uint32 uintptr_t;
+typedef uint32_t uintptr_t;
 #endif
 
 /* size_t is used for memory object sizes */
@@ -55,7 +55,6 @@ typedef __builtin_va_list va_list;
 #define O_RDONLY 0x000
 #define O_WRONLY 0x001
 #define O_RDWR 0x002 // 可读可写
-#define O_TRUNC 0x400
 //#define O_CREATE 0x200
 #define O_CREATE 0x40
 #define O_DIRECTORY 0x0200000
@@ -128,8 +127,4 @@ struct linux_dirent64 {
 #define MAP_PRIVATE 0X02
 #define MAP_FAILED ((void *) -1)
 
-// add
-typedef unsigned int   uint;
-typedef unsigned short ushort;
-typedef unsigned char  uchar;
 #endif // __STDDEF_H__

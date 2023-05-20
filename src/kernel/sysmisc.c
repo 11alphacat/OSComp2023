@@ -113,7 +113,6 @@ struct timeval {
         .tv_sec = TIME2SEC(time), .tv_usec = TIME2US(time) % (1000 * 1000) \
     }
 
-
 /*
  * 功能：获取时间；
  * 输入： timespec结构体指针用于获得时间值；

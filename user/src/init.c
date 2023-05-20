@@ -5,7 +5,7 @@
 #include "stdio.h"
 #include "string.h"
 
-char *argv[] = { "sh", 0};
+char *argv[] = { "/init/sh", 0};
 char *envp[] = {"PATH=/oscomp:/bin:/test", 0};
 
 #define CONSOLE 1
@@ -19,9 +19,9 @@ main(void)
   //   open("console", O_RDWR);
   // }
   
-  if(openat(AT_FDCWD,"console.dev", O_RDWR) < 0){
-    mknod("console.dev", CONSOLE,0);
-    openat(AT_FDCWD,"console.dev", O_RDWR);
+  if(openat(AT_FDCWD,"/dev/console.dev", O_RDWR) < 0){
+    mknod("/dev/console.dev", CONSOLE,0);
+    openat(AT_FDCWD,"/dev/console.dev", O_RDWR);
   }
 
   // printf("\n\tNow you come here, welcome my dear friend.\n\n");
@@ -47,7 +47,7 @@ main(void)
     }
     if (pid == 0) {
       printf("about to start sh\n");
-      execve("sh",argv,envp);
+      execve("/bin/sh",argv,envp);
       printf("init: exec sh failed\n");
       exit(1);
     }

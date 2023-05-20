@@ -282,4 +282,10 @@
 #define SYS_spawn 400
 #define SYS_mailread 401
 #define SYS_mailwrite 402
-#define SYS_mkdir 1030
+
+#define SYS_mknod 16
+#define SYS_sbrk 11
+#define SYS_fork 0
+#define SYS_print_pgtable 500
+#define SYS_print_vma 501
+#define SYS_print_rawfile 502

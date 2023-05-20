@@ -37,7 +37,7 @@ int fstat(int fd, struct kstat *st);
 int sys_linkat(int olddirfd, char *oldpath, int newdirfd, char *newpath, unsigned int flags);
 int sys_unlinkat(int dirfd, char *path, unsigned int flags);
 int link(char *old_path, char *new_path);
-int unlink(char *path);
+// int unlink(char *path);
 int uname(void *buf);
 int time(unsigned long *tloc);
 int brk(void *);
@@ -49,4 +49,23 @@ int getdents(int fd, struct linux_dirent64 *dirp64, unsigned long len);
 int pipe(int [2]);
 int dup(int);
 int dup2(int, int);
+
+/* above is the oscomp's required syscall, don't modify, add new syscall below */
+/* ================================================================================= */
+
+/* modify */
+// void exit(int) __attribute__((noreturn));
+int unlink(const char *path);
+
+/* add */
+int mknod(const char* path, short major, short minor);
+char *sbrk(int);
+int kill(int);
+void shutdown();
+
+/* debug */
+int print_pgtable();
+int print_vma();
+void print_rawfile(int fd, int print);
+
 #endif // __UNISTD_H__

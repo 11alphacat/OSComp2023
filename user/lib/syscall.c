@@ -1,5 +1,5 @@
-#include <stddef.h>
-#include <unistd.h>
+#include "stddef.h"
+#include "unistd.h"
 
 #include "syscall.h"
 
@@ -167,7 +167,7 @@ int link(char *old_path, char *new_path)
     return sys_linkat(AT_FDCWD, old_path, AT_FDCWD, new_path, 0);
 }
 
-int unlink(char *path)
+int unlink(const char *path)
 {
     return sys_unlinkat(AT_FDCWD, path, 0);
 }
@@ -221,3 +221,35 @@ int umount(const char *special)
         return syscall(SYS_umount2, special, 0);
 }
 
+/* above is the oscomp's required syscall, don't modify, add new syscall below */
+/* ================================================================================= */
+
+/* add */
+int mknod(const char* path, short major, short minor) {
+    return syscall(SYS_mknod, path, major, minor);
+}
+
+char *sbrk(int increment) {
+    return syscall(SYS_sbrk, increment);
+}
+
+int kill(int pid) {
+    return syscall(SYS_kill, pid);
+}
+
+void shutdown() {
+    return syscall(SYS_shutdown);
+}
+
+/* debug */
+int print_pgtable() {
+    return syscall(SYS_print_pgtable);
+}
+
+int print_vma() {
+    return syscall(SYS_print_vma);
+}
+
+void print_rawfile(int fd, int printdir) {
+    return syscall(SYS_print_rawfile, fd, printdir);
+}

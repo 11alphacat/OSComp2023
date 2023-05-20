@@ -61,7 +61,6 @@ void thread_usertrap(void) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
 
-
     // save user program counter.
     t->trapframe->epc = r_sepc();
 
@@ -73,8 +72,7 @@ void thread_usertrap(void) {
 
         // sepc points to the ecall instruction,
         // but we want to return to the next instruction.
-        t->trapframe->epc+=4;
-
+        t->trapframe->epc += 4;
 
         // an interrupt will change sepc, scause, and sstatus,
         // so enable only now that we're done with those registers.
@@ -187,7 +185,6 @@ void kerneltrap() {
     // give up the CPU if this is a timer interrupt.
     if (which_dev == 2 && thread_current() != 0 && thread_current()->state == TCB_RUNNING)
         thread_yield();
-
 
     // the yield() may have caused some traps to occur,
     // so restore trap registers for use by kernelvec.S's sepc instruction.

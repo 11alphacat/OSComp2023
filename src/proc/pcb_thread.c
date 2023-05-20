@@ -171,14 +171,13 @@ void exit_thread(int status) {
     return;
 }
 
-void tginit(struct thread_group* tg) {
+void tginit(struct thread_group *tg) {
     initlock(&tg->lock, "thread group lock");
     tg->group_leader = NULL;
     tg->thread_cnt = 0;
     tg->thread_idx = 0;
     INIT_LIST_HEAD(&tg->threads);
 }
-
 
 // // thread join
 // // similar to wait

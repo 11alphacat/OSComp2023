@@ -68,11 +68,11 @@ int thread_trapframe(struct tcb *t, int still) {
     int offset;
 
     // starts from 0
-    if(still)   
-        offset = t->tidx; 
+    if (still)
+        offset = t->tidx;
     else
         offset = p->tg->thread_idx++;
-    
+
     if (p == NULL)
         return -1;
     pagetable_t pagetable = p->pagetable;
@@ -80,7 +80,7 @@ int thread_trapframe(struct tcb *t, int still) {
     if (mappages(pagetable, TRAPFRAME - offset * PGSIZE, PGSIZE,
                  (uint64)(t->trapframe), PTE_R | PTE_W, 0)
         < 0) {
-        if(offset==0){
+        if (offset == 0) {
             uvmunmap(pagetable, TRAMPOLINE, 1, 0, 0);
             uvmfree(pagetable, 0);
         }

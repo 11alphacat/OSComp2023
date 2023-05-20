@@ -22,9 +22,9 @@ enum thread_state { TCB_UNUSED,
 typedef enum thread_state thread_state_t;
 
 struct thread_group {
-    spinlock_t lock;          // spinlock
-    tid_t tgid;               // thread group id
-    int thread_idx;            
+    spinlock_t lock; // spinlock
+    tid_t tgid;      // thread group id
+    int thread_idx;
     int thread_cnt;           // the count of threads
     struct list_head threads; // thread group
     struct tcb *group_leader; // its proc thread group leader
@@ -86,7 +86,6 @@ int proc_release_thread(struct proc *p, struct tcb *t);
 void proc_release_all_thread(struct proc *p);
 void proc_wakeup_all_thread(struct proc *p);
 void thread_forkret(void);
-void tginit(struct thread_group* tg);
-
+void tginit(struct thread_group *tg);
 
 #endif

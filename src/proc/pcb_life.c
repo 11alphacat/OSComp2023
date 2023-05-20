@@ -161,7 +161,7 @@ void free_proc(struct proc *p) {
     if (p->pagetable)
         proc_freepagetable(p->pagetable, p->sz, p->tg->thread_idx);
     p->pagetable = 0;
-    if(p->tg)
+    if (p->tg)
         kfree((void *)p->tg);
     p->tg = 0;
 
@@ -199,7 +199,7 @@ void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     proc_current()->_cwd = fat32_inode_dup(fat32_sb.root);
-    proc_current()->tg->group_leader->trapframe->a0 = do_execve("/init", NULL, NULL);
+    proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", NULL, NULL);
 }
 
 // initialize the proc table.
@@ -393,13 +393,11 @@ void do_exit(int status) {
     sema_signal(&p->parent->tg->group_leader->sem_wait_chan_parent);
     sema_signal(&p->tg->group_leader->sem_wait_chan_self);
 
-
 #ifdef __DEBUG_PROC__
     printfGreen("exit : %d has exited\n", p->pid);                // debug
     printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug
 #endif
     release(&p->lock);
-
 
     acquire(&t->lock);
     thread_sched();
@@ -566,7 +564,6 @@ int proc_killed(struct proc *p) {
     release(&p->lock);
     return k;
 }
-
 
 void proc_thread_print(void) {
     struct proc *p;

@@ -26,7 +26,7 @@ void cond_wait(struct cond *cond, struct spinlock *mutex) {
     TCB_Q_changeState(t, TCB_SLEEPING);
 
     Waiting_Q_push_back(&cond->waiting_queue, t);
-    
+
     // TODO : modify it to futex(ref to linux)
     release(mutex);
 
@@ -69,9 +69,9 @@ void cond_broadcast(struct cond *cond) {
         //     printf("%s\n", t->state);
         //     // panic("cond broadcast : this thread is not sleeping");
         //     panic("cond broadcast : this thread is not sleeping");
-            
+
         // }
-        if(t->state != TCB_SLEEPING) {
+        if (t->state != TCB_SLEEPING) {
             ASSERT(t->state == TCB_UNUSED);
             // printf("cond broadcast : this thread is not sleeping\n");
             continue;
