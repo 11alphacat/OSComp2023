@@ -3,6 +3,7 @@
 #include "proc/pcb_mm.h"
 #include "kernel/trap.h"
 #include "proc/sched.h"
+#include "riscv.h"
 #include "sbi.h"
 extern uint ticks;
 
@@ -28,7 +29,8 @@ struct utsname sys_ut = {
     "1.0.0-1-generic",
     "0.0.0",
     "RISCV",
-    "www.hdu.lostwakeup.edu.cn"};
+    "www.hdu.lostwakeup.edu.cn",
+};
 
 /*
  * 功能：获取进程时间；
@@ -93,75 +95,65 @@ struct timeval {
     uint64 tv_usec; /* Microseconds */
 };
 
-#define TICK_GRANULARITY 10L
+#define FREQUENCY 12500000 // qemu时钟频率12500000
+#define TIME2SEC(time) (time / FREQUENCY)
+#define TIME2MS(time) (time * 1000 / FREQUENCY)
+#define TIME2US(time) (time * 1000 * 1000 / FREQUENCY)
+#define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
 
-#define TICK2SEC(tick) (tick / TICK_GRANULARITY)
-#define TICK2MS(tick) (tick / TICK_GRANULARITY * 1000)
-#define TICK2US(tick) (tick / TICK_GRANULARITY * 1000 * 1000)
-#define TICK2NS(tick) (tick / TICK_GRANULARITY * 1000 * 1000 * 1000)
+#define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
 
-#define SEC2TICK(sec) (sec * TICK_GRANULARITY)
-#define NS2TICK(ns) (ns * (TICK_GRANULARITY) / (1000 * 1000 * 1000))
-
-#define TICK2TIMESPEC(tick)                                                       \
+#define TIME2TIMESPEC(time)                                                       \
     (struct timespec) {                                                           \
-        .ts_sec = TICK2SEC(tick), .ts_nsec = TICK2NS(tick) % (1000 * 1000 * 1000) \
+        .ts_sec = TIME2SEC(time), .ts_nsec = TIME2NS(time) % (1000 * 1000 * 1000) \
     }
 
-#define TICK2TIMEVAL(tick)                                                 \
+#define TIME2TIMEVAL(time)                                                 \
     (struct timeval) {                                                     \
-        .tv_sec = TICK2SEC(tick), .tv_usec = TICK2US(tick) % (1000 * 1000) \
+        .tv_sec = TIME2SEC(time), .tv_usec = TIME2US(time) % (1000 * 1000) \
     }
 
-#define SEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
 
 /*
  * 功能：获取时间；
  * 输入： timespec结构体指针用于获得时间值；
+ * int gettimeofday(struct timeval *tv, struct timezone *tz);
  * 返回值：成功返回0，失败返回-1;
  */
-// struct timespec *ts;
 uint64 sys_gettimeofday(void) {
     uint64 addr;
     argaddr(0, &addr);
-    acquire(&tickslock);
-    struct timespec ts_buf = TICK2TIMESPEC(ticks);
-    release(&tickslock);
-    if (either_copyout(1, addr, &ts_buf, sizeof(ts_buf)) == -1)
+    uint64 time = rdtime();
+    struct timeval tv_buf = TIME2TIMEVAL(time);
+    // Log("%ld", tv_buf.tv_sec);
+    // Log("%ld", tv_buf.tv_usec);
+    if (copyout(proc_current()->pagetable, addr, (char *)&tv_buf, sizeof(tv_buf)) < 0) {
         return -1;
+    }
     return 0;
 }
 
 /*
  * 功能：执行线程睡眠，sleep()库函数基于此系统调用；
  * 输入：睡眠的时间间隔；
+ * int nanosleep(const struct timespec *req, struct timespec *rem);
+ * 返回值：成功返回0，失败返回-1;
  */
-// struct timespec {
-// 	time_t tv_sec;        /* 秒 */
-// 	long   tv_nsec;       /* 纳秒, 范围在0~999999999 */
-// };
-// 返回值：成功返回0，失败返回-1;
-// const struct timespec *req, struct timespec *rem;
 uint64 sys_nanosleep(void) {
-    uint64 addr1, addr2;
-    argaddr(0, &addr1);
-    argaddr(1, &addr2);
+    /* NOTE:currently, we do not support rem! */
+    uint64 req;
+    argaddr(0, &req);
 
     struct timespec ts_buf;
-    if (either_copyin(&ts_buf, 1, addr1, sizeof(ts_buf)) == -1)
+    if (copyin(proc_current()->pagetable, (char *)&ts_buf, req, sizeof(ts_buf)) == -1) {
         return -1;
+    }
 
-    uint ticks0;
-    uint interval_ns = SEPC2NS(ts_buf);
-    uint interval_tick = NS2TICK(interval_ns);
-
-#ifdef __DEBUG_PROC__
-    printfYELLOW("sleep : pid %d sleep(%d)s start...\n", proc_current()->pid, interval_tick / 10); // debug
-#endif
+    uint64 interval_ns = TIMESEPC2NS(ts_buf);
+    uint64 time0 = TIME2NS(rdtime());
 
     acquire(&tickslock);
-    ticks0 = ticks;
-    while (ticks - ticks0 < interval_tick) {
+    while (TIME2NS(rdtime()) - time0 < interval_ns) {
         if (proc_killed(proc_current())) {
             release(&tickslock);
             return -1;
@@ -170,10 +162,6 @@ uint64 sys_nanosleep(void) {
         cond_wait(&cond_ticks, &tickslock);
     }
     release(&tickslock);
-
-#ifdef __DEBUG_PROC__
-    printfYELLOW("sleep : pid %d sleep(%d)s over...", proc_current()->pid, interval_tick / 10); // debug
-#endif
 
     return 0;
 }

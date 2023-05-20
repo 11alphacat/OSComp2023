@@ -2776,7 +2776,7 @@ int main(void) {
     // sbrkmuch();
     // kernmem();
     // MAXVAplus();
-    // sbrkfail();
+    sbrkfail();
     
     // sbrkarg();
     // bsstest();

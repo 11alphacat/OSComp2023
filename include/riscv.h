@@ -29,6 +29,14 @@ r_mstatus() {
     return x;
 }
 
+static inline uint64
+rdtime() {
+    uint64 x;
+    asm volatile("rdtime %0"
+                 : "=r"(x));
+    return x;
+}
+
 static inline void
 w_mstatus(uint64 x) {
     asm volatile("csrw mstatus, %0"
