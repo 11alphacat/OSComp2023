@@ -8,6 +8,7 @@ struct thread_cpu t_cpus[NCPU];
 // to a different CPU.
 int cpuid() {
     int id = r_tp();
+    // printf("%x\n", id);
     return id;
 }
 
