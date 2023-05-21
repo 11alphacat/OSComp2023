@@ -773,3 +773,15 @@ uint64 sys_pipe2(void) {
     }
     return 0;
 }
+
+// pseudo implement
+uint64 sys_umount2(void) {
+    // ASSERT(0);
+    return 0;
+}
+
+// pseudo implement
+uint64 sys_mount(void) {
+    // ASSERT(0);
+    return 0;
+}
