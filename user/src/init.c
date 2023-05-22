@@ -6,7 +6,7 @@
 #include "string.h"
 
 char *argv[] = { "/init/sh", 0};
-char *envp[] = {"PATH=/oscomp:/bin:/test", 0};
+char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox", 0};
 
 #define CONSOLE 1
 int

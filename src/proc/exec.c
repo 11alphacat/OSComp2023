@@ -209,6 +209,8 @@ static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
     return sz;
 
 unlock_put:
+    // vmprint(proc_current()->pagetable, 1, 0, 0, 0);
+    proc_freepagetable(pagetable, sz, 0);
     fat32_inode_unlock_put(ip);
     return 0;
 }
@@ -224,12 +226,13 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     memset(&commit, 0, sizeof(commit));
 
     /* Create a new pagetable for execve */
-    if ((pagetable = proc_pagetable(p)) == 0)
+    if ((pagetable = proc_pagetable(p)) == 0) {
         return -1;
+    }
 
     /* Load the ELF_PROG_LOAD segments */
     if ((sz = loader(path, pagetable, &commit)) == 0) {
-        goto bad;
+        return -1;
     }
 
     /* Allocate two pages at the next page boundary.

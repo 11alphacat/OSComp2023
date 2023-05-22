@@ -7,6 +7,8 @@ BUILD=build
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
+STRACE ?= 0
+
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -32,16 +34,19 @@ OSCOMP=chdir close dup2 dup \
     mount umount text.txt run-all.sh mnt
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh
 BOOT=init
+BUSYBOX=ECHO CAT
 
 TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
 OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
 BINFILE = $(addprefix $(FSIMG)/, $(BIN))
 BOOTFILE = $(addprefix $(FSIMG)/, $(BOOT))
+BUSYBOXFILE = $(addprefix $(FSMIG)/, $(BUSYBOX))
 $(shell mkdir -p $(FSIMG)/test)
 $(shell mkdir -p $(FSIMG)/oscomp)
 $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
 $(shell mkdir -p $(FSIMG)/boot)
+$(shell mkdir -p $(FSIMG)/busybox)
 
 ## 2. Compilation Flags 
 
@@ -68,7 +73,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
 LDFLAGS = -z max-page-size=4096
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2
 
 ifdef KCSAN
 CFLAGS += -DKCSAN
@@ -81,6 +86,9 @@ OBJS_KCSAN = \
   build/src/lib/kcsan.o
 endif
 
+ifeq ($(STRACE), 1)
+CFLAGS += -D__STRACE__
+endif
 ifeq ($(LOCKTRACE), 1)
 CFLAGS += -D__LOCKTRACE__
 endif
@@ -159,14 +167,20 @@ export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS User
 
 image: user fat32.img
 
-user: oscomp
+# user: oscomp busybox
+user: busybox
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/
 	@make -C $(User)
-	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
+#	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
 	@mv $(BINFILE) $(FSIMG)/bin/
 	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/test/
+
+SRCSFILE = $(addprefix busybox/, $(BUSYBOX))
+
+busybox:
+	cp $(SRCSFILE) $(FSIMG)/busybox
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
@@ -182,11 +196,12 @@ fat32.img: dep
 clean-all: clean
 	-@make -C $(User)/ clean
 	-@make -C $(oscompU)/ clean
+	-rm $(SCRIPTS)/mkfs fs.img fat32.img $(FSIMG)/* -rf
 
 clean: 
-	-rm build/* $(SCRIPTS)/mkfs kernel-qemu fs.img fat32.img $(GENINC) -rf $(FSIMG)/*
+	-rm build/* kernel-qemu $(GENINC) -rf 
 
-.PHONY: qemu clean user clean-all format test oscomp dep image
+.PHONY: qemu clean user clean-all format test oscomp dep image busybox
 
 ## 6. Build Kernel
 include $(SCRIPTS)/build.mk
