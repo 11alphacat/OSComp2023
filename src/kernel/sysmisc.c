@@ -5,6 +5,7 @@
 #include "proc/sched.h"
 #include "riscv.h"
 #include "sbi.h"
+#include "memory/buddy.h"
 extern uint ticks;
 
 struct tms {
@@ -102,6 +103,7 @@ struct timeval {
 #define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
 
 #define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
+#define NS_to_S(ns) (ns / (1000 * 1000 * 1000))
 
 #define TIME2TIMESPEC(time)                                                       \
     (struct timespec) {                                                           \
@@ -168,4 +170,69 @@ uint64 sys_nanosleep(void) {
 uint64 sys_shutdown() {
     sbi_shutdown();
     panic("shutdown: can not reach here");
+}
+
+typedef int clockid_t;
+#define CLOCK_REALTIME 0
+// int clock_gettime(clockid_t clockid, struct timespec *tp);
+uint64 sys_clock_gettime(void) {
+    int clockid;
+    uint64 tp;
+    struct timespec ts_buf;
+    argint(0, &clockid);
+    argaddr(1, &tp);
+    uint64 time = rdtime();
+    ts_buf = TIME2TIMESPEC(time);
+
+    if (copyout(proc_current()->pagetable, tp, (char *)&ts_buf, sizeof(ts_buf)) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+struct sysinfo {
+    long uptime; /* Seconds since boot */
+    // unsigned long loads[3];  /* 1, 5, and 15 minute load averages */
+    unsigned long totalram; /* Total usable main memory size */
+    unsigned long freeram;  /* Available memory size */
+    // unsigned long sharedram; /* Amount of shared memory */
+    // unsigned long bufferram; /* Memory used by buffers */
+    // unsigned long totalswap; /* Total swap space size */
+    // unsigned long freeswap;  /* Swap space still available */
+    unsigned short procs; /* Number of current processes */
+    // unsigned long totalhigh; /* Total high memory size */
+    // unsigned long freehigh;  /* Available high memory size */
+    // unsigned int mem_unit;   /* Memory unit size in bytes */
+    // char _f[20-2*sizeof(long)-sizeof(int)]; /* Padding to 64 bytes */
+};
+
+// int sysinfo(struct sysinfo *info);
+uint64 sys_sysinfo(void) {
+    uint64 info;
+    argaddr(0, &info);
+
+    long time_s = TIME2SEC(rdtime());
+    struct sysinfo info_buf;
+    info_buf.uptime = time_s;
+    info_buf.freeram = get_free_mem();
+    info_buf.totalram = PHYSTOP - START_MEM; // 120MB
+    info_buf.procs = get_current_procs();
+
+    if (copyout(proc_current()->pagetable, info, (char *)&info_buf, sizeof(info_buf)) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+// void syslog(int priority, const char *format, ...);
+uint64 sys_syslog(void) {
+    int priority;
+    // char* format;
+    argint(0, &priority);
+    // argaddr(1, format);
+    // Log(format);
+
+    return 0;
 }

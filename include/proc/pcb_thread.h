@@ -8,6 +8,7 @@
 #include "atomic/spinlock.h"
 #include "list.h"
 #include "common.h"
+#include "proc/signal.h"
 
 #define NTCB_PER_PROC 10
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
@@ -49,11 +50,15 @@ struct tcb {
     struct list_head state_list; // its state queue
 
     // signal
-    int sigpending;                   // have signal?
-    struct signal_struct *sig;        // signal
-    sigset_t blocked;                 // the blocked signal
-    struct sigpending pending;        // pending (private)
-    struct sigpending shared_pending; // pending (shared)
+    int sig_pending_cnt;       // have signal?
+    struct sighand *sig;       // signal
+    sigset_t blocked;          // the blocked signal
+    struct sigpending pending; // pending (private)
+
+    uint64 sas_ss_sp;
+    size_t sas_ss_size;
+    uint64 sas_ss_flags;
+    // struct sigpending shared_pending; // pending (shared)
 
     // kernel stack 、trapframe and context
     uint64 kstack;               // kernel stack
@@ -69,11 +74,18 @@ struct tcb {
     // is detached ?
     uint is_detached;
 
-    void *chan;                 // If non-zero, sleeping on chan
+    // void *chan;                 // If non-zero, sleeping on chan
     struct list_head wait_list; // waiting queue (semaphore)
 
     struct semaphore sem_wait_chan_parent;
     struct semaphore sem_wait_chan_self;
+
+    /* CLONE_CHILD_SETTID: */
+    int *set_child_tid;
+    /* CLONE_CHILD_CLEARTID: */
+    int *clear_child_tid;
+
+    struct trapframe sig_trapframe; // backup of trapframe for signal
 };
 
 void tcb_init(void);
@@ -87,5 +99,6 @@ void proc_release_all_thread(struct proc *p);
 void proc_wakeup_all_thread(struct proc *p);
 void thread_forkret(void);
 void tginit(struct thread_group *tg);
+void sighandinit(struct sighand *sig);
 
 #endif

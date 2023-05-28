@@ -164,11 +164,10 @@ void free_proc(struct proc *p) {
     if (p->tg)
         kfree((void *)p->tg);
     p->tg = 0;
-
+    p->sz = 0; // bug!
     p->pid = 0;
     p->parent = 0;
     p->name[0] = 0;
-    // p->chan = 0;
     p->killed = 0;
     p->exit_state = 0;
 
@@ -330,11 +329,21 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
 
     // 子线程中存储子线程 ID 的变量指针
     if (flags & CLONE_CHILD_SETTID) {
-        np->ctid = *ctid;
+        // np->ctid = *ctid;
+        // np->set_child_tid = ctid;
+        np->tg->group_leader->set_child_tid = ctid;
     }
+
+    if (flags & CLONE_CHILD_CLEARTID) {
+        np->ctid = 0;
+        // np->clear_child_tid = ctid;
+        np->tg->group_leader->clear_child_tid = ctid;
+    }
+
     if (stack) {
         np->tg->group_leader->trapframe->sp = stack;
     }
+
     safestrcpy(np->name, p->name, sizeof(p->name));
 
     pid = np->pid;
@@ -563,6 +572,20 @@ int proc_killed(struct proc *p) {
     k = p->killed;
     release(&p->lock);
     return k;
+}
+
+uint8 get_current_procs() {
+    // TODO : add lock to proc table??
+    uint8 procs = 0;
+    struct proc *p;
+    for (p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
+        if (p->state != PCB_UNUSED) {
+            procs++;
+        }
+        release(&p->lock);
+    }
+    return procs;
 }
 
 void proc_thread_print(void) {

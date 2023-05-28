@@ -26,6 +26,9 @@ void Waiting_Q_push_back(Waiting_Q_t *waiting_q, struct tcb *t);
 // move it from its old waiting QUEUE
 void Waiting_Q_remove(struct tcb *t);
 
+// move it from its old waiting QUEUE (atomic)
+void Waiting_Q_remove_atomic(Waiting_Q_t *waiting_q, struct tcb *t);
+
 // pop the queue
 struct tcb *Waiting_Q_pop(Waiting_Q_t *waiting_q);
 

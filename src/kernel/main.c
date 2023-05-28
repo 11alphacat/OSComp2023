@@ -8,6 +8,7 @@
 #include "test.h"
 #include "memory/vm.h"
 #include "proc/sched.h"
+
 volatile static int started = 0;
 void printfinit(void);
 void consoleinit(void);

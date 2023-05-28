@@ -129,35 +129,35 @@ void brelse(struct buffer_head *b) {
     release(&bcache.lock);
 }
 
-int bpin(struct buffer_head *b) {
-    int inc_ret = atomic_inc_return(&b->refcnt);
-    return inc_ret;
-}
+// int bpin(struct buffer_head *b) {
+//     int inc_ret = atomic_inc_return(&b->refcnt);
+//     return inc_ret;
+// }
 
-int bunpin(struct buffer_head *b) {
-    int dec_ret = atomic_dec_return(&b->refcnt);
-    return dec_ret;
-}
+// int bunpin(struct buffer_head *b) {
+//     int dec_ret = atomic_dec_return(&b->refcnt);
+//     return dec_ret;
+// }
 
-int submit_bio(int rw, struct bio *bio) {
-    bio->bi_rw |= rw;
-    return 0;
-}
+// int submit_bio(int rw, struct bio *bio) {
+//     bio->bi_rw |= rw;
+//     return 0;
+// }
 
-int init_bio() {
-    return 0;
-}
+// int init_bio() {
+//     return 0;
+// }
 
-int free_bio(struct bio *bio) {
-    return 0;
-}
+// int free_bio(struct bio *bio) {
+//     return 0;
+// }
 
-// Zero a block.
-void fat32_bzero(int dev, int bno) {
-    struct buffer_head *bp;
+// // Zero a block.
+// void fat32_bzero(int dev, int bno) {
+//     struct buffer_head *bp;
 
-    bp = bread(dev, bno);
-    memset(bp->data, 0, BSIZE);
-    bwrite(bp);
-    brelse(bp);
-}
+//     bp = bread(dev, bno);
+//     memset(bp->data, 0, BSIZE);
+//     bwrite(bp);
+//     brelse(bp);
+// }

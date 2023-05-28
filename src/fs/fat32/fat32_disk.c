@@ -1,15 +1,15 @@
-#include "common.h"
+#include "atomic/semaphore.h"
+#include "memory/allocator.h"
+#include "fs/fat/fat32_stack.h"
 #include "fs/fat/fat32_disk.h"
 #include "fs/fat/fat32_mem.h"
 #include "fs/vfs/fs.h"
-#include "atomic/semaphore.h"
 #include "fs/bio.h"
-#include "memory/allocator.h"
+#include "test.h"
 #include "debug.h"
 #include "test.h"
 #include "param.h"
-#include "fs/fat/fat32_stack.h"
-#include "test.h"
+#include "common.h"
 
 extern struct _superblock fat32_sb;
 

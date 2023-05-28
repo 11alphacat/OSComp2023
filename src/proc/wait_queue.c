@@ -39,6 +39,13 @@ void Waiting_Q_remove(struct tcb *t) {
     INIT_LIST_HEAD(&(t->wait_list));
 }
 
+// move it from its old waiting QUEUE (atomic)
+void Waiting_Q_remove_atomic(Waiting_Q_t *waiting_q, struct tcb *t) {
+    acquire(&waiting_q->lock);
+    Waiting_Q_remove(t);
+    release(&waiting_q->lock);
+}
+
 // pop the queue
 struct tcb *Waiting_Q_pop(Waiting_Q_t *waiting_q) {
     if (Waiting_Q_isempty(waiting_q))

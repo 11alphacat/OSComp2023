@@ -73,6 +73,16 @@ struct tcb *alloc_thread(void) {
         release(&t->lock);
         return 0;
     }
+    memset(&(t->sig_trapframe), 0, sizeof(t->sig_trapframe));
+    t->sig_pending_cnt = 0;
+
+    if ((t->sig = (struct sighand *)kalloc()) == 0) {
+        panic("no space for sighand\n");
+    }
+    sig_empty_set(&t->blocked);
+    sig_empty_set(&t->pending.signal);
+    INIT_LIST_HEAD(&(t->pending.list));
+    sighandinit(t->sig);
 
     // Set up new context to start executing at forkret, which returns to user space.
     memset(&t->context, 0, sizeof(t->context));
@@ -86,6 +96,10 @@ struct tcb *alloc_thread(void) {
 void free_thread(struct tcb *t) {
     if (t->trapframe)
         kfree((void *)t->trapframe);
+
+    if (t->sig) // bug!
+        kfree((void *)t->sig);
+
     t->trapframe = 0;
     t->tid = 0;
     t->name[0] = 0;
@@ -143,6 +157,7 @@ void proc_wakeup_all_thread(struct proc *p) {
     list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
         acquire(&t_cur->lock);
         if (t_cur->state == TCB_SLEEPING) {
+            Waiting_Q_remove_atomic(&cond_ticks.waiting_queue, t_cur); // bug
             TCB_Q_changeState(t_cur, TCB_RUNNABLE);
         }
         release(&t_cur->lock);
@@ -177,6 +192,11 @@ void tginit(struct thread_group *tg) {
     tg->thread_cnt = 0;
     tg->thread_idx = 0;
     INIT_LIST_HEAD(&tg->threads);
+}
+
+void sighandinit(struct sighand *sig) {
+    initlock(&sig->siglock, "signal handler lock");
+    atomic_set(&(sig->count), 0);
 }
 
 // // thread join

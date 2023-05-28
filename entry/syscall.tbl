@@ -14,7 +14,6 @@
 173  getppid          sys_getppid
 124  sched_yield          sys_sched_yield
 
-
 # fs
 80   fstat           sys_fstat
 56  openat            sys_openat
@@ -61,6 +60,7 @@
 276	renameat2	sys_renameat2
 134	rt_sigaction	sys_rt_sigaction
 135	rt_sigprocmask	sys_rt_sigprocmask
+139 rt_sigreturn    sys_rt_sigreturn
 71	sendfile	sys_sendfile
 96	set_tid_address	sys_set_tid_address
 43	statfs	sys_statfs
@@ -68,3 +68,4 @@
 116	syslog	sys_syslog
 88	utimensat	sys_utimensat
 66 writev   sys_writev
+

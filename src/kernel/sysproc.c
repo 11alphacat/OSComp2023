@@ -12,9 +12,9 @@
 #include "proc/cond.h"
 #include "proc/signal.h"
 #include "proc/exec.h"
+#include "proc/pcb_thread.h"
 
-extern struct spinlock wait_lock;
-
+#define ROOT_UID 0
 /*
  * 功能：获取进程ID；
  * 输入：系统调用ID；
@@ -220,4 +220,113 @@ sys_uptime(void) {
     xticks = ticks;
     release(&tickslock);
     return xticks;
+}
+
+// getuid() returns the real user ID of the calling process.
+// uid_t getuid(void);
+uint64 sys_getuid(void) {
+    return ROOT_UID;
+}
+
+// pid_t set_tid_address(int *tidptr);
+uint64 sys_set_tid_address(void) {
+    uint64 tidptr;
+    argaddr(0, &tidptr);
+    struct proc *p = proc_current();
+    struct tcb *t = thread_current();
+
+    t->clear_child_tid = (int *)getphyaddr(p->pagetable, tidptr);
+
+    return t->tid;
+}
+
+// int rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact, size_t sigsetsize);
+// examine and change a signal action
+uint64 sys_rt_sigaction(void) {
+    int signum;
+    size_t sigsetsize;
+
+    uint64 act_addr;
+    uint64 oldact_addr;
+    struct sigaction act;
+    struct sigaction oldact;
+    argint(0, &signum);
+    argaddr(1, &act_addr);
+    argaddr(2, &oldact_addr);
+    argulong(3, &sigsetsize);
+
+    int ret;
+
+    // struct sigaction act_real;
+
+    if (sigsetsize != sizeof(sigset_t))
+        return -1;
+
+    struct proc *p = proc_current();
+    // If act is non-NULL, the new action for signal signum is installed from act
+    if (act_addr) {
+        if (copyin(p->pagetable, (char *)&act, act_addr, sizeof(act)) < 0) {
+            return -1;
+        }
+        // if (copyin(p->pagetable, (char *)&act_real.sa_handler, (uint64)act.sa_handler, sizeof(act.sa_handler)) < 0) {
+        //     return -1;
+        // }
+    }
+
+    ret = do_sigaction(signum, act_addr ? &act : NULL, oldact_addr ? &oldact : NULL);
+
+    // If oldact is non-NULL, the previous action is saved in oldact
+    if (!ret && oldact_addr) {
+        if (copyout(p->pagetable, oldact_addr, (char *)&oldact, sizeof(oldact)) < 0) {
+            return -1;
+        }
+    }
+
+    return ret;
+}
+
+// int rt_sigprocmask(int how, const kernel_sigset_t *set, kernel_sigset_t *oldset, size_t sigsetsize);
+uint64 sys_rt_sigprocmask(void) {
+    int how;
+    uint64 set_addr;
+    uint64 oldset_addr;
+    size_t sigsetsize;
+    argint(0, &how);
+    argaddr(1, &set_addr);
+    argaddr(2, &oldset_addr);
+    argulong(3, &sigsetsize);
+
+    sigset_t set;
+    sigset_t old_set;
+
+    int ret = 0;
+
+    if (sigsetsize != sizeof(sigset_t))
+        return -1;
+
+    // If set is NULL, then the signal mask is unchanged (i.e., how is ignored),
+    // but the current value of the signal mask is nevertheless returned in oldset
+    if (set_addr) {
+        if (copyin(proc_current()->pagetable, (char *)&set, set_addr, sizeof(set)) < 0) {
+            return -1;
+        }
+    }
+    sig_del_set_mask(set, sig_gen_mask(SIGKILL) | sig_gen_mask(SIGSTOP));
+    ret = do_sigprocmask(how, &set, &old_set);
+
+    // If oldset is non-NULL, the previous value of the signal mask is stored in oldset
+    if (!ret && oldset_addr) {
+        if (copyin(proc_current()->pagetable, (char *)&old_set, oldset_addr, sizeof(old_set)) < 0) {
+            return -1;
+        }
+    }
+    return ret;
+}
+
+// return from signal handler and cleanup stack frame
+uint64 sys_rt_sigreturn(void) {
+    struct tcb *t = thread_current();
+
+    signal_trapframe_restore(t);
+    return 0;
 }

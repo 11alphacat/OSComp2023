@@ -7,7 +7,6 @@ out2="$3"
 # syscall_def.h
 out3="$4"
 
-
 grep '^[0-9]' "$in" | sort -n | (
     while read nr name entry; do
 	if [ -n "$entry" ]; then
@@ -24,6 +23,16 @@ grep '^[0-9]' "$in" | sort -n | (
     done
 ) > "$out2"
 
+grep '^[0-9]' "$in" | sort -n | (
+    while read nr name entry; do
+	if [ -n "$entry" ]; then
+		echo "extern uint64 $entry(void);"
+	fi
+    done
+) > "$out3"
+
+
+
 # grep '^[0-9]' "$in" | sort -n | (
 #     while read nr name entry; do
 #         if [ -n "$entry" ]; then
@@ -35,17 +44,6 @@ grep '^[0-9]' "$in" | sort -n | (
 #         fi
 #     done
 # ) > "$out2"
-
-
-grep '^[0-9]' "$in" | sort -n | (
-    while read nr name entry; do
-	if [ -n "$entry" ]; then
-		echo "extern uint64 $entry(void);"
-	fi
-    done
-) > "$out3"
-
-
 # used ONLY ONCE to create syscallnew.c
 # in2="sys2.txt"
 # out4="src/kernel/syscallnew.c"

@@ -7,12 +7,12 @@
 #include "atomic/semaphore.h"
 #include "fs/vfs/fs_macro.h"
 
-enum bh_state_bits {
-    BH_Uptodate, /* Contains valid data */
-    BH_Dirty,    /* Is dirty */
-    BH_Lock,     /* Is locked */
-    BH_Req,      /* Has been submitted for I/O */
-};
+// enum bh_state_bits {
+//     BH_Uptodate, /* Contains valid data */
+//     BH_Dirty,    /* Is dirty */
+//     BH_Lock,     /* Is locked */
+//     BH_Req,      /* Has been submitted for I/O */
+// };
 
 struct buffer_head {
     struct semaphore sem_lock;
@@ -30,33 +30,34 @@ struct buffer_head {
     int dirty; // dirty
 };
 
-struct bio_vec {
-    // <page,offset,len>
-    struct page *bv_page;
-    uint bv_len;
-    uint bv_offset;
-};
+// struct bio_vec {
+//     // <page,offset,len>
+//     struct page *bv_page;
+//     uint bv_len;
+//     uint bv_offset;
+// };
 
-struct bio {
-    atomic_t bi_cnt;           // ref
-    ushort bi_idx;             // current idx
-    struct bio_vec *bi_io_vec; // bio vecs list
-    uint64 bi_rw;              // read or write
-    uint bi_bdev;              // device no
-    ushort bi_vcnt;            // total number
-};
+// struct bio {
+//     atomic_t bi_cnt;           // ref
+//     ushort bi_idx;             // current idx
+//     struct bio_vec *bi_io_vec; // bio vecs list
+//     uint64 bi_rw;              // read or write
+//     uint bi_bdev;              // device no
+//     ushort bi_vcnt;            // total number
+// };
 
 // bio.c
 void binit(void);
 struct buffer_head *bread(uint, uint);
 void brelse(struct buffer_head *);
 void bwrite(struct buffer_head *);
-int bpin(struct buffer_head *);
-int bunpin(struct buffer_head *);
 
-int init_bio(void);
-int submit_bio(int, struct bio *);
-int free_bio(struct bio *);
+// int bpin(struct buffer_head *);
+// int bunpin(struct buffer_head *);
 
-void fat32_bzero(int, int);
+// int init_bio(void);
+// int submit_bio(int, struct bio *);
+// int free_bio(struct bio *);
+
+// void fat32_bzero(int, int);
 #endif // __BIO_H__

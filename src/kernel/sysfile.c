@@ -11,7 +11,6 @@
 #include "debug.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
-
 #include "fs/fcntl.h"
 #include "kernel/trap.h"
 #include "debug.h"

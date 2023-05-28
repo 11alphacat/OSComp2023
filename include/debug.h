@@ -52,7 +52,7 @@ void backtrace();
     printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
 
 #define STRACE(format, ...) \
-  printf(ANSI_FMT(format, ANSI_FG_YELLOW), ## __VA_ARGS__)
+    printf(ANSI_FMT(format, ANSI_FG_YELLOW), ##__VA_ARGS__)
 
 #define printfRed(format, ...)          \
     printf("\33[1;31m" format "\33[0m", \

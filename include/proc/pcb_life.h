@@ -55,7 +55,13 @@ struct proc {
     pid_t ctid;
 
     struct spinlock tlock;
+    // // signal
+    // int sig_pending_cnt;                   // have signal?
+    // struct sighand *sig;        // signal
+    // sigset_t blocked;                 // the blocked signal
+    // struct sigpending pending;        // pending (private)
 
+    // system mode time and user mode time
     // long tms_stime;   // system mode time(ticks)
     // long tms_utime;   // user mode time(ticks)
     // long create_time; // create time(ticks)
@@ -81,5 +87,6 @@ int proc_kill(int pid);
 void proc_setkilled(struct proc *p);
 int proc_killed(struct proc *p);
 void proc_thread_print(void);
+uint8 get_current_procs();
 
 #endif

@@ -12,7 +12,6 @@ STRACE ?= 0
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
-
 GENINC=include/syscall_gen
 $(shell mkdir -p $(GENINC))
 MNT_DIR=build/mnt
@@ -22,7 +21,7 @@ User=user
 oscompU=oscomp_user
 
 # Initial File in Directory
-TEST=user_test kalloctest mmaptest
+TEST=user_test kalloctest mmaptest clock_gettime_test signal_test
 OSCOMP=chdir close dup2 dup \
     fstat getcwd mkdir_ write \
     openat open read test_echo \
@@ -32,7 +31,7 @@ OSCOMP=chdir close dup2 dup \
     gettimeofday mmap munmap \
     uname wait waitpid yield \
     mount umount text.txt run-all.sh mnt
-BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh
+BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
 BOOT=init
 BUSYBOX=ECHO CAT
 

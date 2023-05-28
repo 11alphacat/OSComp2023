@@ -132,4 +132,49 @@ struct linux_dirent64 {
 typedef unsigned int   uint;
 typedef unsigned short ushort;
 typedef unsigned char  uchar;
+typedef int clockid_t;
+
+struct timespec {
+    uint64 ts_sec;  /* Seconds */
+    uint64 ts_nsec; /* Nanoseconds */
+};
+
+#define	EXIT_FAILURE	1	/* Failing exit status.  */
+#define	EXIT_SUCCESS	0	/* Successful exit status.  */
+typedef long int intmax_t;
+
+struct sysinfo {
+    long uptime;             /* Seconds since boot */
+    // unsigned long loads[3];  /* 1, 5, and 15 minute load averages */
+    unsigned long totalram;  /* Total usable main memory size */
+    unsigned long freeram;   /* Available memory size */
+    // unsigned long sharedram; /* Amount of shared memory */
+    // unsigned long bufferram; /* Memory used by buffers */
+    // unsigned long totalswap; /* Total swap space size */
+    // unsigned long freeswap;  /* Swap space still available */
+    unsigned short procs;    /* Number of current processes */
+    // unsigned long totalhigh; /* Total high memory size */
+    // unsigned long freehigh;  /* Available high memory size */
+    // unsigned int mem_unit;   /* Memory unit size in bytes */
+    // char _f[20-2*sizeof(long)-sizeof(int)]; /* Padding to 64 bytes */
+};
+
+typedef void (*sighandler_t)(int);
+
+// signal sets
+typedef struct {
+    uint32 sig;
+} sigset_t;
+
+typedef void __signalfn_t(int);
+typedef __signalfn_t *__sighandler_t;
+
+struct sigaction {
+    __sighandler_t sa_handler;
+    uint sa_flags;
+    sigset_t sa_mask;
+};
+
+#define SIGINT 2
+
 #endif // __STDDEF_H__

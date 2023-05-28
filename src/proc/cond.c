@@ -64,20 +64,60 @@ void cond_broadcast(struct cond *cond) {
 
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");
-        // if (t->state != TCB_SLEEPING) {
-        //     printf("%s\n", cond->waiting_queue.name);
-        //     printf("%s\n", t->state);
-        //     // panic("cond broadcast : this thread is not sleeping");
-        //     panic("cond broadcast : this thread is not sleeping");
-
-        // }
         if (t->state != TCB_SLEEPING) {
-            ASSERT(t->state == TCB_UNUSED);
-            // printf("cond broadcast : this thread is not sleeping\n");
-            continue;
+            printf("%s\n", cond->waiting_queue.name);
+            printf("%s\n", t->state);
+            panic("cond broadcast : this thread is not sleeping");
         }
+        // if (t->state != TCB_SLEEPING) {
+        //     ASSERT(t->state == TCB_UNUSED);
+        //     // printf("cond broadcast : this thread is not sleeping\n");
+        //     continue;
+        // }
         acquire(&t->lock);
         TCB_Q_changeState(t, TCB_RUNNABLE);
         release(&t->lock);
     }
 }
+
+// // Atomically release lock and sleep on chan.
+// // Reacquires lock when awakened.
+// void sleep(void *chan, struct spinlock *lk)
+// {
+//     struct tcb *t = thread_current();
+
+//     acquire(&t->lock);
+
+//     release(lk);
+
+//     // Go to sleep.
+//     t->chan = chan;
+
+//     TCB_Q_changeState(t, TCB_SLEEPING);
+
+//     thread_sched();
+
+//     // Tidy up.
+//     t->chan = 0;
+
+//     // Reacquire original lock.
+//     release(&t->lock);
+//     acquire(lk);
+// }
+
+// // Wake up all processes sleeping on chan.
+// // Must be called without any p->lock.
+// void wakeup(void *chan)
+// {
+//     struct tcb *t = thread_current();
+
+//     for(t = thread; t < &thread[NTCB]; t++) {
+//         if(t != thread_current()){
+//             acquire(&t->lock);
+//             if(t->state == TCB_SLEEPING && t->chan == chan) {
+//                 TCB_Q_changeState(t, TCB_RUNNABLE);
+//             }
+//             release(&t->lock);
+//         }
+//     }
+// }

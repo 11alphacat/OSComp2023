@@ -241,6 +241,19 @@ void shutdown() {
     return syscall(SYS_shutdown);
 }
 
+/* busybox */
+int clock_gettime(clockid_t clockid, struct timespec *tp) {
+    return syscall(SYS_clock_gettime, clockid, tp);
+}
+
+int sysinfo(struct sysinfo *info) {
+    return syscall(SYS_sysinfo, info);
+}
+
+int rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact, size_t sigsetsize) {
+    return syscall(SYS_rt_sigaction, signum, act, oldact, sigsetsize);
+}
+
 /* debug */
 int print_pgtable() {
     return syscall(SYS_print_pgtable);

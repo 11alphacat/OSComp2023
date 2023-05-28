@@ -4,6 +4,7 @@
 #include "atomic/atomic.h"
 #include "atomic/spinlock.h"
 #include "list.h"
+#include "kernel/trap.h"
 
 #define SIGKILL 9
 #define SIGSTOP 17
@@ -91,28 +92,90 @@ struct sigqueue {
 #define sig_or(x, y) ((x) | (y))
 #define sig_and(x, y) ((x) & (y))
 #define sig_test_mask(set, mask) ((set.sig & mask) != 0)
-#define sig_pending(p) (p.sig_pending)
-#define sig_ignored(p, sig) (sig_is_member(p->blocked, sig))
-#define sig_existed(p, sig) (sig_is_member(p->pending.signal, sig))
-#define sig_action(p, signo) (p->sighander->action[signo])
+#define sig_pending(t) (t.sig_pending)
+#define sig_ignored(t, sig) (sig_is_member(t->blocked, sig))
+#define sig_existed(t, sig) (sig_is_member(t->pending.signal, sig))
+#define sig_action(t, signo) (t->sig->action[signo])
 
-// typedef struct _ucontext {
-//     unsigned long uc_flags;
-//     struct _ucontext *uc_link;
-//     stack_t uc_stack;
-//     mcontext_t uc_mcontext;
-//     sigset_t uc_sigmask;
-// } ucontext_t;
+typedef struct sigaltstack {
+    void *ss_sp;
+    int ss_flags;
+    size_t ss_size;
+} stack_t;
+
+struct user_regs_struct {
+    uint64 epc;
+    uint64 ra;
+    uint64 sp;
+    uint64 gp;
+    uint64 tp;
+    uint64 t0;
+    uint64 t1;
+    uint64 t2;
+    uint64 s0;
+    uint64 s1;
+    uint64 a0;
+    uint64 a1;
+    uint64 a2;
+    uint64 a3;
+    uint64 a4;
+    uint64 a5;
+    uint64 a6;
+    uint64 a7;
+    uint64 s2;
+    uint64 s3;
+    uint64 s4;
+    uint64 s5;
+    uint64 s6;
+    uint64 s7;
+    uint64 s8;
+    uint64 s9;
+    uint64 s10;
+    uint64 s11;
+    uint64 t3;
+    uint64 t4;
+    uint64 t5;
+    uint64 t6;
+};
+
+struct sigcontext {
+    struct user_regs_struct sc_regs;
+    // union __riscv_fp_state sc_fpregs;
+};
+
+struct ucontext {
+    uint64 uc_flags;
+    struct ucontext *uc_link;
+    stack_t uc_stack;
+    struct sigcontext uc_mcontext;
+    sigset_t uc_sigmask; /* mask last for extensibility */
+};
+
+struct rt_sigframe {
+    // struct siginfo info;
+    struct ucontext uc;
+    uint32 sigreturn_code[2];
+};
 
 struct proc;
+struct tcb;
 
-// int signal_queue_pop(uint64 mask, struct sigpending *queue);
-// int signal_queue_flush(struct sigpending *queue);
-// void signal_info_init(sig_t sig, struct sigqueue *q, siginfo_t *info);
-// int signal_send(sig_t sig, siginfo_t *info, struct proc *p);
-// void sigpending_init(struct sigpending *sig);
-// int signal_handle(struct proc *p);
-// int do_handle(struct proc *p, int sig_no, struct sigaction *sig_act);
-// void signal_DFL(struct proc *p, int signo);
+#define SIG_BLOCK 1   /* for blocking signals */
+#define SIG_UNBLOCK 2 /* for unblocking signals */
+#define SIG_SETMASK 3 /* for setting the signal mask */
+
+int signal_queue_pop(uint64 mask, struct sigpending *queue);
+int signal_queue_flush(struct sigpending *queue);
+void signal_info_init(sig_t sig, struct sigqueue *q, siginfo_t *info);
+int signal_send(sig_t sig, siginfo_t *info, struct tcb *t);
+void sigpending_init(struct sigpending *sig);
+int signal_handle(struct tcb *t);
+int do_handle(struct tcb *t, int sig_no, struct sigaction *sig_act);
+void signal_DFL(struct tcb *t, int signo);
+int do_sigaction(int sig, struct sigaction *act, struct sigaction *oact);
+int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset);
+int setup_rt_frame(struct sigaction *sig, int signo, sigset_t *set, struct trapframe *tf);
+void signal_trapframe_setup(struct tcb *t);
+void signal_trapframe_restore(struct tcb *t);
 
 #endif

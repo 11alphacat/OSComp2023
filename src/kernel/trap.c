@@ -114,6 +114,8 @@ void thread_usertrap(void) {
     if (which_dev == 2)
         thread_yield();
 
+    signal_handle(t);
+
     thread_usertrapret();
 }
 
@@ -196,6 +198,7 @@ void clockintr() {
     acquire(&tickslock);
     ticks++;
     cond_broadcast(&cond_ticks);
+    // wakeup(&tickslock);
     release(&tickslock);
 }
 

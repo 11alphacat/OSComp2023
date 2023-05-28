@@ -2,7 +2,14 @@
 #include "common.h"
 
 // oscomp syscalls that haven't been implemented
-uint64 sys_clock_gettime(void) {
+// memory
+uint64 sys_mprotect(void) {
+    ASSERT(0);
+    return 0;
+}
+
+// filesystem
+uint64 sys_ioctl(void) {
     ASSERT(0);
     return 0;
 }
@@ -12,47 +19,7 @@ uint64 sys_faccessat(void) {
     return 0;
 }
 
-uint64 sys_fcntl(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_getuid(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_ioctl(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_lseek(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_mprotect(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_readv(void) {
-    ASSERT(0);
-    return 0;
-}
-
 uint64 sys_renameat2(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_rt_sigaction(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_rt_sigprocmask(void) {
     ASSERT(0);
     return 0;
 }
@@ -62,22 +29,7 @@ uint64 sys_sendfile(void) {
     return 0;
 }
 
-uint64 sys_set_tid_address(void) {
-    ASSERT(0);
-    return 0;
-}
-
 uint64 sys_statfs(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_sysinfo(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_syslog(void) {
     ASSERT(0);
     return 0;
 }
@@ -87,7 +39,22 @@ uint64 sys_utimensat(void) {
     return 0;
 }
 
+uint64 sys_lseek(void) {
+    ASSERT(0);
+    return 0;
+}
+
 uint64 sys_writev(void) {
+    ASSERT(0);
+    return 0;
+}
+
+uint64 sys_readv(void) {
+    ASSERT(0);
+    return 0;
+}
+
+uint64 sys_fcntl(void) {
     ASSERT(0);
     return 0;
 }

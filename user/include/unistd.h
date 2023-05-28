@@ -62,6 +62,10 @@ int mknod(const char* path, short major, short minor);
 char *sbrk(int);
 int kill(int);
 void shutdown();
+int clock_gettime(clockid_t clockid, struct timespec *tp);
+int sysinfo(struct sysinfo *info);
+int rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact, size_t sigsetsize);
+
 
 /* debug */
 int print_pgtable();
