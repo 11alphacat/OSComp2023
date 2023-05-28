@@ -36,7 +36,7 @@ OSCOMP=chdir close dup2 dup \
     mount umount text.txt run-all.sh mnt
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
 BOOT=init
-BUSYBOX=ECHO CAT
+BUSYBOX=busybox
 
 TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
 OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))

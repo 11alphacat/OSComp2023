@@ -24,36 +24,7 @@ void backtrace();
 
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
-#define RED(str) "\e[31;1m" str "\e[0m"
-/* #define STRACE(format, ...) \
-   printf(ANSI_FMT(format, ANSI_FG_YELLOW), ## __VA_ARGS__) */
-#define DEBUG_ACQUIRE(format, ...) \
-    printf(ANSI_FMT(format, ANSI_FG_RED), ##__VA_ARGS__)
-#define DEBUG_RELEASE(format, ...) \
-    printf(ANSI_FMT(format, ANSI_FG_BLUE), ##__VA_ARGS__)
-
-#define ASSERT(cond)                                                             \
-    do {                                                                         \
-        if (!(cond)) {                                                           \
-            printf("\33[1;31m[%s,%d,%s] ASSERT: \"" #cond "\" failed \t \33[0m", \
-                   __FILE__, __LINE__, __func__);                                \
-            panic("assert failed");                                              \
-        }                                                                        \
-    } while (0)
-
-#define Log(format, ...)                             \
-    printf("\33[1;34m[%s,%d,%s] " format "\33[0m\n", \
-           __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-
-#define PTE(format, ...) \
-    printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
-
-#define VMA(format, ...) \
-    printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
-
-#define STRACE(format, ...) \
-    printf(ANSI_FMT(format, ANSI_FG_YELLOW), ##__VA_ARGS__)
-
+/* ANSI-color code printf */
 #define printfRed(format, ...)          \
     printf("\33[1;31m" format "\33[0m", \
            ##__VA_ARGS__)
@@ -82,11 +53,44 @@ void backtrace();
     printf("\33[1;35m" format "\33[0m", \
            ##__VA_ARGS__)
 
+/* assert/log/warn/info */
+#define ASSERT(cond)                                                                     \
+    do {                                                                                 \
+        if (!(cond)) {                                                                   \
+            printf("\33[1;31m[ASSERT][%s,%d,%s] ASSERT: \"" #cond "\" failed \t \33[0m", \
+                   __FILE__, __LINE__, __func__);                                        \
+            panic("assert failed");                                                      \
+        }                                                                                \
+    } while (0)
+
+#define Log(format, ...)                                  \
+    printf("\33[1;34m[LOG][%s,%d,%s] " format "\33[0m\n", \
+           __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+
+#define Warn(format, ...)                                  \
+    printf("\33[1;31m[WARN][%s,%d,%s] " format "\33[0m\n", \
+           __FILE__, __LINE__, __func__, ##__VA_ARGS__)
+
 #define Info(fmt, ...) printf("[INFO] " fmt "", ##__VA_ARGS__);
 
+/* misc */
+#define DEBUG_ACQUIRE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_RED), ##__VA_ARGS__)
+#define DEBUG_RELEASE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_BLUE), ##__VA_ARGS__)
+
+#define PTE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
+
+#define VMA(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_GREEN), ##__VA_ARGS__)
+
+#define STRACE(format, ...) \
+    printf(ANSI_FMT(format, ANSI_FG_YELLOW), ##__VA_ARGS__)
+
+#define RED(str) "\e[31;1m" str "\e[0m"
 #define Info_R(fmt, ...) printf("[INFO] " RED(fmt) "", ##__VA_ARGS__);
-
 #define TODO() 0
-
 #define DEBUG_SECTOR(dp, sec_num) ((sec_num) * (dp->i_sb->sector_size))
+
 #endif // __DEBUG_H__

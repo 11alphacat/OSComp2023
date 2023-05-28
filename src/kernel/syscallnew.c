@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "common.h"
+#include "proc/pcb_life.h"
 
 // oscomp syscalls that haven't been implemented
 

@@ -10,6 +10,7 @@
 #include "syscall_gen/syscall_num.h"
 #include "debug.h"
 
+// #define __STRACE__
 // Fetch the uint64 at addr from the current process.
 int fetchaddr(vaddr_t addr, uint64 *ip) {
     struct proc *p = proc_current();
@@ -120,7 +121,8 @@ struct syscall_info {
     const char *name;
     int num;
     // s/p/d/...
-    char type[5]; /* reserve a space for \0 */
+    char type[8]; /* reserve a space for \0 */
+    char return_type;
 };
 
 static struct syscall_info info[] = {
@@ -143,6 +145,15 @@ static struct syscall_info info[] = {
     [SYS_getdents64] { "getdents64", 3, "upu" },
     // int write(int, const void*, int);
     [SYS_write] { "write", 3, "dpd" },
+    //    int brk(void *addr);
+    [SYS_brk] { "brk", 1, "p", 'p' },
+    // void *mmap(void *addr, size_t length, int prot, int flags,
+    //         int fd, off_t offset);
+    [SYS_mmap] { "mmap", 6, "puxxdu", 'p' },
+    //    int munmap(void *addr, size_t length);
+    [SYS_munmap] { "munmap", 2, "pu", 'd' },
+    // long set_tid_address(int *tidptr);
+    [SYS_set_tid_address] { "set_tid_address", 1, "p", 'd' },
 
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
@@ -206,6 +217,7 @@ void syscall(void) {
     struct tcb *t = thread_current();
 
     num = t->trapframe->a7;
+    // printfYELLOW("syscall num is %d\n", num);
     if (num >= 0 && num < NELEM(syscalls) && syscalls[num]) {
         // Use num to lookup the system call function for num, call it,
         // and store its return value in p->trapframe->a0
@@ -222,6 +234,7 @@ void syscall(void) {
                 case 3: argument = t->trapframe->a3; break;
                 case 4: argument = t->trapframe->a4; break;
                 case 5: argument = t->trapframe->a5; break;
+                case 6: argument = t->trapframe->a6; break;
                 default: panic("could not reach here"); break;
                 }
                 switch (info[num].type[i]) {
@@ -243,7 +256,10 @@ void syscall(void) {
         t->trapframe->a0 = syscalls[num]();
 #ifdef __STRACE__
         if (is_strace_target()) {
-            STRACE(") -> %d\n", t->trapframe->a0);
+            switch (info[num].return_type) {
+            case 'p': STRACE(") -> %#x\n", t->trapframe->a0); break;
+            default: STRACE(") -> %d\n", t->trapframe->a0); break;
+            }
         }
 #endif
     } else {

@@ -14,6 +14,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "proc/pcb_thread.h"
 
+void print_ustack(pagetable_t pagetable, uint64 stacktop);
 /* this will commit to trapframe after execve success */
 struct commit {
     uint64 entry; /* epc */
@@ -30,6 +31,8 @@ int flags2perm(int flags) {
         perm = PTE_X;
     if (flags & 0x2)
         perm |= PTE_W;
+    if (flags & 0x4)
+        perm |= PTE_R;
     return perm;
 }
 
@@ -57,6 +60,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
     return 0;
 }
 
+vaddr_t p_argc, p_envp, p_argv;
 /* return argc, or -1 to indicate error */
 static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *commit, vaddr_t sp, char *const argv[], char *const envp[]) {
     /* sp has to be the top address of a page */
@@ -64,7 +68,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
     vaddr_t stackbase;
     stackbase = sp - PGSIZE;
 
-    /*       Initial Process Stack (follows SYSTEM V ABI, but sp has to be 16 bit aligned)
+    /*       Initial Process Stack (follows SYSTEM V ABI)
         +---------------------------+ <-- High Address
         |     Information block     |
         +---------------------------+
@@ -100,7 +104,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
                 return -1;
             }
             sp -= strlen((const char *)cp) + 1;
-            sp -= sp % 16; // riscv sp must be 16-byte aligned
+            sp -= sp % 8;
             if (sp < stackbase)
                 return -1;
             if (copyout(pagetable, sp, (char *)cp, strlen((const char *)cp) + 1) < 0)
@@ -119,7 +123,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
                 return -1;
             }
             sp -= strlen((const char *)cp) + 1;
-            sp -= sp % 16; // riscv sp must be 16-byte aligned
+            sp -= sp % 8;
             if (sp < stackbase)
                 return -1;
             if (copyout(pagetable, sp, (char *)cp, strlen((const char *)cp) + 1) < 0)
@@ -129,16 +133,27 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
     }
     envp_addr[envpc] = 0;
 
+    ASSERT(sp % 8 == 0);
+    // Log("%d %d", sp % 16, (uint64)(argc + envpc + 2 + 1) % 2);
+    /* to make sp 16-bit aligned */
+    if ((sp % 16 != 0 && (uint64)(argc + envpc + 2 + 1) % 2 == 0)
+        || ((sp % 16 == 0) && (uint64)(argc + envpc + 2 + 1) % 2 == 1)) {
+        // Log("aligned");
+        sp -= 8;
+    }
+
     /* pad 0 */
-    uint16 temp = 0;
-    sp -= 16;
-    if (copyout(pagetable, sp, (char *)&temp, sizeof(uint16))) {
+    uint8 temp = 0;
+    sp -= 8;
+    if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
         return -1;
     }
 
     /* push the array of envp[] pointers */
     sp -= (envpc + 1) * sizeof(uint64);
-    sp -= sp % 16;
+    sp -= sp % 8;
+    p_envp = sp;
+    // Log("envp %p", sp);
     if (sp < stackbase)
         return -1;
     if (copyout(pagetable, sp, (char *)envp_addr, (envpc + 1) * sizeof(uint64)) < 0)
@@ -146,22 +161,61 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
     commit->a2 = sp;
 
     /* pad 0 */
-    sp -= 16;
-    if (copyout(pagetable, sp, (char *)&temp, sizeof(uint16))) {
+    sp -= 8;
+    if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
         return -1;
     }
 
     /* push the array of argv[] pointers */
     sp -= (argc + 1) * sizeof(uint64);
-    sp -= sp % 16;
+    sp -= sp % 8;
+    p_argv = sp;
+    // Log("argv %p", sp);
     if (sp < stackbase)
         return -1;
     if (copyout(pagetable, sp, (char *)argv_addr, (argc + 1) * sizeof(uint64)) < 0)
         return -1;
     commit->a1 = sp;
+    sp -= 8;
+    p_argc = sp;
+    // Log("argc %p", sp);
+    if (copyout(pagetable, sp, (char *)&argc, sizeof(uint64)) < 0) {
+        return -1;
+    }
+    // Log("%d", argc);
 
     commit->sp = sp; // initial stack pointer
+    // Log("sp is %p", sp);
+    // print_ustack(pagetable, stackbase + PGSIZE);
     return argc;
+}
+
+void print_ustack(pagetable_t pagetable, uint64 stacktop) {
+    char *pa = (char *)getphyaddr(pagetable, stacktop - 1) + 1;
+    // Log("pa is %p", pa);
+    /* just print the first 200 8bits of the ustack */
+    for (int i = 8; i < 200; i += 8) {
+        if (i % 16 == 0) {
+            printfGreen("aligned -> ");
+        } else {
+            printfGreen("           ");
+        }
+
+        if (stacktop - i == p_argc || stacktop - i == p_argv || stacktop - i == p_envp) {
+            printfBlue("%#x:", stacktop - i);
+        } else {
+            printfGreen("%#x:", stacktop - i);
+        }
+
+        for (int j = 0; j < 8; j++) {
+            printfGreen("%c", (char)*(paddr_t *)(pa - i + j));
+        }
+        printf("\t");
+        for (int j = 0; j < 8; j++) {
+            printf("%02x ", (uint8) * (paddr_t *)(pa - i + j));
+        }
+        printf("\n");
+    }
 }
 
 /* return the end of the virtual address after load segments, or 0 to indicate error */
@@ -194,13 +248,36 @@ static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
             goto unlock_put;
         if (ph.vaddr + ph.memsz < ph.vaddr)
             goto unlock_put;
-        if (ph.vaddr % PGSIZE != 0)
-            goto unlock_put;
+
+        /* off: start offset in misaligned page 
+           size: read size of misaligned page 
+        */
+        uint64 off = 0, size = 0;
+        paddr_t aligned_vaddr = PGROUNDDOWN(ph.vaddr);
+        if (ph.vaddr % PGSIZE != 0) {
+            paddr_t pa = (paddr_t)kmalloc(PGSIZE);
+            if (mappages(pagetable, aligned_vaddr, PGSIZE, pa, flags2perm(ph.flags) | PTE_U, COMMONPAGE) < 0) {
+                Warn("misaligned loader mappages failed");
+                kfree((void *)pa);
+                goto unlock_put;
+            }
+            off = ph.vaddr - aligned_vaddr;
+            size = PGROUNDUP(ph.vaddr) - ph.vaddr;
+            if (fat32_inode_read(ip, 0, (uint64)pa + off, ph.off, size) != size) {
+                goto unlock_put;
+            }
+            // Log("entry is %p", elf.entry);
+        } else {
+            ASSERT(aligned_vaddr == ph.vaddr);
+        }
         uint64 sz1;
-        if ((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+        ASSERT((ph.vaddr + size) % PGSIZE == 0);
+        // Log("\nstart end:%p %p", ph.vaddr + size, ph.vaddr + ph.memsz);
+        if ((sz1 = uvmalloc(pagetable, ph.vaddr + size, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
             goto unlock_put;
+        // vmprint(pagetable, 1, 0, 0, 0);
         sz = sz1;
-        if (loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
+        if (loadseg(pagetable, ph.vaddr + size, ip, ph.off + size, ph.filesz - size) < 0)
             goto unlock_put;
     }
     fat32_inode_unlock_put(ip);
@@ -209,7 +286,6 @@ static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
     return sz;
 
 unlock_put:
-    // vmprint(proc_current()->pagetable, 1, 0, 0, 0);
     proc_freepagetable(pagetable, sz, 0);
     fat32_inode_unlock_put(ip);
     return 0;

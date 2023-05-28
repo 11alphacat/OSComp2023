@@ -196,7 +196,7 @@ uint64 sys_brk(void) {
 
 uint64 sys_print_pgtable(void) {
     struct proc *p = proc_current();
-    vmprint(p->pagetable, 0, 0, 0, 0);
+    vmprint(p->pagetable, 1, 0, 0, 0);
     uint64 memsize = get_free_mem();
     Log("%dM", memsize / 1024 / 1024);
     return 0;

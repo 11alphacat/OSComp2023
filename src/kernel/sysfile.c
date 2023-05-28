@@ -153,7 +153,7 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
         return -1;
     }
     if (poff) {
-        either_copyin(&offset,1,(uint64)poff,sizeof(off_t));
+        either_copyin(&offset, 1, (uint64)poff, sizeof(off_t));
     } else {
         offset = rf->f_pos;
     }
