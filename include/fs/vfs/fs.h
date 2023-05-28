@@ -114,10 +114,10 @@ struct inode {
 
 struct file_operations {
     struct file *(*alloc)(void);
-    struct file *(*dup)(struct file *);
-    ssize_t (*read)(struct file *, uint64 __user, int);
-    ssize_t (*write)(struct file *, uint64 __user, int);
-    int (*fstat)(struct file *, uint64 __user);
+    struct file *(*dup)(struct file *self);
+    ssize_t (*read)(struct file *self, uint64 __user dst, int n);
+    ssize_t (*write)(struct file *self, uint64 __user src, int n);
+    int (*fstat)(struct file *self, uint64 __user dst);
 };
 
 struct inode_operations {
@@ -129,6 +129,9 @@ struct inode_operations {
     void (*iupdate)(struct inode *self);
     struct inode *(*idup)(struct inode *self);
     int (*idir)(struct inode *self); // is self a directory
+    void (*ipathquery)(struct inode *self, char *kbuf);
+    ssize_t (*iread)(struct inode *self, int user_src, uint64 src, uint off, uint n);
+    ssize_t (*iwrite)(struct inode *self, int user_dst, uint64 dst, uint off, uint n);
 
     // for directory inode
     struct inode *(*idirlookup)(struct inode *self, const char *name, uint *poff);

@@ -2182,7 +2182,11 @@ void fsfull() {
 void argptest() {
     printf("==========argptest test=========\n");
     int fd;
+<<<<<<< HEAD
     fd = open("/boot/init", O_RDONLY);
+=======
+    fd = open("boot/init", O_RDONLY);
+>>>>>>> bb syscalls: parts of fs syscalls finished
     if (fd < 0) {
         printf("open failed\n");
         exit(1);

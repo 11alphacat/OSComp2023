@@ -37,5 +37,15 @@ void printf(const char *fmt, ...);
 void fprintf(int, const char*, ...);
 char* gets(char*, int max);
 int sprintf(char *buf, const char *fmt, ...);
+#define perror(msg)                             \
+    do {                                        \
+        printf("error: %s\n");                  \
+    } while (0)                                 \
+
+#define SEEK_SET	0	/* seek relative to beginning of file */
+#define SEEK_CUR	1	/* seek relative to current file position */
+#define SEEK_END	2	/* seek relative to end of file */
+
+
 
 #endif // __STDIO_H__

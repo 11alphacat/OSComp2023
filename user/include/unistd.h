@@ -10,7 +10,6 @@ int openat(int, const char*, int);
 
 ssize_t read(int, void *, size_t);
 ssize_t write(int, const void *, size_t);
-
 int close(int);
 pid_t getpid(void);
 pid_t getppid(void);
@@ -66,6 +65,12 @@ int clock_gettime(clockid_t clockid, struct timespec *tp);
 int sysinfo(struct sysinfo *info);
 int rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact, size_t sigsetsize);
 
+
+/* busybox */
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
+off_t lseek(int fd, off_t offset, int whence);
+ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
 
 /* debug */
 int print_pgtable();

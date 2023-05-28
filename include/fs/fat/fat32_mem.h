@@ -75,11 +75,10 @@ struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
 // 7. get information about inodes
 void fat32_inode_stati(struct inode *, struct kstat *);
 
-// 8. read bytes of an inode given offset and len
-uint fat32_inode_read(struct inode *, int, uint64, uint, uint);
+ssize_t fat32_inode_read(struct inode *, int, uint64, uint, uint);
 
 // 9. write the data given the fat32 inode, offset and length
-uint fat32_inode_write(struct inode *, int, uint64, uint, uint);
+ssize_t fat32_inode_write(struct inode *, int, uint64, uint, uint);
 
 // 10. dup a existed fat32 inode
 struct inode *fat32_inode_dup(struct inode *);
@@ -114,7 +113,13 @@ ushort fat32_longname_popstack(Stack_t *, uchar *, char *);
 // 20. the check sum of dirent_l
 uchar ChkSum(uchar *);
 
-// 21. create the fat32 inode
+// 21. lookup the inode given its parent inode and name
+struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
+struct inode *fat32_inode_get(uint, uint, const char *, uint);
+void fat32_inode_stati(struct inode *, struct kstat *);
+int fat32_inode_delete(struct inode *dp, struct inode *ip);
+
+// 22. create the fat32 inode
 struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor); // now use this
 
 // 22. allocate the fat32 inode

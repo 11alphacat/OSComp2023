@@ -154,8 +154,8 @@ static char *skepelem(char *path, char *name) {
     while (*path != '/' && *path != 0)
         path++;
     len = path - s;
-    if (len >= PATH_LONG_MAX)
-        memmove(name, s, PATH_LONG_MAX);
+    if (len >= MAXPATH)
+        memmove(name, s, MAXPATH);
     else {
         memmove(name, s, len);
         name[len] = 0;
@@ -172,51 +172,40 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
         ASSERT(cwd->i_sb);
         ASSERT(cwd->i_sb->root);
         struct inode *rip = cwd->i_sb->root;
-        // ip = fat32_inode_dup(cwd->i_sb->root);
         ip = rip->i_op->idup(rip);
     } else if (strncmp(path, "..", 2) == 0) {
         ip = cwd->parent->i_op->idup(cwd->parent);
     } else {
-        // ip = fat32_inode_dup(cwd);
         ip = cwd->i_op->idup(cwd);
     }
 
     while ((path = skepelem(path, name)) != 0) {
-        // fat32_inode_lock(ip);
         ip->i_op->ilock(ip);
         // not a directory?
         // if (!DIR_BOOL(ip->fat32_i.Attr)) {
         if (!ip->i_op->idir(ip)) {
-            // fat32_inode_unlock_put(ip);
             ip->i_op->iunlock_put(ip);
             return 0;
         }
         if (nameeparent && *path == '\0') {
             // Stop one level early.
-            // fat32_inode_unlock(ip);
             ip->i_op->iunlock(ip);
             return ip;
         }
-        // if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {
         if ((next = ip->i_op->idirlookup(ip, name, 0)) == 0) {
-            // fat32_inode_unlock_put(ip);
             ip->i_op->iunlock_put(ip);
             return 0;
         }
-        // fat32_inode_unlock_put(ip);
         ip->i_op->iunlock_put(ip);
         ip = next;
     }
 
     if (nameeparent) {
-        // fat32_inode_put(ip);
         ip->i_op->iput(ip);
         return 0;
     }
 
     if (!ip->i_op) {
-        // Log("ip iop invalid!");
-        // ip->i_op = get_fat32_iops();
         ASSERT(cwd->fs_type == FAT32);
         ip->i_op = get_inodeops[cwd->fs_type]();
     }
@@ -248,6 +237,9 @@ static inline const struct inode_operations *get_fat32_iops(void) {
         .idup = fat32_inode_dup,
         .idir = fat32_isdir,
         .icreate = fat32_inode_create,
+        .ipathquery = get_absolute_path,
+        .iread = fat32_inode_read,
+        .iwrite = fat32_inode_write,
     };
 
     return &iops_instance;

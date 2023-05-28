@@ -66,7 +66,7 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        r = piperead(f->f_tp.f_pipe, addr, n);
+        r = piperead(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_FS__
         printfMAGENTA("read : read %d chars of pipe file (no name pipe) starting from %d \n", r, f->f_tp.f_pipe->nread - r);
 #endif
@@ -105,7 +105,7 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        ret = pipewrite(f->f_tp.f_pipe, addr, n);
+        ret = pipewrite(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_FS__
         printfYELLOW("write : write %d chars -> pipe file (no name pipe) starting from %d\n", ret, f->f_tp.f_pipe->nwrite - ret);
 #endif
@@ -159,7 +159,7 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
 // 不做参数检查
 // buf 最后以 / 结尾
 // 感觉目录项得有，不然inode缓存一下子就被污染了
-static void get_absolute_path(struct inode *ip, char *buf) {
+void get_absolute_path(struct inode *ip, char *buf) {
     if (ip->fat32_i.fname[0] != '/') {
         get_absolute_path(ip->parent, buf);
     } else {

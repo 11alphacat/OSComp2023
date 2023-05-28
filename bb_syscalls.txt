@@ -31,7 +31,6 @@ set_tid_address
 statfs
 sysinfo
 syslog
-total
 uname
 unlinkat
 utimensat

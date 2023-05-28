@@ -177,4 +177,11 @@ struct sigaction {
 
 #define SIGINT 2
 
+typedef long int off_t;
+
+struct iovec {
+    void  *iov_base;    /* Starting address */
+    size_t iov_len;     /* Number of bytes to transfer */
+};
+
 #endif // __STDDEF_H__

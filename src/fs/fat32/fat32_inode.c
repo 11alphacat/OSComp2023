@@ -339,7 +339,7 @@ void fat32_fat_set(uint cluster, uint value) {
 // }
 
 // Read data from fa32 inode.
-uint fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
+ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
     uint tot = 0, m;
     struct buffer_head *bp;
 
@@ -361,7 +361,7 @@ uint fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, uint
     int init_s_n = LOGISTIC_S_NUM(off);
     int init_s_offset = LOGISTIC_S_OFFSET(off);
 
-    uint ret = 0;
+    ssize_t ret = 0;
     // read the target sector
     while (!ISEOF(iter_n) && tot < n) {
         int first_sector = FirstSectorofCluster(iter_n);
@@ -394,7 +394,7 @@ uint fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, uint
 
 // Write data to fat32 inode
 // 写 inode 文件，从偏移量 off 起， 写 src 的 n 个字节的内容
-uint fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
+ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
     uint tot = 0, m;
     struct buffer_head *bp;
 
@@ -430,7 +430,7 @@ uint fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, uin
     int init_s_n = LOGISTIC_S_NUM(off);
     int init_s_offset = LOGISTIC_S_OFFSET(off);
 
-    uint ret = 0;
+    ssize_t ret = 0;
     // read the target sector
     while ((!ISEOF(iter_n) && tot < n)) {
         int first_sector = FirstSectorofCluster(iter_n);

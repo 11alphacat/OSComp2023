@@ -21,7 +21,10 @@ User=user
 oscompU=oscomp_user
 
 # Initial File in Directory
-TEST=user_test kalloctest mmaptest clock_gettime_test signal_test
+TEST=user_test kalloctest mmaptest \
+	clock_gettime_test signal_test \
+	writev_test readv_test lseek_test \
+	sendfile_test
 OSCOMP=chdir close dup2 dup \
     fstat getcwd mkdir_ write \
     openat open read test_echo \
@@ -127,7 +130,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 3
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic

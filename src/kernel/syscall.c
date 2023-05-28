@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "common.h"
 #include "param.h"
 #include "memory/memlayout.h"
@@ -28,8 +29,7 @@ int fetchstr(uint64 addr, char *buf, int max) {
     return strlen(buf);
 }
 
-static uint64
-argraw(int n) {
+uint64 argraw(int n) {
     // struct proc *p = proc_current();
     struct tcb *t = thread_current();
     switch (n) {
@@ -48,6 +48,17 @@ argraw(int n) {
     }
     panic("argraw");
     return -1;
+}
+
+int arglist(uint64 argv[], int s, int n) {
+    ASSERT(s + n <= 6);
+    struct trapframe *trapframe = thread_current()->trapframe;
+    uint64 kbuf[6] = {trapframe->a0, trapframe->a1, trapframe->a2, trapframe->a3,
+                      trapframe->a4, trapframe->a5};
+    for (int i = 0; i != n; ++i) {
+        argv[i] = kbuf[s + i];
+    }
+    return 0;
 }
 
 // Fetch the nth 32-bit system call argument.

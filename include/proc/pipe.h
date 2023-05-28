@@ -24,7 +24,7 @@ struct pipe {
 
 int pipealloc(struct file **f0, struct file **f1); // only for xv6
 void pipeclose(struct pipe *pi, int writable);
-int piperead(struct pipe *pi, uint64 addr, int n);
-int pipewrite(struct pipe *pi, uint64 addr, int n);
+int piperead(struct pipe *pi, int user_dst, uint64 addr, int n);
+int pipewrite(struct pipe *pi, int user_dst, uint64 addr, int n);
 
 #endif // __PIPE_H__

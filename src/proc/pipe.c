@@ -106,7 +106,7 @@ void pipeclose(struct pipe *pi, int writable) {
         release(&pi->lock);
 }
 
-int pipewrite(struct pipe *pi, uint64 addr, int n) {
+int pipewrite(struct pipe *pi, int user_dst, uint64 addr, int n) {
     int i = 0;
     struct proc *pr = proc_current();
 
@@ -126,7 +126,7 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
             // sleep(&pi->nwrite, &pi->lock);
         } else {
             char ch;
-            if (copyin(pr->pagetable, &ch, addr + i, 1) == -1)
+            if (either_copyin(&ch, user_dst, addr + i, 1) == -1)
                 break;
             pi->data[pi->nwrite++ % PIPESIZE] = ch;
             i++;
@@ -139,7 +139,7 @@ int pipewrite(struct pipe *pi, uint64 addr, int n) {
     return i;
 }
 
-int piperead(struct pipe *pi, uint64 addr, int n) {
+int piperead(struct pipe *pi, int user_dst, uint64 addr, int n) {
     int i;
     struct proc *pr = proc_current();
     char ch;
@@ -159,7 +159,7 @@ int piperead(struct pipe *pi, uint64 addr, int n) {
         if (pi->nread == pi->nwrite)
             break;
         ch = pi->data[pi->nread % PIPESIZE];
-        if (copyout(pr->pagetable, addr + i, &ch, 1) == -1)
+        if (either_copyout(user_dst, addr + i, &ch, 1) == -1)
             break;
         ++pi->nread;
     }

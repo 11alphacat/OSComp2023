@@ -3,6 +3,10 @@
 
 // since xv6-user will use kernel header file, add this condition preprocess
 #ifndef USER
+
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 

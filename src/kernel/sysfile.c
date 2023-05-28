@@ -18,12 +18,14 @@
 #include "proc/pipe.h"
 #include "memory/vm.h"
 #include "proc/exec.h"
-#include "fs/fat/fat32_mem.h"
-#include "fs/fat/fat32_file.h"
+// #include "fs/fat/fat32_mem.h"
+// #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 #include "fs/stat.h"
+#include "fs/uio.h"
 
+#define FILE2FD(f, proc) (((char *)(f) - (char *)(proc)->_ofile) / sizeof(struct file))
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 // 它是线程安全的
@@ -51,7 +53,7 @@ int argfd(int n, int *pfd, struct file **pf) {
 }
 
 static inline int __namecmp(const char *s, const char *t) {
-    return strncmp(s, t, PATH_LONG_MAX);
+    return strncmp(s, t, MAXPATH);
 }
 
 // Allocate a file descriptor for the given file.
@@ -82,6 +84,204 @@ static struct inode *assist_icreate(char *path, int dirfd, uchar type, short maj
     ASSERT(dp->i_op);
     ip = dp->i_op->icreate(dp, name, type, major, minor); // don't check, caller will do this
     return ip;
+}
+
+//  The  getcwd()  function  copies  an  absolute  pathname
+// of the current working directory to the array pointed to by buf,
+// which is of length size.
+// make sure sizeof buf is big enough to hold a absolute path!
+static void assist_getcwd(char *kbuf) {
+    // note: buf must have size PATH_LONG_MAX
+    size_t n;
+    if (!kbuf) return;
+    // ASSERT(strnlen(buf,PATH_LONG_MAX) >= PATH_LONG_MAX);
+    struct proc *p = proc_current();
+    // get_absolute_path(p->_cwd, kbuf);
+    p->_cwd->i_op->ipathquery(p->_cwd, kbuf); // 获取绝对路径放在kbuf中
+    n = strlen(kbuf);
+    if (n > 1) {
+        kbuf[n - 1] = 0; // clear '/'
+    }
+    return;
+}
+
+static uint64 do_lseek(struct file *f, off_t offset, int whence) {
+    ASSERT(f);
+    if (f->f_type != FD_INODE) {
+        return -1;
+    }
+    switch (whence) {
+    case SEEK_SET:
+        f->f_pos = offset;
+        break;
+    case SEEK_CUR:
+        f->f_pos += offset;
+        break;
+    case SEEK_END:
+        f->f_pos = f->f_tp.f_inode->i_size + offset;
+        break;
+    default:
+        f->f_pos = offset;
+        break;
+    }
+    return f->f_pos;
+}
+
+// incomplete implement
+static int do_faccess(struct inode *ip, int mode, int flags) {
+    ASSERT(flags == AT_EACCESS);
+    if (mode == F_OK) {
+        // 已经存在
+        return 0;
+    }
+    if (mode & R_OK || mode & W_OK) {
+        ;
+    }
+    if (mode & X_OK) {
+        // sorry
+        ;
+    }
+    return 0;
+}
+
+// 如果offset不为NULL，则不会更新in_fd的pos,否则pos会更新，offset也会被赋值
+static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, size_t count) {
+    void *kbuf;
+    struct inode *rdip, *wrip;
+    uint offset, nread, nwritten;
+    if ((kbuf = kmalloc(PGSIZE)) == 0) {
+        return -1;
+    }
+    if (poff) {
+        either_copyin(&offset,1,(uint64)poff,sizeof(off_t));
+    } else {
+        offset = rf->f_pos;
+    }
+    rdip = rf->f_tp.f_inode;
+    wrip = wf->f_tp.f_inode;
+    // if ((nread = fat32_inode_read(rf->f_tp.f_inode, 0, (uint64)kbuf, offset, count)) < 0) {
+    if ((nread = rdip->i_op->iread(rdip, 0, (uint64)kbuf, offset, count)) < 0) {
+        goto bad;
+    }
+
+    if (wf->f_type == FD_PIPE) {
+        if ((nwritten = pipewrite(wf->f_tp.f_pipe, 0, (uint64)kbuf, count)) < 0) {
+            goto bad;
+        }
+    } else if (wf->f_type == FD_INODE) {
+        // if ((nwritten = fat32_inode_write(wf->f_tp.f_inode, 0, (uint64)kbuf, wf->f_pos, count)) < 0) {
+        if ((nwritten = wrip->i_op->iwrite(wrip, 0, (uint64)kbuf, wf->f_pos, count)) < 0) {
+            goto bad;
+        }
+        rf->f_pos += nread;
+        offset = rf->f_pos;
+        wf->f_pos += nwritten;
+    } else {
+        // unsupported file type
+        goto bad;
+    }
+
+    if (poff) {
+        either_copyout(1, (uint64)poff, &offset, sizeof(offset));
+    }
+    return nwritten;
+
+bad:
+    if (kbuf) {
+        kfree(kbuf);
+    }
+    return -1;
+}
+
+static int assist_dupfd(struct file *f) {
+    int ret;
+    if ((ret = fdalloc(f)) > 0) {
+        f->f_op->dup(f);
+    }
+    return ret;
+}
+
+static int assist_getfd(struct file *f) {
+    int ret;
+    ret = FILE2FD(f, proc_current());
+    ASSERT(ret >= 0 && ret < NOFILE);
+    return ret;
+}
+
+// 不做参数检查
+// 一定返回 newfd
+static int assist_setfd(struct file *f, int oldfd, int newfd) {
+    struct proc *p = proc_current();
+    if (oldfd == newfd) {
+        // do nothing
+        return newfd;
+    }
+    acquire(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
+    if (p->_ofile[newfd] == 0) {
+        // not used, great!
+        p->_ofile[newfd] = f;
+        release(&p->tlock);
+    } else {
+        // close and reuse
+        // two steps must be atomic!
+        generic_fileclose(p->_ofile[newfd]);
+        p->_ofile[newfd] = f;
+        release(&p->tlock);
+    }
+    // fat32_filedup(f);
+    f->f_op->dup(f);
+    return newfd;
+}
+
+static inline int assist_getflags(struct file *f) {
+    return f->f_flags;
+}
+
+static int assist_setflag(struct file *f, int flag) {
+    if (FCNTLABLE(flag)) {
+        f->f_flags |= flag;
+        return 0;
+    }
+    return -1;
+}
+
+static uint64 do_fcntl(struct file *f, int cmd) {
+    int ret, arg;
+    switch (cmd) {
+    case F_DUPFD:
+        ret = assist_dupfd(f);
+        break;
+
+    case F_GETFD:
+        ret = assist_getfd(f);
+        break;
+
+    case F_SETFD:
+        if (argint(2, &arg) < 0) {
+            ret = -1;
+        } else {
+            ret = assist_setfd(f, FILE2FD(f, proc_current()), arg);
+        }
+        break;
+
+    case F_GETFL:
+        ret = assist_getflags(f);
+        break;
+
+    case F_SETFL:
+        if (argint(2, &arg) < 0) {
+            ret = -1;
+        } else {
+            ret = assist_setflag(f, arg);
+        }
+        break;
+
+    default:
+        ret = 0;
+        break;
+    }
+
+    return ret;
 }
 
 uint64 sys_mknod(void) {
@@ -125,14 +325,15 @@ uint64 sys_getcwd(void) {
     argaddr(0, &buf);
     argulong(1, &size);
 
-    char kbuf[PATH_LONG_MAX];
-    memset(kbuf, 0, PATH_LONG_MAX); // important! init before use!
-    fat32_getcwd(kbuf);
+    char kbuf[MAXPATH];
+    memset(kbuf, 0, MAXPATH); // important! init before use!
+    // fat32_getcwd(kbuf);
+    assist_getcwd(kbuf);
     if (!buf && (buf = (uint64)kalloc()) == 0) {
         return (uint64)NULL;
     }
 
-    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, PATH_LONG_MAX) + 1) < 0) { // rember add 1 for '\0'
+    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, MAXPATH) + 1) < 0) { // rember add 1 for '\0'
         return (uint64)NULL;
     } else {
         return buf;
@@ -168,7 +369,6 @@ uint64 sys_dup(void) {
 //    The steps of closing and reusing the file descriptor newfd are performed  atomically.
 uint64 sys_dup3(void) {
     struct file *f;
-    struct proc *p = proc_current();
     int oldfd, newfd, flags;
 
     if (argfd(0, &oldfd, &f) < 0) {
@@ -180,26 +380,8 @@ uint64 sys_dup3(void) {
     }
     argint(2, &flags);
     ASSERT(flags == 0);
-    if (oldfd == newfd) {
-        // do nothing
-        return newfd;
-    }
 
-    acquire(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
-    if (p->_ofile[newfd] == 0) {
-        // not used, great!
-        p->_ofile[newfd] = f;
-        release(&p->tlock);
-    } else {
-        // close and reuse
-        // two steps must be atomic!
-        generic_fileclose(p->_ofile[newfd]);
-        p->_ofile[newfd] = f;
-        release(&p->tlock);
-    }
-
-    // fat32_filedup(f);
-    f->f_op->dup(f);
+    newfd = assist_setfd(f, oldfd, newfd);
     return newfd;
 }
 
@@ -236,22 +418,19 @@ uint64 sys_openat(void) {
         If pathname is absolute, then dirfd is ignored.
     */
 
-    char path[PATH_LONG_MAX];
+    char path[MAXPATH];
     int dirfd, flags, omode;
     struct file *f;
     struct inode *ip;
     int n;
     argint(0, &dirfd); // no need to check dirfd, because dirfd maybe AT_FDCWD(<0)
                        // find_inode will do the check
-    if ((n = argstr(1, path, PATH_LONG_MAX)) < 0) {
+    if ((n = argstr(1, path, MAXPATH)) < 0) {
         return -1;
     }
     argint(2, &flags);
     argint(3, &omode);
 
-    // if(strncmp(path, "dd/dd/ffff", 10)==0){
-    //     printf("ready\n");
-    // }
     // 如果是要求创建文件，则调用 create
     if ((flags & O_CREATE) == O_CREATE) {
         // if ((ip = inode_create(path, dirfd, T_FILE)) == 0) {
@@ -295,7 +474,6 @@ uint64 sys_openat(void) {
     }
 
     if (ip->i_type == T_DEVICE && (ip->i_dev < 0 || ip->i_dev >= NDEV)) {
-        // fat32_inode_unlock_put(ip);
         ip->i_op->iunlock_put(ip);
         return -1;
     }
@@ -305,7 +483,6 @@ uint64 sys_openat(void) {
     if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
         if (f)
             generic_fileclose(f);
-        // fat32_inode_unlock_put(ip);
         ip->i_op->iunlock_put(ip);
         return -1;
     }
@@ -329,7 +506,6 @@ uint64 sys_openat(void) {
     */
 
     if ((flags & O_TRUNC) && ip->i_type == T_FILE) {
-        // fat32_inode_trunc(ip);
         ip->i_size = 0;
         f->f_pos = 0;
 #ifdef __DEBUG_FS__
@@ -337,7 +513,6 @@ uint64 sys_openat(void) {
 #endif
     }
 
-    // fat32_inode_unlock(ip);
     ip->i_op->iunlock(ip);
 
 #ifdef __DEBUG_FS__
@@ -374,14 +549,16 @@ uint64 sys_close(void) {
 // 返回值：成功执行，返回读取的字节数。如为0，表示文件结束。错误，则返回-1。
 uint64 sys_read(void) {
     struct file *f;
-    int n;
-    uint64 p;
+    int count;
+    uint64 buf;
 
-    argaddr(1, &p);
-    if (argint(2, &n) < 0) {
+    argaddr(1, &buf);
+    if (argint(2, &count) < 0) {
         return -1;
     }
     if (argfd(0, 0, &f) < 0)
+        return -1;
+    if (!F_READABLE(f))
         return -1;
 
 #ifdef __DEBUG_FS__
@@ -391,7 +568,7 @@ uint64 sys_read(void) {
         printfMAGENTA("read : pid %d, fd = %d\n", proc_current()->pid, fd);
     }
 #endif
-    return f->f_op->read(f, p, n);
+    return f->f_op->read(f, buf, count);
 }
 
 // 功能：从一个文件描述符中写入；
@@ -409,7 +586,8 @@ uint64 sys_write(void) {
     argint(2, &n);
     if (argfd(0, 0, &f) < 0)
         return -1;
-
+    if (!F_WRITEABLE(f))
+        return -1;
 #ifdef __DEBUG_FS__
     if (f->f_type == FD_INODE) {
         int fd;
@@ -417,6 +595,7 @@ uint64 sys_write(void) {
         printfYELLOW("write : pid %d, fd = %d\n", proc_current()->pid, fd);
     }
 #endif
+
     return f->f_op->write(f, p, n);
 }
 
@@ -476,13 +655,13 @@ uint64 sys_linkat(void) {
 uint64 sys_unlinkat(void) {
     struct inode *ip, *dp;
     // struct dirent de;
-    char name[NAME_LONG_MAX], path[PATH_LONG_MAX];
+    char name[NAME_LONG_MAX], path[MAXPATH];
     int dirfd, flags;
     uint off;
     argint(0, &dirfd); // don't need to check, because find_inode will do
     argint(2, &flags);
     ASSERT(flags == 0);
-    if (argstr(1, path, PATH_LONG_MAX) < 0)
+    if (argstr(1, path, MAXPATH) < 0)
         return -1;
 
     if ((dp = find_inode(path, dirfd, name)) == 0) {
@@ -519,31 +698,25 @@ uint64 sys_unlinkat(void) {
     // if (fat32_inode_write(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     //     panic("unlink: writei");
 
-    // fat32_inode_delete(dp, ip);
     dp->i_op->idelete(dp, ip);
 
     if (ip->i_type == T_DIR) {
         // 试图删除的是空的目录文件
         dp->i_nlink--;
-        // fat32_inode_update(dp);
         dp->i_op->iupdate(dp);
     }
-    // fat32_inode_unlock_put(dp);
     dp->i_op->iunlock_put(dp);
 
     ip->i_nlink--;
 #ifdef __DEBUG_FS__
     printfGreen("unlinkat : pid %d, file (%s) nlinks %d -> %d\n", proc_current()->pid, ip->fat32_i.fname, ip->i_nlink + 1, ip->i_nlink);
 #endif
-    // fat32_inode_update(ip);
     ip->i_op->iupdate(ip);
-    // fat32_inode_unlock_put(ip);
     ip->i_op->iunlock_put(ip);
 
     return 0;
 
 bad:
-    // fat32_inode_unlock_put(dp);
     dp->i_op->iunlock_put(dp);
 
     return -1;
@@ -556,7 +729,7 @@ bad:
 // - mode：文件的所有权描述。详见`man 7 inode `。
 // 返回值：成功执行，返回0。失败，返回-1。
 uint64 sys_mkdirat(void) {
-    char path[PATH_LONG_MAX];
+    char path[MAXPATH];
     int dirfd;
     mode_t mode;
     struct inode *ip;
@@ -564,17 +737,14 @@ uint64 sys_mkdirat(void) {
     if (argint(2, (int *)&mode) < 0) {
         return -1;
     }
-    // if (argstr(1, path, PATH_LONG_MAX) < 0 || (ip = inode_create(path, dirfd, T_DIR)) == 0) {
-    //     return -1;
-    // }
-    if (argstr(1, path, PATH_LONG_MAX) < 0) {
+
+    if (argstr(1, path, MAXPATH) < 0) {
         return -1;
     }
     if ((ip = assist_icreate(path, AT_FDCWD, T_DIR, 0, 0)) == 0) {
         return -1;
     }
     ip->i_mode = mode;
-    // fat32_inode_unlock_put(ip);
     ip->i_op->iunlock_put(ip);
     return 0;
 }
@@ -602,7 +772,6 @@ uint64 sys_getdents64(void) {
     ssize_t nread, sz;
     char *kbuf;
     struct inode *ip;
-    // const size_t MAXLEN = 2048;
 
     if (argfd(0, 0, &f) < 0)
         return -1;
@@ -628,7 +797,6 @@ uint64 sys_getdents64(void) {
         return -1;
     }
     memset(kbuf, 0, len); // !!!!
-    // if ( ( nread = fat32_getdents(f->f_tp.f_inode, kbuf, sz) ) < 0 ) {
     ASSERT(ip->i_op);
     ASSERT(ip->i_op->igetdents);
     if ((nread = ip->i_op->igetdents(ip, kbuf, sz)) < 0) {
@@ -636,8 +804,6 @@ uint64 sys_getdents64(void) {
         return -1;
     }
     len = MIN(len, sz);
-    // len = len > sz ? sz : len;
-
     if (either_copyout(1, buf, kbuf, len) < 0) { // copy lenth may less than nread
         kfree(kbuf);
         return -1;
@@ -645,52 +811,6 @@ uint64 sys_getdents64(void) {
     kfree(kbuf);
     f->f_pos = ip->i_size;
     return nread;
-
-    /*
-struct file *f;
-    uint64 buf; // user pointer to struct dirent
-    int len;
-    ssize_t nread, sz;
-    char *kbuf;
-    // const size_t MAXLEN = 2048;
-
-    if (argfd(0, 0, &f) < 0)
-        return -1;
-
-    // if (f->f_type != T_DIR) {
-    //     return -1;
-    // }
-    if (f->f_type != FD_INODE) {
-        return -1;
-    }
-
-    if (f->f_pos == f->f_tp.f_inode->i_size) {
-        return 0;
-    }
-    argaddr(1, &buf);
-    argint(2, &len);
-    if (len <= 0) {
-        return -1;
-    }
-    sz = f->f_tp.f_inode->fat32_i.cluster_cnt * f->f_tp.f_inode->i_sb->cluster_size;
-    // ASSERT(sz > len);
-    if ((kbuf = kmalloc(sz)) == 0) {
-        return -1;
-    }
-    memset(kbuf, 0, len); // !!!!
-    if ((nread = fat32_getdents(f->f_tp.f_inode, kbuf, sz)) < 0) {
-        kfree(kbuf);
-        return -1;
-    }
-    len = len > sz ? sz : len;
-    if (either_copyout(1, buf, kbuf, len) < 0) { // copy lenth may less than nread
-        kfree(kbuf);
-        return -1;
-    }
-    kfree(kbuf);
-    f->f_pos = f->f_tp.f_inode->i_size;
-    return nread;
-*/
 }
 
 // 功能：获取文件状态；
@@ -706,7 +826,6 @@ uint64 sys_fstat(void) {
     if (argfd(0, 0, &f) < 0)
         return -1;
 
-    // return fat32_filestat(f, st);
     return f->f_op->fstat(f, st);
 }
 
@@ -715,28 +834,21 @@ uint64 sys_fstat(void) {
 // - path：需要切换到的目录。
 // 返回值：成功执行，返回0。失败，返回-1。
 uint64 sys_chdir(void) {
-    char path[PATH_LONG_MAX];
+    char path[MAXPATH];
     struct inode *ip;
     struct proc *p = proc_current();
 
-    // begin_op();
-    if (argstr(0, path, PATH_LONG_MAX) < 0 || (ip = namei(path)) == 0) { // bug: 修改了n_link
-        // end_op();
+    if (argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0) { // bug: 修改了n_link
         return -1;
     }
 
-    // fat32_inode_lock(ip); // bug:修改了 i_mode
     ip->i_op->ilock(ip); // bug:修改了 i_mode
     if (ip->i_type != T_DIR) {
-        // fat32_inode_unlock_put(ip);
         ip->i_op->iunlock_put(ip);
-        // end_op();
         return -1;
     }
 
-    // fat32_inode_unlock(ip);
     ip->i_op->iunlock(ip);
-    // fat32_inode_put(p->_cwd);
     p->_cwd = ip;
     return 0;
 }
@@ -783,4 +895,199 @@ uint64 sys_umount2(void) {
 uint64 sys_mount(void) {
     // ASSERT(0);
     return 0;
+}
+
+/* busybox */
+
+// 功能：从一个文件描述符中写入；
+// 输入：
+// - fd：要写入文件的文件描述符。
+// - iov：一个缓存区，存放 若干个 struct iove
+// - iovcnt：iov 缓冲中的结构体个数
+// 返回值：成功执行，返回写入的字节数。错误，则返回-1。
+uint64 sys_writev(void) {
+    struct file *f;
+    int iovcnt;
+    ssize_t nwritten = 0;
+    uint64 iov;
+    void *kbuf;
+    struct iovec *p;
+
+    argaddr(1, &iov);
+    if (argint(2, &iovcnt) < 0) {
+        return -1;
+    }
+    if (argfd(0, 0, &f) < 0) {
+        return -1;
+    }
+    int totsz = sizeof(struct iovec) * iovcnt;
+    if ((kbuf = kmalloc(totsz)) == 0) {
+        goto bad;
+    }
+
+    if (either_copyin(kbuf, 1, iov, totsz) < 0) {
+        goto bad;
+    }
+
+    int nw = 0;
+    p = (struct iovec *)kbuf;
+    for (int i = 0; i != iovcnt; ++i) {
+        if ((nw = f->f_op->write(f, (uint64)p->iov_base, p->iov_len)) < 0) {
+            goto bad;
+        }
+        nwritten += nw;
+        ++p;
+    }
+
+    kfree(kbuf);
+    return nwritten;
+
+bad:
+    if (likely(kbuf)) {
+        kfree(kbuf);
+    }
+    return -1;
+}
+
+// 功能：从一个文件描述符中读入；
+// 输入：
+// - fd：要读取文件的文件描述符。
+// - iov：一个缓存区，存放 若干个 struct iove
+// - iovcnt：iov 缓冲中的结构体个数
+// 返回值：成功执行，返回读取的字节数。错误，则返回-1。
+// struct iovec {
+//     void  *iov_base;    /* Starting address */
+//     size_t iov_len;     /* Number of bytes to transfer */
+// };
+uint64 sys_readv(void) {
+    struct file *f;
+    int iovcnt;
+    ssize_t nread = 0;
+    uint64 iov;
+    void *kbuf;
+    struct iovec *p;
+
+    argaddr(1, &iov);
+    if (argint(2, &iovcnt) < 0) {
+        return -1;
+    }
+    if (argfd(0, 0, &f) < 0) {
+        return -1;
+    }
+    int totsz = sizeof(struct iovec) * iovcnt;
+    if ((kbuf = kmalloc(totsz)) == 0) {
+        goto bad;
+    }
+
+    if (either_copyin(kbuf, 1, iov, totsz) < 0) {
+        goto bad;
+    }
+
+    int nr = 0, filesz = f->f_tp.f_inode->i_size;
+    p = (struct iovec *)kbuf;
+    for (int i = 0; i != iovcnt && filesz > 0; ++i) {
+        if ((nr = f->f_op->read(f, (uint64)p->iov_base, MIN(p->iov_len, filesz))) < 0) {
+            goto bad;
+        }
+        nread += nr;
+        filesz -= nr;
+        ++p;
+    }
+
+    kfree(kbuf);
+    return nread;
+
+bad:
+    if (likely(kbuf)) {
+        kfree(kbuf);
+    }
+    return -1;
+}
+
+// 功能：重定位文件的位置指针；
+// 输入：
+// - fd：要调整文件的文件描述符。
+// - offset：偏移数值
+// - whence：从何处起始
+// 返回值：成功执行，返回偏移的字节数。错误，则返回-1。
+uint64 sys_lseek(void) {
+    struct file *f;
+    off_t offset;
+    int whence;
+    if (argint(1, (int *)&offset) < 0) {
+        return -1;
+    }
+    if (argfd(0, 0, &f) < 0) {
+        return -1;
+    }
+    argint(2, &whence);
+    return do_lseek(f, offset, whence);
+}
+
+// 功能：改变已经打开文件的属性
+// 输入：
+// - fd：文件所在目录的文件描述符。
+// - cmd：功能描述
+// - arglist:
+// 返回值：成功执行，返回值依赖于cmd。错误，则返回-1。
+uint64 sys_fcntl(void) {
+    struct file *f;
+    int cmd;
+    if (argfd(0, 0, &f) < 0) {
+        return -1;
+    }
+    argint(1, &cmd);
+    return do_fcntl(f, cmd);
+}
+
+// 功能：检查进程实际用户ID和实际组ID对文件的访问权限；
+// 输入：
+// - dirfd：文件所在目录的文件描述符。
+// - pathname：文件路径
+// - mode: 测试权限，如 F_OK、R_OK、W_OK、X_OK
+// - flags:
+// 返回值：成功执行，返回0。错误，则返回-1。
+uint64 sys_faccessat(void) {
+    int dirfd, mode, flags;
+    char pathname[MAXPATH];
+    struct inode *ip;
+    argint(0, &dirfd);
+    argint(2, &mode);
+    argint(3, &flags);
+    if (argstr(1, pathname, MAXPATH) < 0) {
+        return -1;
+    }
+    if ((ip = find_inode(pathname, dirfd, 0)) == 0) {
+        return -1;
+    }
+    return do_faccess(ip, mode, flags);
+}
+
+// 功能：copies  data  between  one  file descriptor and another
+// 输入：
+// - out_fd: a fd for writing
+// - in_fd: a fd for reading
+// - *offset: 读偏移起始,如果不为NULL，则不会更新in_fd的pos,否则pos会更新，offset也会被赋值
+// - count: 转移字节数
+// 返回值：成功执行，返回转移字节数。错误，则返回-1。
+uint64 sys_sendfile(void) {
+    struct file *rf, *wf;
+    off_t *poff;
+    size_t count;
+    if (argfd(0, 0, &wf) < 0 || argfd(1, 0, &rf) < 0) {
+        return -1;
+    }
+    if (argint(3, (int *)&count) < 0) {
+        return -1;
+    }
+    // argaddr(2,poff);
+    poff = (off_t *)argraw(2);
+    if (rf->f_type != FD_INODE || !F_READABLE(rf)) {
+        return -1;
+    }
+    if (!F_WRITEABLE(wf)) {
+        return -1;
+    }
+
+    return do_sendfile(rf, wf, poff, count);
 }

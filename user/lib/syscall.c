@@ -253,6 +253,23 @@ int sysinfo(struct sysinfo *info) {
 int rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact, size_t sigsetsize) {
     return syscall(SYS_rt_sigaction, signum, act, oldact, sigsetsize);
 }
+    // => fs  
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt) {
+    return syscall(SYS_writev, fd, iov, iovcnt);
+}
+
+ssize_t readv(int fd, const struct iovec *iov, int iovcnt) {
+    return syscall(SYS_readv, fd, iov, iovcnt);
+}
+
+off_t lseek(int fd, off_t offset, int whence) {
+    return syscall(SYS_lseek, fd, offset, whence);
+}
+
+ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
+    return syscall(SYS_sendfile, out_fd, in_fd, offset, count);
+}
+
 
 /* debug */
 int print_pgtable() {
