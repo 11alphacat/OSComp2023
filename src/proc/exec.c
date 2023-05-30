@@ -13,6 +13,8 @@
 #include "fs/fat/fat32_file.h"
 #include "fs/fat/fat32_mem.h"
 #include "proc/pcb_thread.h"
+#include "auxv.h"
+#include "ctype.h"
 
 void print_ustack(pagetable_t pagetable, uint64 stacktop);
 /* this will commit to trapframe after execve success */
@@ -22,6 +24,16 @@ struct commit {
     uint64 a2;
     uint64 sp;
 };
+
+#define AUX_CNT 38
+typedef struct {
+    int a_type;
+    union {
+        long a_val;
+        void *a_ptr;
+        void (*a_fnc)();
+    } a_un;
+} auxv_t;
 
 int do_execve(char *path, char *const argv[], char *const envp[]);
 
@@ -60,7 +72,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
     return 0;
 }
 
-vaddr_t p_argc, p_envp, p_argv;
+vaddr_t p_argc, p_envp, p_argv, p_auxv;
 /* return argc, or -1 to indicate error */
 static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *commit, vaddr_t sp, char *const argv[], char *const envp[]) {
     /* sp has to be the top address of a page */
@@ -72,7 +84,11 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
         +---------------------------+ <-- High Address
         |     Information block     |
         +---------------------------+
-        |           ...             |
+        |         Unspecified       |
+        +---------------------------+
+        |    Null aux vector entry  |
+        +---------------------------+
+        |  Auxiliary vector entries |
         +---------------------------+
         |            0              |
         +---------------------------+
@@ -136,18 +152,36 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
     ASSERT(sp % 8 == 0);
     // Log("%d %d", sp % 16, (uint64)(argc + envpc + 2 + 1) % 2);
     /* to make sp 16-bit aligned */
-    if ((sp % 16 != 0 && (uint64)(argc + envpc + 2 + 1) % 2 == 0)
+    if ((sp % 16 != 0 && (uint64)(argc + envpc + 1 + AUX_CNT) % 2 == 0)
         || ((sp % 16 == 0) && (uint64)(argc + envpc + 2 + 1) % 2 == 1)) {
         // Log("aligned");
         sp -= 8;
     }
 
-    /* pad 0 */
-    uint8 temp = 0;
-    sp -= 8;
-    if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
+    /* auxiliary vectors */
+    uint64 auxv[AUX_CNT * 2] = {0};
+    for (int i = 0; i < AUX_CNT; i++) {
+        if (i + 1 > AT_PAGESZ) {
+            break;
+        }
+        auxv[i * 2] = i + 1;
+    }
+    auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
+    sp -= AUX_CNT * 16;
+    p_auxv = sp;
+    if (sp < stackbase) {
         return -1;
     }
+    if (copyout(pagetable, sp, (char *)auxv, AUX_CNT * 16) < 0) {
+        return -1;
+    }
+
+    // /* pad 0 */
+    // uint8 temp = 0;
+    // sp -= 8;
+    // if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
+    //     return -1;
+    // }
 
     /* push the array of envp[] pointers */
     sp -= (envpc + 1) * sizeof(uint64);
@@ -160,11 +194,11 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
         return -1;
     commit->a2 = sp;
 
-    /* pad 0 */
-    sp -= 8;
-    if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
-        return -1;
-    }
+    // /* pad 0 */
+    // sp -= 8;
+    // if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
+    //     return -1;
+    // }
 
     /* push the array of argv[] pointers */
     sp -= (argc + 1) * sizeof(uint64);
@@ -193,22 +227,25 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
 void print_ustack(pagetable_t pagetable, uint64 stacktop) {
     char *pa = (char *)getphyaddr(pagetable, stacktop - 1) + 1;
     // Log("pa is %p", pa);
-    /* just print the first 200 8bits of the ustack */
-    for (int i = 8; i < 200; i += 8) {
+    /* just print the first 100 8bits of the ustack */
+    for (int i = 8; i < 100 * 8; i += 8) {
         if (i % 16 == 0) {
             printfGreen("aligned -> ");
         } else {
             printfGreen("           ");
         }
 
-        if (stacktop - i == p_argc || stacktop - i == p_argv || stacktop - i == p_envp) {
+        if (stacktop - i == p_argc || stacktop - i == p_argv || stacktop - i == p_envp || stacktop - i == p_auxv) {
             printfBlue("%#x:", stacktop - i);
         } else {
             printfGreen("%#x:", stacktop - i);
         }
 
         for (int j = 0; j < 8; j++) {
-            printfGreen("%c", (char)*(paddr_t *)(pa - i + j));
+            char c = (char)*(paddr_t *)(pa - i + j);
+            if ((int)c > 0x20 && (int)c <= 0x7e) {
+                printfGreen("%c", c);
+            }
         }
         printf("\t");
         for (int j = 0; j < 8; j++) {

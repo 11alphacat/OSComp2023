@@ -49,6 +49,9 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
                 fat32_inode_read(vma->fp->f_tp.f_inode, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
                 fat32_inode_unlock(vma->fp->f_tp.f_inode);
             }
+        } else if (vma->type == VMA_MAP_ANON) {
+            Log("hit");
+            uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
         }
         return 0;
     }

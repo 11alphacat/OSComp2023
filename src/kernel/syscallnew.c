@@ -6,11 +6,6 @@
 
 // other
 
-// memory
-uint64 sys_mprotect(void) {
-    ASSERT(0);
-    return 0;
-}
 
 // proc
 

@@ -8,6 +8,12 @@
 #include "riscv.h"
 #include "fs/vfs/fs.h"
 
+// mmap
+#define MAP_FILE 0
+#define MAP_SHARED 0x01
+#define MAP_PRIVATE 0x02
+#define MAP_ANONYMOUS 0x20 /* Don't use a file.  */
+
 // return (void *)0xfffff...ff to indicate fail
 #define MAP_FAILED ((void *)-1)
 
@@ -49,19 +55,49 @@ void *sys_mmap(void) {
     argint(2, &prot);
     argint(3, &flags);
     if (argfd(4, &fd, &fp) < 0) {
-        return MAP_FAILED;
+        if ((flags & MAP_ANONYMOUS) == 0) {
+            return MAP_FAILED;
+        }
     }
     arglong(5, &offset);
 
     if (addr != 0 || offset != 0) {
-        Log("mmap: not support");
+        Warn("mmap: not support");
         return MAP_FAILED;
     }
 
     vaddr_t mapva = find_mapping_space(addr, length);
-    if (vma_map_file(proc_current(), mapva, length, mkperm(prot, flags), VMA_MAP_FILE, fd, offset, fp) < 0) {
-        return MAP_FAILED;
+    if (flags & MAP_ANONYMOUS) {
+        if (vma_map(proc_current(), mapva, length, mkperm(prot, flags), VMA_MAP_ANON) < 0) {
+            return MAP_FAILED;
+        }
+    } else {
+        if (vma_map_file(proc_current(), mapva, length, mkperm(prot, flags), VMA_MAP_FILE, fd, offset, fp) < 0) {
+            return MAP_FAILED;
+        }
     }
 
     return (void *)mapva;
+}
+
+// memory
+/* int mprotect(void *addr, size_t len, int prot); */
+uint64 sys_mprotect(void) {
+    vaddr_t addr;
+    size_t len;
+    int prot;
+    argaddr(0, &addr);
+    argulong(1, &len);
+    argint(2, &prot);
+    // Log("%p", addr);
+
+    struct vma *vma = find_vma_for_va(proc_current(), addr);    
+    if (vma == NULL) {
+        return -1;
+    }
+    if (vma->size != len || vma->startva != addr) {
+        // return -1;
+    }
+    vma->perm = prot;
+    return 0;
 }
