@@ -698,7 +698,6 @@ uint64 sys_unlinkat(void) {
     // if (fat32_inode_write(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     //     panic("unlink: writei");
 
-    dp->i_op->idelete(dp, ip);
 
     if (ip->i_type == T_DIR) {
         // 试图删除的是空的目录文件

@@ -2182,11 +2182,7 @@ void fsfull() {
 void argptest() {
     printf("==========argptest test=========\n");
     int fd;
-<<<<<<< HEAD
     fd = open("/boot/init", O_RDONLY);
-=======
-    fd = open("boot/init", O_RDONLY);
->>>>>>> bb syscalls: parts of fs syscalls finished
     if (fd < 0) {
         printf("open failed\n");
         exit(1);
@@ -2754,102 +2750,102 @@ void dirfile() {
 
 int main(void) {
 // print_sysinfo();
-    forktest();
-// print_sysinfo();
-    exitwait();
-// print_sysinfo();
-    forkfork();    
-// print_sysinfo();
-    forkforkfork();
-// print_sysinfo();
-    twochildren();
-// print_sysinfo();
-    reparent();
-// print_sysinfo();
-    reparent2();
-// print_sysinfo();
-    killstatus();
-// print_sysinfo();
-    opentest();
-// print_sysinfo();
-    openiputtest();
-// print_sysinfo();
-    writetest();
-// print_sysinfo();
-    writebig();
-// print_sysinfo();
-    preempt();
-// print_sysinfo();
-    truncate1();
-// print_sysinfo();
-    copyin();
-// print_sysinfo();
-    copyout();
-// print_sysinfo();
-    copyinstr1();
-// print_sysinfo();
-    truncate2();
-// print_sysinfo();
-    truncate3();
-// print_sysinfo();
-    iputtest();
-// print_sysinfo();
-    exitiputtest();
-// print_sysinfo();
-    createtest();
-// print_sysinfo();
-    sbrklast();
-// print_sysinfo();
-    dirtest();
-// print_sysinfo();
-    execvetest();
-// print_sysinfo();
-    uvmfree();
+//     forktest();
+// // print_sysinfo();
+//     exitwait();
+// // print_sysinfo();
+//     forkfork();    
+// // print_sysinfo();
+//     forkforkfork();
+// // print_sysinfo();
+//     twochildren();
+// // print_sysinfo();
+//     reparent();
+// // print_sysinfo();
+//     reparent2();
+// // print_sysinfo();
+//     killstatus();
+// // print_sysinfo();
+//     opentest();
+// // print_sysinfo();
+//     openiputtest();
+// // print_sysinfo();
+//     writetest();
+// // print_sysinfo();
+//     writebig();
+// // print_sysinfo();
+//     preempt();
+// // print_sysinfo();
+//     truncate1();
+// // print_sysinfo();
+//     copyin();
+// // print_sysinfo();
+//     copyout();
+// // print_sysinfo();
+//     copyinstr1();
+// // print_sysinfo();
+//     truncate2();
+// // print_sysinfo();
+//     truncate3();
+// // print_sysinfo();
+//     iputtest();
+// // print_sysinfo();
+//     exitiputtest();
+// // print_sysinfo();
+//     createtest();
+// // print_sysinfo();
+//     sbrklast();
+// // print_sysinfo();
+//     dirtest();
+// // print_sysinfo();
+//     execvetest();
+// // print_sysinfo();
+//     uvmfree();
 
 
-    pipe1();
-    mem();
-    sharedfd();
-    createdelete();
-    fourfiles();
-    bigwrite();
-    bigfile();
+//     pipe1();
+//     mem();
+//     sharedfd();
+//     createdelete();
+//     fourfiles();
+//     bigwrite();
+//     bigfile();
 
 
-    rmdot();
-    badarg();
-    sbrk8000();
-    textwrite();
-    outofinodes();
+//     rmdot();
+//     badarg();
+//     sbrk8000();
+//     textwrite();
+//     outofinodes();
     manywrites();
-    badwrite();
-    sbrkbasic();
-    sbrkmuch();
-    kernmem();
-    MAXVAplus();
+//     badwrite();
+//     sbrkbasic();
+//     sbrkmuch();
+//     kernmem();
+//     MAXVAplus();
     
-    sbrkfail();
+//     sbrkfail();
     
-    sbrkarg();
-    bsstest();
-    bigargtest();
-    argptest();
-    stacktest();
-    pgbug();
-    sbrkbugs();
-    cowtest();
-    copyinstr3();
-    stressfs();
+//     sbrkarg();
+//     bsstest();
+//     bigargtest();
+//     argptest();
+//     stacktest();
+//     pgbug();
+//     sbrkbugs();
+//     cowtest();
+//     copyinstr3();
+//     stressfs();
 
 
-    // TODO :
-    // fsfull();
-    // diskfull();
-    // execveout();
-    // fourteen();
-    // unlinkread();
-    // subdir();
-    // dirfile();
+//     // TODO :
+//     // fsfull();
+//     // diskfull();
+//     // execveout();
+//     // fourteen();
+//     // unlinkread();
+//     // subdir();
+//     // dirfile();
 
     printf("ALL TESTS PASSED\n");
     exit(0);

@@ -10,7 +10,8 @@
 #include "proc/pcb_thread.h"
 
 extern struct tcb thread[NTCB];
-extern char trampoline[]; // trampoline.S
+extern char trampoline[];          // trampoline.S
+extern char __user_rt_sigreturn[]; // sigret.S
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -49,6 +50,11 @@ pagetable_t proc_pagetable(struct proc *p) {
         return 0;
     }
 
+    if (mappages(pagetable, SIGRETURN, PGSIZE, (uint64)__user_rt_sigreturn, PTE_R | PTE_X | PTE_U, 0) < 0) {
+        uvmfree(pagetable, 0);
+        return 0;
+    }
+    // vmprint(pagetable, 1, 0, 0, 0);
     // // map the trapframe page just below the trampoline page, for
     // // trampoline.S.
 
@@ -94,6 +100,7 @@ int thread_trapframe(struct tcb *t, int still) {
 void proc_freepagetable(pagetable_t pagetable, uint64 sz, int maxoffset) {
     // maxoffset starts from 0
     uvmunmap(pagetable, TRAMPOLINE, 1, 0, 0);
+    uvmunmap(pagetable, SIGRETURN, 1, 0, 0);
     for (int offset = 0; offset < maxoffset; offset++) {
         uvmunmap(pagetable, TRAPFRAME - offset * PGSIZE, 1, 0, 0);
     }

@@ -66,6 +66,8 @@
 // each surrounded by invalid guard pages.
 #define KSTACK(p) (TRAMPOLINE - ((p) + 1) * 2 * PGSIZE)
 
+#define SIGRETURN (TRAMPOLINE - PGSIZE)
+
 // User memory layout.
 // Address zero first:
 //   text
@@ -75,6 +77,6 @@
 //   ...
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
-#define TRAPFRAME (TRAMPOLINE - PGSIZE)
+#define TRAPFRAME (SIGRETURN - PGSIZE)
 
 #endif // __MEMLAYOUT_H__

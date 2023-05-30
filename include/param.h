@@ -1,7 +1,7 @@
 #ifndef __PARAM_H__
 #define __PARAM_H__
 
-#define NCPU 3                    // maximum number of CPUs
+#define NCPU 4                    // maximum number of CPUs
 #define NOFILE 128                // open files per process
 #define NFILE 100                 // open files per system
 #define NINODE 50                 // maximum number of active i-nodes
