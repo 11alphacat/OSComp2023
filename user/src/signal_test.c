@@ -5,28 +5,37 @@
 #include "string.h"
 #include "stdlib.h"
 
+void signal(sig_t signo, __signalfn_t handler) {
+    struct sigaction my_sig;
+    my_sig.sa_handler = handler;
+    rt_sigaction(signo, &my_sig, NULL, sizeof(sigset_t));
+}
 
-void sigint_handler(int sig);
+void sig_1(int sig) {
+    printf("Received signal 1, exiting.\n");
+    kill(getpid(), 20);
+}
 
-void sigint_handler(int sig) {
-    printf("Received SIGINT signal, exiting.\n");
+void sig_2(int sig) {
+    printf("Received signal 2, exiting.\n");
+    // kill(getpid(), 10);
     exit(0);
+    kill(getpid(), 30);
+}
+
+void sig_3(int sig) {
+    printf("Received signal 3, exiting.\n");
+
 }
 
 int main() {
-    struct sigaction my_sig;
-    my_sig.sa_handler = sigint_handler;
-    rt_sigaction(SIGINT, &my_sig, NULL, sizeof(sigset_t));
-    // 注册 SIGINT 信号处理器
-    // if (signal(SIGINT, sigint_handler) == SIG_ERR) {
-    //     printf("error\n");
-    //     return 1;
-    // }
-    // // 不断循环等待信号
-    // while (1) {
-    //     printf("Waiting for SIGINT signal...\n");
-    //     sleep(1);
-    // }
+    // print_pgtable();
+    signal(10, sig_1);
+    signal(20, sig_2);
+    signal(30, sig_3);
 
+    kill(getpid(), 10);
+    // kill(getpid(), 20);
+    
     return 0;
 }

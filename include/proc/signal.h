@@ -17,8 +17,8 @@
 
 typedef void __signalfn_t(int);
 typedef __signalfn_t *__sighandler_t;
-typedef uint32 sig_t;
-#define _NSIG 32
+typedef uint64 sig_t;
+#define _NSIG 64
 #define valid_signal(sig) (((sig) <= _NSIG && (sig) >= 1) ? 1 : 0)
 
 // how to process signal
@@ -50,7 +50,7 @@ typedef struct {
 
 // signal sets
 typedef struct {
-    uint32 sig;
+    uint64 sig;
 } sigset_t;
 
 // the pointer to the signal handler
@@ -95,7 +95,7 @@ struct sigqueue {
 #define sig_pending(t) (t.sig_pending)
 #define sig_ignored(t, sig) (sig_is_member(t->blocked, sig))
 #define sig_existed(t, sig) (sig_is_member(t->pending.signal, sig))
-#define sig_action(t, signo) (t->sig->action[signo])
+#define sig_action(t, signo) (t->sig->action[signo - 1])
 
 typedef struct sigaltstack {
     void *ss_sp;
@@ -139,22 +139,23 @@ struct user_regs_struct {
 };
 
 struct sigcontext {
-    struct user_regs_struct sc_regs;
+    struct trapframe tf;
+    // struct user_regs_struct sc_regs;
     // union __riscv_fp_state sc_fpregs;
 };
 
 struct ucontext {
-    uint64 uc_flags;
-    struct ucontext *uc_link;
-    stack_t uc_stack;
+    // uint64 uc_flags;
+    // struct ucontext *uc_link;
+    // stack_t uc_stack;
     struct sigcontext uc_mcontext;
     sigset_t uc_sigmask; /* mask last for extensibility */
+    sig_t sig_ing;
 };
 
 struct rt_sigframe {
     // struct siginfo info;
     struct ucontext uc;
-    uint32 sigreturn_code[2];
 };
 
 struct proc;
@@ -164,18 +165,18 @@ struct tcb;
 #define SIG_UNBLOCK 2 /* for unblocking signals */
 #define SIG_SETMASK 3 /* for setting the signal mask */
 
-int signal_queue_pop(uint64 mask, struct sigpending *queue);
+int signal_queue_pop(uint64 mask, struct sigpending *pending);
 int signal_queue_flush(struct sigpending *queue);
-void signal_info_init(sig_t sig, struct sigqueue *q, siginfo_t *info);
-int signal_send(sig_t sig, siginfo_t *info, struct tcb *t);
+void signal_info_init(sig_t sig, siginfo_t *info, int opt);
+int signal_send(siginfo_t *info, struct tcb *t);
 void sigpending_init(struct sigpending *sig);
 int signal_handle(struct tcb *t);
 int do_handle(struct tcb *t, int sig_no, struct sigaction *sig_act);
-void signal_DFL(struct tcb *t, int signo);
+void signal_DFL(struct tcb *t, sig_t signo);
 int do_sigaction(int sig, struct sigaction *act, struct sigaction *oact);
 int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset);
-int setup_rt_frame(struct sigaction *sig, int signo, sigset_t *set, struct trapframe *tf);
-void signal_trapframe_setup(struct tcb *t);
-void signal_trapframe_restore(struct tcb *t);
+int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct trapframe *tf);
+int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf);
+int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf);
 
 #endif

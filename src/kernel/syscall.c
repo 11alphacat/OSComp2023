@@ -71,6 +71,14 @@ int argint(int n, int *ip) {
         return 0;
 }
 
+int arguint(int n, uint *ip) {
+    *ip = argraw(n);
+    if (*ip < 0)
+        return -1;
+    else
+        return 0;
+}
+
 // int arglong(int n, uint64 *ip) {
 //     *ip = argraw(n);
 //     if (*ip < 0)

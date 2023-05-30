@@ -763,7 +763,7 @@ uint64 sys_unlinkat(void) {
     }
     dp->i_op->iunlock_put(dp);
 
-    ip->i_nlink--;
+    ip->i_nlink--; // !!!
 #ifdef __DEBUG_FS__
     printfGreen("unlinkat : pid %d, file (%s) nlinks %d -> %d\n", proc_current()->pid, ip->fat32_i.fname, ip->i_nlink + 1, ip->i_nlink);
 #endif

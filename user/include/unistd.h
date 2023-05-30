@@ -60,7 +60,7 @@ int unlink(const char *path);
 /* busybox */
 int mknod(const char* path, short major, short minor);
 char *sbrk(int);
-int kill(int);
+int kill(int, sig_t);
 void shutdown();
 int clock_gettime(clockid_t clockid, struct timespec *tp);
 int sysinfo(struct sysinfo *info);

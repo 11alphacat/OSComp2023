@@ -1,6 +1,5 @@
 #include "stddef.h"
 #include "unistd.h"
-
 #include "syscall.h"
 
 int open(const char *path, int flags)
@@ -233,8 +232,8 @@ char *sbrk(int increment) {
     return syscall(SYS_sbrk, increment);
 }
 
-int kill(int pid) {
-    return syscall(SYS_kill, pid);
+int kill(int pid, sig_t signo) {
+    return syscall(SYS_kill, pid, signo);
 }
 
 void shutdown() {

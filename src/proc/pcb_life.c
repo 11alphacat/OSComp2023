@@ -536,28 +536,28 @@ void reparent(struct proc *p) {
     }
 }
 
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
-int proc_kill(int pid) {
-    struct proc *p;
-    if ((p = find_get_pid(pid)) == NULL)
-        return -1;
-    p->killed = 1;
-    release(&p->lock);
+// // Kill the process with the given pid.
+// // The victim won't exit until it tries to return
+// // to user space (see usertrap() in trap.c).
+// int proc_kill(int pid) {
+//     struct proc *p;
+//     if ((p = find_get_pid(pid)) == NULL)
+//         return -1;
+//     p->killed = 1;
+//     release(&p->lock);
 
-#ifdef __DEBUG_PROC__
-    printfCYAN("kill : kill %d\n", p->pid); // debug
-#endif
+// #ifdef __DEBUG_PROC__
+//     printfCYAN("kill : kill %d\n", p->pid); // debug
+// #endif
 
-    //  wakeup all sleeping thread
-    proc_wakeup_all_thread(p);
-    // if (p->state == PCB_SLEEPING) {
-    //     // Wake process from sleep().
-    //     PCB_Q_changeState(p, PCB_RUNNABLE);
-    // }
-    return 0;
-}
+//     //  wakeup all sleeping thread
+//     proc_wakeup_all_thread(p);
+//     // if (p->state == PCB_SLEEPING) {
+//     //     // Wake process from sleep().
+//     //     PCB_Q_changeState(p, PCB_RUNNABLE);
+//     // }
+//     return 0;
+// }
 
 void proc_setkilled(struct proc *p) {
     acquire(&p->lock);

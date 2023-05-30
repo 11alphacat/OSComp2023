@@ -249,8 +249,8 @@ static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
         if (ph.vaddr + ph.memsz < ph.vaddr)
             goto unlock_put;
 
-        /* off: start offset in misaligned page 
-           size: read size of misaligned page 
+        /* off: start offset in misaligned page
+           size: read size of misaligned page
         */
         uint64 off = 0, size = 0;
         paddr_t aligned_vaddr = PGROUNDDOWN(ph.vaddr);

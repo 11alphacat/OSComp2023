@@ -157,11 +157,12 @@ struct sysinfo {
     // char _f[20-2*sizeof(long)-sizeof(int)]; /* Padding to 64 bytes */
 };
 
+typedef uint64 sig_t;
 typedef void (*sighandler_t)(int);
 
 // signal sets
 typedef struct {
-    uint32 sig;
+    uint64 sig;
 } sigset_t;
 
 typedef void __signalfn_t(int);
@@ -174,6 +175,7 @@ struct sigaction {
 };
 
 #define SIGINT 2
+#define SIGKILL 9
 
 typedef long int off_t;
 

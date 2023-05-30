@@ -202,14 +202,6 @@ uint64 sys_print_pgtable(void) {
     return 0;
 }
 
-uint64
-sys_kill(void) {
-    int pid;
-
-    argint(0, &pid);
-    return proc_kill(pid);
-}
-
 // return how many clock tick interrupts have occurred
 // since start.
 uint64
@@ -268,9 +260,6 @@ uint64 sys_rt_sigaction(void) {
         if (copyin(p->pagetable, (char *)&act, act_addr, sizeof(act)) < 0) {
             return -1;
         }
-        // if (copyin(p->pagetable, (char *)&act_real.sa_handler, (uint64)act.sa_handler, sizeof(act.sa_handler)) < 0) {
-        //     return -1;
-        // }
     }
 
     ret = do_sigaction(signum, act_addr ? &act : NULL, oldact_addr ? &oldact : NULL);
@@ -326,7 +315,84 @@ uint64 sys_rt_sigprocmask(void) {
 // return from signal handler and cleanup stack frame
 uint64 sys_rt_sigreturn(void) {
     struct tcb *t = thread_current();
+    // signal_queue_pop(sig_gen_mask(t->sig_ing), &(t->pending));
+    // signal_trapframe_restore(t);
+    signal_frame_restore(t, (struct rt_sigframe *)t->trapframe->sp);
+    return 0;
+}
 
-    signal_trapframe_restore(t);
+// pid_t pid, sig_t signo
+uint64 sys_kill(void) {
+    int pid;
+    sig_t signo;
+
+    argint(0, &pid);
+    argulong(1, &signo);
+
+    struct proc *p;
+    if ((p = find_get_pid(pid)) == NULL)
+        return -1;
+    release(&p->lock);
+
+    // empty signal
+    if (signo == 0) {
+        return 0;
+    }
+
+#ifdef __DEBUG_PROC__
+    printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
+#endif
+    proc_sendsignal_all_thread(p, signo, 0);
+    return 0;
+}
+
+// int tkill(int tid, sig_t sig);
+uint64 sys_tkill() {
+    int tid;
+    sig_t signo;
+
+    argint(0, &tid);
+    argulong(1, &signo);
+
+    struct tcb *t;
+    if ((t = find_get_tid(tid)) == NULL)
+        return -1;
+    release(&t->lock);
+
+    // empty signal
+    if (signo == 0) {
+        return 0;
+    }
+
+    // do_tkill
+    do_tkill(t, signo);
+
+    return 0;
+}
+
+// int tgkill(int tgid, int tid, sig_t sig);
+// tgid为目标线程所在进程的进程ID，tid为目标线程的内部线程ID，而不是全局线程ID
+uint64 sys_tgkill() {
+    int tgid; // equal to pid
+    int tid;  // equal to tidx
+    sig_t signo;
+
+    argint(0, &tgid);
+    argint(1, &tid);
+    argulong(2, &signo);
+
+    struct tcb *t;
+    if ((t = find_get_tidx(tgid, tid)) == NULL)
+        return -1;
+    release(&t->lock);
+
+    // empty signal
+    if (signo == 0) {
+        return 0;
+    }
+
+    // do_tkill
+    do_tkill(t, signo);
+
     return 0;
 }

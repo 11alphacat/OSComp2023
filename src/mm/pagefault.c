@@ -69,13 +69,13 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
     }
     /* write to an unshared page is illegal */
     if ((flags & PTE_SHARE) == 0) {
-        printf("try to write a readonly page");
+        printf("pagefault : try to write a readonly page\n");
         return -1;
     }
 
     /* write to readonly shared page is illegal */
     if ((flags & PTE_READONLY) > 0) {
-        printf("try to write a readonly page");
+        printf("pagefault : try to write a readonly page\n");
         return -1;
     }
 

@@ -3,7 +3,6 @@
 # proc
 172  getpid          sys_getpid
 93   exit            sys_exit
-129   kill            sys_kill
 11  sbrk            sys_sbrk
 214  brk            sys_brk
 215  munmap            sys_munmap
@@ -68,4 +67,6 @@
 116	syslog	sys_syslog
 88	utimensat	sys_utimensat
 66 writev   sys_writev
-
+129 kill sys_kill
+130 tkill sys_tkill
+131 tgkill sys_tgkill

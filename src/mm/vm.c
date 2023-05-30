@@ -634,13 +634,13 @@ int cow(pagetable_t pagetable, uint64 stval) {
     }
     /* write to an unshared page is illegal */
     if ((flags & PTE_SHARE) == 0) {
-        printf("try to write a readonly page");
+        printf("cow : try to write a readonly page\n");
         return -1;
     }
 
     /* write to readonly shared page is illegal */
     if ((flags & PTE_READONLY) > 0) {
-        printf("try to write a readonly page");
+        printf("cow : try to write a readonly page\n");
         return -1;
     }
 

@@ -64,10 +64,10 @@ void thread_usertrap(void) {
     // save user program counter.
     t->trapframe->epc = r_sepc();
 
-    if (r_scause() == 8) {
+    if (r_scause() == SYSCALL) {
         // system call
 
-        if (proc_killed(p))
+        if (thread_killed(t))
             do_exit(-1);
 
         // sepc points to the ecall instruction,
@@ -97,23 +97,24 @@ void thread_usertrap(void) {
                 printf("process %s\n", p->name);
                 printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
                 printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-                proc_setkilled(p);
+                proc_sendsignal_all_thread(p, SIGKILL, 1);
             }
         } else {
             printf("process %s\n", p->name);
             printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
             printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-            proc_setkilled(p);
+            proc_sendsignal_all_thread(p, SIGKILL, 1);
         }
     }
 
-    if (proc_killed(p))
+    if (thread_killed(t))
         do_exit(-1);
 
     // give up the CPU if this is a timer interrupt.
     if (which_dev == 2)
         thread_yield();
 
+    // handle the signal
     signal_handle(t);
 
     thread_usertrapret();
