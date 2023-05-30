@@ -545,10 +545,13 @@ void fat32_inode_lock(struct inode *ip) {
         if (ip->fat32_i.cluster_start != 0) {
             ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
         } else {
+            printfRed("the cluster_start of the file %s is zero\n ", ip->fat32_i.fname);
             uint sec_pos = DEBUG_SECTOR(ip, sector_num); // debug
             printf("%x\n", sec_pos);
-            printfRed("the cluster_start of the file %s is zero\n ", ip->fat32_i.fname);
+            printf("%s\n", dirent_s_tmp->DIR_Name);
         }
+        // printfRed("fname : %s\n ", ip->fat32_i.fname);
+        // printf("DIR_NAME : %s\n", dirent_s_tmp->DIR_Name);
         ip->fat32_i.DIR_CrtTimeTenth = dirent_s_tmp->DIR_CrtTimeTenth;
 
         ip->fat32_i.DIR_CrtTime = dirent_s_tmp->DIR_CrtTime;
@@ -673,7 +676,7 @@ void fat32_inode_put(struct inode *ip) {
         release(&inode_table.lock);
         fat32_inode_trunc(ip);
         ip->fat32_i.Attr = 0;
-        fat32_inode_update(ip);
+        // fat32_inode_update(ip);
         ip->valid = 0;
 
         sema_signal(&ip->i_sem);
@@ -713,7 +716,7 @@ void fat32_inode_trunc(struct inode *ip) {
     ip->i_rdev = 0;
     ip->i_mode = IMODE_NONE;
     ip->i_size = 0;
-    fat32_inode_update(ip);
+    // fat32_inode_update(ip);
 }
 
 // update
@@ -737,7 +740,7 @@ void fat32_inode_update(struct inode *ip) {
     // memmove((void *)&dirent_s_tmp->DIR_WrtTime, (void *)&ip->fat32_i.DIR_WrtTime, sizeof(ip->fat32_i.DIR_WrtTime));
 
     if (ip->fat32_i.cluster_start == 0) {
-        printfRed("ready\n");
+        printfRed("update : ready\n");
     }
     dirent_s_tmp->DIR_FstClusHI = DIR_FIRST_HIGH(ip->fat32_i.cluster_start);
     dirent_s_tmp->DIR_FstClusLO = DIR_FIRST_LOW(ip->fat32_i.cluster_start);
@@ -1118,9 +1121,9 @@ int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar attr, 
     uint first_c = fat32_cluster_alloc(ip_parent->i_dev);
 
     // debug
-    if (first_c == 0) {
-        printfRed("ready\n");
-    }
+    // if (first_c == 0) {
+    //     printfRed("alloc: ready\n");
+    // }
 
     dirent_s_cur.DIR_FstClusHI = DIR_FIRST_HIGH(first_c);
     dirent_s_cur.DIR_FstClusLO = DIR_FIRST_LOW(first_c);

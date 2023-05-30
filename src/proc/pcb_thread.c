@@ -287,7 +287,6 @@ void do_tkill(struct tcb *t, sig_t signo) {
     thread_send_signal(t, &info);
     release(&t->lock);
 }
-
 // // thread join
 // // similar to wait
 // int join_thread(struct tcb* thread, int* status) {
