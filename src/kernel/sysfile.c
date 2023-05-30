@@ -193,6 +193,64 @@ bad:
     return -1;
 }
 
+static uint64 do_renameat2(struct inode *ip, int newdirfd, char *newpath, int flags) {
+    char name[MAXPATH];
+    struct inode *dp;
+    ASSERT(flags == 0);
+    struct inode *newip;
+    newip = find_inode(newpath, newdirfd, 0);
+    if (unlikely(ip == newip)) {
+        // 指向同一个文件
+        return 0;
+    }
+
+    ip->i_op->ilock(ip);
+    if (likely(!newip)) {
+        // 新文件不存在
+        goto create;
+    }
+
+    // 新文件已存在
+    // 若 ip 指向一个文件而不是目录
+    if (!ip->i_op->idir(ip)) {
+        // 则 newip 若存在，不能指向目录
+        newip->i_op->ilock(newip);
+        if (newip->i_op->idir(newip)) {
+            newip->i_op->iunlock_put(newip);
+            ip->i_op->iunlock_put(ip);
+            return -1;
+        } else {
+            // 否则删除
+            goto remove;
+        }
+    } else {
+        // 若 ip 指向一个文件而不是目录
+        // 则 newip 若存在，必须指向一个空目录
+        newip->i_op->ilock(newip);
+        if (!newip->i_op->idir(newip) || !newip->i_op->idempty(newip)) {
+            newip->i_op->iunlock_put(newip);
+            ip->i_op->iunlock_put(ip);
+            return -1;
+        } else {
+            // 否则删除
+            goto remove;
+        }
+    }
+
+remove:
+    // 删除 newip 目录项，重命名 oldip 为 newname
+    dp = find_inode(newpath, newdirfd, name);
+    dp->i_op->ilock(dp);
+    dp->i_op->idelete(dp, newip);
+    newip->i_op->iupdate(newip);
+    newip->i_op->iunlock_put(newip);
+    dp->i_op->iunlock_put(dp); // >>
+    goto create;
+
+create:
+    return TODO(); // 重命名操作
+}
+
 static int assist_dupfd(struct file *f) {
     int ret;
     if ((ret = fdalloc(f)) > 0) {
@@ -698,7 +756,6 @@ uint64 sys_unlinkat(void) {
     // if (fat32_inode_write(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     //     panic("unlink: writei");
 
-
     if (ip->i_type == T_DIR) {
         // 试图删除的是空的目录文件
         dp->i_nlink--;
@@ -1089,4 +1146,55 @@ uint64 sys_sendfile(void) {
     }
 
     return do_sendfile(rf, wf, poff, count);
+}
+
+// pseudo implement
+uint64 sys_statfs(void) {
+    // ASSERT(0);
+    return 0;
+}
+// pseudo implement
+uint64 sys_utimensat(void) {
+    // ASSERT(0);
+    return 0;
+}
+
+// 功能：change the name or location of a file
+// 输入：
+// - olddirfd:
+// - oldpath: 旧文件路径
+// - newdirfd:
+// - newpath: 新文件路径
+// - flags:
+// 返回值：成功执行，返回0。错误，则返回-1。
+uint64 sys_renameat2(void) {
+    uint flags;
+    int olddirfd, newdirfd;
+    struct inode *oldip;
+    char oldpath[MAXPATH], newpath[MAXPATH];
+    argint(0, &olddirfd);
+    argint(2, &newdirfd);
+    if (argstr(1, oldpath, MAXPATH) < 0) {
+        return -1;
+    }
+    if (is_suffix(oldpath, ".") || is_suffix(oldpath, "..")) {
+        // 不能重命名 . 和 ..
+        return -1;
+    }
+    if (argstr(3, newpath, MAXPATH) < 0) {
+        return -1;
+    }
+    if (is_suffix(newpath, ".") || is_suffix(newpath, "..")) {
+        return -1;
+    }
+    argint(4, (int *)&flags);
+    ASSERT(flags == 0);
+
+    if ((oldip = find_inode(oldpath, olddirfd, 0)) == 0) {
+        return -1;
+    }
+
+    do_renameat2(oldip, newdirfd, newpath, flags);
+
+    return 0;
 }

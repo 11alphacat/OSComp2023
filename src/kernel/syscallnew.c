@@ -15,22 +15,8 @@ uint64 sys_mprotect(void) {
 // proc
 
 // filesystem
-uint64 sys_utimensat(void) {
-    ASSERT(0);
-    return 0;
-}
 
 uint64 sys_ioctl(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_renameat2(void) {
-    ASSERT(0);
-    return 0;
-}
-
-uint64 sys_statfs(void) {
     ASSERT(0);
     return 0;
 }

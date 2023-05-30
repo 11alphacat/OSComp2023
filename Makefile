@@ -25,6 +25,7 @@ TEST=user_test kalloctest mmaptest \
 	clock_gettime_test signal_test \
 	writev_test readv_test lseek_test \
 	sendfile_test
+
 OSCOMP=chdir close dup2 dup \
     fstat getcwd mkdir_ write \
     openat open read test_echo \
@@ -34,6 +35,7 @@ OSCOMP=chdir close dup2 dup \
     gettimeofday mmap munmap \
     uname wait waitpid yield \
     mount umount text.txt run-all.sh mnt
+
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
 BOOT=init
 BUSYBOX=busybox
@@ -110,7 +112,7 @@ ASFLAGS=$(CFLAGS)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
-CFLAGS += -fno-pie -no-pie
+CFLAGS += -fno-pie -no-pie0
 endif
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
@@ -169,12 +171,12 @@ export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS User
 
 image: user fat32.img
 
-# user: oscomp busybox
-user: busybox
+user: oscomp busybox
+# user: busybox
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/
 	@make -C $(User)
-#	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
+	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
 	@mv $(BINFILE) $(FSIMG)/bin/
 	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/test/

@@ -91,6 +91,10 @@ void str_toupper(char *);
 void str_tolower(char *);
 char *strchr(const char *, int);
 int str_split(const char *, const char, char *, char *);
+char *strcat(char *dest, const char *src);
+char *strstr(const char *haystack, const char *needle);
+int strcmp(const char *l, const char *r);
+int is_suffix(const char *str, const char *suffix);
 
 // printf.c
 void printf(char *, ...);

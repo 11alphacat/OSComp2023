@@ -270,6 +270,14 @@ ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     return syscall(SYS_sendfile, out_fd, in_fd, offset, count);
 }
 
+int statfs(const char *path, struct statfs *buf) {
+    return syscall(SYS_statfs, path, buf);
+}
+
+int renameat2(int olddirfd, const char *oldpath, 
+            int newdirfd, const char *newpath, unsigned int flags) {
+    return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+}
 
 /* debug */
 int print_pgtable() {
