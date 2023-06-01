@@ -109,5 +109,6 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info);
 struct tcb *find_get_tid(tid_t tid);
 struct tcb *find_get_tidx(int pid, int tidx);
 void do_tkill(struct tcb *t, sig_t signo);
+int do_sleep_ns(struct tcb *t, struct timespec ts);
 
 #endif

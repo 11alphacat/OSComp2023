@@ -86,35 +86,6 @@ uint64 sys_sched_yield(void) {
     return 0;
 }
 
-struct timespec {
-    uint64 ts_sec;  /* Seconds */
-    uint64 ts_nsec; /* Nanoseconds */
-};
-
-struct timeval {
-    uint64 tv_sec;  /* Seconds */
-    uint64 tv_usec; /* Microseconds */
-};
-
-#define FREQUENCY 12500000 // qemu时钟频率12500000
-#define TIME2SEC(time) (time / FREQUENCY)
-#define TIME2MS(time) (time * 1000 / FREQUENCY)
-#define TIME2US(time) (time * 1000 * 1000 / FREQUENCY)
-#define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
-
-#define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
-#define NS_to_S(ns) (ns / (1000 * 1000 * 1000))
-
-#define TIME2TIMESPEC(time)                                                       \
-    (struct timespec) {                                                           \
-        .ts_sec = TIME2SEC(time), .ts_nsec = TIME2NS(time) % (1000 * 1000 * 1000) \
-    }
-
-#define TIME2TIMEVAL(time)                                                 \
-    (struct timeval) {                                                     \
-        .tv_sec = TIME2SEC(time), .tv_usec = TIME2US(time) % (1000 * 1000) \
-    }
-
 /*
  * 功能：获取时间；
  * 输入： timespec结构体指针用于获得时间值；
@@ -150,20 +121,7 @@ uint64 sys_nanosleep(void) {
         return -1;
     }
 
-    uint64 interval_ns = TIMESEPC2NS(ts_buf);
-    uint64 time0 = TIME2NS(rdtime());
-
-    acquire(&tickslock);
-    while (TIME2NS(rdtime()) - time0 < interval_ns) {
-        if (proc_killed(proc_current())) {
-            release(&tickslock);
-            return -1;
-        }
-        // sleep(&ticks, &tickslock);
-        cond_wait(&cond_ticks, &tickslock);
-    }
-    release(&tickslock);
-
+    do_sleep_ns(thread_current(), ts_buf);
     return 0;
 }
 

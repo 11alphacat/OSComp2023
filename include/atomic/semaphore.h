@@ -1,7 +1,7 @@
 #ifndef __SEMAPHORE_H__
 #define __SEMAPHORE_H__
 #include "atomic/spinlock.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "list.h"
 
 // semaphore

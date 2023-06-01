@@ -21,7 +21,7 @@
 #include "driver/uart.h"
 #include "proc/pcb_mm.h"
 #include "proc/signal.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "atomic/semaphore.h"
 #include "kernel/trap.h"
 #include "fs/stat.h"

@@ -7,7 +7,7 @@
 
 #include "kernel/trap.h"
 #include "memory/allocator.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "proc/signal.h"
 // #include "fs/fat/fat32_mem.h"
 // #include "fs/fat/fat32_file.h"

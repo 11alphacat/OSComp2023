@@ -1,6 +1,6 @@
 #include "proc/pcb_life.h"
 #include "proc/pcb_thread.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "proc/sched.h"
 #include "kernel/cpu.h"
 #include "debug.h"

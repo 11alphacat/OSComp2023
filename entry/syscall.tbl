@@ -70,3 +70,4 @@
 129 kill sys_kill
 130 tkill sys_tkill
 131 tgkill sys_tgkill
+98 futex sys_futex

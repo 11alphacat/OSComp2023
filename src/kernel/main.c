@@ -31,6 +31,8 @@ void mm_init();
 void _user_init(void);
 void proc_init();
 void inode_table_init(void);
+void futex_table_init(void);
+void hash_tables_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
@@ -53,6 +55,10 @@ void main() {
         // Proc management
         proc_init(); // process table
         tcb_init();
+        futex_table_init(); // futex table
+
+        // map init
+        hash_tables_init();
 
         // Trap
         trapinit();     // trap vectors

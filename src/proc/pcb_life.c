@@ -12,7 +12,7 @@
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
 #include "proc/pcb_life.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
 #include "proc/pcb_mm.h"
@@ -24,6 +24,7 @@
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
+#include "hash.h"
 
 struct proc proc[NPROC];
 struct proc *initproc;
@@ -32,6 +33,8 @@ extern PCB_Q_t unused_p_q, used_p_q, zombie_p_q;
 extern TCB_Q_t unused_t_q, runnable_t_q, sleeping_t_q;
 
 extern PCB_Q_t *STATES[PCB_STATEMAX];
+
+extern struct hash_table pid_map;
 
 char proc_lock_name[NPROC][10];
 atomic_t next_pid;
@@ -130,6 +133,8 @@ struct proc *alloc_proc(void) {
     }
     INIT_LIST_HEAD(&p->head_vma);
 
+    // map <pid, p>
+    hash_insert(&pid_map, (void *)&(p->pid), (void *)p, PID_MAP);
     return p;
 }
 
@@ -165,6 +170,10 @@ void free_proc(struct proc *p) {
         kfree((void *)p->tg);
     p->tg = 0;
     p->sz = 0; // bug!
+
+    // delete <pid, t>
+    hash_delete(&pid_map, (void *)&p->pid, PID_MAP);
+
     p->pid = 0;
     p->parent = 0;
     p->name[0] = 0;
@@ -220,18 +229,9 @@ void proc_init(void) {
     return;
 }
 
-// find the proc we search
-// return the proc pointer with spinlock
-struct proc *find_get_pid(pid_t pid) {
-    struct proc *p;
-    for (p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
-        if (p->pid == pid) {
-            return p;
-        }
-        release(&p->lock);
-    }
-    return NULL;
+// find the proc we search using hash map
+inline struct proc *find_get_pid(pid_t pid) {
+    return (struct proc *)(hash_lookup(&pid_map, (void *)&pid, PID_MAP, NULL)->value);
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -536,29 +536,6 @@ void reparent(struct proc *p) {
     }
 }
 
-// // Kill the process with the given pid.
-// // The victim won't exit until it tries to return
-// // to user space (see usertrap() in trap.c).
-// int proc_kill(int pid) {
-//     struct proc *p;
-//     if ((p = find_get_pid(pid)) == NULL)
-//         return -1;
-//     p->killed = 1;
-//     release(&p->lock);
-
-// #ifdef __DEBUG_PROC__
-//     printfCYAN("kill : kill %d\n", p->pid); // debug
-// #endif
-
-//     //  wakeup all sleeping thread
-//     proc_wakeup_all_thread(p);
-//     // if (p->state == PCB_SLEEPING) {
-//     //     // Wake process from sleep().
-//     //     PCB_Q_changeState(p, PCB_RUNNABLE);
-//     // }
-//     return 0;
-// }
-
 void proc_setkilled(struct proc *p) {
     acquire(&p->lock);
     p->killed = 1;
@@ -575,7 +552,7 @@ int proc_killed(struct proc *p) {
 }
 
 uint8 get_current_procs() {
-    // TODO : add lock to proc table??
+    // TODO : add lock to proc table??(maybe)
     uint8 procs = 0;
     struct proc *p;
     for (p = proc; p < &proc[NPROC]; p++) {

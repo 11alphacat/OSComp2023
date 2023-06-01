@@ -114,10 +114,6 @@ ushort fat32_longname_popstack(Stack_t *, uchar *, char *);
 uchar ChkSum(uchar *);
 
 // 21. lookup the inode given its parent inode and name
-struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
-struct inode *fat32_inode_get(uint, uint, const char *, uint);
-void fat32_inode_stati(struct inode *, struct kstat *);
-int fat32_inode_delete(struct inode *dp, struct inode *ip);
 
 // 22. create the fat32 inode
 struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor); // now use this

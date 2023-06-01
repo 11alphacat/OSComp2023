@@ -13,7 +13,7 @@
 #include "memory/vm.h"
 #include "debug.h"
 #include "proc/wait_queue.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "proc/signal.h"
 #include "proc/sched.h"
 #include "atomic/semaphore.h"
