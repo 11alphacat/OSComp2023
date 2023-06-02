@@ -4,9 +4,9 @@
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "atomic/spinlock.h"
-#include "list.h"
+#include "lib/list.h"
 #include "common.h"
 #include "proc/signal.h"
 

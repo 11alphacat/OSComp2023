@@ -3,8 +3,8 @@
 #include "proc/pcb_mm.h"
 #include "kernel/trap.h"
 #include "proc/sched.h"
-#include "riscv.h"
-#include "sbi.h"
+#include "lib/riscv.h"
+#include "lib/sbi.h"
 #include "memory/buddy.h"
 extern uint ticks;
 

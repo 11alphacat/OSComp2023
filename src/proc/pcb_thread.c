@@ -3,9 +3,9 @@
 #include "proc/pcb_thread.h"
 #include "proc/tcb_queue.h"
 #include "kernel/trap.h"
-#include "list.h"
+#include "lib/list.h"
 #include "debug.h"
-#include "hash.h"
+#include "lib/hash.h"
 
 struct tcb thread[NTCB];
 char tcb_lock_name[NTCB][10];

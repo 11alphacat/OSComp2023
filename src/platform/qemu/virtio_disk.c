@@ -6,7 +6,7 @@
 //
 
 #include "common.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "param.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"

@@ -1,8 +1,8 @@
 #include "memory/buddy.h"
 #include "common.h"
 #include "memory/memlayout.h"
-#include "list.h"
-#include "riscv.h"
+#include "lib/list.h"
+#include "lib/riscv.h"
 #include "debug.h"
 
 extern char end[]; // first address after kernel.

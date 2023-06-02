@@ -109,7 +109,7 @@ size_t strnlen(const char *s, size_t count) {
     return sc - s;
 }
 
-#include "ctype.h"
+#include "lib/ctype.h"
 void str_toupper(char *str) {
     if (str != NULL) {
         while (*str != '\0') {

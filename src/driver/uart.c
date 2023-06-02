@@ -5,7 +5,7 @@
 #include "common.h"
 #include "param.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
 #include "driver/console.h"

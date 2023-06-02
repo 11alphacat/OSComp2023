@@ -6,7 +6,7 @@
 #include "param.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "memory/allocator.h"
 #include "memory/buddy.h"
 #include "debug.h"

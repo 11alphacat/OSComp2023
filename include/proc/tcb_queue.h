@@ -2,7 +2,7 @@
 #define __TCB_QUEUE_H__
 
 #include "common.h"
-#include "list.h"
+#include "lib/list.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_thread.h"
 

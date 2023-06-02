@@ -1,6 +1,6 @@
 #include "common.h"
 #include "memory/vma.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "kernel/trap.h"
 #include "proc/pcb_life.h"
 #include "memory/vm.h"

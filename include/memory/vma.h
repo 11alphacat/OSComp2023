@@ -2,7 +2,7 @@
 #define __VMA_H__
 
 #include "common.h"
-#include "list.h"
+#include "lib/list.h"
 
 #define NVMA 1000
 

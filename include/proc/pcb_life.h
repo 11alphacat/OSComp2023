@@ -5,7 +5,7 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
-#include "list.h"
+#include "lib/list.h"
 #include "proc/signal.h"
 #include "atomic/semaphore.h"
 // #include "fs/fat/fat32_disk.h"

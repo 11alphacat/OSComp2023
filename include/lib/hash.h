@@ -2,7 +2,7 @@
 #define __HASH_H__
 
 #include "atomic/spinlock.h"
-#include "list.h"
+#include "lib/list.h"
 #include "param.h"
 #include "param.h"
 

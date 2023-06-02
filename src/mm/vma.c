@@ -3,8 +3,8 @@
 #include "atomic/spinlock.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
-#include "riscv.h"
-#include "list.h"
+#include "lib/riscv.h"
+#include "lib/list.h"
 #include "debug.h"
 #include "memory/vm.h"
 

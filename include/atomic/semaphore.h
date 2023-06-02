@@ -2,7 +2,7 @@
 #define __SEMAPHORE_H__
 #include "atomic/spinlock.h"
 #include "atomic/cond.h"
-#include "list.h"
+#include "lib/list.h"
 
 // semaphore
 struct semaphore {

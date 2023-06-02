@@ -1,7 +1,7 @@
 #ifndef __WAIT_QUEUE_H__
 #define __WAIT_QUEUE_H__
 #include "atomic/spinlock.h"
-#include "list.h"
+#include "lib/list.h"
 
 struct tcb;
 struct Waiting_Q {

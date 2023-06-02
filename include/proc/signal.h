@@ -3,7 +3,7 @@
 #include "common.h"
 #include "atomic/atomic.h"
 #include "atomic/spinlock.h"
-#include "list.h"
+#include "lib/list.h"
 #include "kernel/trap.h"
 
 #define SIGKILL 9

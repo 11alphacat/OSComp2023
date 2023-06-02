@@ -6,7 +6,7 @@
 #include "kernel/trap.h"
 #include "errno.h"
 #include "debug.h"
-#include "list.h"
+#include "lib/list.h"
 
 // delete signals related to the mask in the pending queue
 int signal_queue_pop(uint64 mask, struct sigpending *pending) {

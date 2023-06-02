@@ -2,7 +2,7 @@
 #include "proc/pcb_queue.h"
 #include "proc/sched.h"
 #include "atomic/spinlock.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "kernel/cpu.h"
 #include "proc/sched.h"
 #include "kernel/trap.h"

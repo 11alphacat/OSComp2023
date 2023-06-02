@@ -1,7 +1,7 @@
 #include "proc/wait_queue.h"
 #include "proc/pcb_life.h"
 #include "proc/tcb_queue.h"
-#include "list.h"
+#include "lib/list.h"
 
 // init
 void Waiting_Q_init(Waiting_Q_t *waiting_q, char *name) {

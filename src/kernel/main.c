@@ -1,7 +1,7 @@
 #include "common.h"
 #include "param.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "proc/pcb_life.h"
 #include "kernel/cpu.h"
 #include "fs/fat/fat32_mem.h"

@@ -4,7 +4,7 @@
 #include "proc/wait_queue.h"
 #include "proc/sched.h"
 #include "atomic/futex.h"
-#include "list.h"
+#include "lib/list.h"
 #include "debug.h"
 
 // global futex struct table (similar to inode table)

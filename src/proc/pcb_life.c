@@ -1,6 +1,6 @@
 #include "common.h"
 #include "param.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "debug.h"
 #include "test.h"
 #include "atomic/atomic.h"
@@ -24,7 +24,7 @@
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
-#include "hash.h"
+#include "lib/hash.h"
 
 struct proc proc[NPROC];
 struct proc *initproc;

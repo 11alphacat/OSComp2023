@@ -2,7 +2,7 @@
 #include "common.h"
 #include "memory/memlayout.h"
 #include "proc/exec.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 
 #include "memory/vm.h"
 #include "debug.h"

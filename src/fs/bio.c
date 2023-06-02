@@ -17,11 +17,11 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 
-#include "riscv.h"
+#include "lib/riscv.h"
 
 #include "fs/bio.h"
 #include "driver/virtio.h"
-#include "list.h"
+#include "lib/list.h"
 
 struct {
     struct spinlock lock;

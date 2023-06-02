@@ -1,6 +1,6 @@
 #include "common.h"
 #include "proc/pipe.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"

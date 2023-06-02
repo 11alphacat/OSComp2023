@@ -1,5 +1,5 @@
 #include "kernel/cpu.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 
 struct thread_cpu t_cpus[NCPU];
 

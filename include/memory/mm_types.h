@@ -3,9 +3,9 @@
 
 #include "common.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "atomic/atomic.h"
-#include "list.h"
+#include "lib/list.h"
 
 #define PAGE_NUMS ((PHYSTOP - KERNBASE) / PGSIZE)
 

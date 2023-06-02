@@ -5,7 +5,7 @@
 #include "memory/vma.h"
 #include "fs/fcntl.h"
 #include "memory/vm.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "fs/vfs/fs.h"
 
 // return (void *)0xfffff...ff to indicate fail

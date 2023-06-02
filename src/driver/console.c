@@ -16,7 +16,7 @@
 #include "atomic/spinlock.h"
 
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "proc/pcb_life.h"
 #include "driver/uart.h"
 #include "proc/pcb_mm.h"

@@ -1,5 +1,5 @@
 #include "common.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "proc/pcb_mm.h"
 #include "proc/pcb_life.h"
 #include "kernel/trap.h"

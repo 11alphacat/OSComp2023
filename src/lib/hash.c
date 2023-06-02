@@ -1,7 +1,7 @@
 
 #include "memory/allocator.h"
 #include "atomic/spinlock.h"
-#include "hash.h"
+#include "lib/hash.h"
 #include "debug.h"
 
 struct hash_table pid_map = {.lock = INIT_SPINLOCK(pid_hash_table),

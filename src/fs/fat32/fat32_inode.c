@@ -11,7 +11,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_disk.h"
 #include "kernel/trap.h"
-#include "ctype.h"
+#include "lib/ctype.h"
 
 extern struct file_operations fat32_fop;
 extern struct inode_operations fat32_iop;
