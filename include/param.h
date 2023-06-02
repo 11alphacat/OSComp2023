@@ -4,10 +4,11 @@
 #define NPROC 32 // maximum number of processes
 #define NTCB_PER_PROC 10
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
-#define NCPU 4                    // maximum number of CPUs
-#define NOFILE 128                // open files per process
-#define NFILE 100                 // open files per system
-#define NINODE 50                 // maximum number of active i-nodes
+#define NCPU 4     // maximum number of CPUs
+#define NOFILE 128 // open files per process
+#define NFILE 100  // open files per system
+
+#define NINODE 100                // maximum number of active i-nodes
 #define NDEV 10                   // maximum major device number
 #define ROOTDEV 1                 // device number of file system root disk
 #define MAXARG 32                 // max exec arguments

@@ -25,7 +25,6 @@
 
 struct futex {
     struct spinlock lock;
-    // struct Waiting_Q waiting_queue;
     struct Queue waiting_queue;
     uint64 uaddr;
     uint8 valid;

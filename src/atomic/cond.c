@@ -26,7 +26,7 @@ void cond_wait(struct cond *cond, struct spinlock *mutex) {
     TCB_Q_changeState(t, TCB_SLEEPING);
 
     // Queue_push_back_atomic(&cond->waiting_queue, (void*)t);;
-    Queue_push_back(&cond->waiting_queue, (void*)t);
+    Queue_push_back(&cond->waiting_queue, (void *)t);
 
     // TODO : modify it to futex(ref to linux)
     release(mutex);
@@ -42,8 +42,8 @@ void cond_wait(struct cond *cond, struct spinlock *mutex) {
 void cond_signal(struct cond *cond) {
     struct tcb *t;
 
-    if (!Queue_isempty_atomic(&cond->waiting_queue)) {    
-        t = Queue_provide_atomic(&cond->waiting_queue, 1);// remove it
+    if (!Queue_isempty_atomic(&cond->waiting_queue)) {
+        t = Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
 
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");
@@ -61,7 +61,7 @@ void cond_signal(struct cond *cond) {
 void cond_broadcast(struct cond *cond) {
     struct tcb *t;
     while (!Queue_isempty_atomic(&cond->waiting_queue)) {
-        t = Queue_provide_atomic(&cond->waiting_queue, 1);// remove it 
+        t = Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
 
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");

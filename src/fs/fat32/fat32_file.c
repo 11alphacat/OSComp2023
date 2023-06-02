@@ -13,6 +13,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_stack.h"
 #include "fs/fat/fat32_file.h"
+#include "memory/allocator.h"
 
 // #define _O_READ              (~O_WRONLY)
 // #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
@@ -220,15 +221,20 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
     Stack_t fcb_stack;
     stack_init(&fcb_stack);
 
-    FAT_entry_t iter_n = dp->fat32_i.cluster_start;
+    FAT_entry_t iter_c_n = dp->fat32_i.cluster_start;
 
     int first_sector;
     uint off = 0;
     uint cnt = 0;
     int fname_len = 0;
+
+    if (dp->i_hash == NULL) {
+        dp->i_hash = (struct hash_table *)kmalloc(sizeof(struct hash_table));
+        fat32_inode_hash_init(dp->i_hash);
+    }
     // FAT seek cluster chains
-    while (!ISEOF(iter_n)) {
-        first_sector = FirstSectorofCluster(iter_n);
+    while (!ISEOF(iter_c_n)) {
+        first_sector = FirstSectorofCluster(iter_c_n);
         // sectors in a cluster
         for (int s = 0; s < (dp->i_sb->sectors_per_block); s++) {
             // uint sec_pos = DEBUG_SECTOR(dp, first_sector + s); // debug
@@ -263,9 +269,9 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
                     // speciall judgement for the first long directory in the data region
                     cnt++;
 
-                    ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
+                    uint ino = SECTOR_TO_FATINUM(first_sector + s, idx);
+                    ip_buf = fat32_inode_get(dp->i_dev, ino, name_buf, off);
                     ip_buf->parent = dp;
-                    // ip_buf->i_nlink = nlinks; // number of hard links
                     ip_buf->i_nlink = 1;
                     brelse(bp); // !!!!
 
@@ -294,7 +300,7 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
             }
             brelse(bp);
         }
-        iter_n = fat32_next_cluster(iter_n);
+        iter_c_n = fat32_next_cluster(iter_c_n);
     }
     stack_free(&fcb_stack);
     return nread;

@@ -41,9 +41,9 @@ void TCB_Q_ALL_INIT() {
 void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
     Queue_t *pcb_q_new = STATES[state_new];
     Queue_t *pcb_q_old = STATES[p->state];
-    Queue_remove_atomic(pcb_q_old, (void*)p);
+    Queue_remove_atomic(pcb_q_old, (void *)p);
 
-    Queue_push_back_atomic(pcb_q_new, (void*)p);
+    Queue_push_back_atomic(pcb_q_new, (void *)p);
 
     p->state = state_new;
     return;
@@ -52,13 +52,13 @@ void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
 void TCB_Q_changeState(struct tcb *t, enum thread_state state_new) {
     Queue_t *tcb_q_new = T_STATES[state_new];
     Queue_t *tcb_q_old = T_STATES[t->state];
-    
+
     if (t->state != TCB_RUNNING) {
-        Queue_remove_atomic(tcb_q_old, (void*)t);
+        Queue_remove_atomic(tcb_q_old, (void *)t);
     } else {
-        Queue_remove((void*)t, TCB_STATE_QUEUE);
+        Queue_remove((void *)t, TCB_STATE_QUEUE);
     }
-    Queue_push_back_atomic(tcb_q_new, (void*)t);
+    Queue_push_back_atomic(tcb_q_new, (void *)t);
 
     t->state = state_new;
     return;
@@ -101,7 +101,7 @@ void thread_scheduler(void) {
     for (;;) {
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
-        t = (struct tcb*) Queue_provide_atomic(&runnable_t_q, 1);// remove it
+        t = (struct tcb *)Queue_provide_atomic(&runnable_t_q, 1); // remove it
         if (t == NULL)
             continue;
         acquire(&t->lock);

@@ -18,7 +18,6 @@
 #include "param.h"
 #include "debug.h"
 
-
 #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 
 struct spinlock tickslock;

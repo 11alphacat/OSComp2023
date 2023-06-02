@@ -9,6 +9,7 @@
 #include "fs/fcntl.h"
 #include "fs/vfs/fs.h"
 #include "fs/fat/fat32_mem.h"
+#include "lib/hash.h"
 
 struct kstat;
 extern struct ftable _ftable;
@@ -104,6 +105,14 @@ struct inode {
     struct inode *parent;
 
     fs_t fs_type;
+
+    // O(1) to get inode information
+    struct hash_table *i_hash;
+
+    // speed up dirlookup
+    uint idx_hint;
+    uint off_hint;
+
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6inode_info xv6_i;

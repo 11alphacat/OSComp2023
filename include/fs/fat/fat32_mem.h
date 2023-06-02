@@ -5,6 +5,7 @@
 #include "fat32_disk.h"
 #include "fat32_stack.h"
 #include "fs/stat.h"
+#include "lib/hash.h"
 
 struct inode;
 
@@ -49,6 +50,11 @@ struct fat32_inode_info {
     uint32 cluster_end; // end num
     uint64 cluster_cnt; // number of clusters
     uint32 parent_off;  // offset in parent clusters
+};
+
+struct inode_cache {
+    uint32 ino;
+    uint32 off;
 };
 
 // 0. init the root fat32 inode
@@ -159,5 +165,14 @@ int fat32_inode_load_from_disk(struct inode *ip);
 
 // 35. is the inode a directory?
 int fat32_isdir(struct inode *);
+
+// 36. init the hash table of inode
+void fat32_inode_hash_init(struct hash_table *table);
+
+// 37. move cursor
+void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset);
+
+// 38. update fsinfo
+void fat32_update_fsinfo(uint dev);
 
 #endif

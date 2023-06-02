@@ -26,7 +26,6 @@
 #include "debug.h"
 #include "test.h"
 
-
 struct proc proc[NPROC];
 struct proc *initproc;
 
@@ -99,7 +98,7 @@ struct proc *alloc_proc(void) {
     struct proc *p;
     // fetch a unused proc from unused queue
     p = Queue_provide_atomic(&unused_p_q, 1);
-    
+
     if (p == NULL)
         return 0;
 

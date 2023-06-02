@@ -54,8 +54,8 @@ struct tcb *thread_current(void) {
 // allocate a new kernel thread
 struct tcb *alloc_thread(void) {
     struct tcb *t;
-    
-    t = (struct tcb*)Queue_provide_atomic(&unused_t_q, 1);// remove it from the queue
+
+    t = (struct tcb *)Queue_provide_atomic(&unused_t_q, 1); // remove it from the queue
     if (t == NULL)
         return 0;
     acquire(&t->lock);
@@ -65,7 +65,6 @@ struct tcb *alloc_thread(void) {
 
     t->tid = alloc_tid;
     cnt_tid_dec;
-
 
     // Allocate a trapframe page.
     if ((t->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -244,7 +243,7 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
     // wakeup thread sleeping of proc p
     if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
         if (t_cur->state == TCB_SLEEPING) {
-            Queue_remove_atomic(&cond_ticks.waiting_queue, (void*)t_cur); // bug
+            Queue_remove_atomic(&cond_ticks.waiting_queue, (void *)t_cur); // bug
             TCB_Q_changeState(t_cur, TCB_RUNNABLE);
         }
     }

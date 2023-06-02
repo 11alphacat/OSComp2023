@@ -31,7 +31,7 @@ struct hash_node *hash_entry(struct hash_table *table, void *key, enum hash_type
         hash_val = (uint64)key % table->size;
         node = table->futex_head + hash_val;
         break;
-    case NAME_MAP:
+    case INODE_MAP:
         hash_val = hash_str((char *)key) % table->size;
         node = table->inode_head + hash_val;
         break;
@@ -113,7 +113,7 @@ uint64 hash_val(struct hash_node *node, enum hash_type type) {
         break;
     case FUTEX_MAP:
         hash_val = (uint64)node->key_p;
-    case NAME_MAP:
+    case INODE_MAP:
         hash_val = hash_str(node->key_name);
         break;
 
@@ -134,7 +134,7 @@ uint64 hash_bool(struct hash_node *node, void *key, enum hash_type type) {
     case FUTEX_MAP:
         ret = ((uint64)node->key_p == (uint64)key);
         break;
-    case NAME_MAP:
+    case INODE_MAP:
         ret = (hash_str(node->key_name) == hash_str((char *)key));
         break;
     default:
@@ -153,7 +153,7 @@ void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
     case FUTEX_MAP:
         node->key_p = key;
         break;
-    case NAME_MAP:
+    case INODE_MAP:
         safestrcpy(node->key_name, (char *)key, strlen((char *)key));
         break;
     default:
@@ -161,7 +161,7 @@ void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
     }
 }
 
-void hash_table_init(struct hash_table *map, enum hash_type type) {
+void hash_table_list_init(struct hash_table *map, enum hash_type type) {
     for (int i = 0; i < map->size; i++) {
         switch (type) {
         case PID_MAP:
@@ -173,7 +173,7 @@ void hash_table_init(struct hash_table *map, enum hash_type type) {
         case FUTEX_MAP:
             INIT_LIST_HEAD(&map->futex_head[i].list);
             break;
-        case NAME_MAP:
+        case INODE_MAP:
             INIT_LIST_HEAD(&map->inode_head[i].list);
             break;
         default:
@@ -183,9 +183,11 @@ void hash_table_init(struct hash_table *map, enum hash_type type) {
 }
 
 void hash_tables_init() {
-    hash_table_init(&pid_map, PID_MAP);
-    hash_table_init(&tid_map, TID_MAP);
-    hash_table_init(&futex_map, FUTEX_MAP);
+    hash_table_list_init(&pid_map, PID_MAP);
+    hash_table_list_init(&tid_map, TID_MAP);
+    hash_table_list_init(&futex_map, FUTEX_MAP);
+    printfRed("hash table, size = %d\n", sizeof(struct hash_table));
+    printfRed("hash node, size = %d\n", sizeof(struct hash_node));
 }
 
 void hash_print(struct hash_table *map, enum hash_type type) {
@@ -207,7 +209,7 @@ void hash_print(struct hash_table *map, enum hash_type type) {
         case FUTEX_MAP:
             INIT_LIST_HEAD(&map->futex_head[i].list);
             break;
-        case NAME_MAP:
+        case INODE_MAP:
             INIT_LIST_HEAD(&map->inode_head[i].list);
             break;
         default:
