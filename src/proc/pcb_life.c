@@ -1,8 +1,3 @@
-#include "common.h"
-#include "param.h"
-#include "lib/riscv.h"
-#include "debug.h"
-#include "test.h"
 #include "atomic/atomic.h"
 #include "atomic/spinlock.h"
 #include "memory/memlayout.h"
@@ -18,21 +13,27 @@
 #include "proc/pcb_mm.h"
 #include "proc/exec.h"
 #include "proc/signal.h"
-#include "proc/wait_queue.h"
 #include "proc/options.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
 #include "lib/hash.h"
+#include "lib/queue.h"
+#include "lib/riscv.h"
+#include "common.h"
+#include "param.h"
+#include "debug.h"
+#include "test.h"
+
 
 struct proc proc[NPROC];
 struct proc *initproc;
 
-extern PCB_Q_t unused_p_q, used_p_q, zombie_p_q;
-extern TCB_Q_t unused_t_q, runnable_t_q, sleeping_t_q;
+extern Queue_t unused_p_q, used_p_q, zombie_p_q;
+extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
 
-extern PCB_Q_t *STATES[PCB_STATEMAX];
+extern Queue_t *STATES[PCB_STATEMAX];
 
 extern struct hash_table pid_map;
 
@@ -97,8 +98,8 @@ struct proc *proc_current(void) {
 struct proc *alloc_proc(void) {
     struct proc *p;
     // fetch a unused proc from unused queue
-    // fetch a unused thread from unused queue as its group leader
-    p = PCB_Q_provide(&unused_p_q, 1);
+    p = Queue_provide_atomic(&unused_p_q, 1);
+    
     if (p == NULL)
         return 0;
 
@@ -106,9 +107,6 @@ struct proc *alloc_proc(void) {
 
     p->pid = alloc_pid;
     cnt_pid_inc;
-
-    // state
-    PCB_Q_changeState(p, PCB_USED);
 
     // proc family
     p->first_child = NULL;
@@ -132,6 +130,9 @@ struct proc *alloc_proc(void) {
         return 0;
     }
     INIT_LIST_HEAD(&p->head_vma);
+
+    // state
+    PCB_Q_changeState(p, PCB_USED);
 
     // map <pid, p>
     hash_insert(&pid_map, (void *)&(p->pid), (void *)p, PID_MAP);
@@ -224,7 +225,7 @@ void proc_init(void) {
         initlock(&p->lock, proc_lock_name[i]);
 
         p->state = PCB_UNUSED;
-        PCB_Q_push_back(&unused_p_q, p);
+        Queue_push_back_atomic(&unused_p_q, p);
     }
     return;
 }

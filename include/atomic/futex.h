@@ -1,8 +1,8 @@
 #ifndef __FMUTEX_H__
 #define __FMUTEX_H__
-#include "common.h"
-#include "proc/wait_queue.h"
 #include "atomic/spinlock.h"
+#include "lib/queue.h"
+#include "common.h"
 
 #define FUTEX_PRIVATE_FLAG 128
 #define FUTEX_CLOCK_REALTIME 256
@@ -25,7 +25,8 @@
 
 struct futex {
     struct spinlock lock;
-    struct Waiting_Q waiting_queue;
+    // struct Waiting_Q waiting_queue;
+    struct Queue waiting_queue;
     uint64 uaddr;
     uint8 valid;
 };

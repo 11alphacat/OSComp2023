@@ -1,10 +1,9 @@
-#include "atomic/spinlock.h"
-#include "common.h"
-#include "proc/tcb_queue.h"
-#include "proc/wait_queue.h"
-#include "proc/sched.h"
 #include "atomic/futex.h"
+#include "atomic/spinlock.h"
+#include "proc/sched.h"
 #include "lib/list.h"
+#include "lib/queue.h"
+#include "common.h"
 #include "debug.h"
 
 // global futex struct table (similar to inode table)
@@ -14,7 +13,8 @@ void futex_table_init() {
     struct futex *entry;
     for (entry = futex_table; entry < &futex_table[FUTEX_NUM]; entry++) {
         initlock(&entry->lock, "futex lock");
-        Waiting_Q_init(&entry->waiting_queue, "futex queue lock");
+        // Waiting_Q_init(&entry->waiting_queue, "futex queue lock");
+        Queue_init(&entry->waiting_queue, "futex queue lock", TCB_WAIT_QUEUE);
         entry->uaddr = 0;
         entry->valid = 0;
     }

@@ -1,17 +1,17 @@
 #include "kernel/cpu.h"
 #include "proc/sched.h"
 #include "proc/pcb_thread.h"
-#include "proc/tcb_queue.h"
 #include "kernel/trap.h"
 #include "lib/list.h"
 #include "debug.h"
 #include "lib/hash.h"
+#include "lib/queue.h"
 
 struct tcb thread[NTCB];
 char tcb_lock_name[NTCB][10];
 
-extern TCB_Q_t unused_t_q, runnable_t_q, sleeping_t_q;
-extern TCB_Q_t *STATES[TCB_STATEMAX];
+extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
+extern Queue_t *STATES[TCB_STATEMAX];
 
 extern struct hash_table tid_map;
 atomic_t next_tid;
@@ -37,7 +37,7 @@ void tcb_init(void) {
 
         t->state = TCB_UNUSED;
         t->kstack = KSTACK((int)(t - thread));
-        TCB_Q_push_back(&unused_t_q, t);
+        Queue_push_back(&unused_t_q, t);
     }
     return;
 }
@@ -54,8 +54,8 @@ struct tcb *thread_current(void) {
 // allocate a new kernel thread
 struct tcb *alloc_thread(void) {
     struct tcb *t;
-
-    t = TCB_Q_provide(&unused_t_q, 1);
+    
+    t = (struct tcb*)Queue_provide_atomic(&unused_t_q, 1);// remove it from the queue
     if (t == NULL)
         return 0;
     acquire(&t->lock);
@@ -66,8 +66,6 @@ struct tcb *alloc_thread(void) {
     t->tid = alloc_tid;
     cnt_tid_dec;
 
-    // chage state of TCB
-    TCB_Q_changeState(t, TCB_USED);
 
     // Allocate a trapframe page.
     if ((t->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -90,6 +88,9 @@ struct tcb *alloc_thread(void) {
     memset(&t->context, 0, sizeof(t->context));
     t->context.ra = (uint64)thread_forkret;
     t->context.sp = t->kstack + PGSIZE;
+
+    // chage state of TCB
+    TCB_Q_changeState(t, TCB_USED);
 
     // map <tid, t>
     hash_insert(&tid_map, (void *)&t->tid, (void *)t, TID_MAP);
@@ -243,7 +244,7 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
     // wakeup thread sleeping of proc p
     if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
         if (t_cur->state == TCB_SLEEPING) {
-            Waiting_Q_remove_atomic(&cond_ticks.waiting_queue, t_cur); // bug
+            Queue_remove_atomic(&cond_ticks.waiting_queue, (void*)t_cur); // bug
             TCB_Q_changeState(t_cur, TCB_RUNNABLE);
         }
     }

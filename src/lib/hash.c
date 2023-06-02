@@ -14,7 +14,7 @@ struct hash_table futex_map = {.lock = INIT_SPINLOCK(futex_hash_table),
                                .type = TID_MAP,
                                .size = FUTEX_NUM};
 // find the table entry given the table，type and key
-struct hash_node *hash_entry(struct hash_table *table, void *key, enum type_table type) {
+struct hash_node *hash_entry(struct hash_table *table, void *key, enum hash_type type) {
     uint64 hash_val = 0;
     struct hash_node *node = NULL;
 
@@ -43,7 +43,7 @@ struct hash_node *hash_entry(struct hash_table *table, void *key, enum type_tabl
 }
 
 // lookup the hash table
-struct hash_node *hash_lookup(struct hash_table *table, void *key, enum type_table type, struct hash_node **entry) {
+struct hash_node *hash_lookup(struct hash_table *table, void *key, enum hash_type type, struct hash_node **entry) {
     struct hash_node *_entry = hash_entry(table, key, type);
 
     if (entry)
@@ -61,7 +61,7 @@ struct hash_node *hash_lookup(struct hash_table *table, void *key, enum type_tab
 }
 
 // insert the hash node into the table
-void hash_insert(struct hash_table *table, void *key, void *value, enum type_table type) {
+void hash_insert(struct hash_table *table, void *key, void *value, enum hash_type type) {
     struct hash_node *entry = NULL;
     struct hash_node *node = hash_lookup(table, key, type, &entry);
 
@@ -80,7 +80,7 @@ void hash_insert(struct hash_table *table, void *key, void *value, enum type_tab
 }
 
 // delete the inode given the key
-void hash_delete(struct hash_table *table, void *key, enum type_table type) {
+void hash_delete(struct hash_table *table, void *key, enum hash_type type) {
     struct hash_node *node = hash_lookup(table, key, type, NULL);
 
     acquire(&table->lock);
@@ -104,7 +104,7 @@ uint64 hash_str(char *name) {
 }
 
 // choose the key of hash node given type of hash table
-uint64 hash_val(struct hash_node *node, enum type_table type) {
+uint64 hash_val(struct hash_node *node, enum hash_type type) {
     uint64 hash_val = 0;
     switch (type) {
     case PID_MAP:
@@ -124,7 +124,7 @@ uint64 hash_val(struct hash_node *node, enum type_table type) {
 }
 
 // judge the key of hash node given key and type of hash table
-uint64 hash_bool(struct hash_node *node, void *key, enum type_table type) {
+uint64 hash_bool(struct hash_node *node, void *key, enum hash_type type) {
     uint64 ret = 0;
     switch (type) {
     case PID_MAP:
@@ -144,7 +144,7 @@ uint64 hash_bool(struct hash_node *node, void *key, enum type_table type) {
 }
 
 // assign the value of hash node given key and table type
-void hash_assign(struct hash_node *node, void *key, enum type_table type) {
+void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
     switch (type) {
     case PID_MAP:
     case TID_MAP:
@@ -161,7 +161,7 @@ void hash_assign(struct hash_node *node, void *key, enum type_table type) {
     }
 }
 
-void hash_table_init(struct hash_table *map, enum type_table type) {
+void hash_table_init(struct hash_table *map, enum hash_type type) {
     for (int i = 0; i < map->size; i++) {
         switch (type) {
         case PID_MAP:
@@ -188,7 +188,7 @@ void hash_tables_init() {
     hash_table_init(&futex_map, FUTEX_MAP);
 }
 
-void hash_print(struct hash_table *map, enum type_table type) {
+void hash_print(struct hash_table *map, enum hash_type type) {
     acquire(&map->lock);
     struct hash_node *node_cur = NULL;
     struct hash_node *node_tmp = NULL;
