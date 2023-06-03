@@ -1,5 +1,5 @@
 #include "common.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "param.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
@@ -9,10 +9,12 @@
 #include "memory/allocator.h"
 #include "debug.h"
 #include "proc/proc_mm.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "proc/signal.h"
 #include "proc/exec.h"
 #include "proc/pcb_thread.h"
+#include "atomic/futex.h"
+#include "common.h"
 
 #define ROOT_UID 0
 /*
@@ -169,8 +171,11 @@ uint64 sys_sbrk(void) {
 
     argint(0, &n);
     addr = proc_current()->mm->brk;
-    if (growheap(n) < 0)
+    if (growheap(n) < 0) {
+        // printf("free RAM : %d, grow : %d\n", get_free_mem(), n);
         return -1;
+    }
+        
     return addr;
 }
 
@@ -189,8 +194,10 @@ uint64 sys_brk(void) {
     }
     increment = (intptr_t)newaddr - (intptr_t)oldaddr;
 
-    if (growheap(increment) < 0)
-        return -1;
+    if (growheap(increment) < 0) {
+        // printf("free RAM : %ld, increment : %ld\n", get_free_mem(), increment);
+        return -1;        
+    }
     return oldaddr;
 }
 
@@ -200,14 +207,6 @@ uint64 sys_print_pgtable(void) {
     uint64 memsize = get_free_mem();
     Log("%dM", memsize / 1024 / 1024);
     return 0;
-}
-
-uint64
-sys_kill(void) {
-    int pid;
-
-    argint(0, &pid);
-    return proc_kill(pid);
 }
 
 // return how many clock tick interrupts have occurred
@@ -268,9 +267,6 @@ uint64 sys_rt_sigaction(void) {
         if (copyin(p->mm->pagetable, (char *)&act, act_addr, sizeof(act)) < 0) {
             return -1;
         }
-        // if (copyin(p->mm->pagetable, (char *)&act_real.sa_handler, (uint64)act.sa_handler, sizeof(act.sa_handler)) < 0) {
-        //     return -1;
-        // }
     }
 
     ret = do_sigaction(signum, act_addr ? &act : NULL, oldact_addr ? &oldact : NULL);
@@ -326,7 +322,146 @@ uint64 sys_rt_sigprocmask(void) {
 // return from signal handler and cleanup stack frame
 uint64 sys_rt_sigreturn(void) {
     struct tcb *t = thread_current();
-
-    signal_trapframe_restore(t);
+    // signal_queue_pop(sig_gen_mask(t->sig_ing), &(t->pending));
+    // signal_trapframe_restore(t);
+    signal_frame_restore(t, (struct rt_sigframe *)t->trapframe->sp);
     return 0;
+}
+
+// pid_t pid, sig_t signo
+uint64 sys_kill(void) {
+    int pid;
+    sig_t signo;
+
+    argint(0, &pid);
+    argulong(1, &signo);
+
+    struct proc *p;
+    if ((p = find_get_pid(pid)) == NULL)
+        return -1;
+    // release(&p->lock);
+
+    // empty signal
+    if (signo == 0) {
+        return 0;
+    }
+
+#ifdef __DEBUG_PROC__
+    printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
+#endif
+    proc_sendsignal_all_thread(p, signo, 0);
+    return 0;
+}
+
+// int tkill(int tid, sig_t sig);
+uint64 sys_tkill() {
+    int tid;
+    sig_t signo;
+
+    argint(0, &tid);
+    argulong(1, &signo);
+
+    struct tcb *t;
+    if ((t = find_get_tid(tid)) == NULL)
+        return -1;
+
+    // empty signal
+    if (signo == 0) {
+        return 0;
+    }
+
+    // do_tkill
+    do_tkill(t, signo);
+
+    return 0;
+}
+
+// int tgkill(int tgid, int tid, sig_t sig);
+// tgid为目标线程所在进程的进程ID，tid为目标线程的内部线程ID，而不是全局线程ID
+uint64 sys_tgkill() {
+    int tgid; // equal to pid
+    int tid;  // equal to tidx
+    sig_t signo;
+
+    argint(0, &tgid);
+    argint(1, &tid);
+    argulong(2, &signo);
+
+    struct tcb *t;
+    if ((t = find_get_tidx(tgid, tid)) == NULL)
+        return -1;
+    // release(&t->lock);
+
+    // empty signal
+    if (signo == 0) {
+        return 0;
+    }
+
+    // do_tkill
+    do_tkill(t, signo);
+
+    return 0;
+}
+
+// #define ktime_add_unsafe(lhs, rhs)	((u64) (lhs) + (rhs))
+// #define LONG_MAX	9223372036854775807L
+// #define KTIME_SEC_MAX			LONG_MAX
+// ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs)
+// {
+// 	ktime_t res = ktime_add_unsafe(lhs, rhs);
+
+// 	/*
+// 	 * We use KTIME_SEC_MAX here, the maximum timeout which we can
+// 	 * return to user space in a timespec:
+// 	 */
+// 	if (res < 0 || res < lhs || res < rhs)
+// 		res = ktime_set(KTIME_SEC_MAX, 0);
+
+// 	return res;
+// }
+//  long futex(uint32_t *uaddr, int futex_op, uint32_t val,
+//  const struct timespec *timeout,   /* or: uint32_t val2 */
+//  uint32_t *uaddr2, uint32_t val3);
+uint64 sys_futex() {
+    uint64 uaddr;
+    int futex_op;
+    uint32 val;
+    struct timespec timeout;
+    uint64 timeout_addr;
+    uint32 val2;
+    uint64 uaddr2;
+    uint32 val3;
+    argaddr(0, &uaddr);
+    argint(1, &futex_op);
+    arguint(2, &val);
+    argaddr(3, &timeout_addr);
+    argaddr(4, &uaddr2);
+    arguint(5, &val3);
+
+    struct proc *p = proc_current();
+    int cmd = futex_op & FUTEX_CMD_MASK;
+    // ktime_t t;
+    if (timeout_addr && (cmd == FUTEX_WAIT
+                         // cmd == FUTEX_LOCK_PI ||
+                         // cmd == FUTEX_WAIT_BITSET ||
+                         // cmd == FUTEX_WAIT_REQUEUE_PI
+                         )) {
+        // if (unlikely(should_fail_futex(!(futex_op & FUTEX_PRIVATE_FLAG))))
+        //     return -1;
+        if (copyin(p->mm->pagetable, (char *)&timeout, timeout_addr, sizeof(struct timespec)) < 0) {
+            return -1;
+        }
+        if (!timespec64_valid(&timeout))
+            return -1;
+        // t = timespec64_to_ktime(timeout);
+        // if (cmd == FUTEX_WAIT)
+        // 	t = ktime_add_safe(ktime_get(), t);
+        // else if (!(op & FUTEX_CLOCK_REALTIME))
+        // 	t = timens_ktime_to_host(CLOCK_MONOTONIC, t);
+    }
+    if (cmd == FUTEX_REQUEUE || cmd == FUTEX_CMP_REQUEUE || cmd == FUTEX_CMP_REQUEUE_PI || cmd == FUTEX_WAKE_OP) {
+        arguint(3, &val2);
+    }
+
+    return do_futex(uaddr, futex_op, val, timeout, uaddr2, val2, val3);
 }

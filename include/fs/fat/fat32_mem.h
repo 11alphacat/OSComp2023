@@ -5,6 +5,7 @@
 #include "fat32_disk.h"
 #include "fat32_stack.h"
 #include "fs/stat.h"
+#include "lib/hash.h"
 
 struct inode;
 
@@ -49,6 +50,11 @@ struct fat32_inode_info {
     uint32 cluster_end; // end num
     uint64 cluster_cnt; // number of clusters
     uint32 parent_off;  // offset in parent clusters
+};
+
+struct inode_cache {
+    uint32 ino;
+    uint32 off;
 };
 
 // 0. init the root fat32 inode
@@ -114,10 +120,6 @@ ushort fat32_longname_popstack(Stack_t *, uchar *, char *);
 uchar ChkSum(uchar *);
 
 // 21. lookup the inode given its parent inode and name
-struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
-struct inode *fat32_inode_get(uint, uint, const char *, uint);
-void fat32_inode_stati(struct inode *, struct kstat *);
-int fat32_inode_delete(struct inode *dp, struct inode *ip);
 
 // 22. create the fat32 inode
 struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor); // now use this
@@ -158,10 +160,28 @@ void fat32_zero_cluster(uint64 c_num);
 // 33. short name parser
 void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
 
-// 34. load inode from disk
-int fat32_inode_load_from_disk(struct inode *ip);
-
 // 35. is the inode a directory?
 int fat32_isdir(struct inode *);
+
+// 36. init the hash table of inode
+void fat32_inode_hash_init(struct inode* dp);
+
+// 37. move cursor
+void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset);
+
+// 38. update fsinfo
+void fat32_update_fsinfo(uint dev);
+
+// 39. insert inode hash table
+int fat32_inode_hash_insert(struct inode* dp, const char* name, uint ino, uint off);
+
+// 40. lookup the hash table of inode
+struct inode* fat32_inode_hash_lookup(struct inode* dp, const char* name);
+
+// 41. delete hash table of inode
+void fat32_inode_hash_destroy(struct inode* dp);
+
+// 42. dirlookup with hint
+struct inode *fat32_inode_dirlookup_with_hint(struct inode *dp, const char *name, uint *poff);
 
 #endif

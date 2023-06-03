@@ -3,7 +3,7 @@
 #include "unistd.h"
 #include "stdio.h"
 #include "string.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "stdlib.h"
 #include "fs/vfs/fs_macro.h"
 

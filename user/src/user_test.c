@@ -184,7 +184,7 @@ void reparent() {
         } else {
             int pid2 = fork();
             if (pid2 < 0) {
-                kill(master_pid);
+                kill(master_pid, SIGKILL);
                 exit(1);
             }
             exit(0);
@@ -487,9 +487,9 @@ void preempt() {
     }
     close(pfds[0]);
     printf("kill... ");
-    kill(pid1);
-    kill(pid2);
-    kill(pid3);
+    kill(pid1, SIGKILL);
+    kill(pid2, SIGKILL);
+    kill(pid3, SIGKILL);
     printf("wait... ");
     wait(0);
     wait(0);
@@ -516,7 +516,7 @@ void killstatus() {
             exit(0);
         }
         sleep(1);
-        kill(pid1);
+        kill(pid1, SIGKILL);
         wait(&xst);
         if (xst != (-1 << 8)) {
             printf("%d %d\n", xst, i);
@@ -924,9 +924,9 @@ void execvetest() {
     int fd, xstatus, pid;
     char *echoargv[] = {"echo", "OK", 0};
     char buf[3];
-
     unlink("echo-ok");
     pid = fork();
+
     if (pid < 0) {
         printf("fork failed\n");
         exit(1);
@@ -948,10 +948,10 @@ void execvetest() {
         }
         // won't get here
     }
-
     if (wait(&xstatus) != pid) {
         printf("wait failed!\n");
     }
+
     if (xstatus != 0)
         exit(xstatus);
 
@@ -1280,9 +1280,11 @@ void createdelete() {
             name[1] = '0' + i;
             fd = open(name, 0);
             if ((i == 0 || i >= N / 2) && fd < 0) {
+                printf("i : %d, fd : %d\n",i, fd);
                 printf("oops createdelete %s didn't exist\n", name);
                 exit(1);
             } else if ((i >= 1 && i < N / 2) && fd >= 0) {
+                printf("i : %d, fd : %d\n",i, fd);
                 printf("oops createdelete %s did exist\n", name);
                 exit(1);
             }
@@ -1873,6 +1875,8 @@ void sbrkmuch() {
     amt = BIG - (uint64)a;
     p = sbrk(amt);
     if (p != a) {
+        print_sysinfo();
+        printf("p : %ld, a : %ld, amt : %ld\n",p, a, amt);
         printf("sbrk test failed to grow big address space; enough phys mem?\n");
         exit(1);
     }
@@ -2014,7 +2018,7 @@ void sbrkfail() {
     for (i = 0; i < sizeof(pids) / sizeof(pids[0]); i++) {
         if (pids[i] == -1)
             continue;
-        kill(pids[i]);
+        kill(pids[i], SIGKILL);
         wait(0);
     }
     if (c == (char *)0xffffffffffffffffL) {
@@ -2749,94 +2753,120 @@ void dirfile() {
 
 
 int main(void) {
-// print_sysinfo();
-//     forktest();
-// // print_sysinfo();
-//     exitwait();
-// // print_sysinfo();
-//     forkfork();    
-// // print_sysinfo();
-//     forkforkfork();
-// // print_sysinfo();
-//     twochildren();
-// // print_sysinfo();
-//     reparent();
-// // print_sysinfo();
-//     reparent2();
-// // print_sysinfo();
-//     killstatus();
-// // print_sysinfo();
-//     opentest();
-// // print_sysinfo();
-//     openiputtest();
-// // print_sysinfo();
-//     writetest();
-// // print_sysinfo();
-//     writebig();
-// // print_sysinfo();
-//     preempt();
-// // print_sysinfo();
-//     truncate1();
-// // print_sysinfo();
-//     copyin();
-// // print_sysinfo();
-//     copyout();
-// // print_sysinfo();
-//     copyinstr1();
-// // print_sysinfo();
-//     truncate2();
-// // print_sysinfo();
-//     truncate3();
-// // print_sysinfo();
-//     iputtest();
-// // print_sysinfo();
-//     exitiputtest();
-// // print_sysinfo();
-//     createtest();
-// // print_sysinfo();
-//     sbrklast();
-// // print_sysinfo();
-//     dirtest();
-// // print_sysinfo();
-//     execvetest();
-// // print_sysinfo();
-//     uvmfree();
+    print_sysinfo();
+    forktest();
+    print_sysinfo();
+    exitwait();
+    print_sysinfo();
+    forkfork();    
+    print_sysinfo();
+    forkforkfork();
+    print_sysinfo();
+    twochildren();
+    print_sysinfo();
+    reparent();
+    print_sysinfo();
+    reparent2();
+    print_sysinfo();
+    killstatus();
+    print_sysinfo();
+    opentest();
+    print_sysinfo();
+    openiputtest();
+    print_sysinfo();
+    writetest();
+    print_sysinfo();
+    writebig();
+    print_sysinfo();
+    preempt();
+    print_sysinfo();
+    truncate1();
+    print_sysinfo();
+    copyin();
+    print_sysinfo();
+    copyout();
+    print_sysinfo();
+    copyinstr1();
+    print_sysinfo();
+    truncate2();
+    print_sysinfo();
+    truncate3();
 
+    print_sysinfo();
+    sbrkbasic();
+    print_sysinfo();
+    sbrkmuch();
 
-//     pipe1();
-//     mem();
-//     sharedfd();
-//     createdelete();
-//     fourfiles();
-//     bigwrite();
-//     bigfile();
-
-
-//     rmdot();
-//     badarg();
-//     sbrk8000();
-//     textwrite();
-//     outofinodes();
+    print_sysinfo();
+    iputtest();
+    print_sysinfo();
+    exitiputtest();
+    print_sysinfo();
+    createtest();
+    print_sysinfo();
+    sbrklast();
+    print_sysinfo();
+    dirtest();
+    print_sysinfo();
+    execvetest();
+    print_sysinfo();
+    uvmfree();
+    print_sysinfo();
+    pipe1();
+    print_sysinfo();
+    mem();
+    print_sysinfo();
+    sharedfd();
+    print_sysinfo();
+    createdelete();
+    print_sysinfo();
+    fourfiles();
+    print_sysinfo();
+    bigwrite();
+    print_sysinfo();
+    bigfile();
+    print_sysinfo();
+    rmdot();
+    print_sysinfo();
+    badarg();
+    print_sysinfo();
+    sbrk8000();
+    print_sysinfo();
+    textwrite();
+    print_sysinfo();
+    outofinodes();
+    print_sysinfo();
     manywrites();
-//     badwrite();
-//     sbrkbasic();
-//     sbrkmuch();
-//     kernmem();
-//     MAXVAplus();
-    
-//     sbrkfail();
-    
-//     sbrkarg();
-//     bsstest();
-//     bigargtest();
-//     argptest();
-//     stacktest();
-//     pgbug();
-//     sbrkbugs();
-//     cowtest();
-//     copyinstr3();
-//     stressfs();
+    print_sysinfo();
+    badwrite();
 
+    print_sysinfo();
+    kernmem();
+    print_sysinfo();
+    MAXVAplus();
+    print_sysinfo();
+    sbrkfail();
+    print_sysinfo();
+    sbrkarg();
+    print_sysinfo();
+    bsstest();
+    print_sysinfo();
+    bigargtest();
+    print_sysinfo();
+    argptest();
+    print_sysinfo();
+    stacktest();
+    print_sysinfo();
+    pgbug();
+    print_sysinfo();
+    sbrkbugs();
+    print_sysinfo();
+    cowtest();
+    print_sysinfo();
+    copyinstr3();
+    print_sysinfo();
+    stressfs();
+    print_sysinfo();
 
 //     // TODO :
 //     // fsfull();

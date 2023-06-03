@@ -2,7 +2,7 @@
 #define __MM_H__
 
 #include "common.h"
-#include "list.h"
+#include "lib/list.h"
 
 struct vma;
 struct mm_struct {

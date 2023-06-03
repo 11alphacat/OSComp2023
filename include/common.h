@@ -78,6 +78,62 @@ extern struct devsw devsw[];
 #define IsLower(c) ((c) >= 'a' && (c) <= 'z')
 #define IsDigit(c) ((c) >= '0' && (c) <= '9')
 
+// time
+#define FREQUENCY 12500000 // qemu时钟频率12500000
+#define TIME2SEC(time) (time / FREQUENCY)
+#define TIME2MS(time) (time * 1000 / FREQUENCY)
+#define TIME2US(time) (time * 1000 * 1000 / FREQUENCY)
+#define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
+
+#define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
+#define NS_to_S(ns) (ns / (1000 * 1000 * 1000))
+
+#define TIME2TIMESPEC(time)                                                       \
+    (struct timespec) {                                                           \
+        .ts_sec = TIME2SEC(time), .ts_nsec = TIME2NS(time) % (1000 * 1000 * 1000) \
+    }
+
+#define TIME2TIMEVAL(time)                                                 \
+    (struct timeval) {                                                     \
+        .tv_sec = TIME2SEC(time), .tv_usec = TIME2US(time) % (1000 * 1000) \
+    }
+struct timespec {
+    uint64 ts_sec;  /* Seconds */
+    uint64 ts_nsec; /* Nanoseconds */
+};
+
+struct timeval {
+    uint64 tv_sec;  /* Seconds */
+    uint64 tv_usec; /* Microseconds */
+};
+typedef int64 s64;
+typedef uint64 u64;
+typedef s64 ktime_t;
+#define NSEC_PER_SEC 1000000000L
+#define KTIME_MAX ((s64) ~((u64)1 << 63))
+#define KTIME_SEC_MAX (KTIME_MAX / NSEC_PER_SEC)
+static inline ktime_t ktime_set(const s64 secs, const uint64 nsecs) {
+    if (unlikely(secs >= KTIME_SEC_MAX))
+        return KTIME_MAX;
+    return secs * NSEC_PER_SEC + (s64)nsecs;
+}
+static inline int should_fail_futex(int fshared) {
+    return 0;
+}
+
+static inline int timespec64_valid(const struct timespec *ts) {
+    /* Dates before 1970 are bogus */
+    if (ts->ts_sec < 0)
+        return 0;
+    /* Can't have more nanoseconds then a second */
+    if ((uint64)ts->ts_nsec >= NSEC_PER_SEC)
+        return 0;
+    return 1;
+}
+
+static inline ktime_t timespec64_to_ktime(struct timespec ts) {
+    return ktime_set(ts.ts_sec, ts.ts_nsec);
+}
 // string.c
 int memcmp(const void *, const void *, uint);
 void *memmove(void *, const void *, uint);
@@ -91,6 +147,10 @@ void str_toupper(char *);
 void str_tolower(char *);
 char *strchr(const char *, int);
 int str_split(const char *, const char, char *, char *);
+char *strcat(char *dest, const char *src);
+char *strstr(const char *haystack, const char *needle);
+int strcmp(const char *l, const char *r);
+int is_suffix(const char *str, const char *suffix);
 
 // printf.c
 void printf(char *, ...);

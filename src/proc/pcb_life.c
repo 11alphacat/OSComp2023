@@ -1,8 +1,3 @@
-#include "common.h"
-#include "param.h"
-#include "riscv.h"
-#include "debug.h"
-#include "test.h"
 #include "atomic/atomic.h"
 #include "atomic/spinlock.h"
 #include "memory/memlayout.h"
@@ -12,26 +7,34 @@
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
 #include "proc/pcb_life.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
 #include "proc/proc_mm.h"
 #include "proc/exec.h"
 #include "proc/signal.h"
-#include "proc/wait_queue.h"
 #include "proc/options.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
+#include "lib/hash.h"
+#include "lib/queue.h"
+#include "lib/riscv.h"
+#include "common.h"
+#include "param.h"
+#include "debug.h"
+#include "test.h"
 
 struct proc proc[NPROC];
 struct proc *initproc;
 
-extern PCB_Q_t unused_p_q, used_p_q, zombie_p_q;
-extern TCB_Q_t unused_t_q, runnable_t_q, sleeping_t_q;
+extern Queue_t unused_p_q, used_p_q, zombie_p_q;
+extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
 
-extern PCB_Q_t *STATES[PCB_STATEMAX];
+extern Queue_t *STATES[PCB_STATEMAX];
+
+extern struct hash_table pid_map;
 
 char proc_lock_name[NPROC][10];
 atomic_t next_pid;
@@ -94,8 +97,8 @@ struct proc *proc_current(void) {
 struct proc *alloc_proc(void) {
     struct proc *p;
     // fetch a unused proc from unused queue
-    // fetch a unused thread from unused queue as its group leader
-    p = PCB_Q_provide(&unused_p_q, 1);
+    p = Queue_provide_atomic(&unused_p_q, 1);
+
     if (p == NULL)
         return 0;
 
@@ -103,9 +106,6 @@ struct proc *alloc_proc(void) {
 
     p->pid = alloc_pid;
     cnt_pid_inc;
-
-    // state
-    PCB_Q_changeState(p, PCB_USED);
 
     // proc family
     p->first_child = NULL;
@@ -129,6 +129,11 @@ struct proc *alloc_proc(void) {
 
     tginit(p->tg);
 
+    // state
+    PCB_Q_changeState(p, PCB_USED);
+
+    // map <pid, p>
+    hash_insert(&pid_map, (void *)&(p->pid), (void *)p);
     return p;
 }
 
@@ -165,6 +170,10 @@ void free_proc(struct proc *p) {
     if (p->tg)
         kfree((void *)p->tg);
     p->tg = 0;
+
+    // delete <pid, t>
+    hash_delete(&pid_map, (void *)&p->pid);
+
     p->pid = 0;
     p->parent = 0;
     p->name[0] = 0;
@@ -215,23 +224,19 @@ void proc_init(void) {
         initlock(&p->lock, proc_lock_name[i]);
 
         p->state = PCB_UNUSED;
-        PCB_Q_push_back(&unused_p_q, p);
+        Queue_push_back_atomic(&unused_p_q, p);
     }
     return;
 }
 
-// find the proc we search
-// return the proc pointer with spinlock
-struct proc *find_get_pid(pid_t pid) {
-    struct proc *p;
-    for (p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
-        if (p->pid == pid) {
-            return p;
-        }
-        release(&p->lock);
+// find the proc we search using hash map
+inline struct proc *find_get_pid(pid_t pid) {
+    struct hash_node* node = hash_lookup(&pid_map, (void *)&pid, NULL, 1);// realese it 
+    if(node!=NULL){
+        return (struct proc *)(node->value);
+    } else{
+        return NULL;
     }
-    return NULL;
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -536,29 +541,6 @@ void reparent(struct proc *p) {
     }
 }
 
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
-int proc_kill(int pid) {
-    struct proc *p;
-    if ((p = find_get_pid(pid)) == NULL)
-        return -1;
-    p->killed = 1;
-    release(&p->lock);
-
-#ifdef __DEBUG_PROC__
-    printfCYAN("kill : kill %d\n", p->pid); // debug
-#endif
-
-    //  wakeup all sleeping thread
-    proc_wakeup_all_thread(p);
-    // if (p->state == PCB_SLEEPING) {
-    //     // Wake process from sleep().
-    //     PCB_Q_changeState(p, PCB_RUNNABLE);
-    // }
-    return 0;
-}
-
 void proc_setkilled(struct proc *p) {
     acquire(&p->lock);
     p->killed = 1;
@@ -575,7 +557,7 @@ int proc_killed(struct proc *p) {
 }
 
 uint8 get_current_procs() {
-    // TODO : add lock to proc table??
+    // TODO : add lock to proc table??(maybe)
     uint8 procs = 0;
     struct proc *p;
     for (p = proc; p < &proc[NPROC]; p++) {

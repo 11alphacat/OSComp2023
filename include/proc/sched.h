@@ -2,8 +2,7 @@
 #define __SCHED_H__
 #include "proc/pcb_life.h"
 #include "proc/pcb_thread.h"
-#include "proc/tcb_queue.h"
-#include "proc/pcb_queue.h"
+#include "lib/queue.h"
 
 struct proc;
 struct tcb;

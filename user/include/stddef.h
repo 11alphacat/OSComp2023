@@ -44,7 +44,7 @@ typedef int pid_t;
 
 #define NULL ((void *)0)
 
-#define SIGCHLD   17
+#define SIGCHLD 17
 
 #define va_start(ap, last) (__builtin_va_start(ap, last))
 #define va_arg(ap, type) (__builtin_va_arg(ap, type))
@@ -84,35 +84,33 @@ typedef unsigned int mode_t;
 typedef long int off_t;
 
 struct kstat {
-        uint64 st_dev;
-        uint64 st_ino;
-        mode_t st_mode;
-        uint32 st_nlink;
-        uint32 st_uid;
-        uint32 st_gid;
-        uint64 st_rdev;
-        unsigned long __pad;
-        off_t st_size;
-        uint32 st_blksize;
-        int __pad2;
-        uint64 st_blocks;
-        long st_atime_sec;
-        long st_atime_nsec;
-        long st_mtime_sec;
-        long st_mtime_nsec;
-        long st_ctime_sec;
-        long st_ctime_nsec;
-        unsigned __unused[2];
+    uint64 st_dev;
+    uint64 st_ino;
+    mode_t st_mode;
+    uint32 st_nlink;
+    uint32 st_uid;
+    uint32 st_gid;
+    uint64 st_rdev;
+    unsigned long __pad;
+    off_t st_size;
+    uint32 st_blksize;
+    int __pad2;
+    uint64 st_blocks;
+    long st_atime_sec;
+    long st_atime_nsec;
+    long st_mtime_sec;
+    long st_mtime_nsec;
+    long st_ctime_sec;
+    long st_ctime_nsec;
+    unsigned __unused[2];
 };
 
-
-
 struct linux_dirent64 {
-        uint64        d_ino;
-        int64         d_off;
-        unsigned short  d_reclen;
-        unsigned char   d_type;
-        char            d_name[];
+    uint64 d_ino;
+    int64 d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
+    char d_name[];
 };
 
 // for mmap
@@ -126,12 +124,12 @@ struct linux_dirent64 {
 #define MAP_FILE 0
 #define MAP_SHARED 0x01
 #define MAP_PRIVATE 0X02
-#define MAP_FAILED ((void *) -1)
+#define MAP_FAILED ((void *)-1)
 
 // add
-typedef unsigned int   uint;
+typedef unsigned int uint;
 typedef unsigned short ushort;
-typedef unsigned char  uchar;
+typedef unsigned char uchar;
 typedef int clockid_t;
 
 struct timespec {
@@ -139,31 +137,32 @@ struct timespec {
     uint64 ts_nsec; /* Nanoseconds */
 };
 
-#define	EXIT_FAILURE	1	/* Failing exit status.  */
-#define	EXIT_SUCCESS	0	/* Successful exit status.  */
+#define EXIT_FAILURE 1 /* Failing exit status.  */
+#define EXIT_SUCCESS 0 /* Successful exit status.  */
 typedef long int intmax_t;
 
 struct sysinfo {
-    long uptime;             /* Seconds since boot */
+    long uptime; /* Seconds since boot */
     // unsigned long loads[3];  /* 1, 5, and 15 minute load averages */
-    unsigned long totalram;  /* Total usable main memory size */
-    unsigned long freeram;   /* Available memory size */
+    unsigned long totalram; /* Total usable main memory size */
+    unsigned long freeram;  /* Available memory size */
     // unsigned long sharedram; /* Amount of shared memory */
     // unsigned long bufferram; /* Memory used by buffers */
     // unsigned long totalswap; /* Total swap space size */
     // unsigned long freeswap;  /* Swap space still available */
-    unsigned short procs;    /* Number of current processes */
+    unsigned short procs; /* Number of current processes */
     // unsigned long totalhigh; /* Total high memory size */
     // unsigned long freehigh;  /* Available high memory size */
     // unsigned int mem_unit;   /* Memory unit size in bytes */
     // char _f[20-2*sizeof(long)-sizeof(int)]; /* Padding to 64 bytes */
 };
 
+typedef uint64 sig_t;
 typedef void (*sighandler_t)(int);
 
 // signal sets
 typedef struct {
-    uint32 sig;
+    uint64 sig;
 } sigset_t;
 
 typedef void __signalfn_t(int);
@@ -176,12 +175,31 @@ struct sigaction {
 };
 
 #define SIGINT 2
+#define SIGKILL 9
 
 typedef long int off_t;
 
 struct iovec {
-    void  *iov_base;    /* Starting address */
-    size_t iov_len;     /* Number of bytes to transfer */
+    void *iov_base; /* Starting address */
+    size_t iov_len; /* Number of bytes to transfer */
 };
+
+// struct statfs {
+//     __fsword_t f_type;    /* Type of filesystem (see below) */
+//     __fsword_t f_bsize;   /* Optimal transfer block size */
+//     fsblkcnt_t f_blocks;  /* Total data blocks in filesystem */
+//     fsblkcnt_t f_bfree;   /* Free blocks in filesystem */
+//     fsblkcnt_t f_bavail;  /* Free blocks available to
+//                                         unprivileged user */
+//     fsfilcnt_t f_files;   /* Total file nodes in filesystem */
+//     fsfilcnt_t f_ffree;   /* Free file nodes in filesystem */
+//     fsid_t f_fsid;        /* Filesystem ID */
+//     __fsword_t f_namelen; /* Maximum length of filenames */
+//     __fsword_t f_frsize;  /* Fragment size (since Linux 2.6) */
+//     __fsword_t f_flags;   /* Mount flags of filesystem
+//                                         (since Linux 2.6.36) */
+//     __fsword_t f_spare[xxx];
+//     /* Padding bytes reserved for future use */
+// };
 
 #endif // __STDDEF_H__

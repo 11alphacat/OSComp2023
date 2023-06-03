@@ -5,7 +5,7 @@
 #include "memory/vma.h"
 #include "fs/fcntl.h"
 #include "memory/vm.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "fs/vfs/fs.h"
 
 // mmap
@@ -78,6 +78,7 @@ void *sys_mmap(void) {
         }
     }
 
+    print_vma(mm);
     return (void *)mapva;
 }
 

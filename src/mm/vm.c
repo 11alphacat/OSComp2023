@@ -2,14 +2,15 @@
 #include "common.h"
 #include "memory/memlayout.h"
 #include "proc/exec.h"
-#include "riscv.h"
 #include "memory/vma.h"
+#include "lib/riscv.h"
+
 #include "memory/vm.h"
 #include "debug.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
 #include "proc/proc_mm.h"
-#include "list.h"
+#include "lib/list.h"
 
 /* copy-on write */
 int cow(pagetable_t pagetable, uint64 stval);

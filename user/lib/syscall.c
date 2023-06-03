@@ -1,6 +1,5 @@
 #include "stddef.h"
 #include "unistd.h"
-
 #include "syscall.h"
 
 int open(const char *path, int flags)
@@ -233,8 +232,8 @@ char *sbrk(int increment) {
     return syscall(SYS_sbrk, increment);
 }
 
-int kill(int pid) {
-    return syscall(SYS_kill, pid);
+int kill(int pid, sig_t signo) {
+    return syscall(SYS_kill, pid, signo);
 }
 
 void shutdown() {
@@ -270,6 +269,14 @@ ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     return syscall(SYS_sendfile, out_fd, in_fd, offset, count);
 }
 
+int statfs(const char *path, struct statfs *buf) {
+    return syscall(SYS_statfs, path, buf);
+}
+
+int renameat2(int olddirfd, const char *oldpath, 
+            int newdirfd, const char *newpath, unsigned int flags) {
+    return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+}
 
 /* debug */
 int print_pgtable() {

@@ -2,7 +2,7 @@
 #include "kernel/plic.h"
 #include "param.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "kernel/cpu.h"
 #include "proc/pcb_life.h"
 

@@ -1,5 +1,5 @@
 #include <stdarg.h>
-#include "ctype.h"
+#include "lib/ctype.h"
 #include "common.h"
 #include "debug.h"
 

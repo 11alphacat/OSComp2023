@@ -9,10 +9,10 @@
 #include "atomic/spinlock.h"
 
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "driver/console.h"
 
-#include "ctype.h"
+#include "lib/ctype.h"
 #include "debug.h"
 
 volatile int panicked = 0;

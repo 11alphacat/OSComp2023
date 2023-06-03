@@ -1,12 +1,11 @@
 #ifndef __COND_H__
 #define __COND_H__
 
-#include "proc/wait_queue.h"
+#include "lib/queue.h"
 
-struct Waiting_Q;
 // condition variable
 struct cond {
-    struct Waiting_Q waiting_queue;
+    struct Queue waiting_queue;
 };
 
 void cond_init(struct cond *cond, char *name);

@@ -165,6 +165,7 @@ static char *skepelem(char *path, char *name) {
     return path;
 }
 
+// return ip without ip->lock held, guarantee inode in memory
 static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     struct inode *ip = NULL, *next = NULL, *cwd = proc_current()->_cwd;
     ASSERT(cwd);
@@ -200,14 +201,10 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
         ip = next;
     }
 
+    ASSERT(ip->i_op);
     if (nameeparent) {
         ip->i_op->iput(ip);
         return 0;
-    }
-
-    if (!ip->i_op) {
-        ASSERT(cwd->fs_type == FAT32);
-        ip->i_op = get_inodeops[cwd->fs_type]();
     }
 
     return ip;

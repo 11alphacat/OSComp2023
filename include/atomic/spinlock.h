@@ -16,7 +16,12 @@ struct spinlock {
     int debug;
 #endif
 };
+
 typedef struct spinlock spinlock_t;
+#define INIT_SPINLOCK(NAME)                     \
+    (spinlock_t) {                              \
+        .locked = 0, .name = #NAME, .cpu = NULL \
+    }
 
 #define acquire(lock) wrap_acquire(__FILE__, __LINE__, (lock))
 #define release(lock) wrap_release(__FILE__, __LINE__, (lock))

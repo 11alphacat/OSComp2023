@@ -13,6 +13,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "fs/fat/fat32_stack.h"
 #include "fs/fat/fat32_file.h"
+#include "memory/allocator.h"
 
 // #define _O_READ              (~O_WRONLY)
 // #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
@@ -219,16 +220,21 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
     memset(name_buf, 0, sizeof(name_buf));
     Stack_t fcb_stack;
     stack_init(&fcb_stack);
-
-    FAT_entry_t iter_n = dp->fat32_i.cluster_start;
+    FAT_entry_t iter_c_n = dp->fat32_i.cluster_start;
 
     int first_sector;
     uint off = 0;
     uint cnt = 0;
     int fname_len = 0;
+
+    if (dp->i_hash == NULL) {
+        fat32_inode_hash_init(dp);
+    }
+    
+    int idx = 0;
     // FAT seek cluster chains
-    while (!ISEOF(iter_n)) {
-        first_sector = FirstSectorofCluster(iter_n);
+    while (!ISEOF(iter_c_n)) {
+        first_sector = FirstSectorofCluster(iter_c_n);
         // sectors in a cluster
         for (int s = 0; s < (dp->i_sb->sectors_per_block); s++) {
             // uint sec_pos = DEBUG_SECTOR(dp, first_sector + s); // debug
@@ -236,7 +242,7 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
             bp = bread(dp->i_dev, first_sector + s);
             dirent_s_t *fcb_s = (dirent_s_t *)(bp->data);
             dirent_l_t *fcb_l = (dirent_l_t *)(bp->data);
-            int idx = 0;
+            idx = 0;
             // FCB in a sector
             while (idx < FCB_PER_BLOCK) {
                 // long dirctory item push into the stack
@@ -263,14 +269,21 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
                     // speciall judgement for the first long directory in the data region
                     cnt++;
 
-                    ip_buf = fat32_inode_get(dp->i_dev, SECTOR_TO_FATINUM(first_sector + s, idx), name_buf, off);
+                    uint ino = SECTOR_TO_FATINUM(first_sector + s, idx);
+                    
+                    // insert cache into the hash table
+                    int ret = fat32_inode_hash_insert(dp, name_buf, ino, off);
+                    if(ret==0) {
+                        // printfGreen("getdents : insert : %s\n", name_buf); //debug                        
+                    }
+                        
+                    // get a pos for inode
+                    ip_buf = fat32_inode_get(dp->i_dev, ino, name_buf, off);
                     ip_buf->parent = dp;
-                    // ip_buf->i_nlink = nlinks; // number of hard links
                     ip_buf->i_nlink = 1;
                     brelse(bp); // !!!!
 
                     fat32_inode_lock(ip_buf);
-                    // //fat32_inode_load_from_disk(ip_buf);
 
                     dirent_buf->d_ino = ip_buf->i_ino;
                     dirent_buf->d_off = cnt;
@@ -294,11 +307,18 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
             }
             brelse(bp);
         }
-        iter_n = fat32_next_cluster(iter_n);
+        iter_c_n = fat32_next_cluster(iter_c_n);
     }
+    
     stack_free(&fcb_stack);
+    // save hint
+    // dp->idx_hint = idx;
+    dp->off_hint = off;
     return nread;
 finish:
+    // save hint
+    // dp->idx_hint = idx;
+    dp->off_hint = off;
     stack_free(&fcb_stack);
     return nread;
 }

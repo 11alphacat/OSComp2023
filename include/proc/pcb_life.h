@@ -5,13 +5,12 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
-#include "list.h"
+#include "lib/list.h"
 #include "proc/signal.h"
 #include "atomic/semaphore.h"
 #include "memory/mm.h"
 // #include "fs/fat/fat32_disk.h"
 
-#define NPROC 64 // maximum number of processes
 // #define INIT_PID 1
 // #define SHELL_PID 2
 
@@ -32,10 +31,9 @@ struct proc {
     pid_t pid;            // Process ID
     enum procstate state; // Process state
 
+    struct mm_struct *mm;
     int exit_state; // Exit status to be returned to parent's wait
     int killed;     // If non-zero, have been killed
-
-    struct mm_struct *mm;
 
     // these are private to the process, so p->lock need not be held.
     struct file *_ofile[NOFILE]; // Open files
@@ -71,21 +69,19 @@ struct proc {
 void deleteChild(struct proc *parent, struct proc *child);
 void appendChild(struct proc *parent, struct proc *child);
 void procChildrenChain(struct proc *p);
-
 struct proc *proc_current(void);
 struct proc *alloc_proc(void);
 struct proc *create_proc();
 void free_proc(struct proc *p);
 void init_ret(void);
 void proc_init(void);
+void proc_setkilled(struct proc *p);
+int proc_killed(struct proc *p);
 struct proc *find_get_pid(pid_t pid);
 int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid);
 void do_exit(int status);
 int waitpid(pid_t pid, uint64 status, int options);
 void reparent(struct proc *p);
-int proc_kill(int pid);
-void proc_setkilled(struct proc *p);
-int proc_killed(struct proc *p);
 void proc_thread_print(void);
 uint8 get_current_procs();
 

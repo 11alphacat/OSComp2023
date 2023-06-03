@@ -1,23 +1,25 @@
-#include "common.h"
-#include "param.h"
-#include "memory/memlayout.h"
-#include "riscv.h"
-#include "atomic/spinlock.h"
-#include "proc/pcb_life.h"
 #include "kernel/plic.h"
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
-#include "driver/uart.h"
-#include "driver/virtio.h"
-#include "sbi.h"
 #include "memory/vm.h"
-#include "debug.h"
-#include "proc/wait_queue.h"
-#include "proc/cond.h"
+#include "memory/memlayout.h"
+#include "proc/pcb_life.h"
 #include "proc/signal.h"
 #include "proc/sched.h"
+#include "lib/riscv.h"
+#include "lib/sbi.h"
+#include "driver/uart.h"
+#include "driver/virtio.h"
+#include "atomic/spinlock.h"
+#include "atomic/cond.h"
 #include "atomic/semaphore.h"
 #include "kernel/trap.h"
+#include "lib/queue.h"
+#include "common.h"
+#include "param.h"
+#include "debug.h"
+
+#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 
 struct spinlock tickslock;
 uint ticks;
@@ -32,6 +34,7 @@ extern int devintr();
 #define ISPAGEFAULT(cause) ((cause) == INSTUCTION_PAGEFAULT || (cause) == LOAD_PAGEFAULT || (cause) == STORE_PAGEFAULT)
 
 static char *cause[16] = {
+    [2] "ILLEGAL INSTRUCTION",
     [INSTUCTION_PAGEFAULT] "INSTRUCTION PAGEFAULT",
     [STORE_PAGEFAULT] "STORE/AMO PAGEFAULT",
     [LOAD_PAGEFAULT] "LOAD PAGEFAULT",
@@ -79,10 +82,10 @@ void thread_usertrap(void) {
     t->trapframe->epc = r_sepc();
 
     uint64 cause = r_scause();
-    if (cause == 8) {
+    if (cause == SYSCALL) { /* user-mode ecall ~ 8 */
         // system call
 
-        if (proc_killed(p))
+        if (thread_killed(t))
             do_exit(-1);
 
         // sepc points to the ecall instruction,
@@ -109,10 +112,14 @@ void thread_usertrap(void) {
     if (proc_killed(p))
         do_exit(-1);
 
+    // if (thread_killed(t))
+    //     do_exit(-1);
+
     // give up the CPU if this is a timer interrupt.
     if (which_dev == 2)
         thread_yield();
 
+    // handle the signal
     signal_handle(t);
 
     thread_usertrapret();

@@ -1,6 +1,6 @@
 #include "common.h"
-#include "riscv.h"
 #include "proc/proc_mm.h"
+#include "lib/riscv.h"
 #include "proc/pcb_life.h"
 #include "kernel/trap.h"
 #include "memory/memlayout.h"

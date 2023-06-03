@@ -109,7 +109,7 @@ size_t strnlen(const char *s, size_t count) {
     return sc - s;
 }
 
-#include "ctype.h"
+#include "lib/ctype.h"
 void str_toupper(char *str) {
     if (str != NULL) {
         while (*str != '\0') {
@@ -161,4 +161,47 @@ char *strcat(char *dest, const char *src) {
     }
     *p = '\0';
     return dest;
+}
+
+// 查找子串 needle 在 haystack 中首次出现的位置
+char *strstr(const char *haystack, const char *needle) {
+    if (*needle == '\0') {
+        return (char *)haystack; // 空子串在任何字符串中都存在
+    }
+
+    while (*haystack != '\0') {
+        const char *h = haystack;
+        const char *n = needle;
+
+        while (*h == *n && *n != '\0') {
+            h++;
+            n++;
+        }
+
+        if (*n == '\0') {
+            return (char *)haystack; // 找到子串
+        }
+
+        haystack++;
+    }
+
+    return NULL; // 未找到子串
+}
+
+int strcmp(const char *l, const char *r) {
+    for (; *l == *r && *l; l++, r++)
+        ;
+    return *(unsigned char *)l - *(unsigned char *)r;
+}
+
+int is_suffix(const char *str, const char *suffix) {
+    size_t str_len = strlen(str);
+    size_t suffix_len = strlen(suffix);
+
+    if (suffix_len > str_len) {
+        return 0; // 子串比字符串更长，不可能是结尾
+    }
+
+    const char *str_end = str + (str_len - suffix_len);
+    return strcmp(str_end, suffix) == 0;
 }

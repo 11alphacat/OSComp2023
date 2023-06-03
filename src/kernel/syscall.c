@@ -2,7 +2,7 @@
 #include "common.h"
 #include "param.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
 #include "proc/pcb_thread.h"
@@ -65,6 +65,14 @@ int arglist(uint64 argv[], int s, int n) {
 
 // Fetch the nth 32-bit system call argument.
 int argint(int n, int *ip) {
+    *ip = argraw(n);
+    if (*ip < 0)
+        return -1;
+    else
+        return 0;
+}
+
+int arguint(int n, uint *ip) {
     *ip = argraw(n);
     if (*ip < 0)
         return -1;

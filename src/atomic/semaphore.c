@@ -1,5 +1,5 @@
 #include "proc/pcb_life.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 #include "atomic/semaphore.h"
 
 void sema_init(sem *S, int value, char *name) {

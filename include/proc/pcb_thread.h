@@ -4,9 +4,9 @@
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "atomic/spinlock.h"
-#include "list.h"
+#include "lib/list.h"
 #include "common.h"
 #include "proc/signal.h"
 
@@ -41,10 +41,14 @@ struct tcb {
     // thread id
     tid_t tid;
 
+    // offset
     int tidx;
 
     // exit status
     int exit_status; // Exit status to be returned to parent's wait
+
+    // thread : killed ?
+    int killed; // If non-zero, have been killed
 
     // tcb state queue
     struct list_head state_list; // its state queue
@@ -54,10 +58,11 @@ struct tcb {
     struct sighand *sig;       // signal
     sigset_t blocked;          // the blocked signal
     struct sigpending pending; // pending (private)
+    sig_t sig_ing;
 
-    uint64 sas_ss_sp;
-    size_t sas_ss_size;
-    uint64 sas_ss_flags;
+    // uint64 sas_ss_sp;
+    // size_t sas_ss_size;
+    // uint64 sas_ss_flags;
     // struct sigpending shared_pending; // pending (shared)
 
     // kernel stack, trapframe and context
@@ -84,8 +89,6 @@ struct tcb {
     int *set_child_tid;
     /* CLONE_CHILD_CLEARTID: */
     int *clear_child_tid;
-
-    struct trapframe sig_trapframe; // backup of trapframe for signal
 };
 
 void tcb_init(void);
@@ -93,12 +96,19 @@ struct tcb *thread_current(void);
 struct tcb *alloc_thread(void);
 void free_thread(struct tcb *t);
 void exit_thread(int status);
+int thread_killed(struct tcb *t);
+void thread_setkilled(struct tcb *t);
 void proc_join_thread(struct proc *p, struct tcb *t);
 int proc_release_thread(struct proc *p, struct tcb *t);
 void proc_release_all_thread(struct proc *p);
-void proc_wakeup_all_thread(struct proc *p);
+void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt);
 void thread_forkret(void);
 void tginit(struct thread_group *tg);
 void sighandinit(struct sighand *sig);
+void thread_send_signal(struct tcb *t_cur, siginfo_t *info);
+struct tcb *find_get_tid(tid_t tid);
+struct tcb *find_get_tidx(int pid, int tidx);
+void do_tkill(struct tcb *t, sig_t signo);
+int do_sleep_ns(struct tcb *t, struct timespec ts);
 
 #endif

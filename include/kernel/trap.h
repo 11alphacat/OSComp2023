@@ -66,6 +66,7 @@ struct trapframe {
 uint64 argraw(int);
 int argint(int, int *);
 void argulong(int, unsigned long *);
+int arguint(int n, uint *ip);
 void arglong(int, long *);
 int argfd(int n, int *pfd, struct file **pf);
 int argstr(int, char *, int);

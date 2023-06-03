@@ -1,17 +1,19 @@
 #include "kernel/cpu.h"
 #include "proc/sched.h"
 #include "proc/pcb_thread.h"
-#include "proc/tcb_queue.h"
 #include "kernel/trap.h"
-#include "list.h"
+#include "lib/list.h"
 #include "debug.h"
+#include "lib/hash.h"
+#include "lib/queue.h"
 
 struct tcb thread[NTCB];
 char tcb_lock_name[NTCB][10];
 
-extern TCB_Q_t unused_t_q, runnable_t_q, sleeping_t_q;
-extern TCB_Q_t *STATES[TCB_STATEMAX];
+extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
+extern Queue_t *STATES[TCB_STATEMAX];
 
+extern struct hash_table tid_map;
 atomic_t next_tid;
 atomic_t count_tid;
 
@@ -35,7 +37,7 @@ void tcb_init(void) {
 
         t->state = TCB_UNUSED;
         t->kstack = KSTACK((int)(t - thread));
-        TCB_Q_push_back(&unused_t_q, t);
+        Queue_push_back(&unused_t_q, t);
     }
     return;
 }
@@ -53,42 +55,44 @@ struct tcb *thread_current(void) {
 struct tcb *alloc_thread(void) {
     struct tcb *t;
 
-    t = TCB_Q_provide(&unused_t_q, 1);
+    t = (struct tcb *)Queue_provide_atomic(&unused_t_q, 1); // remove it from the queue
     if (t == NULL)
         return 0;
     acquire(&t->lock);
 
     // spinlock and threads list head
-
     INIT_LIST_HEAD(&t->threads);
 
     t->tid = alloc_tid;
     cnt_tid_dec;
 
-    TCB_Q_changeState(t, TCB_USED);
-
     // Allocate a trapframe page.
     if ((t->trapframe = (struct trapframe *)kalloc()) == 0) {
         free_thread(t);
         release(&t->lock);
+        panic("no space for trapframe\n");
         return 0;
     }
-
-    memset(&(t->sig_trapframe), 0, sizeof(t->sig_trapframe));
+    // memset(&(t->sig_trapframe), 0, sizeof(t->sig_trapframe));
     t->sig_pending_cnt = 0;
 
     if ((t->sig = (struct sighand *)kalloc()) == 0) {
         panic("no space for sighand\n");
     }
     sig_empty_set(&t->blocked);
-    sig_empty_set(&t->pending.signal);
-    INIT_LIST_HEAD(&(t->pending.list));
     sighandinit(t->sig);
+    sigpending_init(&(t->pending));
 
     // Set up new context to start executing at forkret, which returns to user space.
     memset(&t->context, 0, sizeof(t->context));
     t->context.ra = (uint64)thread_forkret;
     t->context.sp = t->kstack + PGSIZE;
+
+    // chage state of TCB
+    TCB_Q_changeState(t, TCB_USED);
+
+    // map <tid, t>
+    hash_insert(&tid_map, (void *)&t->tid, (void *)t);
 
     return t;
 }
@@ -101,11 +105,21 @@ void free_thread(struct tcb *t) {
     if (t->sig) // bug!
         kfree((void *)t->sig);
 
-    t->trapframe = 0;
+    // delete <tid, t>
+    hash_delete(&tid_map, (void *)&t->tid);
+
     t->tid = 0;
+
+    t->trapframe = 0;
+
     t->name[0] = 0;
     t->exit_status = 0;
     t->p = 0;
+
+    t->sig_pending_cnt = 0;
+    t->sig_ing = 0;
+
+    signal_queue_flush(&t->pending); // !!!
 
     TCB_Q_changeState(t, TCB_UNUSED);
 }
@@ -151,19 +165,23 @@ void proc_release_all_thread(struct proc *p) {
     release(&p->tg->lock);
 }
 
-void proc_wakeup_all_thread(struct proc *p) {
+// send signal to all threads of proc p
+void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
     struct tcb *t_cur = NULL;
     struct tcb *t_tmp = NULL;
+    siginfo_t info;
     acquire(&p->tg->lock);
     list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
+        signal_info_init(signo, &info, opt);
+
         acquire(&t_cur->lock);
-        if (t_cur->state == TCB_SLEEPING) {
-            Waiting_Q_remove_atomic(&cond_ticks.waiting_queue, t_cur); // bug
-            TCB_Q_changeState(t_cur, TCB_RUNNABLE);
-        }
+        thread_send_signal(t_cur, &info);
         release(&t_cur->lock);
     }
     release(&p->tg->lock);
+    if (signo == SIGKILL || signo == SIGSTOP) {
+        proc_setkilled(p);
+    }
 }
 
 // thread exit
@@ -187,6 +205,23 @@ void exit_thread(int status) {
     return;
 }
 
+// set killed state for thread
+void thread_setkilled(struct tcb *t) {
+    acquire(&t->lock);
+    t->killed = 1;
+    release(&t->lock);
+}
+
+// is thread killed ?
+int thread_killed(struct tcb *t) {
+    int k;
+
+    acquire(&t->lock);
+    k = t->killed;
+    release(&t->lock);
+    return k;
+}
+
 void tginit(struct thread_group *tg) {
     initlock(&tg->lock, "thread group lock");
     tg->group_leader = NULL;
@@ -198,6 +233,85 @@ void tginit(struct thread_group *tg) {
 void sighandinit(struct sighand *sig) {
     initlock(&sig->siglock, "signal handler lock");
     atomic_set(&(sig->count), 0);
+    // memset the signal handler???
+}
+
+// send signal to thread (wakeup tcb sleeping)
+void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
+    signal_send(info, t_cur);
+
+    // wakeup thread sleeping of proc p
+    if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
+        if (t_cur->state == TCB_SLEEPING) {
+            Queue_remove_atomic(&cond_ticks.waiting_queue, (void *)t_cur); // bug
+            TCB_Q_changeState(t_cur, TCB_RUNNABLE);
+        }
+    }
+#ifdef __DEBUG_PROC__
+    printfCYAN("tkill : kill thread %d, signo = %d\n", t_cur->tid, info->si_signo); // debug
+#endif
+    return;
+}
+
+// find the tcb* given tid using hash map
+struct tcb *find_get_tid(tid_t tid) {
+    struct hash_node* node = hash_lookup(&tid_map, (void *)&tid, NULL, 1);// release it
+    if(node!=NULL){
+        return (struct tcb *)(node->value);
+    } else{
+        return NULL;
+    }
+}
+
+// find tcb given pid and tidx
+struct tcb *find_get_tidx(int pid, int tidx) {
+    // find proc given pid
+    struct proc *p;
+    if ((p = find_get_pid(pid)) == NULL)
+        return NULL;
+
+    // find thread given tidx
+    struct tcb *t_cur = NULL;
+    struct tcb *t_tmp = NULL;
+    acquire(&p->tg->lock);
+    list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
+        acquire(&t_cur->lock);
+        // tidx from 0, but tid == 0 stands for invalid thread
+        if (t_cur->tidx + 1 == tidx) {
+            release(&p->tg->lock);
+            return t_cur;
+        }
+        release(&t_cur->lock);
+    }
+    release(&p->tg->lock);
+
+    return NULL;
+}
+
+void do_tkill(struct tcb *t, sig_t signo) {
+    siginfo_t info;
+    signal_info_init(signo, &info, 0);
+    acquire(&t->lock);
+    thread_send_signal(t, &info);
+    release(&t->lock);
+}
+
+int do_sleep_ns(struct tcb *t, struct timespec ts) {
+    uint64 interval_ns = TIMESEPC2NS(ts);
+    uint64 time0 = TIME2NS(rdtime());
+
+    acquire(&tickslock);
+    while (TIME2NS(rdtime()) - time0 < interval_ns) {
+        if (thread_killed(t)) {
+            release(&tickslock);
+            return -1;
+        }
+        // sleep(&ticks, &tickslock);
+        cond_wait(&cond_ticks, &tickslock);
+    }
+    release(&tickslock);
+
+    return 0;
 }
 
 // // thread join

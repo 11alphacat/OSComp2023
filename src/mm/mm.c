@@ -1,5 +1,5 @@
 #include "common.h"
-#include "list.h"
+#include "lib/list.h"
 #include "memory/mm.h"
 #include "memory/allocator.h"
 #include "debug.h"

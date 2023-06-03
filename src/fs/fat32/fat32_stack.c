@@ -45,6 +45,7 @@ elemtype stack_peek(Stack_t *stack) {
     return stack->data[stack->top];
 }
 
+// 释放栈的空间
 void stack_free(Stack_t *stack) {
     kfree(stack->data);
 }

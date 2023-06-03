@@ -1,7 +1,7 @@
 #include "common.h"
 #include "param.h"
 #include "memory/memlayout.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
 #include "proc/exec.h"
@@ -14,7 +14,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "proc/pcb_thread.h"
 #include "auxv.h"
-#include "ctype.h"
+#include "lib/ctype.h"
 #include "memory/vma.h"
 
 void print_ustack(pagetable_t pagetable, uint64 stacktop);
@@ -298,8 +298,8 @@ static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
         if (ph.vaddr + ph.memsz < ph.vaddr)
             goto unlock_put;
 
-        /* off: start offset in misaligned page 
-           size: read size of misaligned page 
+        /* off: start offset in misaligned page
+           size: read size of misaligned page
         */
         uint64 off = 0, size = 0;
         vaddr_t vaddrdown = PGROUNDDOWN(ph.vaddr);

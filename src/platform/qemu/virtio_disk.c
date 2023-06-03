@@ -6,7 +6,7 @@
 //
 
 #include "common.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "param.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
@@ -15,7 +15,7 @@
 #include "driver/virtio.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
-#include "proc/cond.h"
+#include "atomic/cond.h"
 
 // the address of virtio mmio register r.
 #define R(r) ((volatile uint32 *)(VIRTIO0 + (r)))

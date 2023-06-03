@@ -1,8 +1,8 @@
 #ifndef __SEMAPHORE_H__
 #define __SEMAPHORE_H__
 #include "atomic/spinlock.h"
-#include "proc/cond.h"
-#include "list.h"
+#include "atomic/cond.h"
+#include "lib/list.h"
 
 // semaphore
 struct semaphore {

@@ -3,10 +3,10 @@
 
 #include "common.h"
 #include "atomic/atomic.h"
-#include "list.h"
+#include "lib/list.h"
 #include "atomic/spinlock.h"
 #include "param.h"
-#include "riscv.h"
+#include "lib/riscv.h"
 #include "memory/memlayout.h"
 
 /*
