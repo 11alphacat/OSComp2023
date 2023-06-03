@@ -2791,6 +2791,12 @@ int main(void) {
     truncate2();
     print_sysinfo();
     truncate3();
+
+    print_sysinfo();
+    sbrkbasic();
+    print_sysinfo();
+    sbrkmuch();
+
     print_sysinfo();
     iputtest();
     print_sysinfo();
@@ -2833,10 +2839,7 @@ int main(void) {
     manywrites();
     print_sysinfo();
     badwrite();
-    print_sysinfo();
-    sbrkbasic();
-    print_sysinfo();
-    sbrkmuch();
+
     print_sysinfo();
     kernmem();
     print_sysinfo();

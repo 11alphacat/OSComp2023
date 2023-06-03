@@ -118,6 +118,10 @@ void _release(struct spinlock *lk) {
 // Interrupts must be off.
 int holding(struct spinlock *lk) {
     int r;
+    if(lk->locked!=0&&lk->locked!=1) {
+        int i=0;
+        i++;
+    }
     r = (lk->locked && lk->cpu == t_mycpu());
     return r;
 }

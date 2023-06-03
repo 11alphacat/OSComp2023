@@ -171,8 +171,11 @@ uint64 sys_sbrk(void) {
 
     argint(0, &n);
     addr = proc_current()->sz;
-    if (growproc(n) < 0)
+    if (growproc(n) < 0) {
+        printf("free RAM : %d, grow : %d\n", get_free_mem(), n);
         return -1;
+    }
+        
     return addr;
 }
 
