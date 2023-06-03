@@ -23,9 +23,6 @@ void freewalk(pagetable_t pagetable);
 int uvm_thread_stack(pagetable_t pagetable, int thread_idx);
 int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa);
 
-/* copy-on write */
-int cow(pagetable_t pagetable, uint64 stval);
-
 /* print the pagetable */
 void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 vabase);
 

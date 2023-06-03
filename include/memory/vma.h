@@ -16,15 +16,17 @@ struct proc;
 #define PERM_SHARED (1 << 3)
 // #define PERM_KERNEL_PGTABLE (1 << 6)
 
+typedef enum {
+    VMA_STACK,
+    VMA_HEAP,
+    VMA_TEXT,
+    VMA_FILE,
+    VMA_ANON, /* anonymous */
+} vmatype;
+
 /* virtual memory area */
 struct vma {
-    enum {
-        VMA_STACK,
-        VMA_HEAP,
-        VMA_TEXT,
-        VMA_FILE,
-        VMA_ANON, /* anonymous */
-    } type;
+    vmatype type;
     struct list_head node;
     vaddr_t startva;
     size_t size;

@@ -11,6 +11,9 @@
 #include "proc/proc_mm.h"
 #include "list.h"
 
+/* copy-on write */
+int cow(pagetable_t pagetable, uint64 stval);
+
 /*
  * the kernel's page table.
  */
@@ -661,63 +664,5 @@ int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa) {
     if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, 0) < 0) {
         return -1;
     }
-    return 0;
-}
-
-int cow(pagetable_t pagetable, uint64 stval) {
-    void *mem;
-    pte_t *pte;
-    uint64 pa;
-    uint flags;
-    int level;
-
-    /* the va exceed the MAXVA is illegal */
-    if (PGROUNDDOWN(stval) >= MAXVA) {
-        printf("exceed the MAXVA");
-        return -1;
-    }
-
-    level = walk(pagetable, stval, 0, 0, &pte);
-    /* try to write to va which is not in the proc's pagetable is illegal */
-    if (pte == NULL) {
-        return -1;
-    }
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-
-    /* guard page for stack */
-    if ((flags & PTE_U) == 0) {
-        return -1;
-    }
-    /* write to an unshared page is illegal */
-    if ((flags & PTE_SHARE) == 0) {
-        printf("try to write a readonly page");
-        return -1;
-    }
-
-    /* write to readonly shared page is illegal */
-    if ((flags & PTE_READONLY) > 0) {
-        printf("try to write a readonly page");
-        return -1;
-    }
-
-    if (level == SUPERPAGE) {
-        // 2MB superpage
-        if ((mem = kmalloc(SUPERPGSIZE)) == 0) {
-            return -1;
-        }
-        memmove(mem, (void *)pa, SUPERPGSIZE);
-    } else if (level == COMMONPAGE) {
-        // common page
-        if ((mem = kmalloc(PGSIZE)) == 0) {
-            return -1;
-        }
-        memmove(mem, (void *)pa, PGSIZE);
-    } else {
-        return -1;
-    }
-
-    *pte = PA2PTE((uint64)mem) | flags | PTE_W;
-    kfree((void *)pa);
     return 0;
 }

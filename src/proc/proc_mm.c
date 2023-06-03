@@ -118,6 +118,11 @@ int growheap(int n) {
     oldsz = mm->brk;
     newsz = mm->brk + n;
 
+    if (newsz < mm->start_brk) {
+        Warn("bad arg");
+        do_exit(-1);
+    }
+
     if (n > 0) {
         pte_t *pte;
         int level = walk(mm->pagetable, oldsz, 0, 0, &pte);
@@ -152,9 +157,7 @@ int growheap(int n) {
         }
     }
     mm->brk = sz;
-    // if (PGROUNDUP(sz) > mm->start_brk) {
     mm->heapvma->size = PGROUNDUP(sz) - mm->start_brk;
-    // }
     return 0;
 }
 

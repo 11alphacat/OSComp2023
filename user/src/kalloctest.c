@@ -106,7 +106,7 @@ void test2() {
   int free1;
   int n = (PHYSTOP-START_MEM)/PGSIZE;
   printf("start test2\n");  
-  printf("total free number of pages: %d (out of %d)\n", free0, n);
+  printf("total free number of pages: %dMB (out of %dMB)\n", free0 / 256, n / 256);
   if(n - free0 > 1000) {
     printf("test2 FAILED: cannot allocate enough memory");
     exit(-1);
@@ -126,6 +126,8 @@ void test2() {
 // Test concurrent kalloc/kfree and stealing
 void test3(void)
 {
+  int free0 = countfree();
+  printf("cur free number %d", free0 / 256);
   void *a, *a1;
   printf("start test3\n");  
   for(int i = 0; i < NCHILD; i++){

@@ -17,19 +17,25 @@
 #include "proc/signal.h"
 #include "proc/sched.h"
 #include "atomic/semaphore.h"
-
-#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
+#include "kernel/trap.h"
 
 struct spinlock tickslock;
 uint ticks;
 struct cond cond_ticks;
-
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
-
 extern int devintr();
+
+#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
+#define ISPAGEFAULT(cause) ((cause) == INSTUCTION_PAGEFAULT || (cause) == LOAD_PAGEFAULT || (cause) == STORE_PAGEFAULT)
+
+static char *cause[16] = {
+    [INSTUCTION_PAGEFAULT] "INSTRUCTION PAGEFAULT",
+    [STORE_PAGEFAULT] "STORE/AMO PAGEFAULT",
+    [LOAD_PAGEFAULT] "LOAD PAGEFAULT",
+};
 
 void trapinit(void) {
     initlock(&tickslock, "time");
@@ -42,6 +48,14 @@ void trapinithart(void) {
     // start timer
     w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
     SET_TIMER();
+}
+
+void killproc(struct proc *p) {
+    printf("usertrap(): process name: %s pid: %d\n", p->name, p->pid);
+    printf("scause %p %s\n", r_scause(), cause[r_scause()]);
+    printf("sepc=%p\n", r_sepc());
+    printf("stval=%p\n", r_stval());
+    proc_setkilled(p);
 }
 
 //
@@ -64,7 +78,8 @@ void thread_usertrap(void) {
     // save user program counter.
     t->trapframe->epc = r_sepc();
 
-    if (r_scause() == 8) {
+    uint64 cause = r_scause();
+    if (cause == 8) {
         // system call
 
         if (proc_killed(p))
@@ -82,28 +97,12 @@ void thread_usertrap(void) {
     } else if ((which_dev = devintr()) != 0) {
         // ok
     } else {
-        // vmprint(p->mm->pagetable, 0, 0, 0, 0);
-        // pte_t *pte;
-        // walk(p->mm->pagetable, r_stval(), 0, 0, &pte);
-        // PTE("RSW %d%d U %d X %d W %d R %d\n",
-        //     (*pte & PTE_READONLY) > 0, (*pte & PTE_SHARE) > 0,
-        //     (*pte & PTE_U) > 0, (*pte & PTE_X) > 0,
-        //     (*pte & PTE_W) > 0, (*pte & PTE_R) > 0);
-        uint64 cause = r_scause();
-        if (cause == INSTUCTION_PAGEFAULT
-            || cause == LOAD_PAGEFAULT
-            || cause == STORE_PAGEFAULT) {
+        if (ISPAGEFAULT(cause)) {
             if (pagefault(cause, p->mm->pagetable, r_stval()) < 0) {
-                printf("process %s\n", p->name);
-                printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-                printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-                proc_setkilled(p);
+                killproc(p);
             }
         } else {
-            printf("process %s\n", p->name);
-            printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-            printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-            proc_setkilled(p);
+            killproc(p);
         }
     }
 
