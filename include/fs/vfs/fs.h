@@ -110,8 +110,8 @@ struct inode {
     struct hash_table *i_hash;
 
     // speed up dirlookup
-    uint idx_hint;
-    uint off_hint;
+    // int idx_hint;
+    int off_hint;
 
     union {
         struct fat32_inode_info fat32_i;

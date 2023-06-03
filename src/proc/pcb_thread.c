@@ -92,7 +92,7 @@ struct tcb *alloc_thread(void) {
     TCB_Q_changeState(t, TCB_USED);
 
     // map <tid, t>
-    hash_insert(&tid_map, (void *)&t->tid, (void *)t, TID_MAP);
+    hash_insert(&tid_map, (void *)&t->tid, (void *)t);
 
     return t;
 }
@@ -106,7 +106,7 @@ void free_thread(struct tcb *t) {
         kfree((void *)t->sig);
 
     // delete <tid, t>
-    hash_delete(&tid_map, (void *)&t->tid, TID_MAP);
+    hash_delete(&tid_map, (void *)&t->tid);
 
     t->tid = 0;
 
@@ -255,7 +255,12 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
 
 // find the tcb* given tid using hash map
 struct tcb *find_get_tid(tid_t tid) {
-    return (struct tcb *)(hash_lookup(&tid_map, (void *)&tid, TID_MAP, NULL)->value);
+    struct hash_node* node = hash_lookup(&tid_map, (void *)&tid, NULL, 1);// release it
+    if(node!=NULL){
+        return (struct tcb *)(node->value);
+    } else{
+        return NULL;
+    }
 }
 
 // find tcb given pid and tidx

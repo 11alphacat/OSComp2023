@@ -191,8 +191,10 @@ uint64 sys_brk(void) {
     }
     increment = (intptr_t)newaddr - (intptr_t)oldaddr;
 
-    if (growproc(increment) < 0)
-        return -1;
+    if (growproc(increment) < 0) {
+        printf("free RAM : %ld, increment : %ld\n", get_free_mem(), increment);
+        return -1;        
+    }
     return oldaddr;
 }
 

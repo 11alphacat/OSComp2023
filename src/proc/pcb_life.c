@@ -134,7 +134,7 @@ struct proc *alloc_proc(void) {
     PCB_Q_changeState(p, PCB_USED);
 
     // map <pid, p>
-    hash_insert(&pid_map, (void *)&(p->pid), (void *)p, PID_MAP);
+    hash_insert(&pid_map, (void *)&(p->pid), (void *)p);
     return p;
 }
 
@@ -172,7 +172,7 @@ void free_proc(struct proc *p) {
     p->sz = 0; // bug!
 
     // delete <pid, t>
-    hash_delete(&pid_map, (void *)&p->pid, PID_MAP);
+    hash_delete(&pid_map, (void *)&p->pid);
 
     p->pid = 0;
     p->parent = 0;
@@ -231,7 +231,12 @@ void proc_init(void) {
 
 // find the proc we search using hash map
 inline struct proc *find_get_pid(pid_t pid) {
-    return (struct proc *)(hash_lookup(&pid_map, (void *)&pid, PID_MAP, NULL)->value);
+    struct hash_node* node = hash_lookup(&pid_map, (void *)&pid, NULL, 1);// realese it 
+    if(node!=NULL){
+        return (struct proc *)(node->value);
+    } else{
+        return NULL;
+    }
 }
 
 // A fork child's very first scheduling by scheduler()
