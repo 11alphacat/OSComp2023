@@ -3,10 +3,10 @@
 
 #include "common.h"
 #include "list.h"
+#include "memory/mm.h"
 
 #define NVMA 1000
 
-#include "common.h"
 struct proc;
 
 /* permission */
@@ -19,8 +19,11 @@ struct proc;
 /* virtual memory area */
 struct vma {
     enum {
-        VMA_MAP_FILE,
-        VMA_MAP_ANON, /* anonymous */
+        VMA_STACK,
+        VMA_HEAP,
+        VMA_TEXT,
+        VMA_FILE,
+        VMA_ANON, /* anonymous */
     } type;
     struct list_head node;
     vaddr_t startva;
@@ -30,20 +33,23 @@ struct vma {
     // temp
     int used;
 
+    /* for VMA_FILE */
     int fd;
     uint64 offset;
     struct file *fp;
 };
 
 extern struct vma vmas[NVMA];
-int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
+int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type,
                  int fd, off_t offset, struct file *fp);
-int vma_map(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type);
-int vmspace_unmap(struct proc *p, vaddr_t va, size_t len);
+int vma_map(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type);
+int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len);
 
-struct vma *find_vma_for_va(struct proc *p, vaddr_t addr);
-vaddr_t find_mapping_space(vaddr_t start, size_t size);
-int vmacopy(struct proc *newproc);
-void vmafree(struct proc *p);
+struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr);
+vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size);
+int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm);
+int uvmcopy(struct mm_struct *old, struct mm_struct *new);
+void free_all_vmas(struct mm_struct *mm);
+void print_vma(struct mm_struct *mm);
 
 #endif // __VMA_H__

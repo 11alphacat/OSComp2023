@@ -3,12 +3,13 @@
 #include "memory/memlayout.h"
 #include "proc/exec.h"
 #include "riscv.h"
-
+#include "memory/vma.h"
 #include "memory/vm.h"
 #include "debug.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
-#include "proc/pcb_mm.h"
+#include "proc/proc_mm.h"
+#include "list.h"
 
 /*
  * the kernel's page table.
@@ -94,8 +95,11 @@ void kvminithart() {
 #define LEVELS 3
 /* return the leaf pte's level, set (pte_t *)*pte to this pte's address at the same time */
 int walk(pagetable_t pagetable, uint64 va, int alloc, int lowlevel, pte_t **pte) {
-    if (va >= MAXVA)
+    vaddr_t max = MAXVA;
+    if (va >= MAXVA) {
+        Log("%p", max);
         panic("walk");
+    }
 
     for (int level = LEVELS - 1; level > lowlevel; level--) {
         pte_t *pte_tmp = &pagetable[PN(level, va)];
@@ -286,66 +290,66 @@ pagetable_t uvmcreate() {
 
 // Allocate PTEs and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
-uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm) {
+vaddr_t uvmalloc(pagetable_t pagetable, vaddr_t startva, vaddr_t endva, int perm) {
     char *mem;
 
-    if (newsz < oldsz)
-        return oldsz;
+    if (endva < startva)
+        return startva;
 
     // 外层有对super/normal page 的判断!
 
-    uint64 aligned_sz = PGROUNDUP(oldsz);
-    uint64 super_aligned_sz = SUPERPG_ROUNDUP(oldsz);
-    uint64 min = (newsz <= super_aligned_sz ? newsz : super_aligned_sz);
+    uint64 aligned_sz = PGROUNDUP(startva);
+    uint64 super_aligned_sz = SUPERPG_ROUNDUP(startva);
+    uint64 min = (endva <= super_aligned_sz ? endva : super_aligned_sz);
 
     for (uint64 a = aligned_sz; a < min; a += PGSIZE) {
         mem = kzalloc(PGSIZE);
         if (mem == 0) {
-            uvmdealloc(pagetable, a, oldsz);
+            uvmdealloc(pagetable, a, startva);
             return 0;
         }
-        if (mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, COMMONPAGE) != 0) {
+        if (mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R | PTE_U | perm, COMMONPAGE) != 0) {
             kfree(mem);
-            uvmdealloc(pagetable, a, oldsz);
+            uvmdealloc(pagetable, a, startva);
             return 0;
         }
     }
 
-    if (newsz <= super_aligned_sz) {
-        ASSERT(min == newsz);
-        return newsz;
+    if (endva <= super_aligned_sz) {
+        ASSERT(min == endva);
+        return endva;
     } else {
         uint64 addr;
-        uint64 newsz_down = SUPERPG_DOWN(newsz);
+        uint64 newsz_down = SUPERPG_DOWN(endva);
         for (addr = super_aligned_sz; addr < newsz_down; addr += SUPERPGSIZE) {
             mem = kzalloc(SUPERPGSIZE);
             if (mem == 0) {
                 // vmprint(pagetable, 1, 0, 0, 0);
-                uvmdealloc(pagetable, addr, oldsz);
+                uvmdealloc(pagetable, addr, startva);
                 return 0;
             }
-            if (mappages(pagetable, addr, SUPERPGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, SUPERPAGE) != 0) {
+            if (mappages(pagetable, addr, SUPERPGSIZE, (uint64)mem, PTE_R | PTE_U | perm, SUPERPAGE) != 0) {
                 kfree(mem);
-                uvmdealloc(pagetable, addr, oldsz);
+                uvmdealloc(pagetable, addr, startva);
                 return 0;
             }
         }
 
-        for (addr = newsz_down; addr < newsz; addr += PGSIZE) {
+        for (addr = newsz_down; addr < endva; addr += PGSIZE) {
             mem = kzalloc(PGSIZE);
             if (mem == 0) {
-                uvmdealloc(pagetable, addr, oldsz);
+                uvmdealloc(pagetable, addr, startva);
                 return 0;
             }
-            if (mappages(pagetable, addr, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm, COMMONPAGE) != 0) {
+            if (mappages(pagetable, addr, PGSIZE, (uint64)mem, PTE_R | PTE_U | perm, COMMONPAGE) != 0) {
                 kfree(mem);
-                uvmdealloc(pagetable, addr, oldsz);
+                uvmdealloc(pagetable, addr, startva);
                 return 0;
             }
         }
     }
 
-    return newsz;
+    return endva;
 }
 
 // Deallocate user pages to bring the process size from oldsz to
@@ -376,18 +380,37 @@ void freewalk(pagetable_t pagetable) {
             freewalk((pagetable_t)child);
             pagetable[i] = 0;
         } else if (pte & PTE_V) {
+            vmprint(pagetable, 1, 0, 0, 0);
             panic("freewalk: leaf");
         }
     }
     kfree((void *)pagetable);
 }
 
-// Free user memory pages,
+// Free all pages in vmas,
 // then free page-table pages.
-void uvmfree(pagetable_t pagetable, uint64 sz) {
-    if (sz > 0)
-        uvmunmap(pagetable, 0, PGROUNDUP(sz) / PGSIZE, 1, 0);
-    freewalk(pagetable);
+void uvmfree(struct mm_struct *mm) {
+    struct vma *pos;
+    vaddr_t startva, endva;
+    // print_vma(mm);
+    // vmprint(mm->pagetable, 1, 0, 0, 0);
+    list_for_each_entry(pos, &mm->head_vma, node) {
+        startva = pos->startva;
+        endva = startva + pos->size;
+        // if (!(startva % PGSIZE == 0 && endva % PGSIZE == 0)) {
+        //     print_vma(mm);
+        //     Log("hit");
+        // }
+        ASSERT(startva % PGSIZE == 0 && endva % PGSIZE == 0);
+        // Warn("%p~%p", startva, endva);
+        uvmunmap(mm->pagetable, startva, (endva - startva) / PGSIZE, 1, 1);
+        // vmprint(mm->pagetable, 1, 0, 0, 0);
+        // if (pos->type == VMA_STACK) {
+        //     uvmunmap(mm->pagetable, USTACK_GURAD_PAGE, 1, 1, 0);
+        // }
+    }
+    // print_vma(mm);
+    freewalk(mm->pagetable);
 }
 
 // Given a parent process's page table, copy
@@ -396,48 +419,62 @@ void uvmfree(pagetable_t pagetable, uint64 sz) {
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
-int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
+int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
     pte_t *pte;
-    uint64 pa, i;
+    uint64 pa;
     uint flags;
 
-    for (i = 0; i < sz; i += PGSIZE) {
-        int level = walk(old, i, 0, 0, &pte);
-        ASSERT(level <= 1 && level >= 0);
-        if (pte == NULL) {
-            panic("uvmcopy: pte should exist");
-        }
-        if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
-            *pte = *pte | PTE_READONLY;
-        }
-        /* shared page */
-        if ((*pte & PTE_W) == 0 && (*pte & PTE_READONLY) != 0) {
-            *pte = *pte | PTE_READONLY;
-        }
-        *pte = *pte | PTE_SHARE;
-        *pte = *pte & ~PTE_W;
-        pa = PTE2PA(*pte);
-        flags = PTE_FLAGS(*pte);
-        if (level == SUPERPAGE) {
-            /* level == 1 ~ map superpage */
-            ASSERT(i == SUPERPG_DOWN(i));
-            if (mappages(new, i, SUPERPGSIZE, pa, flags, SUPERPAGE) != 0) {
-                goto err;
+    struct vma *pos;
+    vaddr_t startva, endva;
+    list_for_each_entry(pos, &srcmm->head_vma, node) {
+        startva = pos->startva;
+        endva = startva + pos->size;
+        // if (!(startva % PGSIZE == 0 && endva % PGSIZE == 0)) {
+        //     print_vma(srcmm);
+        //     Log("hit");
+        // }
+        ASSERT(startva % PGSIZE == 0 && endva % PGSIZE == 0);
+        for (vaddr_t i = startva; i < endva; i += PGSIZE) {
+            int level = walk(srcmm->pagetable, i, 0, 0, &pte);
+            ASSERT(level <= 1 && level >= 0);
+            if (pte == NULL) {
+                Warn("TODO: handler");
+                continue;
+                // panic("uvmcopy: pte should exist");
             }
-            i += (SUPERPGSIZE - PGSIZE);
-        } else if (level == COMMONPAGE) {
-            /* level == 0 ~ map common page */
-            if (mappages(new, i, PGSIZE, pa, flags, COMMONPAGE) != 0) {
-                goto err;
+            if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
+                *pte = *pte | PTE_READONLY;
             }
+            /* shared page */
+            if ((*pte & PTE_W) == 0 && (*pte & PTE_READONLY) != 0) {
+                *pte = *pte | PTE_READONLY;
+            }
+            *pte = *pte | PTE_SHARE;
+            *pte = *pte & ~PTE_W;
+            pa = PTE2PA(*pte);
+            flags = PTE_FLAGS(*pte);
+            if (level == SUPERPAGE) {
+                /* level == 1 ~ map superpage */
+                ASSERT(i == SUPERPG_DOWN(i));
+                if (mappages(dstmm->pagetable, i, SUPERPGSIZE, pa, flags, SUPERPAGE) != 0) {
+                    goto err;
+                }
+                i += (SUPERPGSIZE - PGSIZE);
+            } else if (level == COMMONPAGE) {
+                /* level == 0 ~ map common page */
+                if (mappages(dstmm->pagetable, i, PGSIZE, pa, flags, COMMONPAGE) != 0) {
+                    goto err;
+                }
+            }
+            /* call share_page after mappages success! */
+            share_page(pa);
         }
-        /* call share_page after mappages success! */
-        share_page(pa);
     }
     return 0;
 
 err:
-    uvmunmap(new, 0, i / PGSIZE, 0, 0);
+    panic("TODO: error handler");
+    // uvmunmap(new, 0, i / PGSIZE, 0, 0);
     return -1;
 }
 
@@ -605,6 +642,26 @@ void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 va
             }
         }
     }
+}
+
+int uvm_thread_stack(pagetable_t pagetable, int thread_idx) {
+    /* map an empty page(with no pa) for guard page */
+    if (mappages(pagetable, USTACK_GURAD_PAGE - thread_idx * 2 * PGSIZE, PGSIZE, 0, PTE_R, COMMONPAGE) < 0) {
+        return -1;
+    }
+
+    vaddr_t stackaddr = USTACK - thread_idx * 2 * PGSIZE;
+    if (uvmalloc(pagetable, stackaddr, stackaddr + PGSIZE, PTE_W | PTE_R) == 0) {
+        return -1;
+    }
+    return 0;
+}
+
+int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa) {
+    if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, 0) < 0) {
+        return -1;
+    }
+    return 0;
 }
 
 int cow(pagetable_t pagetable, uint64 stval) {

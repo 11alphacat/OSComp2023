@@ -240,7 +240,7 @@ int setup_rt_frame(struct sigaction *sig, int signo, sigset_t *set, struct trapf
     // frame->uc.uc_mcontext.sc_regs  ;
     frame->uc.uc_sigmask = *set;
 
-    if (copyout(p->pagetable, (uint64)frame->sigreturn_code, (char *)__user_rt_sigreturn, sizeof(frame->sigreturn_code)))
+    if (copyout(p->mm->pagetable, (uint64)frame->sigreturn_code, (char *)__user_rt_sigreturn, sizeof(frame->sigreturn_code)))
         return -1;
 
     tf->ra = (uint64)&frame->sigreturn_code;

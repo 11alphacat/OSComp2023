@@ -7,6 +7,7 @@
 #include "memory/allocator.h"
 #include "fs/vfs/fs.h"
 #include "debug.h"
+#include "memory/mm.h"
 
 static uint32 perm_vma2pte(uint32 vma_perm) {
     uint32 pte_perm = 0;
@@ -35,9 +36,9 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
         return -1;
     }
 
-    struct vma *vma = find_vma_for_va(proc_current(), stval);
+    struct vma *vma = find_vma_for_va(proc_current()->mm, stval);
     if (vma != NULL) {
-        if (vma->type == VMA_MAP_FILE) {
+        if (vma->type == VMA_FILE) {
             if ((cause == STORE_PAGEFAULT && (vma->perm & PERM_WRITE))
                 || (cause == LOAD_PAGEFAULT && (vma->perm & PERM_READ))
                 || (cause == INSTUCTION_PAGEFAULT && (vma->perm & PERM_EXEC))) {
@@ -49,13 +50,17 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
                 fat32_inode_read(vma->fp->f_tp.f_inode, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
                 fat32_inode_unlock(vma->fp->f_tp.f_inode);
             }
-        } else if (vma->type == VMA_MAP_ANON) {
-            Log("hit");
+        } else if (vma->type == VMA_ANON) {
+            // Log("hit");
             uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
+        } else {
+            // return cow(pagetable, stval);
+            goto cow;
         }
         return 0;
     }
 
+cow:
     /* copy-on-write */
 
     level = walk(pagetable, stval, 0, 0, &pte);

@@ -5,18 +5,23 @@
 #define COMMONPAGE 0
 #define SUPERPAGE 1 /* 2MB superpage */
 
+struct mm_struct;
 void kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm, int lowlevel);
 int walk(pagetable_t pagetable, uint64 va, int alloc, int lowlevel, pte_t **pte);
 paddr_t getphyaddr(pagetable_t pagetable, vaddr_t va);
 uint64 walkaddr(pagetable_t pagetable, uint64 va);
 int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm, int lowlevel);
 pagetable_t uvmcreate(void);
-uint64 uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm);
+vaddr_t uvmalloc(pagetable_t pagetable, vaddr_t startva, vaddr_t endva, int perm);
 uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz);
-int uvmcopy(pagetable_t old, pagetable_t new, uint64 sz);
-void uvmfree(pagetable_t pagetable, uint64 sz);
+int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm);
+void uvmfree(struct mm_struct *mm);
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int on_demand);
 void uvmclear(pagetable_t pagetable, uint64 va);
+void freewalk(pagetable_t pagetable);
+
+int uvm_thread_stack(pagetable_t pagetable, int thread_idx);
+int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa);
 
 /* copy-on write */
 int cow(pagetable_t pagetable, uint64 stval);

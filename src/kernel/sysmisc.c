@@ -1,6 +1,6 @@
 #include "debug.h"
 #include "common.h"
-#include "proc/pcb_mm.h"
+#include "proc/proc_mm.h"
 #include "kernel/trap.h"
 #include "proc/sched.h"
 #include "riscv.h"
@@ -128,7 +128,7 @@ uint64 sys_gettimeofday(void) {
     struct timeval tv_buf = TIME2TIMEVAL(time);
     // Log("%ld", tv_buf.tv_sec);
     // Log("%ld", tv_buf.tv_usec);
-    if (copyout(proc_current()->pagetable, addr, (char *)&tv_buf, sizeof(tv_buf)) < 0) {
+    if (copyout(proc_current()->mm->pagetable, addr, (char *)&tv_buf, sizeof(tv_buf)) < 0) {
         return -1;
     }
     return 0;
@@ -146,7 +146,7 @@ uint64 sys_nanosleep(void) {
     argaddr(0, &req);
 
     struct timespec ts_buf;
-    if (copyin(proc_current()->pagetable, (char *)&ts_buf, req, sizeof(ts_buf)) == -1) {
+    if (copyin(proc_current()->mm->pagetable, (char *)&ts_buf, req, sizeof(ts_buf)) == -1) {
         return -1;
     }
 
@@ -184,7 +184,7 @@ uint64 sys_clock_gettime(void) {
     uint64 time = rdtime();
     ts_buf = TIME2TIMESPEC(time);
 
-    if (copyout(proc_current()->pagetable, tp, (char *)&ts_buf, sizeof(ts_buf)) < 0) {
+    if (copyout(proc_current()->mm->pagetable, tp, (char *)&ts_buf, sizeof(ts_buf)) < 0) {
         return -1;
     }
 
@@ -219,7 +219,7 @@ uint64 sys_sysinfo(void) {
     info_buf.totalram = PHYSTOP - START_MEM; // 120MB
     info_buf.procs = get_current_procs();
 
-    if (copyout(proc_current()->pagetable, info, (char *)&info_buf, sizeof(info_buf)) < 0) {
+    if (copyout(proc_current()->mm->pagetable, info, (char *)&info_buf, sizeof(info_buf)) < 0) {
         return -1;
     }
 

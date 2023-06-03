@@ -68,4 +68,5 @@
 116	syslog	sys_syslog
 88	utimensat	sys_utimensat
 66 writev   sys_writev
+94 exit_group sys_exit_group
 

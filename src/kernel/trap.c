@@ -82,9 +82,9 @@ void thread_usertrap(void) {
     } else if ((which_dev = devintr()) != 0) {
         // ok
     } else {
-        // vmprint(p->pagetable, 0, 0, 0, 0);
+        // vmprint(p->mm->pagetable, 0, 0, 0, 0);
         // pte_t *pte;
-        // walk(p->pagetable, r_stval(), 0, 0, &pte);
+        // walk(p->mm->pagetable, r_stval(), 0, 0, &pte);
         // PTE("RSW %d%d U %d X %d W %d R %d\n",
         //     (*pte & PTE_READONLY) > 0, (*pte & PTE_SHARE) > 0,
         //     (*pte & PTE_U) > 0, (*pte & PTE_X) > 0,
@@ -93,7 +93,7 @@ void thread_usertrap(void) {
         if (cause == INSTUCTION_PAGEFAULT
             || cause == LOAD_PAGEFAULT
             || cause == STORE_PAGEFAULT) {
-            if (pagefault(cause, p->pagetable, r_stval()) < 0) {
+            if (pagefault(cause, p->mm->pagetable, r_stval()) < 0) {
                 printf("process %s\n", p->name);
                 printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
                 printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -155,7 +155,7 @@ void thread_usertrapret() {
     w_sepc(t->trapframe->epc);
 
     // tell trampoline.S the user page table to switch to.
-    uint64 satp = MAKE_SATP(p->pagetable);
+    uint64 satp = MAKE_SATP(p->mm->pagetable);
 
     // jump to userret in trampoline.S at the top of memory, which
     // switches to the user page table, restores user registers,

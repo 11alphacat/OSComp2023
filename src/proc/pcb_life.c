@@ -15,7 +15,7 @@
 #include "proc/cond.h"
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
-#include "proc/pcb_mm.h"
+#include "proc/proc_mm.h"
 #include "proc/exec.h"
 #include "proc/signal.h"
 #include "proc/wait_queue.h"
@@ -111,6 +111,15 @@ struct proc *alloc_proc(void) {
     p->first_child = NULL;
     INIT_LIST_HEAD(&p->sibling_list);
 
+    // slob!!!
+    p->mm = alloc_mm();
+    if (p->mm == NULL) {
+        Warn("fix error handler!");
+        free_proc(p);
+        release(&p->lock);
+        return 0;
+    }
+
     // thread group (list head) sets to NULL
     if ((p->tg = (struct thread_group *)kalloc()) == 0) {
         free_proc(p);
@@ -120,16 +129,6 @@ struct proc *alloc_proc(void) {
 
     tginit(p->tg);
 
-    // an empty user page table.
-    p->pagetable = proc_pagetable(p);
-
-    if (p->pagetable == 0) {
-        free_proc(p);
-        release(&p->lock);
-        return 0;
-    }
-    INIT_LIST_HEAD(&p->head_vma);
-
     return p;
 }
 
@@ -137,9 +136,11 @@ struct proc *alloc_proc(void) {
 struct proc *create_proc() {
     struct tcb *t = NULL;
     struct proc *p = NULL;
+
     if ((p = alloc_proc()) == 0) {
         return 0;
     }
+
     if ((t = alloc_thread()) == 0) {
         free_proc(p);
         return 0;
@@ -150,7 +151,9 @@ struct proc *create_proc() {
     // wait semaphore
     sema_init(&t->sem_wait_chan_parent, 0, "thread_sema_chan");
 
+    // uvm_thread_trapframe(p->mm->pagetable, 0, (paddr_t)t->trapframe);
     thread_trapframe(t, 0);
+    // vmprint(p->mm->pagetable, 1, 0, 0, 0);
     release(&t->lock);
 
     return p;
@@ -158,13 +161,10 @@ struct proc *create_proc() {
 
 // free a existed proc
 void free_proc(struct proc *p) {
-    if (p->pagetable)
-        proc_freepagetable(p->pagetable, p->sz, p->tg->thread_idx);
-    p->pagetable = 0;
+    free_mm(p->mm, p->tg->thread_idx);
     if (p->tg)
         kfree((void *)p->tg);
     p->tg = 0;
-    p->sz = 0; // bug!
     p->pid = 0;
     p->parent = 0;
     p->name[0] = 0;
@@ -182,7 +182,7 @@ void _user_init(void) {
     initproc = p;
 
     safestrcpy(p->name, "/init", 10);
-    p->sz = 0;
+    p->mm->brk = 0;
 
     console.f_type = T_DEVICE;
     console.f_mode = O_RDWR;
@@ -259,6 +259,7 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
         // wait semaphore
         sema_init(&t->sem_wait_chan_parent, 0, "thread_sema_chan");
 
+        // uvm_thread_trapframe(t->p->mm->pagetable, 0, (paddr_t)t->trapframe);
         thread_trapframe(t, 0);
         release(&t->lock);
         t->trapframe->a0 = 0;
@@ -279,7 +280,7 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     np->tg->group_leader->trapframe->a0 = 0;
 
     /* Copy vma */
-    if (vmacopy(np) < 0) {
+    if (vmacopy(p->mm, np->mm) < 0) {
         free_proc(np);
         release(&np->lock);
         return -1;
@@ -287,16 +288,17 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
 
     // Copy user memory from parent to child.
     if (flags & CLONE_VM) {
-        np->pagetable = p->pagetable;
+        np->mm->pagetable = p->mm->pagetable;
     } else {
-        if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
+        if (uvmcopy(p->mm, np->mm) < 0) {
             free_proc(np);
             release(&np->lock);
             return -1;
         }
     }
 
-    np->sz = p->sz;
+    np->mm->start_brk = p->mm->start_brk;
+    np->mm->brk = p->mm->brk;
     // increment reference counts on open file descriptors.
     if (flags & CLONE_FILES) {
     } else {
@@ -372,8 +374,6 @@ void do_exit(int status) {
 
     if (p == initproc)
         panic("init exiting");
-
-    vmafree(p);
 
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {
@@ -458,7 +458,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
 
                 // ASSERT(p_child->pid!=SHELL_PID);
                 pid = p_child->pid;
-                if (status != 0 && copyout(p->pagetable, status, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
+                if (status != 0 && copyout(p->mm->pagetable, status, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
                     release(&p_child->lock);
                     return -1;
                 }

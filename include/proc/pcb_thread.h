@@ -60,7 +60,7 @@ struct tcb {
     uint64 sas_ss_flags;
     // struct sigpending shared_pending; // pending (shared)
 
-    // kernel stack 、trapframe and context
+    // kernel stack, trapframe and context
     uint64 kstack;               // kernel stack
     struct trapframe *trapframe; // data page for trampoline.S
     struct context context;      // swtch() here to run thread

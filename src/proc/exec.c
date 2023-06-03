@@ -8,13 +8,14 @@
 #include "debug.h"
 #include "memory/vm.h"
 #include "kernel/trap.h"
-#include "proc/pcb_mm.h"
+#include "proc/proc_mm.h"
 #include "fs/vfs/ops.h"
 #include "fs/fat/fat32_file.h"
 #include "fs/fat/fat32_mem.h"
 #include "proc/pcb_thread.h"
 #include "auxv.h"
 #include "ctype.h"
+#include "memory/vma.h"
 
 void print_ustack(pagetable_t pagetable, uint64 stacktop);
 /* this will commit to trapframe after execve success */
@@ -45,6 +46,17 @@ int flags2perm(int flags) {
         perm |= PTE_W;
     if (flags & 0x4)
         perm |= PTE_R;
+    return perm;
+}
+
+int flags2vmaperm(int flags) {
+    int perm = 0;
+    if (flags & 0x1)
+        perm = PERM_EXEC;
+    if (flags & 0x2)
+        perm |= PERM_WRITE;
+    if (flags & 0x4)
+        perm |= PERM_READ;
     return perm;
 }
 
@@ -115,7 +127,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
         for (; argv[argc]; argc++) {
             if (argc >= MAXARG)
                 return -1;
-            paddr_t cp = getphyaddr(p->pagetable, (vaddr_t)argv[argc]);
+            paddr_t cp = getphyaddr(p->mm->pagetable, (vaddr_t)argv[argc]);
             if (cp == 0) {
                 return -1;
             }
@@ -134,7 +146,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
         for (; envp[envpc]; envpc++) {
             if (envpc >= MAXENV)
                 return -1;
-            paddr_t cp = getphyaddr(p->pagetable, (vaddr_t)envp[envpc]);
+            paddr_t cp = getphyaddr(p->mm->pagetable, (vaddr_t)envp[envpc]);
             if (cp == 0) {
                 return -1;
             }
@@ -256,7 +268,7 @@ void print_ustack(pagetable_t pagetable, uint64 stacktop) {
 }
 
 /* return the end of the virtual address after load segments, or 0 to indicate error */
-static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
+static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
     int i, off;
     uint64 sz = 0;
     struct elfhdr elf;
@@ -290,32 +302,38 @@ static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
            size: read size of misaligned page 
         */
         uint64 off = 0, size = 0;
-        paddr_t aligned_vaddr = PGROUNDDOWN(ph.vaddr);
+        vaddr_t vaddrdown = PGROUNDDOWN(ph.vaddr);
         if (ph.vaddr % PGSIZE != 0) {
+            // Warn("%p", vaddrdown);
             paddr_t pa = (paddr_t)kmalloc(PGSIZE);
-            if (mappages(pagetable, aligned_vaddr, PGSIZE, pa, flags2perm(ph.flags) | PTE_U, COMMONPAGE) < 0) {
+            if (mappages(mm->pagetable, vaddrdown, PGSIZE, pa, flags2perm(ph.flags) | PTE_U, COMMONPAGE) < 0) {
                 Warn("misaligned loader mappages failed");
                 kfree((void *)pa);
                 goto unlock_put;
             }
-            off = ph.vaddr - aligned_vaddr;
+            off = ph.vaddr - vaddrdown;
             size = PGROUNDUP(ph.vaddr) - ph.vaddr;
             if (fat32_inode_read(ip, 0, (uint64)pa + off, ph.off, size) != size) {
                 goto unlock_put;
             }
             // Log("entry is %p", elf.entry);
         } else {
-            ASSERT(aligned_vaddr == ph.vaddr);
+            ASSERT(vaddrdown == ph.vaddr);
         }
         uint64 sz1;
         ASSERT((ph.vaddr + size) % PGSIZE == 0);
         // Log("\nstart end:%p %p", ph.vaddr + size, ph.vaddr + ph.memsz);
-        if ((sz1 = uvmalloc(pagetable, ph.vaddr + size, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+        if ((sz1 = uvmalloc(mm->pagetable, ph.vaddr + size, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
             goto unlock_put;
-        // vmprint(pagetable, 1, 0, 0, 0);
+        // vmprint(mm->pagetable, 1, 0, 0, 0);
         sz = sz1;
-        if (loadseg(pagetable, ph.vaddr + size, ip, ph.off + size, ph.filesz - size) < 0)
+        if (loadseg(mm->pagetable, ph.vaddr + size, ip, ph.off + size, ph.filesz - size) < 0)
             goto unlock_put;
+
+        vaddr_t vaddrup = PGROUNDUP(ph.vaddr + ph.memsz);
+        if (vma_map(mm, vaddrdown, vaddrup - vaddrdown, flags2vmaperm(ph.flags), VMA_TEXT) < 0) {
+            goto unlock_put;
+        }
     }
     fat32_inode_unlock_put(ip);
     ip = 0;
@@ -323,7 +341,7 @@ static uint64 loader(char *path, pagetable_t pagetable, struct commit *commit) {
     return sz;
 
 unlock_put:
-    proc_freepagetable(pagetable, sz, 0);
+    // proc_freepagetable(mm->pagetable, sz, 0);
     fat32_inode_unlock_put(ip);
     return 0;
 }
@@ -332,70 +350,71 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     struct commit commit;
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
-    char *s, *last;
-    uint64 sz = 0, sp;
-    uint64 oldsz = p->sz;
-    pagetable_t pagetable = 0, oldpagetable;
+    vaddr_t brk; /* program_break */
     memset(&commit, 0, sizeof(commit));
 
-    /* Create a new pagetable for execve */
-    if ((pagetable = proc_pagetable(p)) == 0) {
+    struct mm_struct *mm, *oldmm = p->mm;
+    mm = alloc_mm();
+    if (mm == NULL) {
         return -1;
     }
 
-    /* Load the ELF_PROG_LOAD segments */
-    if ((sz = loader(path, pagetable, &commit)) == 0) {
-        return -1;
-    }
-
-    /* Allocate two pages at the next page boundary.
-     * Make the first inaccessible as a stack guard.
-     * Use the second as the user stack.
-     */
-    sz = PGROUNDUP(sz);
-    uint64 sz1;
-    if ((sz1 = uvmalloc(pagetable, sz, sz + 2 * PGSIZE, PTE_W)) == 0)
+    /* Loader */
+    if ((brk = loader(path, mm, &commit)) == 0) {
         goto bad;
-    sz = sz1;
-    uvmclear(pagetable, sz - 2 * PGSIZE);
-    sp = sz;
+    }
 
-    /* Initialize the stack */
-    int argc = ustack_init(p, pagetable, &commit, sp, argv, envp);
+    /* Heap Initialization */
+    brk = PGROUNDUP(brk);
+    mm->start_brk = mm->brk = brk;
+    mm->heapvma = NULL;
+
+    /* Stack Initialization */
+    if (uvm_thread_stack(mm->pagetable, 0) < 0) {
+        Warn("bad");
+        goto bad;
+    }
+    if (vma_map(mm, USTACK, PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
+        goto bad;
+    }
+
+    int argc = ustack_init(p, mm->pagetable, &commit, USTACK + PGSIZE, argv, envp);
     if (argc < 0) {
         goto bad;
     }
 
     /* Save program name for debugging */
+    char *s, *last;
     for (last = s = path; *s; s++)
         if (*s == '/')
             last = s + 1;
     safestrcpy(p->name, last, sizeof(p->name));
 
     /* Commit to the user image */
-    // p->trapframe->sp = commit.sp;
-    // p->trapframe->a1 = commit.a1;
-    // p->trapframe->a2 = commit.a2;
-    // p->trapframe->epc = commit.entry; // initial program counter = main
-
     t->trapframe->sp = commit.sp;
     t->trapframe->a1 = commit.a1;
     t->trapframe->a2 = commit.a2;
     t->trapframe->epc = commit.entry;
+    // uvm_thread_trapframe(mm->pagetable, 0, (paddr_t)t->trapframe);
 
-    p->sz = sz;
+    /* free the old pagetable */
+    free_mm(oldmm, p->tg->thread_cnt);
 
-    /* free the old pagetable and commit new pagetable */
-    oldpagetable = p->pagetable;
-    proc_freepagetable(oldpagetable, oldsz, p->tg->thread_idx);
-    p->pagetable = pagetable;
+    /* commit new mm */
+    p->mm = mm;
+
+    /* TODO */
     thread_trapframe(t, 1);
+
+    /* for debug, print the pagetable and vmas after exec */
+    // vmprint(mm->pagetable, 1, 0, 0, 0);
+    // print_vma(mm);
 
     return argc; // this ends up in a0, the first argument to main(argc, argv)
 
 bad:
-    if (pagetable) {
-        proc_freepagetable(pagetable, sz, 0);
-    }
+    // TODO
+    // Note: cnt is 1!
+    free_mm(mm, 0);
     return -1;
 }

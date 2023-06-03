@@ -24,7 +24,7 @@ uint64 sys_munmap(void) {
     argaddr(0, &addr);
     argulong(1, &length);
 
-    if (vmspace_unmap(proc_current(), addr, length) != 0) {
+    if (vmspace_unmap(proc_current()->mm, addr, length) != 0) {
         return -1;
     }
     return 0;
@@ -66,13 +66,14 @@ void *sys_mmap(void) {
         return MAP_FAILED;
     }
 
-    vaddr_t mapva = find_mapping_space(addr, length);
+    struct mm_struct *mm = proc_current()->mm;
+    vaddr_t mapva = find_mapping_space(mm, addr, length);
     if (flags & MAP_ANONYMOUS) {
-        if (vma_map(proc_current(), mapva, length, mkperm(prot, flags), VMA_MAP_ANON) < 0) {
+        if (vma_map(mm, mapva, length, mkperm(prot, flags), VMA_ANON) < 0) {
             return MAP_FAILED;
         }
     } else {
-        if (vma_map_file(proc_current(), mapva, length, mkperm(prot, flags), VMA_MAP_FILE, fd, offset, fp) < 0) {
+        if (vma_map_file(mm, mapva, length, mkperm(prot, flags), VMA_FILE, fd, offset, fp) < 0) {
             return MAP_FAILED;
         }
     }
@@ -91,7 +92,7 @@ uint64 sys_mprotect(void) {
     argint(2, &prot);
     // Log("%p", addr);
 
-    struct vma *vma = find_vma_for_va(proc_current(), addr);    
+    struct vma *vma = find_vma_for_va(proc_current()->mm, addr);
     if (vma == NULL) {
         return -1;
     }

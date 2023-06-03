@@ -12,11 +12,12 @@
 
 // #define __STRACE__
 // Fetch the uint64 at addr from the current process.
+#define INSTACK(addr) ((addr) >= USTACK && (addr) + sizeof(uint64) < USTACK + PGSIZE)
 int fetchaddr(vaddr_t addr, uint64 *ip) {
     struct proc *p = proc_current();
-    if (addr >= p->sz || addr + sizeof(uint64) > p->sz) // both tests needed, in case of overflow
+    if ((addr >= p->mm->brk || addr + sizeof(uint64) > p->mm->brk) && !INSTACK(addr)) // both tests needed, in case of overflow
         return -1;
-    if (copyin(p->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
+    if (copyin(p->mm->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
         return -1;
     return 0;
 }
@@ -25,7 +26,7 @@ int fetchaddr(vaddr_t addr, uint64 *ip) {
 // Returns length of string, not including nul, or -1 for error.
 int fetchstr(uint64 addr, char *buf, int max) {
     struct proc *p = proc_current();
-    if (copyinstr(p->pagetable, buf, addr, max) < 0)
+    if (copyinstr(p->mm->pagetable, buf, addr, max) < 0)
         return -1;
     return strlen(buf);
 }
@@ -133,7 +134,7 @@ static struct syscall_info info[] = {
     /* int execve(const char *pathname, char *const argv[], char *const envp[]); */
     [SYS_execve] { "execve", 3, "spp" },
     // char* sbrk(int);
-    [SYS_sbrk] { "sbrk", 1, "d" },
+    [SYS_sbrk] { "sbrk", 1, "d", 'p' },
     /* int close(int fd); */
     [SYS_close] { "close", 1, "d" },
     /* ssize_t read(int fd, void *buf, size_t count); */
@@ -156,7 +157,12 @@ static struct syscall_info info[] = {
     [SYS_set_tid_address] { "set_tid_address", 1, "p", 'd' },
     // int mprotect(void *addr, size_t len, int prot);
     [SYS_mprotect] { "mprotect", 3, "pux", 'd' },
-
+    // int ioctl(int fd, unsigned long request, ...);
+    [SYS_ioctl] { "ioctl", 2, "du", 'd' },
+    // pid_t wait4(pid_t pid, int *wstatus, int options, struct rusage *rusage);
+    [SYS_wait4] { "wait4", 4, "dpxp" },
+    // void exit_group(int status);
+    [SYS_exit_group] { "exit_group", 1, "d", 'd' },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -242,7 +248,7 @@ void syscall(void) {
                 switch (info[num].type[i]) {
                 case 's': {
                     char buf[100];
-                    copyinstr(p->pagetable, buf, argument, 100);
+                    copyinstr(p->mm->pagetable, buf, argument, 100);
                     STRACE("%s, ", buf);
                     break;
                 }

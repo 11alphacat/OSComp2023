@@ -73,6 +73,7 @@ struct tcb *alloc_thread(void) {
         release(&t->lock);
         return 0;
     }
+
     memset(&(t->sig_trapframe), 0, sizeof(t->sig_trapframe));
     t->sig_pending_cnt = 0;
 

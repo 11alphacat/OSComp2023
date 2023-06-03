@@ -27,7 +27,6 @@
 #define PROT_WRITE 0x2
 #define PROT_EXEC 0x4
 
-
 #define AT_FDCWD -100
 
 #define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)

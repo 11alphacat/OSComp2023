@@ -8,7 +8,7 @@
 #include "memory/vm.h"
 #include "memory/allocator.h"
 #include "debug.h"
-#include "proc/pcb_mm.h"
+#include "proc/proc_mm.h"
 #include "proc/cond.h"
 #include "proc/signal.h"
 #include "proc/exec.h"
@@ -129,12 +129,12 @@ uint64 sys_execve(void) {
                 break;
             }
             paddr_t cp;
-            if ((cp = walkaddr(proc_current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+            if ((cp = walkaddr(proc_current()->mm->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
                 return -1;
             }
         }
 
-        argv = getphyaddr(proc_current()->pagetable, uargv);
+        argv = getphyaddr(proc_current()->mm->pagetable, uargv);
     }
 
     if (uenvp == 0) {
@@ -152,12 +152,12 @@ uint64 sys_execve(void) {
                 break;
             }
             vaddr_t cp;
-            if ((cp = walkaddr(proc_current()->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+            if ((cp = walkaddr(proc_current()->mm->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
                 return -1;
             }
         }
 
-        envp = getphyaddr(proc_current()->pagetable, uenvp);
+        envp = getphyaddr(proc_current()->mm->pagetable, uenvp);
     }
 
     return do_execve(path, (char *const *)argv, (char *const *)envp);
@@ -168,8 +168,8 @@ uint64 sys_sbrk(void) {
     int n;
 
     argint(0, &n);
-    addr = proc_current()->sz;
-    if (growproc(n) < 0)
+    addr = proc_current()->mm->brk;
+    if (growheap(n) < 0)
         return -1;
     return addr;
 }
@@ -179,7 +179,7 @@ uint64 sys_brk(void) {
     uintptr_t newaddr;
     intptr_t increment;
 
-    oldaddr = proc_current()->sz;
+    oldaddr = proc_current()->mm->brk;
     argaddr(0, &newaddr);
     /*  contest requirement: brk(0) return the proc_current location of the program break
         This is different from the behavior of the brk interface in Linux
@@ -189,14 +189,14 @@ uint64 sys_brk(void) {
     }
     increment = (intptr_t)newaddr - (intptr_t)oldaddr;
 
-    if (growproc(increment) < 0)
+    if (growheap(increment) < 0)
         return -1;
     return oldaddr;
 }
 
 uint64 sys_print_pgtable(void) {
     struct proc *p = proc_current();
-    vmprint(p->pagetable, 1, 0, 0, 0);
+    vmprint(p->mm->pagetable, 1, 0, 0, 0);
     uint64 memsize = get_free_mem();
     Log("%dM", memsize / 1024 / 1024);
     return 0;
@@ -235,7 +235,7 @@ uint64 sys_set_tid_address(void) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
 
-    t->clear_child_tid = (int *)getphyaddr(p->pagetable, tidptr);
+    t->clear_child_tid = (int *)getphyaddr(p->mm->pagetable, tidptr);
 
     return t->tid;
 }
@@ -265,10 +265,10 @@ uint64 sys_rt_sigaction(void) {
     struct proc *p = proc_current();
     // If act is non-NULL, the new action for signal signum is installed from act
     if (act_addr) {
-        if (copyin(p->pagetable, (char *)&act, act_addr, sizeof(act)) < 0) {
+        if (copyin(p->mm->pagetable, (char *)&act, act_addr, sizeof(act)) < 0) {
             return -1;
         }
-        // if (copyin(p->pagetable, (char *)&act_real.sa_handler, (uint64)act.sa_handler, sizeof(act.sa_handler)) < 0) {
+        // if (copyin(p->mm->pagetable, (char *)&act_real.sa_handler, (uint64)act.sa_handler, sizeof(act.sa_handler)) < 0) {
         //     return -1;
         // }
     }
@@ -277,7 +277,7 @@ uint64 sys_rt_sigaction(void) {
 
     // If oldact is non-NULL, the previous action is saved in oldact
     if (!ret && oldact_addr) {
-        if (copyout(p->pagetable, oldact_addr, (char *)&oldact, sizeof(oldact)) < 0) {
+        if (copyout(p->mm->pagetable, oldact_addr, (char *)&oldact, sizeof(oldact)) < 0) {
             return -1;
         }
     }
@@ -307,7 +307,7 @@ uint64 sys_rt_sigprocmask(void) {
     // If set is NULL, then the signal mask is unchanged (i.e., how is ignored),
     // but the current value of the signal mask is nevertheless returned in oldset
     if (set_addr) {
-        if (copyin(proc_current()->pagetable, (char *)&set, set_addr, sizeof(set)) < 0) {
+        if (copyin(proc_current()->mm->pagetable, (char *)&set, set_addr, sizeof(set)) < 0) {
             return -1;
         }
     }
@@ -316,7 +316,7 @@ uint64 sys_rt_sigprocmask(void) {
 
     // If oldset is non-NULL, the previous value of the signal mask is stored in oldset
     if (!ret && oldset_addr) {
-        if (copyin(proc_current()->pagetable, (char *)&old_set, oldset_addr, sizeof(old_set)) < 0) {
+        if (copyin(proc_current()->mm->pagetable, (char *)&old_set, oldset_addr, sizeof(old_set)) < 0) {
             return -1;
         }
     }

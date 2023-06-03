@@ -49,7 +49,7 @@ int fat32_filestat(struct file *f, uint64 addr) {
 
         fat32_inode_stati(f->f_tp.f_inode, &st);
         fat32_inode_unlock(f->f_tp.f_inode);
-        if (copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+        if (copyout(p->mm->pagetable, addr, (char *)&st, sizeof(st)) < 0)
             return -1;
         return 0;
     }

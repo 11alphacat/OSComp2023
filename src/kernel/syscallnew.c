@@ -6,8 +6,10 @@
 
 // other
 
-
 // proc
+uint64 sys_exit_group(void) {
+    return 0;
+}
 
 // filesystem
 uint64 sys_utimensat(void) {
@@ -16,7 +18,6 @@ uint64 sys_utimensat(void) {
 }
 
 uint64 sys_ioctl(void) {
-    ASSERT(0);
     return 0;
 }
 

@@ -66,17 +66,23 @@
 // each surrounded by invalid guard pages.
 #define KSTACK(p) (TRAMPOLINE - ((p) + 1) * 2 * PGSIZE)
 
-#define SIGRETURN (TRAMPOLINE - PGSIZE)
-
 // User memory layout.
-// Address zero first:
 //   text
 //   original data and bss
-//   fixed-size stack
 //   expandable heap
 //   ...
-//   TRAPFRAME (p->trapframe, used by the trampoline)
+//   USTACK_GURAD_PAGE
+//   USTACK
+//   ...
+//   TRAPFRAME (each thread has it's own trapframe)
+//   SIGRETURN
 //   TRAMPOLINE (the same page as in the kernel)
+
+#define SIGRETURN (TRAMPOLINE - PGSIZE)
+
 #define TRAPFRAME (SIGRETURN - PGSIZE)
+
+#define USTACK (MAXVA - 512 * PGSIZE - PGSIZE)
+#define USTACK_GURAD_PAGE (USTACK - PGSIZE)
 
 #endif // __MEMLAYOUT_H__

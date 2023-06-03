@@ -8,11 +8,12 @@
 #include "list.h"
 #include "proc/signal.h"
 #include "atomic/semaphore.h"
+#include "memory/mm.h"
 // #include "fs/fat/fat32_disk.h"
 
-#define NPROC 32 // maximum number of processes
-#define INIT_PID 1
-#define SHELL_PID 2
+#define NPROC 64 // maximum number of processes
+// #define INIT_PID 1
+// #define SHELL_PID 2
 
 struct file;
 struct inode;
@@ -33,11 +34,10 @@ struct proc {
 
     int exit_state; // Exit status to be returned to parent's wait
     int killed;     // If non-zero, have been killed
-    struct list_head head_vma;
+
+    struct mm_struct *mm;
 
     // these are private to the process, so p->lock need not be held.
-    uint64 sz;                   // Size of proc memory (bytes)
-    pagetable_t pagetable;       // User page table
     struct file *_ofile[NOFILE]; // Open files
     struct inode *_cwd;          // Current directory
     char name[16];               // Process name (debugging)

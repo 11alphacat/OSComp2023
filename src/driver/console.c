@@ -19,7 +19,7 @@
 #include "riscv.h"
 #include "proc/pcb_life.h"
 #include "driver/uart.h"
-#include "proc/pcb_mm.h"
+#include "proc/proc_mm.h"
 #include "proc/signal.h"
 #include "proc/cond.h"
 #include "atomic/semaphore.h"

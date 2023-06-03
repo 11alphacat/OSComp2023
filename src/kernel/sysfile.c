@@ -333,7 +333,7 @@ uint64 sys_getcwd(void) {
         return (uint64)NULL;
     }
 
-    if (copyout(p->pagetable, buf, kbuf, strnlen(kbuf, MAXPATH) + 1) < 0) { // rember add 1 for '\0'
+    if (copyout(p->mm->pagetable, buf, kbuf, strnlen(kbuf, MAXPATH) + 1) < 0) { // rember add 1 for '\0'
         return (uint64)NULL;
     } else {
         return buf;
@@ -698,7 +698,6 @@ uint64 sys_unlinkat(void) {
     // if (fat32_inode_write(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     //     panic("unlink: writei");
 
-
     if (ip->i_type == T_DIR) {
         // 试图删除的是空的目录文件
         dp->i_nlink--;
@@ -873,8 +872,8 @@ uint64 sys_pipe2(void) {
         generic_fileclose(wf);
         return -1;
     }
-    if (copyout(p->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0
-        || copyout(p->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
+    if (copyout(p->mm->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0
+        || copyout(p->mm->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
         p->_ofile[fd0] = 0;
         p->_ofile[fd1] = 0;
         generic_fileclose(rf);
