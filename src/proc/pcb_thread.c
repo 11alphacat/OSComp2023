@@ -255,10 +255,10 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
 
 // find the tcb* given tid using hash map
 struct tcb *find_get_tid(tid_t tid) {
-    struct hash_node* node = hash_lookup(&tid_map, (void *)&tid, NULL, 1);// release it
-    if(node!=NULL){
+    struct hash_node *node = hash_lookup(&tid_map, (void *)&tid, NULL, 1); // release it
+    if (node != NULL) {
         return (struct tcb *)(node->value);
-    } else{
+    } else {
         return NULL;
     }
 }

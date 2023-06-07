@@ -20,20 +20,20 @@ struct hash_entry *hash_get_entry(struct hash_table *table, void *key) {
     struct hash_entry *entry = NULL;
 
     switch (table->type) {
-        case PID_MAP:
-            hash_val = *(int *)key % table->size;
-            break;
-        case TID_MAP:
-            hash_val = *(int *)key % table->size;
-            break;
-        case FUTEX_MAP:
-            hash_val = (uint64)key % table->size;
-            break;
-        case INODE_MAP:
-            hash_val = hash_str((char *)key) % table->size;
-            break;
-        default:
-            panic("hash_get_entry : this type is invalid\n");
+    case PID_MAP:
+        hash_val = *(int *)key % table->size;
+        break;
+    case TID_MAP:
+        hash_val = *(int *)key % table->size;
+        break;
+    case FUTEX_MAP:
+        hash_val = (uint64)key % table->size;
+        break;
+    case INODE_MAP:
+        hash_val = hash_str((char *)key) % table->size;
+        break;
+    default:
+        panic("hash_get_entry : this type is invalid\n");
     }
     entry = table->hash_head + hash_val;
     acquire(&table->lock);
@@ -51,12 +51,12 @@ struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_e
     struct hash_node *node_tmp = NULL;
     list_for_each_entry_safe(node_cur, node_tmp, &_entry->list, list) {
         if (hash_bool(node_cur, key, table->type)) {
-            if(release)
+            if (release)
                 release(&table->lock);
             return node_cur;
         }
     }
-    if(release)
+    if (release)
         release(&table->lock);
     return NULL;
 }
@@ -64,7 +64,7 @@ struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_e
 // insert the hash node into the table
 void hash_insert(struct hash_table *table, void *key, void *value) {
     struct hash_entry *entry = NULL;
-    struct hash_node *node = hash_lookup(table, key, &entry, 0);// not release it
+    struct hash_node *node = hash_lookup(table, key, &entry, 0); // not release it
 
     struct hash_node *node_new;
     if (node == NULL) {
@@ -74,7 +74,7 @@ void hash_insert(struct hash_table *table, void *key, void *value) {
         INIT_LIST_HEAD(&node_new->list);
         list_add_tail(&node_new->list, &(entry->list));
     } else {
-        if(table->type == INODE_MAP) {
+        if (table->type == INODE_MAP) {
             kfree(node->value); // !!!
         }
         node->value = value;
@@ -84,12 +84,12 @@ void hash_insert(struct hash_table *table, void *key, void *value) {
 
 // delete the inode given the key
 void hash_delete(struct hash_table *table, void *key) {
-    struct hash_node *node = hash_lookup(table, key, NULL, 0);// not release it
+    struct hash_node *node = hash_lookup(table, key, NULL, 0); // not release it
 
     if (node != NULL) {
         list_del_reinit(&node->list);
 
-        if(table->type == INODE_MAP) {
+        if (table->type == INODE_MAP) {
             kfree(node->value); // !!!
         }
         kfree(node);
@@ -101,21 +101,21 @@ void hash_delete(struct hash_table *table, void *key) {
 
 // destroy hash table
 // free : free this table global ?
-void hash_destroy(struct hash_table *table, int free){
+void hash_destroy(struct hash_table *table, int free) {
     // printfGreen("inode destory(after) : free RAM: %d\n", get_free_mem());
     acquire(&table->lock);
     struct hash_node *node_cur = NULL;
     struct hash_node *node_tmp = NULL;
     for (int i = 0; i < table->size; i++) {
         list_for_each_entry_safe(node_cur, node_tmp, &table->hash_head[i].list, list) {
-            if(table->type == INODE_MAP)
-                kfree(node_cur->value);// !!!   
+            if (table->type == INODE_MAP)
+                kfree(node_cur->value); // !!!
             kfree(node_cur);
         }
     }
     release(&table->lock);
-    
-    if(free) {
+
+    if (free) {
         kfree(table);
     }
     // printfGreen("inode destory(after) : free RAM: %d\n", get_free_mem());
@@ -173,25 +173,25 @@ uint64 hash_bool(struct hash_node *node, void *key, enum hash_type type) {
 // assign the value of hash node given key and table type
 void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
     switch (type) {
-        case PID_MAP:
-        case TID_MAP:
-            node->key_id = *(int *)key;
-            break;
-        case FUTEX_MAP:
-            node->key_p = key;
-            break;
-        case INODE_MAP:
-            safestrcpy(node->key_name, (char *)key, strlen((char *)key));
-            break;
-        default:
-            panic("hash_assign : this type is invalid\n");
+    case PID_MAP:
+    case TID_MAP:
+        node->key_id = *(int *)key;
+        break;
+    case FUTEX_MAP:
+        node->key_p = key;
+        break;
+    case INODE_MAP:
+        safestrcpy(node->key_name, (char *)key, strlen((char *)key));
+        break;
+    default:
+        panic("hash_assign : this type is invalid\n");
     }
 }
 
 // init every hash table entry
 void hash_table_entry_init(struct hash_table *table) {
     // printfBlue("inode init(before) : free RAM: %d\n", get_free_mem());
-    table->hash_head = (struct hash_entry*)kmalloc(table->size*sizeof(struct hash_entry));
+    table->hash_head = (struct hash_entry *)kmalloc(table->size * sizeof(struct hash_entry));
     // printfBlue("inode init(after) : free RAM: %d\n", get_free_mem());
     for (int i = 0; i < table->size; i++) {
         INIT_LIST_HEAD(&table->hash_head[i].list);

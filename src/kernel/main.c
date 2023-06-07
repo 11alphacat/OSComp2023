@@ -31,6 +31,7 @@ void proc_init();
 void inode_table_init(void);
 void futex_table_init(void);
 void hash_tables_init(void);
+void hartinit();
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
@@ -41,6 +42,7 @@ void main() {
         // console and printf
         consoleinit();
         printfinit();
+        hartinit();
         debug_lock = 1;
 
         // Memory management
@@ -87,6 +89,7 @@ void main() {
     } else {
         while (atomic_read4((int *)&started) == 0)
             ;
+        hartinit();
         __sync_synchronize();
         printf("hart %d starting\n", cpuid());
         kvminithart();  // turn on paging

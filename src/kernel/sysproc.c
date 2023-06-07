@@ -175,7 +175,7 @@ uint64 sys_sbrk(void) {
         // printf("free RAM : %d, grow : %d\n", get_free_mem(), n);
         return -1;
     }
-        
+
     return addr;
 }
 
@@ -196,7 +196,7 @@ uint64 sys_brk(void) {
 
     if (growheap(increment) < 0) {
         // printf("free RAM : %ld, increment : %ld\n", get_free_mem(), increment);
-        return -1;        
+        return -1;
     }
     return oldaddr;
 }

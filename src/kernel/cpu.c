@@ -7,8 +7,7 @@ struct thread_cpu t_cpus[NCPU];
 // to prevent race with process being moved
 // to a different CPU.
 int cpuid() {
-    int id = r_tp();
-    // printf("%x\n", id);
+    int id = r_sscratch();
     return id;
 }
 
@@ -19,4 +18,8 @@ t_mycpu(void) {
     int id = cpuid();
     struct thread_cpu *c = &t_cpus[id];
     return c;
+}
+
+void hartinit() {
+    w_sstatus(r_sstatus() | SSTATUS_SUM);
 }

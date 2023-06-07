@@ -230,7 +230,7 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
     if (dp->i_hash == NULL) {
         fat32_inode_hash_init(dp);
     }
-    
+
     int idx = 0;
     // FAT seek cluster chains
     while (!ISEOF(iter_c_n)) {
@@ -270,13 +270,13 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
                     cnt++;
 
                     uint ino = SECTOR_TO_FATINUM(first_sector + s, idx);
-                    
+
                     // insert cache into the hash table
                     int ret = fat32_inode_hash_insert(dp, name_buf, ino, off);
-                    if(ret==0) {
-                        // printfGreen("getdents : insert : %s\n", name_buf); //debug                        
+                    if (ret == 0) {
+                        // printfGreen("getdents : insert : %s\n", name_buf); //debug
                     }
-                        
+
                     // get a pos for inode
                     ip_buf = fat32_inode_get(dp->i_dev, ino, name_buf, off);
                     ip_buf->parent = dp;
@@ -309,7 +309,7 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
         }
         iter_c_n = fat32_next_cluster(iter_c_n);
     }
-    
+
     stack_free(&fcb_stack);
     // save hint
     // dp->idx_hint = idx;

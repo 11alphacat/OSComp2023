@@ -19,25 +19,18 @@ trampoline:
 .align 4
 .globl uservec
 uservec:    
-	#
-        # trap.c sets stvec to point here, so
-        # traps from user space start here,
-        # in supervisor mode, but with a
-        # user page table.
-        #
+        # trap.c sets stvec to point here, so traps from user space start here,
+        # in supervisor mode, but with a user page table.
 
-        # save user a0 in sscratch so
+save_context:
+        # save user a0 in stack
         # a0 can be used to get at TRAPFRAME.
-        csrw sscratch, a0
-
-        # each process has a separate p->trapframe memory area,
-        # but it's mapped to the same virtual address
-        # (TRAPFRAME) in every process's user page table.
+        addi sp, sp, -16
+        sd a0, 0(sp)
         li a0, TRAPFRAME
         
-        # save the user registers in TRAPFRAME
+        # save the user registers in TRAPFRAME except sp and a0
         sd ra, 40(a0)
-        sd sp, 48(a0)
         sd gp, 56(a0)
         sd tp, 64(a0)
         sd t0, 72(a0)
@@ -67,19 +60,22 @@ uservec:
         sd t5, 272(a0)
         sd t6, 280(a0)
 
-	# save the user a0 in p->trapframe->a0
-        csrr t0, sscratch
+        # save a0
+        ld t0, 0(sp)
         sd t0, 112(a0)
+
+        # restore and save sp
+        addi sp, sp, 16 
+        sd sp, 48(a0)
+
+prepare:
+        # prepare for entering the kernel
 
         # initialize kernel stack pointer, from p->trapframe->kernel_sp
         ld sp, 8(a0)
-
-        # make tp hold the current hartid, from p->trapframe->kernel_hartid
-        ld tp, 32(a0)
-
+        
         # load the address of usertrap(), from p->trapframe->kernel_trap
         ld t0, 16(a0)
-
 
         # fetch the kernel page table address, from p->trapframe->kernel_satp.
         ld t1, 0(a0)

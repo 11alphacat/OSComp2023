@@ -424,28 +424,45 @@ void uvmfree(struct mm_struct *mm) {
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
 int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
-    pte_t *pte;
-    uint64 pa;
-    uint flags;
-
     struct vma *pos;
-    vaddr_t startva, endva;
     list_for_each_entry(pos, &srcmm->head_vma, node) {
+        vaddr_t startva, endva;
+        paddr_t pa;
+        pte_t *pte;
+        uint flags;
+        int level;
+
+        /* for STACK VMA, copy both the pagetable and the physical memory */
+        if (pos->type == VMA_STACK) {
+            ASSERT(pos->size == PGSIZE);
+            level = walk(srcmm->pagetable, pos->startva, 0, 0, &pte);
+            ASSERT(level <= 1 && level >= 0);
+            pa = PTE2PA(*pte);
+
+            paddr_t new = (paddr_t)kzalloc(PGSIZE);
+            if (new == 0) {
+                Warn("uvmcopy: no free mem");
+                return -1;
+            }
+            memmove((void *)new, (void *)pa, PGSIZE);
+            if (mappages(dstmm->pagetable, pos->startva, PGSIZE, new, PTE_W | PTE_R | PTE_U, COMMONPAGE) != 0) {
+                panic("uvmcopy: map failed");
+                return -1;
+            }
+            continue;
+        }
+
+        /* for other vmas, copy pagetable only */
         startva = pos->startva;
         endva = startva + pos->size;
-        // if (!(startva % PGSIZE == 0 && endva % PGSIZE == 0)) {
-        //     print_vma(srcmm);
-        //     Log("hit");
-        // }
         ASSERT(startva % PGSIZE == 0 && endva % PGSIZE == 0);
         for (vaddr_t i = startva; i < endva; i += PGSIZE) {
-            int level = walk(srcmm->pagetable, i, 0, 0, &pte);
+            level = walk(srcmm->pagetable, i, 0, 0, &pte);
             ASSERT(level <= 1 && level >= 0);
             if (pte == NULL) {
-                Warn("TODO: handler");
-                continue;
-                // panic("uvmcopy: pte should exist");
+                panic("uvmcopy: NULL pte");
             }
+
             if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
                 *pte = *pte | PTE_READONLY;
             }
@@ -457,6 +474,7 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
             *pte = *pte & ~PTE_W;
             pa = PTE2PA(*pte);
             flags = PTE_FLAGS(*pte);
+
             if (level == SUPERPAGE) {
                 /* level == 1 ~ map superpage */
                 ASSERT(i == SUPERPG_DOWN(i));

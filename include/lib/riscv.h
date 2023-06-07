@@ -13,6 +13,14 @@ r_mhartid() {
     return x;
 }
 
+static inline uint64
+r_sscratch() {
+    uint64 x;
+    asm volatile("csrr %0, sscratch"
+                 : "=r"(x));
+    return x;
+}
+
 // Machine Status Register, mstatus
 
 #define MSTATUS_MPP_MASK (3L << 11) // previous mode.
@@ -56,6 +64,7 @@ w_mepc(uint64 x) {
 
 // Supervisor Status Register, sstatus
 
+#define SSTATUS_SUM (1L << 18)
 #define SSTATUS_SPP (1L << 8)  // Previous mode, 1=Supervisor, 0=User
 #define SSTATUS_SPIE (1L << 5) // Supervisor Previous Interrupt Enable
 #define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
@@ -328,8 +337,7 @@ r_fp() {
     return x;
 }
 
-// read and write tp, the thread pointer, which xv6 uses to hold
-// this core's hartid (core number), the index into cpus[].
+// read and write tp, the thread pointer
 static inline uint64
 r_tp() {
     uint64 x;

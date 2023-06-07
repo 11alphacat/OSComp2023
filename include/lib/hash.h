@@ -29,8 +29,8 @@ enum hash_type { PID_MAP,
 struct hash_table {
     struct spinlock lock;
     enum hash_type type;
-    uint64 size; // table size
-    struct hash_entry* hash_head; // hash entry 
+    uint64 size;                  // table size
+    struct hash_entry *hash_head; // hash entry
 };
 
 struct hash_entry *hash_get_entry(struct hash_table *table, void *key);

@@ -231,10 +231,10 @@ void proc_init(void) {
 
 // find the proc we search using hash map
 inline struct proc *find_get_pid(pid_t pid) {
-    struct hash_node* node = hash_lookup(&pid_map, (void *)&pid, NULL, 1);// realese it 
-    if(node!=NULL){
+    struct hash_node *node = hash_lookup(&pid_map, (void *)&pid, NULL, 1); // realese it
+    if (node != NULL) {
         return (struct proc *)(node->value);
-    } else{
+    } else {
         return NULL;
     }
 }
