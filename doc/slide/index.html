@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link href="./static/css/base.css" rel="stylesheet">
+    <link href="./static/css/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.font.im/css?family=Source+Serif+Pro%7CLato%7CInconsolata" rel="stylesheet"
+        type="text/css">
+    <title> slide </title>
+    <!-- browser favicon -->
+    <link rel="shortcut icon" href="./static/img/favicon.png">
+    <style>
+        .font-sans {
+            font-family: 'Lato', 'SimHei', 'STHeiti', 'SimHei', 'Serif';
+        }
+
+        .font-serif {
+            font-family: 'Source Serif Pro', 'Songti SC', 'SimSun', 'Serif', serif;
+        }
+    </style>
+    <!-- <link rel="stylesheet" href="https://jyywiki.cn/static/katex/katex.min.css">
+    <script defer src="https://jyywiki.cn/static/katex/katex.min.js"></script> -->
+    <link rel="stylesheet" href="./static/katex/katex.min.css">
+    <script defer src="./static/katex/katex.min.js"></script>
+    <!-- <script defer src="https://jyywiki.cn/static/katex/auto-render.min.js"
+        integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+        crossorigin="anonymous"></script> -->
+    <script defer src="./static/katex/auto-render.min.js"></script>
+    <script src="plugin/markdown/markdown.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            renderMathInElement(document.body, {
+                // customised options
+                // &#8226; auto-render specific keys, e.g.:
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true }
+                ],
+                // &#8226; rendering keys, e.g.:
+                throwOnError: false
+            });
+        });
+    </script>
+
+    <link rel="stylesheet" href="./static/reveal/reveal.css">
+    <link rel="stylesheet" href="./static/reveal/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="./static/jyy/jyy.css">
+
+</head>
+
+<body class="d-flex flex-column h-100">
+
+    <div class="reveal">
+        <div class="slides">
+            <section><section><div class="center middle"><div style="width:100%"><div><h1 id="lostwakeup" class="text-2xl mt-2 font-sans">LostWakeup初赛经验分享</h1>
+<hr/>
+<hr/>
+<hr/>
+<blockquote>
+<p class="font-serif my-1">叶家荣  沈铭  付圣祺<br/>
+指导老师:章复嘉</p>
+</blockquote>
+<hr/>
+<blockquote>
+<p class="font-serif my-1"><a href="https://hdu.edu.cn">杭州电子科技大学</a>  </p>
+</blockquote>
+<hr/></div></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">概要</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">前期准备工作</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">开发流程以及规划</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">内核设计与支持的特性</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">遇到的问题以及解决思路</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">项目运行效果与后期开发规划</li>
+</ul></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">前期准备工作</h1></div></div></div></section><section><div><h2 id="xv6-or-0" class="text-xl mt-2 pb-2 font-sans">基于xv6 or 从0开始写起</h2><div class="fragment" data-fragment-index="1"><ul class="list-disc font-serif">
+<li class="ml-8">往届参赛队多基于 xv6/rcore</li>
+</ul>
+<hr/></div><div class="fragment" data-fragment-index="2"><ul class="list-disc font-serif">
+<li class="ml-8">从0开始工作量较大，且存在很多无意义的造轮子工作</li>
+</ul>
+<hr/></div><div class="fragment" data-fragment-index="3"><ul class="list-disc font-serif">
+<li class="ml-8">队伍成员都是大三学生，时间相对比较紧张</li>
+</ul>
+<hr/></div><div class="fragment" data-fragment-index="4"><ul class="list-disc font-serif">
+<li class="ml-8"><strong>基于 xv6,更便于进行内核正确性的测试</strong><ul class="list-disc font-serif">
+<li class="ml-8">我们移植并且适配了一系列的 xv6 的 tests</li>
+</ul>
+</li>
+</ul>
+<hr/></div><div class="fragment" data-fragment-index="5"><p class="font-serif my-1"><red>基于 xv6 ，但在开发过程中逐步替换掉它本身的模块<red/></red></p></div></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">开发流程与规划</h1></div></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">开发模块</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">基础设施的搭建</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">FAT32 文件系统的支持</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">改写 xv6 原先的模块</li>
+</ul>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">增加更多的系统调用</li>
+</ul></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">基础设施的搭建以及项目构建</h2>
+<blockquote>
+<p class="font-serif my-1">基础设施是第一生产力,开发效率和基础设施直接相关</p>
+</blockquote>
+<hr/>
+<p class="font-serif my-1"><strong> 重构目录以及头文件组织 </strong></p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code>.
+├── bootloader  # sbi
+├── build
+├── entry       # 自动化系统调用生成相关
+├── fsimg       # 文件系统镜像
+├── include     # 内核头文件
+├── oscomp_user # 比赛方提供的user目录
+├── scripts     # 脚本
+├── src         # 内核源码
+└── user        # 包含了一些utility的user
+</code></pre></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">基础设施的搭建以及项目构建</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">构建项目  </li>
+</ul>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="w">    </span>make<span class="w"> </span>all
+</code></pre></div>
+
+<ul class="list-disc font-serif">
+<li class="ml-8">重新生成文件系统镜像  </li>
+</ul>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="w">    </span>make<span class="w"> </span>image
+</code></pre></div>
+
+<ul class="list-disc font-serif">
+<li class="ml-8">单独编译内核  </li>
+</ul>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="w">    </span>make<span class="w"> </span>kernel
+<span class="w">    </span>make
+</code></pre></div>
+
+<ul class="list-disc font-serif">
+<li class="ml-8">清除所有的内核、用户编译结果以及文件系统镜像  </li>
+</ul>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="w">  </span>make<span class="w"> </span>clean-all
+</code></pre></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">基础设施的搭建以及项目构建</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">支持 ANSI-COLOR code 的内核 Log</li>
+<li class="ml-8">使用 clang-format 对代码进行格式化</li>
+<li class="ml-8">合理利用轮子<ul class="list-disc font-serif">
+<li class="ml-8">list.h</li>
+</ul>
+</li>
+<li class="ml-8">功能更完备的 printf, 添加 sprintf</li>
+<li class="ml-8">添加了一些 TRACE<ul class="list-disc font-serif">
+<li class="ml-8">LOCK_TRACE, STRACE</li>
+</ul>
+</li>
+<li class="ml-8">支持thread_saniter</li>
+<li class="ml-8">使用 rust-sbi,以屏蔽底层平台差异</li>
+<li class="ml-8">...</li>
+</ul>
+<hr/></div></section><section><div><h2 id="fat32" class="text-xl mt-2 pb-2 font-sans">FAT32文件系统的支持</h2>
+<p class="font-serif my-1">借鉴 Linux 中 VFS 的架构方法，在定义 FAT32 文件系统的各类 API 时，使用 inode 节点以抽象磁盘中的数据，用 inode 节点作为接口的参数和通信的媒介。</p>
+<blockquote>
+<p class="font-serif my-1">因此，我们对文件系统的分层如下: <strong>自底向上分为 Disk 层，Buffer cache 层，Inode 层，Pathname 层，File 层</strong>
+<img src=".\static\img\447cd64515b8435f865f3722433df5a6.jpg"/></p>
+</blockquote>
+<p class="font-serif my-1"><strong>分层的架构带来的是开发效率的提高!</strong></p></div></section><section><div><h2 id="fat32" class="text-xl mt-2 pb-2 font-sans">FAT32 文件系统的支持</h2>
+<hr/><div class="fragment" data-fragment-index="1"><ul class="list-disc font-serif">
+<li class="ml-8">Logging 层? <ul class="list-disc font-serif">
+<li class="ml-8">在比赛的环境中意义不大，且降低效率</li>
+</ul>
+</li>
+<li class="ml-8">Dirent 层? <ul class="list-disc font-serif">
+<li class="ml-8">文件系统的抽象是基于 FAT32 文件系统的, FAT32 本身的目录文件存的是不定数量的长短目录项，相较于
+ xv6 文件系统中每次新建目录的操作是往目录 inode 节点中写入一个固定长度的 dirent 结构体，基于 FAT32 的实现要复杂的多，中间会涉及到更多的转换层以实现封装，对于比赛中只需支持一种文件系统而言没必要自寻烦恼</li>
+</ul>
+</li>
+</ul></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">改写内核模块</h2>
+<p class="font-serif my-1"><img class="center" src=".\static\img\6b9710c64d604acaad06bee3bb49b7b4.png"/>
+在支持 FAT32 的同时，并行的对 proc, mm 模块进行改进，由于各个模块之间具有一定的独立性，因此采用这样的开发/分工策略大大提高了我们的开发效率</p></div></section><section><div><h2 id="utilities" class="text-xl mt-2 pb-2 font-sans">更多的系统调用 &amp; 完善一些utilities</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">支持初赛要求的31个系统调用</li>
+<li class="ml-8">支持/完善一些简单的用户 utility<ul class="list-disc font-serif">
+<li class="ml-8">支持 ls, echo, cat, wc...</li>
+<li class="ml-8">shell 支持..的访问</li>
+<li class="ml-8">shell 支持 PATH 环境变量(execvp)</li>
+</ul>
+</li>
+</ul></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">内核设计以及支持的特性</h1></div></div></div></section><section><div><h2 id="fat32" class="text-xl mt-2 pb-2 font-sans">文件系统——FAT32</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">
+<p class="font-serif my-1">Disk 层主要是对于磁盘读写的驱动，Buffer cache 层则是维护了一个链表以缓存 Disk 层读写的块</p>
+</li>
+<li class="ml-8">
+<p class="font-serif my-1">Inode 层是对磁盘中文件的抽象，由于 FAT32 本身没有 inode 节点的概念，所以在设计 FAT32 API 时需要
+多做一层转换，将磁盘里用 FAT32 记录的信息转换为内存里的一个 inode 节点。</p>
+</li>
+<li class="ml-8">
+<p class="font-serif my-1">Pathname 层实现绝对/相对路径查找 inode 节点</p>
+</li>
+<li class="ml-8">
+<p class="font-serif my-1">File 层是用户进程视角下磁盘和内存中资源的抽象。用户程序使用文件描述符来读写一个文件，文件描述符可以找到该进程打开的文件表项。</p>
+</li>
+<li class="ml-8">
+<p class="font-serif my-1">everything is file -&gt; 支持了设备文件并且编写了 mknod 系统调用</p>
+</li>
+</ul></div></section><section><div><h2 id="fat32-vfs" class="text-xl mt-2 pb-2 font-sans">FAT32重构 -&gt; VFS</h2>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">VFS 将 file 和 inode 都视为对象，它们可以使用的方法分别封装在 file_operation 结构体和 inode_operation 结构体中</li>
+<li class="ml-8">通过观察在系统调用层使用到的 FAT32 接口，来决定这两个结构体的最小数据结构。</li>
+<li class="ml-8">由于 C 语言自由的语法特性，不必拘泥于面向对象和面向过程编程范式中的某一种，我们对一些会传入 file 或 inode 的 API 转化为面向对象的方法，而一些路径查找的函数，则可以单独调用。</li>
+</ul>
+<hr/>
+
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="n">uint64</span><span class="w"> </span><span class="nf">sys_read</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">f</span><span class="o">-&gt;</span><span class="n">f_op</span><span class="o">-&gt;</span><span class="n">read</span><span class="p">(...);</span>
+<span class="p">}</span>
+</code></pre></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">内存管理</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">支持伙伴系统的物理内存管理方式</li>
+</ul><div class="fragment" data-fragment-index="1"><ul class="list-disc font-serif">
+<li class="ml-8">支持 2MB 的 superpage 映射<ul class="list-disc font-serif">
+<li class="ml-8">将内核的页表映射替换为大页映射</li>
+<li class="ml-8">对较大的用户程序，以及堆管理采用大页映射</li>
+</ul>
+</li>
+</ul></div><div class="fragment" data-fragment-index="2"><ul class="list-disc font-serif">
+<li class="ml-8">引入物理内存池的概念，并采用多核的内存分配</li>
+</ul></div><div class="fragment" data-fragment-index="3"><ul class="list-disc font-serif">
+<li class="ml-8">支持 Copy-On-Write</li>
+</ul></div><div class="fragment" data-fragment-index="4"><ul class="list-disc font-serif">
+<li class="ml-8">引入基于 VMA 的虚拟地址空间管理</li>
+</ul></div><div class="fragment" data-fragment-index="5"><ul class="list-disc font-serif">
+<li class="ml-8">更友好的 pagefault 处理</li>
+</ul></div><div class="fragment" data-fragment-index="6"><p class="font-serif my-1">To Be Continued...</p></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">进程管理</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">更高效的条件变量实现<ul class="list-disc font-serif">
+<li class="ml-8">基于 channel -&gt; 基于等待队列的条件变量</li>
+</ul>
+</li>
+</ul><div class="fragment" data-fragment-index="1"><ul class="list-disc font-serif">
+<li class="ml-8">支持信号量<ul class="list-disc font-serif">
+<li class="ml-8">全面替换了 sleeplock</li>
+</ul>
+</li>
+</ul></div><div class="fragment" data-fragment-index="2"><ul class="list-disc font-serif">
+<li class="ml-8">初步支持线程<ul class="list-disc font-serif">
+<li class="ml-8">进程仅作为资源管理的单位，线程成为调度的最小单位</li>
+<li class="ml-8">更多工作待决赛完善</li>
+</ul>
+</li>
+</ul></div><div class="fragment" data-fragment-index="3"><ul class="list-disc font-serif">
+<li class="ml-8">更高效的调度管理<ul class="list-disc font-serif">
+<li class="ml-8">为每个进程(线程)状态设置了队列</li>
+</ul>
+</li>
+</ul></div><div class="fragment" data-fragment-index="4"><ul class="list-disc font-serif">
+<li class="ml-8">引入了进程树的管理<ul class="list-disc font-serif">
+<li class="ml-8">parent/children/sibling</li>
+</ul>
+</li>
+</ul></div><div class="fragment" data-fragment-index="5"><ul class="list-disc font-serif">
+<li class="ml-8">添加了原子指令的封装</li>
+</ul></div><div class="fragment" data-fragment-index="6"><p class="font-serif my-1">To Be Continued...</p></div></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">遇到的问题以及解决思路</h1></div></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">两份声明</h2>
+<p class="font-serif my-1">合并时，在两个不同的头文件中保留了一个结构体的两份不同的声明</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="k">struct</span><span class="w"> </span><span class="nc">proc</span><span class="w"> </span><span class="p">{</span>
+
+<span class="p">};</span><span class="w"> </span><span class="c1">// in header_file_1</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">proc</span><span class="w"> </span><span class="p">{</span>
+
+<span class="p">};</span><span class="w"> </span><span class="c1">// in header_file_2</span>
+
+<span class="cm">/* src1 */</span>
+<span class="cp">#include</span><span class="cpf">"header_file_1"</span>
+<span class="cm">/* use struct proc */</span>
+
+<span class="cm">/* src2 */</span>
+<span class="cp">#include</span><span class="cpf">"header_file_2"</span>
+<span class="cm">/* use struct proc */</span>
+</code></pre></div>
+
+<p class="font-serif my-1">即便是开了<code>-Wall -Werror</code>, 编译器也对这类"错误"熟视无睹!</p></div></section><section><div><h2 id="mkfsvfat" class="text-xl mt-2 pb-2 font-sans">MKFS.VFAT出错了?</h2>
+<p class="font-serif my-1">发现第一个本应该是长目录项的目录项变成了短目录项
+<img src=".\static\img\3ccbe9651879497d9dea4c7e9eb8bcf9.png"/>
+FAT 根目录没有 FCB ，当修改根目录下的内容时，不需要更新根目录的 FCB</p>
+<div class="codehilite"><pre class="bg-gray-100 overflow-x-auto rounded p-2 mb-2 mt-2"><span/><code><span class="c1">// root has no fcb, so we don't update it!!!</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">i_ino</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div></section><section><div><h2 id="pagefault" class="text-xl mt-2 pb-2 font-sans">奇怪的 pagefault</h2>
+<p class="font-serif my-1">store_pagefault:
+<img src=".\static\img\4753267be2a54047aac2d26469139a2e.png"/>
+有 PTE_W 的权限:
+<img src=".\static\img\802d346953c741beba9bc391a730b27c.png" width="700px" class="center"/></p>
+<p class="font-serif my-1">riscv-privileged:</p>
+<blockquote>
+<p class="font-serif my-1">If i &gt; 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage; stop and raise a page-fault
+exception corresponding to the original access type.</p>
+</blockquote></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">杂七杂八的错</h2>
+<p class="font-serif my-1">包括但不限于:</p><div class="fragment" data-fragment-index="1"><ul class="list-disc font-serif">
+<li class="ml-8">爆内核栈</li>
+<li class="ml-8">无法理解的并发 bug</li>
+<li class="ml-8">忽略了编译器对结构体的对齐的填充</li>
+<li class="ml-8"><del>尝试实现硬链接<del/></del></li>
+</ul></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">反思</h2>
+<p class="font-serif my-1"><strong>更完备的测试</strong></p><div class="fragment" data-fragment-index="1"><ul class="list-disc font-serif">
+<li class="ml-8">自己写点测试</li>
+<li class="ml-8">usertests 跑了不下百遍</li>
+</ul>
+<hr/></div><div class="fragment" data-fragment-index="2"><p class="font-serif my-1"><strong>程序是一个状态机</strong></p>
+<hr/>
+<ul class="list-disc font-serif">
+<li class="ml-8">STRACE/LOCK_TRACE</li>
+<li class="ml-8">一切 gdb 无法追溯的状态都可以打印出来<ul class="list-disc font-serif">
+<li class="ml-8">print_pgtable</li>
+<li class="ml-8">print_vma</li>
+<li class="ml-8">print_rawfile</li>
+</ul>
+</li>
+</ul></div></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">项目运行效果以及后期开发规划</h1></div></div></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">项目运行效果</h2>
+<p class="font-serif my-1"><img src=".\static\img\61ab3c5bbeb245aca58a6256acc50ae0.png" width="2800" class="center"/></p></div></section><section><div><h2 id="_1" class="text-xl mt-2 pb-2 font-sans">后期开发规划</h2>
+<ul class="list-disc font-serif">
+<li class="ml-8">支持更多系统调用</li>
+<li class="ml-8">继续完善每个模块</li>
+<li class="ml-8">支持更多用户程序</li>
+</ul></div></section></section><section><section><div class="center middle"><div style="width:100%"><div><h1 id="_1" class="text-2xl mt-2 font-sans">谢谢</h1></div></div></div></section></section>
+        </div>
+    </div>
+
+    <script src="./static/reveal/reveal.js"></script>
+
+    <script>
+        Reveal.initialize({
+
+            width: 1024, height: 768,
+
+            slideNumber: 'c/t',
+            controlsTutorial: false,
+            progress: false,
+            hash: true,
+            center: false,
+            autoAnimateUnmatched: true,
+            autoAnimateEasing: 'ease-out',
+            autoAnimateDuration: 0.3,
+            transitionSpeed: 'fast'
+        });
+    </script>
+</body>
+
+</html>
