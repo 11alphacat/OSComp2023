@@ -72,7 +72,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_size = DIRLENGTH(root_ip);
     root_ip->i_sb = sb;
     root_ip->fat32_i.DIR_FileSize = 0;
-    root_ip->i_type = T_DIR;
+    root_ip->i_type = S_IFDIR;
     DIR_SET(root_ip->fat32_i.Attr);
 
     // inode hash table
@@ -112,7 +112,10 @@ uint32 fat32_fat_travel(struct inode *ip, uint num) {
 
 // find the next cluster of current cluster
 uint fat32_next_cluster(uint cluster_cur) {
-    ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
+    // ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
+    if (! (cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX) ) {
+        printfBlue("cluster_cur = %d\n",cluster_cur);
+    }
     struct buffer_head *bp;
     uint sector_num = ThisFATEntSecNum(cluster_cur);
     bp = bread(fat32_sb.s_dev, sector_num);
@@ -341,7 +344,7 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
         }
     }
     if (off + n > fileSize) {
-        if (ip->i_type == T_FILE)
+        if (S_ISREG(ip->i_type))
             ip->i_size = off + tot;
         else
             ip->i_size = CEIL_DIVIDE(off + tot, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
@@ -409,9 +412,18 @@ struct inode *fat32_inode_get(uint dev, uint inum, const char *name, uint parent
     return ip;
 }
 
+// 往 dp 中写入代表 ip 磁盘块信息的fcb
+// caller should hold dp->lock, ip->lock
+// 成功返回 0，失败返回 -1
+int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
+    ASSERT(1 == 0);
+    return 0;
+}
+
+
+
 // 获取fat32 inode的锁 并加载 磁盘中的short dirent to mem
 void fat32_inode_lock(struct inode *ip) {
-    struct buffer_head *bp;
     if (ip == 0 || ip->ref < 1) {
         printfRed("ip : %d, ref : %d\n", ip, ip->ref);
         panic("inode lock");
@@ -419,61 +431,59 @@ void fat32_inode_lock(struct inode *ip) {
     sema_wait(&ip->i_sem);
 
     if (ip->valid == 0) {
-        uint sector_num = FATINUM_TO_SECTOR(ip->i_ino);
-        uint sector_offset = FATINUM_TO_OFFSET(ip->i_ino);
-
-        bp = bread(ip->i_dev, sector_num);
-        dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp->data + sector_offset;
-
-        ip->fat32_i.Attr = dirent_s_tmp->DIR_Attr;
-        ip->fat32_i.cluster_start = DIR_FIRST_CLUS(dirent_s_tmp->DIR_FstClusHI, dirent_s_tmp->DIR_FstClusLO);
-        if (ip->fat32_i.cluster_start == fat32_sb.fat32_sb_info.root_cluster_s && fat32_namecmp(ip->fat32_i.fname, "/")) {
-            panic("this disk image has error \n");
-        }
-        // !!!
-        if (ip->fat32_i.cluster_start != 0) {
-            ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
-        } else {
-            printf("the cluster_start of the file %s is zero\n", ip->fat32_i.fname);
-            uint sec_pos = DEBUG_SECTOR(ip, sector_num); // debug
-            printf("disk position is %x\n", sec_pos);
-            printf("file name(upper letter) is %s\n", dirent_s_tmp->DIR_Name);
-        }
-
-        ip->fat32_i.DIR_CrtTimeTenth = dirent_s_tmp->DIR_CrtTimeTenth;
-        ip->fat32_i.DIR_CrtTime = dirent_s_tmp->DIR_CrtTime;
-        ip->fat32_i.DIR_CrtDate = dirent_s_tmp->DIR_CrtDate;
-        ip->fat32_i.DIR_LstAccDate = dirent_s_tmp->DIR_LstAccDate;
-        ip->fat32_i.DIR_WrtTime = dirent_s_tmp->DIR_WrtTime;
-        ip->fat32_i.DIR_CrtDate = dirent_s_tmp->DIR_CrtDate;
-        ip->fat32_i.DIR_FileSize = dirent_s_tmp->DIR_FileSize;
-
-        ip->i_rdev = dirent_s_tmp->DIR_Dev;
-
-        if (ip->i_rdev)
-            ip->i_type = T_DEVICE; // device?
-        else if (DIR_BOOL(ip->fat32_i.Attr))
-            ip->i_type = T_DIR;
-        else
-            ip->i_type = T_FILE;
-
-        if (ip->i_type == T_FILE)
-            ip->i_size = ip->fat32_i.DIR_FileSize;
-        else if (ip->i_type == T_DIR)
-            ip->i_size = DIRLENGTH(ip);
-        else if (ip->i_type == T_DEVICE)
-            ip->i_size = 0;
-
-        ip->i_mode = READONLY_GET(dirent_s_tmp->DIR_Attr);
-
-        ip->i_op = get_inodeops[FAT32]();
-        ip->fs_type = FAT32;
-
-        brelse(bp);
-        ip->valid = 1;
-        if (ip->fat32_i.Attr == 0)
-            panic("fat32_inode_lock: no Attr");
+        fat32_inode_load_from_disk(ip);
     }
+    return;
+}
+
+int fat32_inode_load_from_disk(struct inode *ip) {
+    struct buffer_head *bp;
+    uint sector_num = FATINUM_TO_SECTOR(ip->i_ino);
+    uint sector_offset = FATINUM_TO_OFFSET(ip->i_ino);
+    bp = bread(ip->i_dev, sector_num);
+    dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp->data + sector_offset;
+
+    ip->fat32_i.Attr = dirent_s_tmp->DIR_Attr;
+    if (ip->fat32_i.Attr == 0)
+        panic("fat32_inode_lock: no Attr");
+    ip->fat32_i.cluster_start = DIR_FIRST_CLUS(dirent_s_tmp->DIR_FstClusHI, dirent_s_tmp->DIR_FstClusLO);
+    if (ip->fat32_i.cluster_start == fat32_sb.fat32_sb_info.root_cluster_s && !fat32_namecmp(ip->fat32_i.fname, "/")) {
+        return -1;
+    }
+    // !!!
+    if (ip->fat32_i.cluster_start != 0) {
+        ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
+    } else if ( !S_ISCHR(ip->i_type) && !S_ISBLK(ip->i_type) ) {
+        printfRed("i_type = %x\n",ip->i_type);
+        printfRed("the cluster_start of the file %s is zero\n ", ip->fat32_i.fname);
+    }
+
+    ip->fat32_i.DIR_CrtTimeTenth = dirent_s_tmp->DIR_CrtTimeTenth;
+    ip->fat32_i.DIR_CrtTime = dirent_s_tmp->DIR_CrtTime;
+    ip->fat32_i.DIR_CrtDate = dirent_s_tmp->DIR_CrtDate;
+    ip->fat32_i.DIR_LstAccDate = dirent_s_tmp->DIR_LstAccDate;
+    ip->fat32_i.DIR_WrtTime = dirent_s_tmp->DIR_WrtTime;
+    ip->fat32_i.DIR_CrtDate = dirent_s_tmp->DIR_CrtDate;
+    ip->fat32_i.DIR_FileSize = dirent_s_tmp->DIR_FileSize;
+
+    ip->i_rdev = FATDEV_TO_IRDEV(dirent_s_tmp->DIR_Dev);
+    if (ip->i_rdev) {
+        ip->i_type = FATDEV_TO_ITYPE(dirent_s_tmp->DIR_Dev);
+        ip->i_size = 0;
+    } else if (DIR_BOOL(ip->fat32_i.Attr)) {
+        ip->i_type = S_IFDIR;
+        ip->i_size = DIRLENGTH(ip);
+    } else {
+        ip->i_type = S_IFREG;
+        ip->i_size = ip->fat32_i.DIR_FileSize;
+    }
+
+    ip->i_mode = READONLY_GET(dirent_s_tmp->DIR_Attr);
+    ip->fs_type = FAT32;
+    brelse(bp);
+    ip->valid = 1;
+
+    return 1;
 }
 
 // 释放fat32 inode的锁
@@ -535,7 +545,7 @@ void fat32_inode_trunc(struct inode *ip) {
         fat32_fat_set(iter_c_n, EOC);
         iter_c_n = fat_next;
     }
-    fat32_inode_delete(ip->parent, ip);
+    fat32_fcb_delete(ip->parent, ip);
 
     ip->fat32_i.cluster_start = 0;
     ip->fat32_i.cluster_end = 0;
@@ -566,29 +576,23 @@ void fat32_inode_update(struct inode *ip) {
         brelse(bp);
         return;
     }
-    // uint sec_num = DEBUG_SECTOR(ip, FATINUM_TO_SECTOR(ip->i_ino)); // debug
+
     dirent_s_tmp->DIR_Attr = ip->fat32_i.Attr;
     dirent_s_tmp->DIR_LstAccDate = ip->fat32_i.DIR_LstAccDate;
     dirent_s_tmp->DIR_WrtDate = ip->fat32_i.DIR_WrtDate;
     dirent_s_tmp->DIR_WrtTime = ip->fat32_i.DIR_WrtTime;
-
-    if (ip->fat32_i.cluster_start == 0) {
-        printfRed("update : ready\n");
-    }
     dirent_s_tmp->DIR_FstClusHI = DIR_FIRST_HIGH(ip->fat32_i.cluster_start);
     dirent_s_tmp->DIR_FstClusLO = DIR_FIRST_LOW(ip->fat32_i.cluster_start);
 
-    if (ip->i_type == T_DIR || ip->i_type == T_DEVICE) {
+    if (S_ISDIR(ip->i_type) || S_ISCHR(ip->i_type) || S_ISBLK(ip->i_type)) {
         dirent_s_tmp->DIR_FileSize = 0;
     } else {
         dirent_s_tmp->DIR_FileSize = ip->i_size;
+        // dirent_s_tmp->DIR_Dev = 0;
     }
 
+    dirent_s_tmp->DIR_Dev = __inode_update_to_fatdev(ip);
     dirent_s_tmp->DIR_Attr |= ip->i_mode;
-    if (ip->i_type == T_DEVICE)
-        dirent_s_tmp->DIR_Dev = ip->i_dev;
-    else
-        dirent_s_tmp->DIR_Dev = 0;
 
     bwrite(bp);
     brelse(bp);
@@ -910,9 +914,6 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
     if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
         fat32_inode_unlock_put(dp);
         fat32_inode_lock(ip);
-        // fat32_inode_load_from_disk(ip);
-        //  if (type == T_FILE && (ip->i_type == T_FILE || ip->i_type == T_DEVICE))
-        //      return ip;
 
         if (type == ip->i_type) {
 #ifdef __DEBUG_FS__
@@ -931,19 +932,19 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
         return 0;
     }
 
-#ifdef __DEBUG_FS__
-    printf("create : pid %d, file %s not exists\n", proc_current()->pid, name);
-#endif
     fat32_inode_lock(ip);
-    // fat32_inode_load_from_disk(ip);
-
     ip->i_nlink = 1;
-    ip->i_rdev = mkrdev(major, minor);
     ip->i_type = type;
+    if (S_ISCHR(type) || S_ISBLK(type)) {
+        ip->i_rdev = mkrdev(major, minor);
+    } else {
+        ip->i_rdev = 0;
+    }
     fat32_inode_update(ip);
 
-    if (type == T_DIR) {
-        // Create . and .. entries
+    // if (type == S_IFDIR) { // Create . and .. entries.
+    if (S_ISDIR(type)) { // Create . and .. entries.
+        // // No ip->nlink++ for ".": avoid cyclic ref count.
         // if (fat32_inode_dirlink(ip, ".") < 0 || fat32_inode_dirlink(ip, "..") < 0)
         //     goto fail;
         // TODO : dirlink
@@ -962,25 +963,20 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
         ASSERT(tot == 32);
     }
 
-    if (type == T_DIR) {
-        // now that success is guaranteed:
-        fat32_inode_update(dp);
-    }
-    fat32_inode_unlock_put(dp); // !!! bug
+    // fat32_inode_update(dp);
+
+    fat32_inode_unlock_put(dp);
+
     return ip;
 }
 
 // allocate a new inode
 struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) {
-    uchar attr;
-    if (type == T_DIR)
-        DIR_SET(attr);
-    else
-        NONE_DIR_SET(attr);
     uchar fcb_char[FCB_MAX_LENGTH];
 
     memset(fcb_char, 0, sizeof(fcb_char));
-    int fcb_cnt = fat32_fcb_init(dp, (const uchar *)name, attr, (char *)fcb_char);
+    int fcb_cnt = fat32_fcb_init(dp, (const uchar *)name, type, (char *)fcb_char);
+    // uint sector_pos = FirstSectorofCluster(dp->fat32_i.cluster_start) * 512; // debug
     uint offset = fat32_dir_fcb_insert_offset(dp, fcb_cnt);
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, offset * sizeof(dirent_l_t), fcb_cnt * sizeof(dirent_l_t));
     ASSERT(tot == fcb_cnt * sizeof(dirent_l_t));
@@ -997,23 +993,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) 
     uint sector_offset = (C_OFFSET % fat32_sb.sector_size) / sizeof(dirent_l_t);
     uint fat_num = SECTOR_TO_FATINUM(sector_num, sector_offset);
 
-    // first_sector = FirstSectorofCluster(target_cluster); // debug
-    // sector_num = first_sector + C_OFFSET / FCB_PER_BLOCK;
-    // uint sec_pos = DEBUG_SECTOR(dp, sector_num); // debug
-    // printf("%d\n",sec_pos); // debug
-
-    uint off = offset + fcb_cnt - 1;
-
-    // speed up dirlookup using hash table
-    if (dp->i_hash == NULL) {
-        fat32_inode_hash_init(dp);
-    }
-    int ret = fat32_inode_hash_insert(dp, name, fat_num, off);
-    if (ret == 0) {
-        // printfGreen("alloc : insert : %s\n", name); //debug
-    }
-
-    ip_new = fat32_inode_get(dp->i_dev, fat_num, name, off);
+    ip_new = fat32_inode_get(dp->i_dev, fat_num, name, offset + fcb_cnt - 1);
     ip_new->i_nlink = 1;
     ip_new->ref = 1;
     ip_new->parent = dp;
@@ -1021,23 +1001,21 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) 
     ip_new->i_op = get_inodeops[FAT32]();
     ip_new->fs_type = FAT32;
 
-    dp->off_hint = off;
-
-#ifdef __DEBUG_FS__
-    printf("inode alloc : pid %d, filename : %s\n", proc_current()->pid, ip_new->fat32_i.fname);
-#endif
-    // ip_new->i_sb = &fat32_sb;
-    // uint fat_num_dp = SECTOR_TO_FATINUM(first_sector, 0); // debug
-    // uint sector_pos = FirstSectorofCluster(ip_new->fat32_i.cluster_start) * 512; // debug
     return ip_new;
 }
 
 // fcb init
 // 为 long_name 初始化若干个 dirent_l_t 和一个dirent_s_t，写入 fcb_char中，返回需要的 fcb 总数
-int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar attr, char *fcb_char) {
+int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar type, char *fcb_char) {
+    uchar attr;
     dirent_s_t dirent_s_cur;
     memset((void *)&dirent_s_cur, 0, sizeof(dirent_s_cur));
-    // dirent_l_t dirent_l_cur;
+
+    if (S_ISDIR(type))
+        DIR_SET(attr);
+    else
+        NONE_DIR_SET(attr);
+
     dirent_s_cur.DIR_Attr = attr;
 
     uint long_idx = -1;
@@ -1056,6 +1034,7 @@ int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar attr, 
     char file_ext[4];
     /*short dirent*/
     int name_len = strlen((const char *)long_name);
+
     // 数据文件
     if (!DIR_BOOL(attr)) {
         if (str_split((const char *)long_name, '.', file_name, file_ext) == -1) {
@@ -1100,9 +1079,14 @@ int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar attr, 
     }
     dirent_s_cur.DIR_FileSize = 0;
 
-    uint first_c = fat32_cluster_alloc(ip_parent->i_dev);
+    uint first_c;
+    if (S_ISCHR(type) || S_ISBLK(type)) {
+        // 设备文件不需要分配磁盘块
+        first_c =  0; // for debug; should be zero
+    } else {
+        first_c = fat32_cluster_alloc(ip_parent->i_dev);
+    }
 
-    // cluster start
     dirent_s_cur.DIR_FstClusHI = DIR_FIRST_HIGH(first_c);
     dirent_s_cur.DIR_FstClusLO = DIR_FIRST_LOW(first_c);
 
@@ -1259,10 +1243,6 @@ uint fat32_dir_fcb_insert_offset(struct inode *ip, uchar fcb_cnt_req) {
     return offset_ret_final;
 }
 
-inline int fat32_isdir(struct inode *ip) {
-    return DIR_BOOL(ip->fat32_i.Attr);
-}
-
 // 一个目录除了 .. 和 . 是否为空？
 int fat32_isdirempty(struct inode *ip) {
     struct buffer_head *bp;
@@ -1314,7 +1294,9 @@ void fat32_inode_stati(struct inode *ip, struct kstat *st) {
 }
 
 // delete inode given its parent dp
-int fat32_inode_delete(struct inode *dp, struct inode *ip) {
+// 将 dp 中代表 ip 的 fcb删除
+// 成功返回 0，失败返回 -1
+int fat32_fcb_delete(struct inode *dp, struct inode *ip) {
     int str_len = strlen(ip->fat32_i.fname);
     int off = ip->fat32_i.parent_off;
     ASSERT(off > 0);

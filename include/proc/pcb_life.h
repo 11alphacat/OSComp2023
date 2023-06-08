@@ -36,9 +36,10 @@ struct proc {
     int killed;     // If non-zero, have been killed
 
     // these are private to the process, so p->lock need not be held.
-    struct file *_ofile[NOFILE]; // Open files
-    struct inode *_cwd;          // Current directory
-    char name[16];               // Process name (debugging)
+    struct file *ofile[NOFILE]; // Open files
+    struct inode *cwd;          // Current directory
+    char name[16];              // Process name (debugging)
+
 
     // proc state queue
     struct list_head state_list; // its state queue

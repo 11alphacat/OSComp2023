@@ -25,8 +25,9 @@
 #include "fs/stat.h"
 #include "fs/uio.h"
 #include "kernel/syscall.h"
+#include "fs/ioctl.h"
 
-#define FILE2FD(f, proc) (((char *)(f) - (char *)(proc)->_ofile) / sizeof(struct file))
+#define FILE2FD(f, proc) (((char *)(f) - (char *)(proc)->ofile) / sizeof(struct file))
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 // 它是线程安全的
@@ -40,7 +41,7 @@ int argfd(int n, int *pfd, struct file **pf) {
 
     // in case another thread writes after the current thead reads
     acquire(&p->tlock);
-    if ((f = proc_current()->_ofile[fd]) == 0) {
+    if ((f = proc_current()->ofile[fd]) == 0) {
         release(&p->tlock);
         return -1;
     } else {
@@ -66,14 +67,60 @@ static int fdalloc(struct file *f) {
 
     acquire(&p->tlock);
     for (fd = 0; fd < NOFILE; fd++) {
-        if (p->_ofile[fd] == 0) {
-            p->_ofile[fd] = f;
+        if (p->ofile[fd] == 0) {
+            p->ofile[fd] = f;
             release(&p->tlock);
             return fd;
         }
     }
     release(&p->tlock);
     return -1;
+}
+
+// return ip without ip->lock held
+// if name == 0, return parent
+// if name != 0, guarantee ip->parent in memory
+static struct inode *find_inode(char *path, int dirfd, char *name) {
+    // 如果path是相对路径，则它是相对于dirfd目录而言的。
+    // 如果path是相对路径，且dirfd的值为AT_FDCWD，则它是相对于当前路径而言的。
+    // 如果path是绝对路径，则dirfd被忽略。
+    // 一般不对 path作检查
+    // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
+    ASSERT(path);
+    struct inode *ip;
+    struct proc *p = proc_current();
+    if (*path == '/' || dirfd == AT_FDCWD) {
+        // 绝对路径 || 相对于当前路径，忽略 dirfd
+        // acquire(&p->tlock);
+        ip = (!name) ? namei(path) : namei_parent(path, name);
+        if (ip == 0) {
+            // release(&p->tlock);
+            return 0;
+        } else {
+            // release(&p->tlock);
+            return ip;
+        }
+    } else {
+        // path为相对于 dirfd目录的路径
+        struct file *f;
+        // acquire(&p->tlock);
+        if (dirfd < 0 || dirfd >= NOFILE || (f = p->ofile[dirfd]) == 0) {
+            // release(&p->tlock);
+            return 0;
+        }
+        struct inode *oldcwd = p->cwd;
+        p->cwd = f->f_tp.f_inode;
+        ip = (!name) ? namei(path) : namei_parent(path, name);
+        if (ip == 0) {
+            // release(&p->tlock);
+            p->cwd = oldcwd;
+            return 0;
+        }
+        p->cwd = oldcwd;
+        // release(&p->tlock);
+    }
+
+    return ip;
 }
 
 static struct inode *assist_icreate(char *path, int dirfd, uchar type, short major, short minor) {
@@ -87,23 +134,60 @@ static struct inode *assist_icreate(char *path, int dirfd, uchar type, short maj
     return ip;
 }
 
+// caller should hold self->lock
+static void assist_unlink(struct inode *self) {
+    // 可以彻底删除 self 文件
+    if (self->i_nlink < 1) {
+        panic("remove: nlink < 1");
+    }
+    --self->i_nlink;
+    // self->i_op->iupdate(self);   // fat32 don't support hard link
+    // but other file system may support
+    // so just note, DON'T DELETE this code
+    self->i_op->iunlock_put(self);
+}
+
 //  The  getcwd()  function  copies  an  absolute  pathname
 // of the current working directory to the array pointed to by buf,
 // which is of length size.
 // make sure sizeof buf is big enough to hold a absolute path!
 static void assist_getcwd(char *kbuf) {
-    // note: buf must have size PATH_LONG_MAX
+    // note: kbuf must have size PATH_LONG_MAX
     size_t n;
     if (!kbuf) return;
     // ASSERT(strnlen(buf,PATH_LONG_MAX) >= PATH_LONG_MAX);
     struct proc *p = proc_current();
-    // get_absolute_path(p->_cwd, kbuf);
-    p->_cwd->i_op->ipathquery(p->_cwd, kbuf); // 获取绝对路径放在kbuf中
+    // get_absolute_path(p->cwd, kbuf);
+    p->cwd->i_op->ipathquery(p->cwd, kbuf); // 获取绝对路径放在kbuf中
     n = strlen(kbuf);
     if (n > 1) {
         kbuf[n - 1] = 0; // clear '/'
     }
     return;
+}
+
+// caller should hold dp->lock && ip->lock
+static int do_unlinkat(struct inode *dp, struct inode *ip) {
+    if (ip->i_nlink < 1) {
+        panic("unlink: nlink < 1");
+    }
+    if (S_ISDIR(ip->i_type) && !ip->i_op->idempty(ip)) {
+        // error: try to unlink a non-empty directory
+        goto bad;
+    }
+
+    // 处理父目录
+    dp->i_op->ientrydelete(dp, ip);
+    dp->i_op->iunlock_put(dp);
+
+    // 处理目标文件
+    assist_unlink(ip);
+    return 0;
+
+bad:
+    ip->i_op->iunlock_put(ip);
+    dp->i_op->iunlock_put(dp);
+    return -1;
 }
 
 static uint64 do_lseek(struct file *f, off_t offset, int whence) {
@@ -131,8 +215,10 @@ static uint64 do_lseek(struct file *f, off_t offset, int whence) {
 // incomplete implement
 static int do_faccess(struct inode *ip, int mode, int flags) {
     ASSERT(flags == AT_EACCESS);
+    // ip->i_op->ilock(ip);
     if (mode == F_OK) {
         // 已经存在
+        // ip->i_op->iunlock_put(ip);
         return 0;
     }
     if (mode & R_OK || mode & W_OK) {
@@ -142,6 +228,8 @@ static int do_faccess(struct inode *ip, int mode, int flags) {
         // sorry
         ;
     }
+
+    // ip->i_op->iunlock_put(ip);
     return 0;
 }
 
@@ -160,7 +248,6 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
     }
     rdip = rf->f_tp.f_inode;
     wrip = wf->f_tp.f_inode;
-    // if ((nread = fat32_inode_read(rf->f_tp.f_inode, 0, (uint64)kbuf, offset, count)) < 0) {
     if ((nread = rdip->i_op->iread(rdip, 0, (uint64)kbuf, offset, count)) < 0) {
         goto bad;
     }
@@ -173,7 +260,6 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
             goto bad;
         }
     } else if (wf->f_type == FD_INODE) {
-        // if ((nwritten = fat32_inode_write(wf->f_tp.f_inode, 0, (uint64)kbuf, wf->f_pos, count)) < 0) {
         if ((nwritten = wrip->i_op->iwrite(wrip, 0, (uint64)kbuf, wf->f_pos, count)) < 0) {
             goto bad;
         }
@@ -199,7 +285,7 @@ bad:
 
 static uint64 do_renameat2(struct inode *ip, int newdirfd, char *newpath, int flags) {
     char name[MAXPATH];
-    struct inode *dp;
+    struct inode *dp, *parent;
     ASSERT(flags == 0);
     struct inode *newip;
     newip = find_inode(newpath, newdirfd, 0);
@@ -216,43 +302,61 @@ static uint64 do_renameat2(struct inode *ip, int newdirfd, char *newpath, int fl
 
     // 新文件已存在
     // 若 ip 指向一个文件而不是目录
-    if (!ip->i_op->idir(ip)) {
+    // if (!ip->i_op->idir(ip)) {
+    if (!S_ISDIR(ip->i_type)) {
         // 则 newip 若存在，不能指向目录
         newip->i_op->ilock(newip);
-        if (newip->i_op->idir(newip)) {
+        // if (newip->i_op->idir(newip)) {
+        if (S_ISDIR(newip->i_type)) {
             newip->i_op->iunlock_put(newip);
             ip->i_op->iunlock_put(ip);
             return -1;
         } else {
-            // 否则删除
-            goto remove;
+            // 删除, 然后创建
+            assist_unlink(newip);
+            goto create;
         }
     } else {
-        // 若 ip 指向一个文件而不是目录
+        // 若 ip 指向目录
         // 则 newip 若存在，必须指向一个空目录
         newip->i_op->ilock(newip);
-        if (!newip->i_op->idir(newip) || !newip->i_op->idempty(newip)) {
+        if (!S_ISDIR(newip->i_type) || !newip->i_op->idempty(newip)) {
             newip->i_op->iunlock_put(newip);
             ip->i_op->iunlock_put(ip);
             return -1;
         } else {
-            // 否则删除
-            goto remove;
+            // 删除，然后创建
+            assist_unlink(newip);
+            goto create;
         }
     }
 
-remove:
-    // 删除 newip 目录项，重命名 oldip 为 newname
-    dp = find_inode(newpath, newdirfd, name);
-    dp->i_op->ilock(dp);
-    dp->i_op->idelete(dp, newip);
-    newip->i_op->iupdate(newip);
-    newip->i_op->iunlock_put(newip);
-    dp->i_op->iunlock_put(dp); // >>
-    goto create;
-
 create:
-    return TODO(); // 重命名操作
+    // 1. 拷贝目录项entry
+    if ((dp = find_inode(newpath, newdirfd, name)) == 0) {
+        ip->i_op->iunlock_put(ip);
+        return -1;
+    }
+    // ip: /A/a.txt
+    // dp: /A/B
+
+    // mv /A/a.txt /A/B/a.txt => /A/B/a.txt
+    dp->i_op->ilock(dp);
+    if (dp->i_op->ientrycopy(dp, name, ip) < 0) {
+        dp->i_op->iunlock_put(dp);
+        ip->i_op->iunlock_put(ip);
+        return -1;
+    }
+    dp->i_op->iunlock_put(dp);
+
+    // 2. 删除原目录项entry（不删除文件数据）
+    ASSERT(ip->parent->i_op);
+    parent = ip->parent;
+    parent->i_op->ilock(parent);
+    parent->i_op->ientrydelete(parent, ip);
+    parent->i_op->iunlock_put(parent);
+
+    return 0;
 }
 
 static int assist_dupfd(struct file *f) {
@@ -279,15 +383,15 @@ static int assist_setfd(struct file *f, int oldfd, int newfd) {
         return newfd;
     }
     acquire(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
-    if (p->_ofile[newfd] == 0) {
+    if (p->ofile[newfd] == 0) {
         // not used, great!
-        p->_ofile[newfd] = f;
+        p->ofile[newfd] = f;
         release(&p->tlock);
     } else {
         // close and reuse
         // two steps must be atomic!
-        generic_fileclose(p->_ofile[newfd]);
-        p->_ofile[newfd] = f;
+        generic_fileclose(p->ofile[newfd]);
+        p->ofile[newfd] = f;
         release(&p->tlock);
     }
     // fat32_filedup(f);
@@ -349,24 +453,21 @@ static uint64 do_fcntl(struct file *f, int cmd) {
 uint64 sys_mknod(void) {
     struct inode *ip;
     char path[MAXPATH];
-    int major, minor;
+    int dev, mode;
 
-    argint(1, &major);
-    argint(2, &minor);
-
-    // TODO() handle major and minor
-
-    // if ((argstr(0, path, MAXPATH)) < 0 || (ip = fat32_inode_create(path, T_DEVICE, major, minor)) == 0) {
-    //     return -1;
-    // }
     if (argstr(0, path, MAXPATH) < 0) {
         return -1;
     }
-    if ((ip = assist_icreate(path, AT_FDCWD, T_DEVICE, major, minor)) == 0) {
+    argint(1, &mode);
+    argint(2, &dev);
+    if (!S_ISCHR(mode) && !S_ISBLK(mode)) {
+        return -1;
+    }
+    // TODO(): futuer should do dev check.
+    if ((ip = assist_icreate(path, AT_FDCWD, mode, MAJOR(dev), MINOR(dev))) == 0) {
         return -1;
     }
 
-    // fat32_inode_unlock_put(ip);
     ip->i_op->iunlock_put(ip);
     return 0;
 }
@@ -467,26 +568,13 @@ uint64 sys_dup3(void) {
 // - mode：文件的所有权描述。详见`man 7 inode `。
 // 返回值：成功执行，返回新的文件描述符。失败，返回-1。
 uint64 sys_openat(void) {
-    /*
-        The openat() system call operates in exactly the same way as open(), except for the differences described here.
-
-        If the pathname given in pathname is relative, then it is interpreted relative to the directory referred to by the file  de‐
-        scriptor  dirfd  (rather  than  relative to the current working directory of the calling process, as is done by open() for a
-        relative pathname).
-
-        If pathname is relative and dirfd is the special value AT_FDCWD, then pathname is interpreted relative to the current  work‐
-        ing directory of the calling process (like open()).
-
-        If pathname is absolute, then dirfd is ignored.
-    */
-
     char path[MAXPATH];
     int dirfd, flags, omode;
     struct file *f;
     struct inode *ip;
     int n;
     argint(0, &dirfd); // no need to check dirfd, because dirfd maybe AT_FDCWD(<0)
-                       // find_inode will do the check
+                       // find_inode() will do the check
     if ((n = argstr(1, path, MAXPATH)) < 0) {
         return -1;
     }
@@ -495,54 +583,43 @@ uint64 sys_openat(void) {
 
     // 如果是要求创建文件，则调用 create
     if ((flags & O_CREATE) == O_CREATE) {
-        // if ((ip = inode_create(path, dirfd, T_FILE)) == 0) {
-        //     return -1;
-        // }
-        if ((ip = assist_icreate(path, dirfd, T_FILE, 0, 0)) == 0) {
+        if ((ip = assist_icreate(path, dirfd, S_IFREG, 0, 0)) == 0) {
             return -1;
         }
-#ifdef __DEBUG_FS__
-        printfBlue("openat : pid %d, create file, %s\n", proc_current()->pid, path);
-#endif
     } else {
-        // 否则，我们先调用 find_inode找到path对应的文件inode节点
+        // 否则，我们先调用 find_inode 找到 path 对应的文件 inode 节点
         if ((ip = find_inode(path, dirfd, 0)) == 0) {
             return -1;
         }
-#ifdef __DEBUG_FS__
-        printfBlue("openat : pid %d, open existed file, %s\n", proc_current()->pid, path);
-#endif
-        ASSERT(ip); // 这里 ip 应该已绑定到 path 找到的文件inode节点
-
-        // fat32_inode_lock(ip);
         ASSERT(ip->i_op);
         ip->i_op->ilock(ip);
-
-        // if (ip->i_type == T_DIR && flags != O_RDONLY) {
+        // if (ip->i_type == S_IFDIR && flags != O_RDONLY) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
         // }
 
-        // if(ip->i_type == T_DIR && !(flags&O_DIRECTORY)) {
+        // if(ip->i_type == S_IFDIR && !(flags&O_DIRECTORY)) {
         //     fat32_inode_unlock_put(ip);
         //     return -1;
         // }
 
-        if ((flags & O_DIRECTORY) && ip->i_type != T_DIR) {
-            // fat32_inode_unlock_put(ip);
+        // if ((flags & O_DIRECTORY) && ip->i_type != S_IFDIR) {
+        if ((flags & O_DIRECTORY) && !S_ISDIR(ip->i_type)) {
             ip->i_op->iunlock_put(ip);
             return -1;
         }
     }
 
-    if (ip->i_type == T_DEVICE && (ip->i_dev < 0 || ip->i_dev >= NDEV)) {
+    if ((S_ISCHR(ip->i_type) || S_ISBLK(ip->i_type))
+        && (MAJOR(ip->i_rdev) < 0 || MAJOR(ip->i_rdev) >= NDEV)) {
         ip->i_op->iunlock_put(ip);
         return -1;
     }
 
     // 下面为inode文件分配一个打开文件表项，为进程分配一个文件描述符
     int fd;
-    if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
+    ASSERT(ip->fs_type == FAT32);
+    if ((f = filealloc(ip->fs_type)) == 0 || (fd = fdalloc(f)) < 0) {
         if (f)
             generic_fileclose(f);
         ip->i_op->iunlock_put(ip);
@@ -550,9 +627,9 @@ uint64 sys_openat(void) {
     }
 
     // 下面为 f 结构体填充字段
-    if (ip->i_type == T_DEVICE) {
+    if (S_ISCHR(ip->i_type) || S_ISBLK(ip->i_type)) {
         f->f_type = FD_DEVICE;
-        f->f_major = ip->i_dev;
+        f->f_major = MAJOR(ip->i_rdev);
     } else {
         f->f_type = FD_INODE;
         f->f_pos = 0;
@@ -562,24 +639,13 @@ uint64 sys_openat(void) {
     f->f_mode = omode;  // TODO(): &
     f->f_count = 1;
 
-    /*  for VFS
-    f_owner = TODO();
-    f_version = TODO();
-    */
-
-    if ((flags & O_TRUNC) && ip->i_type == T_FILE) {
+    // if ((flags & O_TRUNC) && ip->i_type == S_IFREG) {
+    if ((flags & O_TRUNC) && S_ISREG(ip->i_type)) {
         ip->i_size = 0;
         f->f_pos = 0;
-#ifdef __DEBUG_FS__
-        printfBlue("openat : pid %d, truncate file, %s\n", proc_current()->pid, path);
-#endif
     }
-
     ip->i_op->iunlock(ip);
 
-#ifdef __DEBUG_FS__
-    printfBlue("openat : pid %d, fd = %d\n", proc_current()->pid, fd);
-#endif
     return fd;
 }
 
@@ -594,7 +660,7 @@ uint64 sys_close(void) {
     if (argfd(0, &fd, &f) < 0) {
         return -1;
     }
-    proc_current()->_ofile[fd] = 0;
+    proc_current()->ofile[fd] = 0;
 #ifdef __DEBUG_FS__
     printfCYAN("close : pid %d, fd = %d\n", proc_current()->pid, fd);
 #endif
@@ -698,6 +764,8 @@ uint64 sys_linkat(void) {
         return 0;
     }
 
+    // unfinished ! but will not implement
+    // FAT32 don't support hard link
     // 往 newdp 中 写入一个代表 oldip 的项
     // TODO()
     // if ( fat32_dirlink(olddp, newdp) < 0) {
@@ -716,11 +784,10 @@ uint64 sys_linkat(void) {
 // TODO: need to recify
 uint64 sys_unlinkat(void) {
     struct inode *ip, *dp;
-    // struct dirent de;
     char name[NAME_LONG_MAX], path[MAXPATH];
-    int dirfd, flags;
-    uint off;
-    argint(0, &dirfd); // don't need to check, because find_inode will do
+    int dirfd, flags, ret;
+    argint(0, &dirfd); // don't need to check, find_inode() will do this
+
     argint(2, &flags);
     ASSERT(flags == 0);
     if (argstr(1, path, MAXPATH) < 0)
@@ -730,56 +797,22 @@ uint64 sys_unlinkat(void) {
         return -1;
     }
 
-    // fat32_inode_lock(dp);
+    if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0) {
+        //  error: cannot unlink "." or "..".
+        return -1;
+    }
+
     dp->i_op->ilock(dp);
-    // fat32_inode_load_from_disk(dp);
-    //  Cannot unlink "." or "..".
-    if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0)
-        goto bad;
-
-    // if ((ip = fat32_inode_dirlookup(dp, name, &off)) == 0) {
-    if ((ip = dp->i_op->idirlookup(dp, name, &off)) == 0) {
-#ifdef __DEBUG_FS__
-        printfGreen("unlinkat : pid %d, no file, %s\n", proc_current()->pid, path);
-#endif
-        goto bad;
+    if ((ip = dp->i_op->idirlookup(dp, name, 0)) == 0) {
+        // error: target file not found
+        dp->i_op->iunlock_put(dp);
+        return -1;
     }
-
-    // fat32_inode_lock(ip);
     ip->i_op->ilock(ip);
-    if (ip->i_nlink < 1)
-        panic("unlink: nlink < 1");
-    if (ip->i_type == T_DIR && !ip->i_op->idempty(ip)) {
-        // 试图删除的是目录文件，并且非空
-        // fat32_inode_unlock_put(ip);
-        ip->i_op->iunlock_put(ip);
-        goto bad;
-    }
 
-    // 处理父目录区
-    // if (fat32_inode_write(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
-    //     panic("unlink: writei");
+    ret = do_unlinkat(dp, ip);
 
-    if (ip->i_type == T_DIR) {
-        // 试图删除的是空的目录文件
-        dp->i_nlink--;
-        dp->i_op->iupdate(dp);
-    }
-    dp->i_op->iunlock_put(dp);
-
-    ip->i_nlink--; // !!!
-#ifdef __DEBUG_FS__
-    printfGreen("unlinkat : pid %d, file (%s) nlinks %d -> %d\n", proc_current()->pid, ip->fat32_i.fname, ip->i_nlink + 1, ip->i_nlink);
-#endif
-    ip->i_op->iupdate(ip);
-    ip->i_op->iunlock_put(ip);
-
-    return 0;
-
-bad:
-    dp->i_op->iunlock_put(dp);
-
-    return -1;
+    return ret;
 }
 
 // 功能：创建目录；
@@ -801,7 +834,7 @@ uint64 sys_mkdirat(void) {
     if (argstr(1, path, MAXPATH) < 0) {
         return -1;
     }
-    if ((ip = assist_icreate(path, AT_FDCWD, T_DIR, 0, 0)) == 0) {
+    if ((ip = assist_icreate(path, AT_FDCWD, S_IFDIR, 0, 0)) == 0) {
         return -1;
     }
     ip->i_mode = mode;
@@ -841,7 +874,8 @@ uint64 sys_getdents64(void) {
     }
     ip = f->f_tp.f_inode;
     ASSERT(ip);
-    if (ip->i_type != T_DIR) {
+    // if (ip->i_type != S_IFDIR) {
+    if (!S_ISDIR(ip->i_type)) {
         return -1;
     }
     if (f->f_pos == ip->i_size) {
@@ -903,13 +937,14 @@ uint64 sys_chdir(void) {
     }
 
     ip->i_op->ilock(ip); // bug:修改了 i_mode
-    if (ip->i_type != T_DIR) {
+    // if (ip->i_type != S_IFDIR) {
+    if (!S_ISDIR(ip->i_type)) {
         ip->i_op->iunlock_put(ip);
         return -1;
     }
 
     ip->i_op->iunlock(ip);
-    p->_cwd = ip;
+    p->cwd = ip;
     return 0;
 }
 
@@ -931,15 +966,15 @@ uint64 sys_pipe2(void) {
     fd0 = -1;
     if ((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0) { // 给当前进程分配两个文件描述符，代指那两个管道文件
         if (fd0 >= 0)
-            p->_ofile[fd0] = 0;
+            p->ofile[fd0] = 0;
         generic_fileclose(rf);
         generic_fileclose(wf);
         return -1;
     }
     if (copyout(p->mm->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0
         || copyout(p->mm->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
-        p->_ofile[fd0] = 0;
-        p->_ofile[fd1] = 0;
+        p->ofile[fd0] = 0;
+        p->ofile[fd1] = 0;
         generic_fileclose(rf);
         generic_fileclose(wf);
         return -1;
@@ -1203,4 +1238,25 @@ uint64 sys_renameat2(void) {
     do_renameat2(oldip, newdirfd, newpath, flags);
 
     return 0;
+}
+
+// 功能：control device
+// 输入：
+// - fd:
+// - cmd:
+// - arg: a user address
+// 返回值：成功执行，返回0。错误，则返回-1。
+uint64 sys_ioctl(void) {
+    int fd, ret;
+    struct file *f;
+    unsigned long cmd, arg;
+    if (argfd(0, &fd, &f) < 0) {
+        return -1;
+    }
+    arglong(1, (long *)&cmd);
+    arglong(1, (long *)&arg);
+
+    ret = vfs_ioctl(f, fd, cmd, arg);
+
+    return ret;
 }

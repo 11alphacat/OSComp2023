@@ -10,6 +10,3 @@ uint64 sys_exit_group(void) {
 }
 
 // filesystem
-uint64 sys_ioctl(void) {
-    return 0;
-}

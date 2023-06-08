@@ -224,8 +224,8 @@ int umount(const char *special)
 /* ================================================================================= */
 
 /* add */
-int mknod(const char* path, short major, short minor) {
-    return syscall(SYS_mknod, path, major, minor);
+int mknod(const char* path, int mode, int dev) {
+    return syscall(SYS_mknod, path, mode, dev);
 }
 
 char *sbrk(int increment) {

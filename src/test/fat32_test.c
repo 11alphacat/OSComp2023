@@ -11,11 +11,11 @@ void fat32_test_functions(void) {
 
     // struct inode *inode_new = fat32_inode_create("/hello/raw/applepeach",  ATTR_DIRECTORY);
     // struct inode *inode_new = fat32_inode_create("/apple/raw",  ATTR_DIRECTORY);
-    // struct inode *inode_new = fat32_inode_create("/hello/b.txt",  T_FILE);
-    // struct inode *inode_new = fat32_inode_create("/hello/userkernelapples.txt",  T_FILE);
-    // struct inode *inode_new = fat32_inode_create("/test_dir/userkernelap.txt", T_FILE);
+    // struct inode *inode_new = fat32_inode_create("/hello/b.txt",  S_IFREG);
+    // struct inode *inode_new = fat32_inode_create("/hello/userkernelapples.txt",  S_IFREG);
+    // struct inode *inode_new = fat32_inode_create("/test_dir/userkernelap.txt", S_IFREG);
 
-    // struct inode *inode_new = fat32_inode_create("/test_dir/apple.txt", T_FILE);
+    // struct inode *inode_new = fat32_inode_create("/test_dir/apple.txt", S_IFREG);
     // uint sector_num = FATINUM_TO_SECTOR(inode_new->i_ino);
     // uint sec_pos = DEBUG_SECTOR(inode_new, sector_num);//debug
     // char tmp[30];
@@ -34,7 +34,7 @@ void fat32_test_functions(void) {
     // fat32_date_parser(&inode_new->fat32_i.DIR_WrtDate, tmp);
     // printf("%s\n", tmp);
 
-    // fat32_inode_delete(inode_new->parent, inode_new);
+    // fat32_fcb_delete(inode_new->parent, inode_new);
     // int ms;
     // uint16 time_now = fat32_inode_get_time(&ms);
 

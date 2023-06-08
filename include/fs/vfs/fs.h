@@ -55,12 +55,12 @@ struct file {
     uint32 f_pos;
     ushort f_flags;
     ushort f_count;
-    short f_major; // FD_DEVICE
+    short f_major;
 
     int f_owner; /* pid or -pgrp where SIGIO should be sent */
     union file_type f_tp;
     const struct file_operations *f_op; // don't use pointer (bug maybe)!!!!
-    unsigned long f_version;
+    // unsigned long f_version;
 };
 
 struct ftable {
@@ -76,7 +76,7 @@ struct ftable {
 
 // abstract datas in disk
 struct inode {
-    uint8 i_dev;
+    uint8 i_dev;   // note: 未在磁盘中存储
     uint32 i_ino;  // 对任意给定的文件系统的唯一编号标识：由具体文件系统解释
     uint16 i_mode; // 访问权限和所有权
     int ref;       // Reference count
@@ -85,7 +85,7 @@ struct inode {
     uint16 i_nlink;
     uint i_uid;
     uint i_gid;
-    uint64 i_rdev;
+    uint16 i_rdev; // major、minor, 8 + 8
     uint32 i_size;
     uint16 i_type;
 
@@ -128,6 +128,8 @@ struct file_operations {
     ssize_t (*read)(struct file *self, uint64 __user dst, int n);
     ssize_t (*write)(struct file *self, uint64 __user src, int n);
     int (*fstat)(struct file *self, uint64 __user dst);
+    // int (*ioctl) (struct inode *, struct file *, unsigned int cmd, unsigned long __user arg);
+    long (*ioctl)(struct file *self, unsigned int cmd, unsigned long arg);
 };
 
 struct inode_operations {
@@ -135,20 +137,19 @@ struct inode_operations {
     void (*iunlock)(struct inode *self);
     void (*iput)(struct inode *self);
     void (*ilock)(struct inode *self);
-    void (*itrunc)(struct inode *self);
     void (*iupdate)(struct inode *self);
     struct inode *(*idup)(struct inode *self);
-    int (*idir)(struct inode *self); // is self a directory
     void (*ipathquery)(struct inode *self, char *kbuf);
     ssize_t (*iread)(struct inode *self, int user_src, uint64 src, uint off, uint n);
     ssize_t (*iwrite)(struct inode *self, int user_dst, uint64 dst, uint off, uint n);
 
     // for directory inode
     struct inode *(*idirlookup)(struct inode *self, const char *name, uint *poff);
-    int (*idelete)(struct inode *self, struct inode *ip);
     int (*idempty)(struct inode *self);
     ssize_t (*igetdents)(struct inode *self, char *buf, size_t len);
     struct inode *(*icreate)(struct inode *self, const char *name, uchar type, short major, short minor);
+    int (*ientrycopy)(struct inode *dself, const char *name, struct inode *ip);
+    int (*ientrydelete)(struct inode *dself, struct inode *ip);
 };
 
 struct linux_dirent {

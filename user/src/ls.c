@@ -41,8 +41,8 @@ int main(int argc, char *argv[]) {
 /*
             printf("inode: %d      ", d->d_ino);
             printf("dtype: %d      ", d_type);
-            printf("%s   ", (d_type == T_FILE)  ? "regular" :
-                             (d_type == T_DIR)  ? "directory" :
+            printf("%s   ", (d_type == S_IFREG)  ? "regular" :
+                             (d_type == S_IFDIR)  ? "directory" :
                             //  (d_type == DT_FIFO) ? "FIFO" :
                             //  (d_type == DT_SOCK) ? "socket" :
                             //  (d_type == DT_LNK)  ? "symlink" :
@@ -52,11 +52,11 @@ int main(int argc, char *argv[]) {
             printf("%d %d %s \n", d->d_reclen,
                    d->d_off, d->d_name);
 */
-            switch (d_type) {
-            case T_DIR: 
+            switch (d_type & S_IFMT) {
+            case S_IFDIR: 
                 printf("\033[34;1m%s\t\033[0m",d->d_name);
                 break;
-            case T_DEVICE: 
+            case S_IFCHR: case S_IFBLK: 
                 printf("\033[38;5;214m%s\t\033[0m",d->d_name);
                 break;
             default:

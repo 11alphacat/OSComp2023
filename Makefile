@@ -24,7 +24,7 @@ oscompU=oscomp_user
 TEST=user_test kalloctest mmaptest \
 	clock_gettime_test signal_test \
 	writev_test readv_test lseek_test \
-	sendfile_test
+	sendfile_test renameat2_test
 
 OSCOMP=chdir close dup2 dup \
     fstat getcwd mkdir_ write \
@@ -132,7 +132,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 4
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
@@ -192,7 +192,7 @@ oscomp:
 
 fat32.img: dep
 	@dd if=/dev/zero of=$@ bs=1M count=128
-	@mkfs.vfat -F 32 -s 2 -a $@ 
+	@sudo mkfs.vfat -F 32 -s 2 -a $@ 
 	@sudo mount -t vfat $@ $(MNT_DIR)
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
 	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)

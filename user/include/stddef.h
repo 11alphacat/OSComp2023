@@ -15,6 +15,9 @@ typedef long long int64;
 typedef unsigned long long uint64;
 typedef unsigned int uint;
 
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
 #define ULONG_MAX (0xffffffffffffffffULL)
 #define LONG_MAX (0x7fffffffffffffffLL)
 #define INTMAX_MAX LONG_MAX

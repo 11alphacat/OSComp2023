@@ -6,9 +6,18 @@
 #define STDERR 2
 
 // file type
-#define T_DIR 1    // Directory
-#define T_FILE 2   // File
-#define T_DEVICE 3 // Device
+#define S_IFMT (0xf0)
+#define S_IFREG (0x80)                       // 1000_0000
+#define S_IFBLK (0x60)                       // 0110_0000
+#define S_IFDIR (0x40)                       // 0100_0000
+#define S_IFCHR (0x20)                       // 0010_0000
+#define S_ISREG(t) (((t)&S_IFMT) == S_IFREG) // ip->i_type
+#define S_ISDIR(t) (((t)&S_IFMT) == S_IFDIR)
+#define S_ISCHR(t) (((t)&S_IFMT) == S_IFCHR)
+#define S_ISBLK(t) (((t)&S_IFMT) == S_IFBLK)
+// #define T_DEVICE 3  //Device
+
+
 
 //#define TEST_START(x) puts(x)
 #define TEST_START(x) puts("========== START ");puts(x);puts(" ==========\n");

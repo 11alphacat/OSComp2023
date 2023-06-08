@@ -58,7 +58,7 @@ int unlink(const char *path);
 
 /* add */
 /* busybox */
-int mknod(const char* path, short major, short minor);
+int mknod(const char* path, int mode, int dev);
 char *sbrk(int);
 int kill(int, sig_t);
 void shutdown();

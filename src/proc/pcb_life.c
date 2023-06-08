@@ -190,7 +190,7 @@ void _user_init(void) {
     safestrcpy(p->name, "/init", 10);
     p->mm->brk = 0;
 
-    console.f_type = T_DEVICE;
+    console.f_type = S_IFCHR;
     console.f_mode = O_RDWR;
     console.f_major = CONSOLE;
 
@@ -203,7 +203,7 @@ void _user_init(void) {
 void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
-    proc_current()->_cwd = fat32_inode_dup(fat32_sb.root);
+    proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", NULL, NULL);
 }
 
@@ -305,13 +305,13 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     if (flags & CLONE_FILES) {
     } else {
         for (int i = 0; i < NOFILE; i++)
-            if (p->_ofile[i])
-                np->_ofile[i] = fat32_filedup(p->_ofile[i]);
+            if (p->ofile[i])
+                np->ofile[i] = fat32_filedup(p->ofile[i]);
         // TODO : clone a completely same fdtable
     }
 
     // TODO : vfs inode cmd
-    np->_cwd = fat32_inode_dup(p->_cwd);
+    np->cwd = fat32_inode_dup(p->cwd);
 
     // TODO : signal
     if (flags & CLONE_SIGHAND) {
@@ -379,14 +379,14 @@ void do_exit(int status) {
 
     // Close all open files.
     for (int fd = 0; fd < NOFILE; fd++) {
-        if (p->_ofile[fd]) {
-            struct file *f = p->_ofile[fd];
+        if (p->ofile[fd]) {
+            struct file *f = p->ofile[fd];
             generic_fileclose(f);
-            p->_ofile[fd] = 0;
+            p->ofile[fd] = 0;
         }
     }
-    fat32_inode_put(p->_cwd);
-    p->_cwd = 0;
+    fat32_inode_put(p->cwd);
+    p->cwd = 0;
 
     // release all threads
     proc_release_all_thread(p);

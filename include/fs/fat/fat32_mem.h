@@ -120,8 +120,11 @@ ushort fat32_longname_popstack(Stack_t *, uchar *, char *);
 uchar ChkSum(uchar *);
 
 // 21. lookup the inode given its parent inode and name
+struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
+struct inode *fat32_inode_get(uint, uint, const char *, uint);
+void fat32_inode_stati(struct inode *, struct kstat *);
 
-// 22. create the fat32 inode
+// 22. create a fat32 inode for device
 struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor); // now use this
 
 // 22. allocate the fat32 inode
@@ -146,7 +149,8 @@ int fat32_isdirempty(struct inode *);
 // int fat32_date_parser(uint16 *, char *);
 
 // 29. delete fat32 inode
-int fat32_inode_delete(struct inode *, struct inode *);
+int fat32_fcb_delete(struct inode *, struct inode *);
+
 
 // 30. acquire the time now
 // uint16 fat32_inode_get_time(int *);
@@ -161,7 +165,12 @@ void fat32_zero_cluster(uint64 c_num);
 void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
 
 // 35. is the inode a directory?
-int fat32_isdir(struct inode *);
+
+// 36. copy ip to dp(only add fcbs in dp) 
+int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
+
+// 37. delete fcb in dp
+int fat32_fcb_delete(struct inode *dp, struct inode *ip);
 
 // 36. init the hash table of inode
 void fat32_inode_hash_init(struct inode *dp);
@@ -183,5 +192,12 @@ void fat32_inode_hash_destroy(struct inode *dp);
 
 // 42. dirlookup with hint
 struct inode *fat32_inode_dirlookup_with_hint(struct inode *dp, const char *name, uint *poff);
+
+// 34. load inode from disk
+int fat32_inode_load_from_disk(struct inode *ip);
+
+// 36. copy ip to dp(only add fcbs in dp)
+int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
+
 
 #endif

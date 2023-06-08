@@ -12,19 +12,22 @@ struct devsw devsw[NDEV];
 struct ftable _ftable;
 
 // == file layrer ==
-struct file *filealloc(void) {
+struct file *filealloc(fs_t type) {
     // Allocate a file structure.
     // 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针
+    ASSERT(type == FAT32);
+    if (type < 0) {
+        // error: ilegal file system type
+        return 0;
+    }
     struct file *f;
-
     acquire(&_ftable.lock);
     for (f = _ftable.file; f < _ftable.file + NFILE; f++) {
         if (f->f_count == 0) {
             f->f_count = 1;
-
-            // f->f_op = get_fat32_fileops();
-            ASSERT(proc_current()->_cwd->fs_type == FAT32);
-            f->f_op = get_fileops[proc_current()->_cwd->fs_type]();
+            // ASSERT(proc_current()->cwd->fs_type == FAT32);
+            // f->f_op = get_fileops[proc_current()->cwd->fs_type]();
+            f->f_op = get_fileops[type]();
 
             release(&_ftable.lock);
             return f;
@@ -58,7 +61,6 @@ void generic_fileclose(struct file *f) {
         // pipeclose(ff.f_tp.f_pipe, wrable);
         pipe_close(ff.f_tp.f_pipe, wrable);
     } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
-        // fat32_inode_put(ff.f_tp.f_inode);
         ff.f_tp.f_inode->i_op->iput(ff.f_tp.f_inode);
     }
 }
@@ -89,48 +91,6 @@ const struct file_operations *(*get_fileops[])(void) = {
 // == inode layer ==
 static char *skepelem(char *path, char *name);
 static struct inode *inode_namex(char *path, int nameeparent, char *name);
-
-struct inode *find_inode(char *path, int dirfd, char *name) {
-    // 如果path是相对路径，则它是相对于dirfd目录而言的。
-    // 如果path是相对路径，且dirfd的值为AT_FDCWD，则它是相对于当前路径而言的。
-    // 如果path是绝对路径，则dirfd被忽略。
-    // 一般不对 path作检查
-    // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
-    ASSERT(path);
-    struct inode *ip;
-    struct proc *p = proc_current();
-    if (*path == '/' || dirfd == AT_FDCWD) {
-        // 绝对路径 || 相对于当前路径，忽略 dirfd
-        // acquire(&p->tlock);
-        ip = (!name) ? namei(path) : namei_parent(path, name);
-        if (ip == 0) {
-            // release(&p->tlock);
-            return 0;
-        } else {
-            // release(&p->tlock);
-            return ip;
-        }
-    } else {
-        // path为相对于 dirfd目录的路径
-        struct file *f;
-        // acquire(&p->tlock);
-        if (dirfd < 0 || dirfd >= NOFILE || (f = p->_ofile[dirfd]) == 0) {
-            // release(&p->tlock);
-            return 0;
-        }
-        struct inode *oldcwd = p->_cwd;
-        p->_cwd = f->f_tp.f_inode;
-        ip = (!name) ? namei(path) : namei_parent(path, name);
-        if (ip == 0) {
-            // release(&p->tlock);
-            return 0;
-        }
-        p->_cwd = oldcwd;
-        // release(&p->tlock);
-    }
-
-    return ip;
-}
 
 static char *skepelem(char *path, char *name) {
     // Examples:
@@ -165,8 +125,9 @@ static char *skepelem(char *path, char *name) {
 }
 
 // return ip without ip->lock held, guarantee inode in memory
+// if nameparent =0, we guarantee ip->parent also in memory
 static struct inode *inode_namex(char *path, int nameeparent, char *name) {
-    struct inode *ip = NULL, *next = NULL, *cwd = proc_current()->_cwd;
+    struct inode *ip = NULL, *next = NULL, *cwd = proc_current()->cwd;
     ASSERT(cwd);
     if (*path == '/') {
         ASSERT(cwd->i_sb);
@@ -181,9 +142,8 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
 
     while ((path = skepelem(path, name)) != 0) {
         ip->i_op->ilock(ip);
-        // not a directory?
-        // if (!DIR_BOOL(ip->fat32_i.Attr)) {
-        if (!ip->i_op->idir(ip)) {
+
+        if (!S_ISDIR(ip->i_type)) {
             ip->i_op->iunlock_put(ip);
             return 0;
         }
@@ -196,7 +156,11 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
             ip->i_op->iunlock_put(ip);
             return 0;
         }
-        ip->i_op->iunlock_put(ip);
+
+        ip->i_op->iunlock(ip);
+        if (likely(*path != '\0')) {
+            ip->i_op->iput(ip);
+        }
         ip = next;
     }
 
@@ -206,6 +170,7 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
         return 0;
     }
 
+    ASSERT(ip->parent->i_op);
     return ip;
 }
 
@@ -224,18 +189,17 @@ static inline const struct inode_operations *get_fat32_iops(void) {
         .iunlock = fat32_inode_unlock,
         .iput = fat32_inode_put,
         .ilock = fat32_inode_lock,
-        .itrunc = fat32_inode_trunc,
         .iupdate = fat32_inode_update,
         .idirlookup = fat32_inode_dirlookup,
-        .idelete = fat32_inode_delete,
         .idempty = fat32_isdirempty,
         .igetdents = fat32_getdents,
         .idup = fat32_inode_dup,
-        .idir = fat32_isdir,
         .icreate = fat32_inode_create,
         .ipathquery = get_absolute_path,
         .iread = fat32_inode_read,
         .iwrite = fat32_inode_write,
+        .ientrycopy = fat32_fcb_copy,
+        .ientrydelete = fat32_fcb_delete,
     };
 
     return &iops_instance;

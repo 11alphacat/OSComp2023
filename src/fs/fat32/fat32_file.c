@@ -187,7 +187,7 @@ void fat32_getcwd(char *buf) {
     if (!buf) return;
     // ASSERT(strnlen(buf,PATH_LONG_MAX) >= PATH_LONG_MAX);
     struct proc *p = proc_current();
-    get_absolute_path(p->_cwd, buf);
+    get_absolute_path(p->cwd, buf);
     size_t n = strlen(buf);
     if (n > 1) {
         buf[n - 1] = 0; // clear '/'
