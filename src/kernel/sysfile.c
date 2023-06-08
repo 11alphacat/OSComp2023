@@ -165,7 +165,10 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
     }
 
     if (wf->f_type == FD_PIPE) {
-        if ((nwritten = pipewrite(wf->f_tp.f_pipe, 0, (uint64)kbuf, count)) < 0) {
+        // if ((nwritten = pipewrite(wf->f_tp.f_pipe, 0, (uint64)kbuf, count)) < 0) {
+        //     goto bad;
+        // }
+        if ((nwritten = pipe_write(wf->f_tp.f_pipe, 0, (uint64)kbuf, count)) < 0) {
             goto bad;
         }
     } else if (wf->f_type == FD_INODE) {
@@ -920,7 +923,9 @@ uint64 sys_pipe2(void) {
     struct proc *p = proc_current();
 
     argaddr(0, &fdarray);
-    if (pipealloc(&rf, &wf) < 0) // 分配两个 pipe 文件
+    // if (pipealloc(&rf, &wf) < 0) // 分配两个 pipe 文件
+    //     return -1;
+    if (pipe_alloc(&rf, &wf) < 0) // 分配两个 pipe 文件
         return -1;
     fd0 = -1;
     if ((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0) { // 给当前进程分配两个文件描述符，代指那两个管道文件

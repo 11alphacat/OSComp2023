@@ -67,7 +67,8 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        r = piperead(f->f_tp.f_pipe, 1, addr, n);
+        // r = piperead(f->f_tp.f_pipe, 1, addr, n);
+        r = pipe_read(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_FS__
         printfMAGENTA("read : read %d chars of pipe file (no name pipe) starting from %d \n", r, f->f_tp.f_pipe->nread - r);
 #endif
@@ -106,7 +107,8 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        ret = pipewrite(f->f_tp.f_pipe, 1, addr, n);
+        // ret = pipewrite(f->f_tp.f_pipe, 1, addr, n);
+        ret = pipe_write(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_FS__
         printfYELLOW("write : write %d chars -> pipe file (no name pipe) starting from %d\n", ret, f->f_tp.f_pipe->nwrite - ret);
 #endif

@@ -15,7 +15,8 @@ struct kstat;
 extern struct ftable _ftable;
 
 union file_type {
-    struct pipe *f_pipe;   // FD_PIPE
+    struct pipe *f_pipe; // FD_PIPE
+    // struct _pipe *f_pipe_;   // FD_PIPE (modify)
     struct inode *f_inode; // FDINODE and FD_DEVICE
 };
 

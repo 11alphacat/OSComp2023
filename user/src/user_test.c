@@ -1035,6 +1035,7 @@ void pipe1() {
                 exit(1);
             }
         }
+        printf("write : over\n");
         exit(0);
     } else if (pid > 0) {
         close(fds[1]);
@@ -1051,11 +1052,15 @@ void pipe1() {
             cc = cc * 2;
             if (cc > sizeof(buf))
                 cc = sizeof(buf);
+            // printf("read over\n");
+            // printf("cc : %d\n",cc);
         }
+
         if (total != N * SZ) {
             printf("pipe1 oops 3 total %d\n", total);
             exit(1);
         }
+
         close(fds[0]);
         wait(&xstatus);
         printf("pipe1 test OK\n");

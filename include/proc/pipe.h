@@ -4,27 +4,21 @@
 #include "common.h"
 #include "atomic/spinlock.h"
 #include "atomic/semaphore.h"
+#include "lib/sbuf.h"
 
-struct file;
 struct file;
 
 #define PIPESIZE 512
 
 struct pipe {
-    struct spinlock lock;
-    char data[PIPESIZE];
-    uint nread;    // number of bytes read
-    uint nwrite;   // number of bytes written
+    struct sbuf buffer;
     int readopen;  // read fd is still open
     int writeopen; // write fd is still open
-
-    struct semaphore read_sem;
-    struct semaphore write_sem;
 };
 
-int pipealloc(struct file **f0, struct file **f1); // only for xv6
-void pipeclose(struct pipe *pi, int writable);
-int piperead(struct pipe *pi, int user_dst, uint64 addr, int n);
-int pipewrite(struct pipe *pi, int user_dst, uint64 addr, int n);
+int pipe_alloc(struct file **f0, struct file **f1);
+void pipe_close(struct pipe *pi, int writable);
+int pipe_write(struct pipe *pi, int user_dst, uint64 addr, int n);
+int pipe_read(struct pipe *pi, int user_dst, uint64 addr, int n);
 
 #endif // __PIPE_H__

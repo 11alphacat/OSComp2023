@@ -55,12 +55,11 @@ void generic_fileclose(struct file *f) {
 
     if (ff.f_type == FD_PIPE) {
         int wrable = F_WRITEABLE(&ff);
-        pipeclose(ff.f_tp.f_pipe, wrable);
+        // pipeclose(ff.f_tp.f_pipe, wrable);
+        pipe_close(ff.f_tp.f_pipe, wrable);
     } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
-        // begin_op();
         // fat32_inode_put(ff.f_tp.f_inode);
         ff.f_tp.f_inode->i_op->iput(ff.f_tp.f_inode);
-        // end_op();
     }
 }
 

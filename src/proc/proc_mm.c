@@ -31,7 +31,7 @@ void tcb_mapstacks(pagetable_t kpgtbl) {
     }
 }
 
-/* Create a user page table, with no user memory, 
+/* Create a user page table, with no user memory,
    but with trampoline and sigreturn pages.
 */
 pagetable_t proc_pagetable() {

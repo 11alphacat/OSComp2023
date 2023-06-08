@@ -13,37 +13,29 @@
 // #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
+#include "lib/sbuf.h"
+#include "debug.h"
 
-int pipealloc(struct file **f0, struct file **f1) {
-    struct pipe *pi;
-
-    pi = 0;
+int pipe_alloc(struct file **f0, struct file **f1) {
+    struct pipe *pi = 0;
     *f0 = *f1 = 0;
     if ((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
         goto bad;
     if ((pi = (struct pipe *)kalloc()) == 0)
         goto bad;
+
+    sbuf_init(&pi->buffer, PIPESIZE);
+
     pi->readopen = 1;
     pi->writeopen = 1;
-    pi->nwrite = 0;
-    pi->nread = 0;
-    initlock(&pi->lock, "pipe");
-
-    sema_init(&pi->read_sem, 0, "read_sem");
-    sema_init(&pi->write_sem, 0, "write_sem");
 
     (*f0)->f_type = FD_PIPE;
     (*f0)->f_flags = O_RDONLY;
     (*f0)->f_tp.f_pipe = pi;
-    // (*f0)->readable = 1;
-    // (*f0)->writable = 0;
     (*f1)->f_type = FD_PIPE;
     (*f1)->f_flags = O_WRONLY;
     (*f1)->f_tp.f_pipe = pi;
-    // (*f1)->readable = 0;
-    // (*f1)->writable = 1;
     return 0;
-
 bad:
     if (pi)
         kfree((char *)pi);
@@ -54,117 +46,55 @@ bad:
     return -1;
 }
 
-// int pipealloc(struct file **f0, struct file **f1) {
-//     struct pipe *pi;
-
-//     pi = 0;
-//     *f0 = *f1 = 0;
-//     if ((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
-//         goto bad;
-//     if ((pi = (struct pipe *)kalloc()) == 0)
-//         goto bad;
-//     pi->readopen = 1;
-//     pi->writeopen = 1;
-//     pi->nwrite = 0;
-//     pi->nread = 0;
-//     initlock(&pi->lock, "pipe");
-//     (*f0)->type = FD_PIPE;
-//     (*f0)->readable = 1;
-//     (*f0)->writable = 0;
-//     (*f0)->pipe = pi;
-//     (*f1)->type = FD_PIPE;
-//     (*f1)->readable = 0;
-//     (*f1)->writable = 1;
-//     (*f1)->pipe = pi;
-//     return 0;
-
-// bad:
-//     if (pi)
-//         kfree((char *)pi);
-//     if (*f0)
-//         generic_fileclose(*f0);
-//     if (*f1)
-//         generic_fileclose(*f1);
-//     return -1;
-// }
-
-void pipeclose(struct pipe *pi, int writable) {
-    acquire(&pi->lock);
+void pipe_close(struct pipe *pi, int writable) {
+    acquire(&pi->buffer.lock);
     if (writable) {
         pi->writeopen = 0;
-        // wakeup(&pi->nread);
-        sema_signal(&pi->read_sem);
+        sema_signal(&pi->buffer.items); // !!! bug
     } else {
         pi->readopen = 0;
-        // wakeup(&pi->nwrite);
-        sema_signal(&pi->write_sem);
     }
     if (pi->readopen == 0 && pi->writeopen == 0) {
-        release(&pi->lock);
+        release(&pi->buffer.lock);
+        sbuf_free(&pi->buffer); // !!!
         kfree((char *)pi);
-    } else
-        release(&pi->lock);
+    } else {
+        release(&pi->buffer.lock);
+    }
 }
 
-int pipewrite(struct pipe *pi, int user_dst, uint64 addr, int n) {
-    int i = 0;
+int pipe_write(struct pipe *pi, int user_dst, uint64 addr, int n) {
     struct proc *pr = proc_current();
-
-    acquire(&pi->lock);
-    while (i < n) {
-        if (pi->readopen == 0 || proc_killed(pr)) {
-            release(&pi->lock);
+    int i;
+    for (i = 0; i < n; i++) {
+        if (proc_killed(pr) || pi->readopen == 0) {
             return -1;
         }
-        if (pi->nwrite == pi->nread + PIPESIZE) { // DOC: pipewrite-full
-            sema_signal(&pi->read_sem);
-
-            release(&pi->lock);
-            sema_wait(&pi->write_sem);
-            acquire(&pi->lock);
-            // wakeup(&pi->nread);
-            // sleep(&pi->nwrite, &pi->lock);
-        } else {
-            char ch;
-            if (either_copyin(&ch, user_dst, addr + i, 1) == -1)
-                break;
-            pi->data[pi->nwrite++ % PIPESIZE] = ch;
-            i++;
+        int ret = sbuf_insert(&pi->buffer, user_dst, addr + i);
+        if (ret == -1) {
+            return -1;
         }
     }
-    // wakeup(&pi->nread);
-    sema_signal(&pi->read_sem);
-    release(&pi->lock);
-
     return i;
 }
 
-int piperead(struct pipe *pi, int user_dst, uint64 addr, int n) {
+int pipe_read(struct pipe *pi, int user_dst, uint64 addr, int n) {
     int i;
     struct proc *pr = proc_current();
-    char ch;
 
-    acquire(&pi->lock);
-    while (pi->nread == pi->nwrite && pi->writeopen) { // DOC: pipe-empty
+    for (i = 0; i < n; i++) {
         if (proc_killed(pr)) {
-            release(&pi->lock);
             return -1;
         }
-        release(&pi->lock);
-        sema_wait(&pi->read_sem);
-        acquire(&pi->lock);
-        // sleep(&pi->nread, &pi->lock); // DOC: piperead-sleep
-    }
-    for (i = 0; i < n; i++) { // DOC: piperead-copy
-        if (pi->nread == pi->nwrite)
+        if (pi->writeopen == 0 && pi->buffer.r == pi->buffer.w) { // !!! bug
             break;
-        ch = pi->data[pi->nread % PIPESIZE];
-        if (either_copyout(user_dst, addr + i, &ch, 1) == -1)
+        }
+        int ret = sbuf_remove(&pi->buffer, user_dst, addr + i);
+        if (ret == -1) {
+            return -1;
+        } else if (ret == 1) {
             break;
-        ++pi->nread;
+        }
     }
-    // wakeup(&pi->nwrite); // DOC: piperead-wakeup
-    sema_signal(&pi->write_sem);
-    release(&pi->lock);
     return i;
 }
