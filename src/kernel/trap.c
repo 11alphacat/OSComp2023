@@ -4,7 +4,7 @@
 #include "memory/vm.h"
 #include "memory/memlayout.h"
 #include "proc/pcb_life.h"
-#include "proc/signal.h"
+#include "ipc/signal.h"
 #include "proc/sched.h"
 #include "lib/riscv.h"
 #include "lib/sbi.h"
@@ -18,19 +18,14 @@
 #include "common.h"
 #include "param.h"
 #include "debug.h"
-
-#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
-
-struct spinlock tickslock;
-uint ticks;
-struct cond cond_ticks;
-extern char trampoline[], uservec[], userret[];
+#include "lib/timer.h"
+#include "kernel/syscall.h"
 
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 extern int devintr();
+extern char trampoline[], uservec[], userret[];
 
-#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 #define ISPAGEFAULT(cause) ((cause) == INSTUCTION_PAGEFAULT || (cause) == LOAD_PAGEFAULT || (cause) == STORE_PAGEFAULT)
 
 static char *cause[16] = {
@@ -40,17 +35,10 @@ static char *cause[16] = {
     [LOAD_PAGEFAULT] "LOAD PAGEFAULT",
 };
 
-void trapinit(void) {
-    initlock(&tickslock, "time");
-    cond_init(&cond_ticks, "cond_ticks");
-}
-
 // set up to take exceptions and traps while in the kernel.
 void trapinithart(void) {
     w_stvec((uint64)kernelvec);
-    // start timer
     w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
-    SET_TIMER();
 }
 
 void killproc(struct proc *p) {
@@ -58,7 +46,7 @@ void killproc(struct proc *p) {
     printf("scause %p %s\n", r_scause(), cause[r_scause()]);
     printf("sepc=%p\n", r_sepc());
     printf("stval=%p\n", r_stval());
-    proc_setkilled(p);
+    proc_sendsignal_all_thread(p, SIGKILL, 1);
 }
 
 //
@@ -197,14 +185,6 @@ void kerneltrap() {
     // so restore trap registers for use by kernelvec.S's sepc instruction.
     w_sepc(sepc);
     w_sstatus(sstatus);
-}
-
-void clockintr() {
-    acquire(&tickslock);
-    ticks++;
-    cond_broadcast(&cond_ticks);
-    // wakeup(&tickslock);
-    release(&tickslock);
 }
 
 // check if it's an external interrupt or software interrupt,

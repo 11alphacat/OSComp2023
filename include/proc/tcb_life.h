@@ -1,5 +1,6 @@
-#ifndef __PCB_THREAD_H__
-#define __PCB_THREAD_H__
+#ifndef __TCB_LIFE_H__
+#define __TCB_LIFE_H__
+
 #include "kernel/kthread.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
@@ -8,7 +9,8 @@
 #include "atomic/spinlock.h"
 #include "lib/list.h"
 #include "common.h"
-#include "proc/signal.h"
+#include "ipc/signal.h"
+#include "lib/queue.h"
 
 #define NTCB_PER_PROC 10
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
@@ -79,8 +81,8 @@ struct tcb {
     // is detached ?
     uint is_detached;
 
-    // void *chan;                 // If non-zero, sleeping on chan
-    struct list_head wait_list; // waiting queue (semaphore)
+    struct list_head wait_list;    // waiting queue list
+    struct Queue *wait_chan_entry; //  waiting queue entry
 
     struct semaphore sem_wait_chan_parent;
     struct semaphore sem_wait_chan_self;
@@ -89,6 +91,8 @@ struct tcb {
     int *set_child_tid;
     /* CLONE_CHILD_CLEARTID: */
     int *clear_child_tid;
+
+    uint64 time_out; // used for nanosleep and futex
 };
 
 void tcb_init(void);

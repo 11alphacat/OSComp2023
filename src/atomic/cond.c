@@ -1,5 +1,5 @@
 #include "proc/pcb_life.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 #include "proc/sched.h"
 #include "lib/queue.h"
 #include "atomic/cond.h"
@@ -18,24 +18,27 @@ void cond_init(struct cond *cond, char *name) {
 }
 
 // wait
-void cond_wait(struct cond *cond, struct spinlock *mutex) {
+int cond_wait(struct cond *cond, struct spinlock *mutex) {
     struct tcb *t = thread_current();
 
     acquire(&t->lock);
 
     TCB_Q_changeState(t, TCB_SLEEPING);
 
-    // Queue_push_back_atomic(&cond->waiting_queue, (void*)t);;
-    Queue_push_back(&cond->waiting_queue, (void *)t);
+    Queue_push_back_atomic(&cond->waiting_queue, (void *)t);
+    ;
+    // Queue_push_back(&cond->waiting_queue, (void *)t);
+    t->wait_chan_entry = &cond->waiting_queue; // !!!
 
     // TODO : modify it to futex(ref to linux)
     release(mutex);
 
-    thread_sched();
+    int ret = thread_sched();
 
     // Reacquire original lock.
     release(&t->lock);
     acquire(mutex);
+    return ret;
 }
 
 // just signal a object!!!

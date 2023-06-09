@@ -3,11 +3,12 @@
 #include "atomic/spinlock.h"
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 #include "lib/riscv.h"
 #include "lib/queue.h"
 #include "debug.h"
 #include "common.h"
+#include "lib/timer.h"
 
 Queue_t unused_p_q, used_p_q, zombie_p_q;
 Queue_t *STATES[PCB_STATEMAX] = {
@@ -74,10 +75,22 @@ void thread_yield(void) {
     release(&t->lock);
 }
 
-void thread_sched(void) {
+void thread_wakeup(void *t) {
+    struct tcb *thread = (struct tcb *)t;
+
+    ASSERT(thread->wait_chan_entry != NULL);
+    Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
+
+    acquire(&thread->lock);
+    ASSERT(thread->state == TCB_SLEEPING);
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+    release(&thread->lock);
+}
+
+// return the rest of expires of timer
+int thread_sched(void) {
     int intena;
     struct tcb *thread = thread_current();
-
     if (!holding(&thread->lock))
         panic("sched thread->lock");
     if (t_mycpu()->noff != 1) {
@@ -89,8 +102,24 @@ void thread_sched(void) {
         panic("sched interruptible");
 
     intena = t_mycpu()->intena;
+
+    // set timer for thread
+    int set_timer = thread->time_out; // !!!
+    struct timer_list timer;
+    timer.expires = 0;
+    if (set_timer != 0) {
+        add_timer_atomic(&timer, thread->time_out, thread_wakeup, (void *)thread);
+    }
+
     swtch(&thread->context, &t_mycpu()->context);
     t_mycpu()->intena = intena;
+
+    if (set_timer != 0) {
+        thread->time_out = 0; // bug !!!
+        delete_timer_atomic(&timer);
+    }
+
+    return timer.expires == 0; // if it is 0, is is reasonable
 }
 
 void thread_scheduler(void) {

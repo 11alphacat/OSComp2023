@@ -15,7 +15,7 @@
 #include "kernel/trap.h"
 #include "debug.h"
 #include "memory/allocator.h"
-#include "proc/pipe.h"
+#include "ipc/pipe.h"
 #include "memory/vm.h"
 #include "proc/exec.h"
 // #include "fs/fat/fat32_mem.h"
@@ -24,6 +24,7 @@
 #include "fs/vfs/ops.h"
 #include "fs/stat.h"
 #include "fs/uio.h"
+#include "kernel/syscall.h"
 
 #define FILE2FD(f, proc) (((char *)(f) - (char *)(proc)->_ofile) / sizeof(struct file))
 // Fetch the nth word-sized system call argument as a file descriptor

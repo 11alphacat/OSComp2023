@@ -1,11 +1,16 @@
 #include "debug.h"
 #include "common.h"
-#include "proc/proc_mm.h"
+#include "proc/pcb_mm.h"
 #include "kernel/trap.h"
 #include "proc/sched.h"
 #include "lib/riscv.h"
 #include "lib/sbi.h"
 #include "memory/buddy.h"
+#include "debug.h"
+#include "fs/vfs/fs.h"
+#include "fs/bio.h"
+#include "kernel/syscall.h"
+#include "lib/ctype.h"
 extern uint ticks;
 
 struct tms {
@@ -193,4 +198,99 @@ uint64 sys_syslog(void) {
     // Log(format);
 
     return 0;
+}
+
+/* inefficient, use for debug only! */
+static void print_rawstr(const char *c, size_t len) {
+    for (int i = 0; i < len; i++) {
+        if (*(c + i) == ' ') {
+            printf(" ");
+        } else if (isalnum(*(c + i)) || *(c + i) == '.' || *(c + i) == '~' || *(c + i) == '_') {
+            printf("%c", *(c + i));
+        } else {
+            printf(" ");
+        }
+    }
+}
+
+static void print_short_dir(const dirent_s_t *buf) {
+    printf("(short) ");
+    printf("name: ", buf->DIR_Name);
+    print_rawstr((char *)buf->DIR_Name, FAT_SFN_LENGTH);
+    printf("  ");
+    printf("attr: %#x\t", buf->DIR_Attr);
+    printf("dev: %d\t", buf->DIR_Dev);
+    printf("filesize %d\n", buf->DIR_FileSize);
+    // printf("create_time_tenth %d\t", buf->DIR_CrtTimeTenth);
+    // printf("create_time %d\n", buf->DIR_CrtTime);
+    // printf("crea");
+}
+
+static void print_long_dir(const dirent_l_t *buf) {
+    printf("(long) ");
+    printf("name1: ");
+    print_rawstr((char *)buf->LDIR_Name1, 10);
+    printf("  ");
+    printf("name2: ");
+    print_rawstr((char *)buf->LDIR_Name2, 12);
+    printf("  ");
+    printf("name3: ");
+    print_rawstr((char *)buf->LDIR_Name3, 4);
+    printf("  ");
+    printf("attr %#x\n", buf->LDIR_Attr);
+}
+
+void sys_print_rawfile(void) {
+    int fd;
+    int printdir;
+    struct file *f;
+
+    printfGreen("==============\n");
+    if (argfd(0, &fd, &f) < 0) {
+        printfGreen("file doesn't open!\n");
+        return;
+    }
+    argint(1, &printdir);
+
+    ASSERT(f->f_type == FD_INODE);
+    int cnt = 0;
+    int pos = 0;
+    uint64 iter_c_n = f->f_tp.f_inode->fat32_i.cluster_start;
+
+    printfGreen("fd is %d\n", fd);
+    struct inode *ip = f->f_tp.f_inode;
+    if (ip->i_type != T_DIR && printdir == 1) {
+        printfGreen("the file is not a directory\n");
+        return;
+    }
+    int off = 0;
+    // print logistic clu.no and address(in fat32.img)
+    while (!ISEOF(iter_c_n)) {
+        uint64 addr = (iter_c_n - fat32_sb.fat32_sb_info.root_cluster_s) * __BPB_BytsPerSec * __BPB_SecPerClus + FSIMG_STARTADDR;
+        printfGreen("cluster no: %d\t address: %p \toffset %d(%#p)\n", cnt++, addr, pos, pos);
+        if (printdir == 1) {
+            int first_sector = FirstSectorofCluster(iter_c_n);
+            int init_s_n = LOGISTIC_S_NUM(pos);
+            struct buffer_head *bp;
+            for (int s = init_s_n; s < __BPB_SecPerClus; s++) {
+                bp = bread(ip->i_dev, first_sector + s);
+                for (int i = 0; i < 512 && i < ip->i_size; i += 32) {
+                    dirent_s_t *tmp = (dirent_s_t *)(bp->data + i);
+                    printf("%x ", off++);
+                    if (LONG_NAME_BOOL(tmp->DIR_Attr)) {
+                        print_long_dir((dirent_l_t *)(bp->data + i));
+                    } else {
+                        print_short_dir((dirent_s_t *)(bp->data + i));
+                    }
+                }
+                printfRed("===Sector %d end===\n", s);
+                brelse(bp);
+            }
+        }
+        pos += __BPB_BytsPerSec * __BPB_SecPerClus;
+        iter_c_n = fat32_next_cluster(iter_c_n);
+    }
+    printfGreen("file size is %d(%#p)\n", f->f_tp.f_inode->i_size, f->f_tp.f_inode->i_size);
+    printfGreen("==============\n");
+    return;
 }

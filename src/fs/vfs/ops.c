@@ -1,5 +1,5 @@
 #include "debug.h"
-#include "proc/pipe.h"
+#include "ipc/pipe.h"
 #include "proc/pcb_life.h"
 #include "fs/fcntl.h"
 #include "fs/vfs/fs.h"

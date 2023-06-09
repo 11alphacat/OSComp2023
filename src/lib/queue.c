@@ -1,6 +1,6 @@
 #include "lib/queue.h"
 #include "lib/list.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 
 // init
 void Queue_init(Queue_t *q, char *name, enum queue_type type) {

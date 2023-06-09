@@ -74,7 +74,7 @@ void hash_insert(struct hash_table *table, void *key, void *value) {
         INIT_LIST_HEAD(&node_new->list);
         list_add_tail(&node_new->list, &(entry->list));
     } else {
-        if (table->type == INODE_MAP) {
+        if (table->type == INODE_MAP || table->type == FUTEX_MAP) {
             kfree(node->value); // !!!
         }
         node->value = value;
@@ -89,7 +89,7 @@ void hash_delete(struct hash_table *table, void *key) {
     if (node != NULL) {
         list_del_reinit(&node->list);
 
-        if (table->type == INODE_MAP) {
+        if (table->type == INODE_MAP || table->type == FUTEX_MAP) {
             kfree(node->value); // !!!
         }
         kfree(node);
@@ -108,7 +108,7 @@ void hash_destroy(struct hash_table *table, int free) {
     struct hash_node *node_tmp = NULL;
     for (int i = 0; i < table->size; i++) {
         list_for_each_entry_safe(node_cur, node_tmp, &table->hash_head[i].list, list) {
-            if (table->type == INODE_MAP)
+            if (table->type == INODE_MAP || table->type == FUTEX_MAP)
                 kfree(node_cur->value); // !!!
             kfree(node_cur);
         }

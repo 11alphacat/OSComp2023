@@ -5,10 +5,11 @@
 #include "lib/riscv.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 #include "kernel/trap.h"
 #include "syscall_gen/syscall_num.h"
 #include "debug.h"
+#include "kernel/syscall.h"
 
 // #define __STRACE__
 // Fetch the uint64 at addr from the current process.

@@ -1,7 +1,7 @@
 #ifndef __SIGNAL_H__
 #define __SIGNAL_H__
 #include "common.h"
-#include "atomic/atomic.h"
+#include "atomic/ops.h"
 #include "atomic/spinlock.h"
 #include "lib/list.h"
 #include "kernel/trap.h"

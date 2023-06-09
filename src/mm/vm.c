@@ -9,7 +9,7 @@
 #include "debug.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
-#include "proc/proc_mm.h"
+#include "proc/pcb_mm.h"
 #include "lib/list.h"
 
 /* copy-on write */

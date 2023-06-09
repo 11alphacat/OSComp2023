@@ -4,8 +4,6 @@
 
 // oscomp syscalls that haven't been implemented
 
-// other
-
 // proc
 uint64 sys_exit_group(void) {
     return 0;

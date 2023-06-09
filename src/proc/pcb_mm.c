@@ -1,5 +1,5 @@
 #include "common.h"
-#include "proc/proc_mm.h"
+#include "proc/pcb_mm.h"
 #include "lib/riscv.h"
 #include "proc/pcb_life.h"
 #include "kernel/trap.h"
@@ -7,8 +7,8 @@
 #include "memory/allocator.h"
 #include "memory/vm.h"
 #include "debug.h"
-#include "proc/pcb_thread.h"
-#include "proc/proc_mm.h"
+#include "proc/tcb_life.h"
+#include "proc/pcb_mm.h"
 #include "memory/vma.h"
 
 extern struct tcb thread[NTCB];

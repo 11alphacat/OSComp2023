@@ -3,7 +3,7 @@
 
 #include "param.h"
 #include "atomic/spinlock.h"
-#include "atomic/atomic.h"
+#include "atomic/ops.h"
 
 struct file;
 struct fd {

@@ -29,101 +29,6 @@ struct inode_table_t {
     struct inode inode_entry[NINODE];
 } inode_table;
 
-/* inefficient, use for debug only! */
-static void print_rawstr(const char *c, size_t len) {
-    for (int i = 0; i < len; i++) {
-        if (*(c + i) == ' ') {
-            printf(" ");
-        } else if (isalnum(*(c + i)) || *(c + i) == '.' || *(c + i) == '~' || *(c + i) == '_') {
-            printf("%c", *(c + i));
-        } else {
-            printf(" ");
-        }
-    }
-}
-
-static void print_short_dir(const dirent_s_t *buf) {
-    printf("(short) ");
-    printf("name: ", buf->DIR_Name);
-    print_rawstr((char *)buf->DIR_Name, FAT_SFN_LENGTH);
-    printf("  ");
-    printf("attr: %#x\t", buf->DIR_Attr);
-    printf("dev: %d\t", buf->DIR_Dev);
-    printf("filesize %d\n", buf->DIR_FileSize);
-    // printf("create_time_tenth %d\t", buf->DIR_CrtTimeTenth);
-    // printf("create_time %d\n", buf->DIR_CrtTime);
-    // printf("crea");
-}
-
-static void print_long_dir(const dirent_l_t *buf) {
-    printf("(long) ");
-    printf("name1: ");
-    print_rawstr((char *)buf->LDIR_Name1, 10);
-    printf("  ");
-    printf("name2: ");
-    print_rawstr((char *)buf->LDIR_Name2, 12);
-    printf("  ");
-    printf("name3: ");
-    print_rawstr((char *)buf->LDIR_Name3, 4);
-    printf("  ");
-    printf("attr %#x\n", buf->LDIR_Attr);
-}
-
-void sys_print_rawfile(void) {
-    int fd;
-    int printdir;
-    struct file *f;
-
-    printfGreen("==============\n");
-    if (argfd(0, &fd, &f) < 0) {
-        printfGreen("file doesn't open!\n");
-        return;
-    }
-    argint(1, &printdir);
-
-    ASSERT(f->f_type == FD_INODE);
-    int cnt = 0;
-    int pos = 0;
-    uint64 iter_c_n = f->f_tp.f_inode->fat32_i.cluster_start;
-
-    printfGreen("fd is %d\n", fd);
-    struct inode *ip = f->f_tp.f_inode;
-    if (ip->i_type != T_DIR && printdir == 1) {
-        printfGreen("the file is not a directory\n");
-        return;
-    }
-    int off = 0;
-    // print logistic clu.no and address(in fat32.img)
-    while (!ISEOF(iter_c_n)) {
-        uint64 addr = (iter_c_n - fat32_sb.fat32_sb_info.root_cluster_s) * __BPB_BytsPerSec * __BPB_SecPerClus + FSIMG_STARTADDR;
-        printfGreen("cluster no: %d\t address: %p \toffset %d(%#p)\n", cnt++, addr, pos, pos);
-        if (printdir == 1) {
-            int first_sector = FirstSectorofCluster(iter_c_n);
-            int init_s_n = LOGISTIC_S_NUM(pos);
-            struct buffer_head *bp;
-            for (int s = init_s_n; s < __BPB_SecPerClus; s++) {
-                bp = bread(ip->i_dev, first_sector + s);
-                for (int i = 0; i < 512 && i < ip->i_size; i += 32) {
-                    dirent_s_t *tmp = (dirent_s_t *)(bp->data + i);
-                    printf("%x ", off++);
-                    if (LONG_NAME_BOOL(tmp->DIR_Attr)) {
-                        print_long_dir((dirent_l_t *)(bp->data + i));
-                    } else {
-                        print_short_dir((dirent_s_t *)(bp->data + i));
-                    }
-                }
-                printfRed("===Sector %d end===\n", s);
-                brelse(bp);
-            }
-        }
-        pos += __BPB_BytsPerSec * __BPB_SecPerClus;
-        iter_c_n = fat32_next_cluster(iter_c_n);
-    }
-    printfGreen("file size is %d(%#p)\n", f->f_tp.f_inode->i_size, f->f_tp.f_inode->i_size);
-    printfGreen("==============\n");
-    return;
-}
-
 // init the global inode table
 void inode_table_init() {
     struct inode *entry;
@@ -320,7 +225,7 @@ void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, in
     uint C_NUM_off = LOGISTIC_C_NUM(off) + 1;
     // find the target cluster of off
     *c_start = fat32_fat_travel(ip, C_NUM_off);
-    if (C_NUM_off > ip->fat32_i.cluster_cnt) {
+    while (C_NUM_off > ip->fat32_i.cluster_cnt) {
         FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
         fat32_fat_set(*c_start, fat_new);
         *c_start = fat_new;

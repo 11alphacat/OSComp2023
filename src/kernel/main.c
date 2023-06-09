@@ -12,7 +12,7 @@
 volatile static int started = 0;
 void printfinit(void);
 void consoleinit(void);
-void trapinit(void);
+void timer_init();
 void trapinithart(void);
 void kvminit(void);
 void kvminithart(void);
@@ -29,7 +29,6 @@ void mm_init();
 void _user_init(void);
 void proc_init();
 void inode_table_init(void);
-void futex_table_init(void);
 void hash_tables_init(void);
 void hartinit();
 
@@ -56,14 +55,15 @@ void main() {
         // Proc management
         proc_init(); // process table
         tcb_init();
-        futex_table_init(); // futex table
 
         // map init
         hash_tables_init();
 
         // Trap
-        trapinit();     // trap vectors
         trapinithart(); // install kernel trap vector
+
+        // timer init
+        timer_init();
 
         // PLIC
         plicinit();     // set up interrupt controller

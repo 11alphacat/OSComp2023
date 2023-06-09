@@ -1,5 +1,5 @@
-#ifndef __ATOMIC_H__
-#define __ATOMIC_H__
+#ifndef __ATOMIC_OPS_H__
+#define __ATOMIC_OPS_H__
 
 // 原子操作数据结构
 typedef struct {

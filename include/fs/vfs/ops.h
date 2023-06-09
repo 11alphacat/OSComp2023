@@ -1,3 +1,6 @@
+#ifndef __VFS_OPS_H__
+#define __VFS_OPS_H__
+
 #include "fs.h"
 
 // file layer
@@ -12,3 +15,5 @@ struct inode *namei_parent(char *path, char *name);
 // inode layer
 struct inode *find_inode(char *path, int dirfd, char *name);
 extern const struct inode_operations *(*get_inodeops[])(void);
+
+#endif

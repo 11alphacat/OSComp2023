@@ -4,7 +4,7 @@
 #include "debug.h"
 #include "param.h"
 #include "proc/pcb_life.h"
-#include "proc/pipe.h"
+#include "ipc/pipe.h"
 #include "fs/bio.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"

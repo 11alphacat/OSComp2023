@@ -1,0 +1,31 @@
+#ifndef __TIMER_H__
+#define __TIMER_H__
+
+#include "lib/list.h"
+#include "common.h"
+#include "atomic/spinlock.h"
+#include "lib/sbi.h"
+
+#define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
+
+typedef void (*timer_expire)(void *); // uint64
+
+struct timer_entry {
+    struct spinlock lock;
+    struct list_head entry;
+};
+
+struct timer_list {
+    struct list_head list;
+    uint64 expires;
+    void (*function)(void *); // uint64
+    void *data;               // uint64
+};
+
+void timer_entry_init(struct timer_entry *t_entry, char *name);
+void add_timer_atomic(struct timer_list *timer, uint64 expires, timer_expire function, void *data);
+void delete_timer_atomic(struct timer_list *timer);
+void timer_list_decrease_atomic(struct timer_entry *head);
+void clockintr();
+
+#endif

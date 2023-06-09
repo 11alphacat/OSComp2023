@@ -3,7 +3,7 @@
 #include "memory/mm.h"
 #include "memory/allocator.h"
 #include "debug.h"
-#include "proc/proc_mm.h"
+#include "proc/pcb_mm.h"
 #include "memory/vma.h"
 
 /* allocate a mm_struct, with root pagetable and head_vma */

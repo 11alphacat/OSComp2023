@@ -7,6 +7,7 @@
 #include "memory/vm.h"
 #include "lib/riscv.h"
 #include "fs/vfs/fs.h"
+#include "kernel/syscall.h"
 
 // mmap
 #define MAP_FILE 0

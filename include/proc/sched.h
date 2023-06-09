@@ -1,7 +1,7 @@
 #ifndef __SCHED_H__
 #define __SCHED_H__
 #include "proc/pcb_life.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 #include "lib/queue.h"
 
 struct proc;
@@ -14,7 +14,10 @@ void TCB_Q_ALL_INIT(void);
 void TCB_Q_changeState(struct tcb *t, enum thread_state state_new);
 
 void thread_yield(void);
-void thread_sched(void);
+int thread_sched(void);
 void thread_scheduler(void) __attribute__((noreturn));
+
+// switch to context of scheduler
+void swtch(struct context *, struct context *);
 
 #endif

@@ -1,23 +1,26 @@
 #include "kernel/cpu.h"
 #include "proc/sched.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 #include "kernel/trap.h"
 #include "lib/list.h"
 #include "debug.h"
 #include "lib/hash.h"
 #include "lib/queue.h"
+#include "lib/timer.h"
+
+extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
+extern Queue_t *STATES[TCB_STATEMAX];
+extern struct hash_table tid_map;
+extern struct proc *initproc;
+
+extern struct cond cond_ticks;
+extern struct spinlock tickslock;
 
 struct tcb thread[NTCB];
 char tcb_lock_name[NTCB][10];
 
-extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
-extern Queue_t *STATES[TCB_STATEMAX];
-
-extern struct hash_table tid_map;
 atomic_t next_tid;
 atomic_t count_tid;
-
-extern struct proc *initproc;
 
 #define alloc_tid (atomic_inc_return(&next_tid))
 #define cnt_tid_inc (atomic_inc_return(&count_tid))
@@ -94,6 +97,8 @@ struct tcb *alloc_thread(void) {
     // map <tid, t>
     hash_insert(&tid_map, (void *)&t->tid, (void *)t);
 
+    // timeout for timer
+    t->time_out = 0;
     return t;
 }
 
@@ -256,11 +261,7 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
 // find the tcb* given tid using hash map
 struct tcb *find_get_tid(tid_t tid) {
     struct hash_node *node = hash_lookup(&tid_map, (void *)&tid, NULL, 1); // release it
-    if (node != NULL) {
-        return (struct tcb *)(node->value);
-    } else {
-        return NULL;
-    }
+    return node != NULL ? (struct tcb *)(node->value) : NULL;
 }
 
 // find tcb given pid and tidx
@@ -298,20 +299,13 @@ void do_tkill(struct tcb *t, sig_t signo) {
 
 int do_sleep_ns(struct tcb *t, struct timespec ts) {
     uint64 interval_ns = TIMESEPC2NS(ts);
-    uint64 time0 = TIME2NS(rdtime());
+    // uint64 time0 = TIME2NS(rdtime());
 
     acquire(&tickslock);
-    while (TIME2NS(rdtime()) - time0 < interval_ns) {
-        if (thread_killed(t)) {
-            release(&tickslock);
-            return -1;
-        }
-        // sleep(&ticks, &tickslock);
-        cond_wait(&cond_ticks, &tickslock);
-    }
+    t->time_out = interval_ns;
+    int wait_ret = cond_wait(&cond_ticks, &tickslock);
     release(&tickslock);
-
-    return 0;
+    return wait_ret;
 }
 
 // // thread join

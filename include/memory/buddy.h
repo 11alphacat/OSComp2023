@@ -2,7 +2,7 @@
 #define __BUDDY_H__
 
 #include "common.h"
-#include "atomic/atomic.h"
+#include "atomic/ops.h"
 #include "lib/list.h"
 #include "atomic/spinlock.h"
 #include "param.h"

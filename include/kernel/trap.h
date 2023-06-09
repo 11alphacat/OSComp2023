@@ -62,37 +62,14 @@ struct trapframe {
     /* 280 */ uint64 t6;
 };
 
-// syscall.c
-uint64 argraw(int);
-int argint(int, int *);
-void argulong(int, unsigned long *);
-int arguint(int n, uint *ip);
-void arglong(int, long *);
-int argfd(int n, int *pfd, struct file **pf);
-int argstr(int, char *, int);
-int argaddr(int, uint64 *);
-int arglist(uint64 argv[], int s, int n); // do not use
-// int arglong(int, uint64 *);
-int fetchstr(uint64, char *, int);
-int fetchaddr(uint64, uint64 *);
-void syscall();
-
 int copyout(pagetable_t, uint64, char *, uint64);
 int copyin(pagetable_t, char *, uint64, uint64);
 int copyinstr(pagetable_t, char *, uint64, uint64);
 int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 
-// trap.c
-extern uint ticks;
-extern struct spinlock tickslock;
-extern struct cond cond_ticks;
-
-void swtch(struct context *, struct context *);
-
 // pagefault.c
 int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval);
-
 void thread_usertrapret(void);
 
 #endif // __TRAP_H__

@@ -10,7 +10,7 @@ struct cond {
 
 void cond_init(struct cond *cond, char *name);
 
-void cond_wait(struct cond *cond, struct spinlock *mutex);
+int cond_wait(struct cond *cond, struct spinlock *mutex);
 
 void cond_signal(struct cond *cond);
 

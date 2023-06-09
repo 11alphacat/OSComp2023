@@ -157,7 +157,7 @@
 
 **互斥与同步**
 
-[原子指令](doc/atomic/atomic.md)
+[原子指令](doc/atomic/ops.md)
 
 [条件变量](doc/atomic/cond.md)
 

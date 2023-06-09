@@ -3,7 +3,7 @@
 
 #include "common.h"
 #include "lib/list.h"
-#include "atomic/atomic.h"
+#include "atomic/ops.h"
 #include "atomic/semaphore.h"
 #include "fs/vfs/fs_macro.h"
 

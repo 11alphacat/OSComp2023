@@ -6,7 +6,7 @@
 #include "atomic/spinlock.h"
 #include "kernel/kthread.h"
 #include "lib/list.h"
-#include "proc/signal.h"
+#include "ipc/signal.h"
 #include "atomic/semaphore.h"
 #include "memory/mm.h"
 // #include "fs/fat/fat32_disk.h"

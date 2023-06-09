@@ -1,4 +1,4 @@
-#include "atomic/atomic.h"
+#include "atomic/ops.h"
 #include "atomic/spinlock.h"
 #include "memory/memlayout.h"
 #include "memory/allocator.h"
@@ -10,9 +10,9 @@
 #include "atomic/cond.h"
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
-#include "proc/proc_mm.h"
+#include "proc/pcb_mm.h"
 #include "proc/exec.h"
-#include "proc/signal.h"
+#include "ipc/signal.h"
 #include "proc/options.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
@@ -26,16 +26,13 @@
 #include "debug.h"
 #include "test.h"
 
-struct proc proc[NPROC];
-struct proc *initproc;
-
 extern Queue_t unused_p_q, used_p_q, zombie_p_q;
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
-
 extern Queue_t *STATES[PCB_STATEMAX];
-
 extern struct hash_table pid_map;
 
+struct proc proc[NPROC];
+struct proc *initproc;
 char proc_lock_name[NPROC][10];
 atomic_t next_pid;
 atomic_t count_pid;
@@ -232,11 +229,7 @@ void proc_init(void) {
 // find the proc we search using hash map
 inline struct proc *find_get_pid(pid_t pid) {
     struct hash_node *node = hash_lookup(&pid_map, (void *)&pid, NULL, 1); // realese it
-    if (node != NULL) {
-        return (struct proc *)(node->value);
-    } else {
-        return NULL;
-    }
+    return node != NULL ? (struct proc *)(node->value) : NULL;
 }
 
 // A fork child's very first scheduling by scheduler()

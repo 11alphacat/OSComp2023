@@ -8,15 +8,19 @@
 #include "memory/vm.h"
 #include "memory/allocator.h"
 #include "debug.h"
-#include "proc/proc_mm.h"
+#include "proc/pcb_mm.h"
 #include "atomic/cond.h"
-#include "proc/signal.h"
+#include "ipc/signal.h"
 #include "proc/exec.h"
-#include "proc/pcb_thread.h"
+#include "proc/tcb_life.h"
 #include "atomic/futex.h"
 #include "common.h"
+#include "kernel/syscall.h"
 
 #define ROOT_UID 0
+
+extern uint ticks;
+extern struct spinlock tickslock;
 /*
  * 功能：获取进程ID；
  * 输入：系统调用ID；
@@ -434,7 +438,7 @@ uint64 sys_futex() {
     argaddr(0, &uaddr);
     argint(1, &futex_op);
     arguint(2, &val);
-    argaddr(3, &timeout_addr);
+    argaddr(3, &timeout_addr); // val2
     argaddr(4, &uaddr2);
     arguint(5, &val3);
 
@@ -451,8 +455,8 @@ uint64 sys_futex() {
         if (copyin(p->mm->pagetable, (char *)&timeout, timeout_addr, sizeof(struct timespec)) < 0) {
             return -1;
         }
-        if (!timespec64_valid(&timeout))
-            return -1;
+        // if (!timespec64_valid(&timeout))
+        //     return -1;
         // t = timespec64_to_ktime(timeout);
         // if (cmd == FUTEX_WAIT)
         // 	t = ktime_add_safe(ktime_get(), t);
@@ -463,5 +467,5 @@ uint64 sys_futex() {
         arguint(3, &val2);
     }
 
-    return do_futex(uaddr, futex_op, val, timeout, uaddr2, val2, val3);
+    return do_futex(uaddr, futex_op, val, timeout_addr ? &timeout : NULL, uaddr2, val2, val3);
 }
