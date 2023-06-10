@@ -407,22 +407,6 @@ uint64 sys_tgkill() {
     return 0;
 }
 
-// #define ktime_add_unsafe(lhs, rhs)	((u64) (lhs) + (rhs))
-// #define LONG_MAX	9223372036854775807L
-// #define KTIME_SEC_MAX			LONG_MAX
-// ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs)
-// {
-// 	ktime_t res = ktime_add_unsafe(lhs, rhs);
-
-// 	/*
-// 	 * We use KTIME_SEC_MAX here, the maximum timeout which we can
-// 	 * return to user space in a timespec:
-// 	 */
-// 	if (res < 0 || res < lhs || res < rhs)
-// 		res = ktime_set(KTIME_SEC_MAX, 0);
-
-// 	return res;
-// }
 //  long futex(uint32_t *uaddr, int futex_op, uint32_t val,
 //  const struct timespec *timeout,   /* or: uint32_t val2 */
 //  uint32_t *uaddr2, uint32_t val3);

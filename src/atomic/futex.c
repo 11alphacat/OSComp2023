@@ -15,11 +15,15 @@ void futex_init(struct futex *fp, char *name) {
     Queue_init(&fp->waiting_queue, name, TCB_WAIT_QUEUE);
 }
 
-struct futex *get_futex(uint64 uaddr) {
+struct futex *get_futex(uint64 uaddr, int assert) {
     struct hash_node *node;
     if ((node = hash_lookup(&futex_map, (void *)&uaddr, NULL, 1)) != NULL) { // release it
         return (struct futex *)(node->value);
     } else {
+        if (assert == 1) {
+            return NULL;
+            // panic("get_futex : error\n");
+        }
         struct futex *fp = (struct futex *)kmalloc(sizeof(struct futex));
         if (fp == NULL) {
             panic("get_futex : no free space\n");
@@ -30,6 +34,7 @@ struct futex *get_futex(uint64 uaddr) {
     }
 }
 
+// remember to release its memory
 void futex_free(uint64 uaddr) {
     hash_delete(&futex_map, (void *)&uaddr);
 }
@@ -41,7 +46,7 @@ int futex_wait(uint64 uaddr, uint val, struct timespec *ts) {
         return -1;
     }
 
-    struct futex *fp = get_futex(uaddr);
+    struct futex *fp = get_futex(uaddr, 0); // without assert
     acquire(&fp->lock);
     if (u_val == val) {
         struct tcb *t = thread_current();
@@ -59,7 +64,7 @@ int futex_wait(uint64 uaddr, uint val, struct timespec *ts) {
         int ret = thread_sched();
 
         release(&t->lock);
-        return ret;
+        return ret ? -1 : 0;
     } else {
         release(&fp->lock);
         return 0;
@@ -67,159 +72,87 @@ int futex_wait(uint64 uaddr, uint val, struct timespec *ts) {
 }
 
 int futex_wakeup(uint64 uaddr, int nr_wake) {
-    return 0;
+    struct futex *fp = get_futex(uaddr, 1); // with assert
+    struct tcb *t = NULL;
+    int ret = 0;
+
+    while (!Queue_isempty_atomic(&fp->waiting_queue) && ret < nr_wake) {
+        t = Queue_provide_atomic(&fp->waiting_queue, 1); // remove it
+
+        if (t == NULL)
+            panic("futex wakeup : no waiting queue");
+        if (t->state != TCB_SLEEPING) {
+            printf("%s\n", fp->waiting_queue.name);
+            printf("%s\n", t->state);
+            panic("futex wakeup : this thread is not sleeping");
+        }
+        acquire(&t->lock);
+        ASSERT(t->wait_chan_entry != NULL);
+        t->wait_chan_entry = NULL;
+        TCB_Q_changeState(t, TCB_RUNNABLE);
+        release(&t->lock);
+        ret++;
+    }
+
+    if (Queue_isempty_atomic(&fp->waiting_queue)) {
+        futex_free(uaddr); // !!! avoid memory leak
+    }
+    return ret;
 }
 
-int futex_requeue(uint64 uaddr1, int nr_wake, uint64 uaddr2) {
-    return 0;
+// 唤醒最多nr_wake个在uaddr1队列上等待的线程，其余的线程阻塞在uaddr2的队列
+int futex_requeue(uint64 uaddr1, int nr_wake, uint64 uaddr2, int nr_requeue) {
+    int nr_wake1 = futex_wakeup(uaddr1, nr_wake);
+    printfRed("futex_requeue : has wakeup %d threads\n", nr_wake1); // debug
+
+    struct futex *fp_old = get_futex(uaddr1, 1);                    // with assert
+    if (fp_old == NULL) {
+        return 0;
+    }
+
+    ASSERT(!Queue_isempty_atomic(&fp_old->waiting_queue));
+
+    struct futex *fp_new = get_futex(uaddr2, 0); // without assert
+    struct tcb *t = NULL;
+    int ret = 0;
+
+    while (!Queue_isempty_atomic(&fp_old->waiting_queue) && ret < nr_requeue) {
+        t = Queue_provide_atomic(&fp_old->waiting_queue, 1); // remove it
+        if (t == NULL)
+            panic("futex wakeup : no waiting queue");
+        if (t->state != TCB_SLEEPING) {
+            printf("%s\n", fp_old->waiting_queue.name);
+            printf("%s\n", t->state);
+            panic("futex wakeup : this thread is not sleeping");
+        }
+        Queue_push_back_atomic(&fp_new->waiting_queue, (void *)t); // move the rest of threads to new queue
+        ret++;
+    }
+
+    return ret;
 }
-
-// global futex struct table (similar to inode table)
-// struct futex futex_table[FUTEX_NUM];
-
-// void futex_table_init() {
-//     struct futex *entry;
-//     for (entry = futex_table; entry < &futex_table[FUTEX_NUM]; entry++) {
-//         initlock(&entry->lock, "futex lock");
-//         Queue_init(&entry->waiting_queue, "futex queue lock", TCB_WAIT_QUEUE);
-//         entry->uaddr = 0;
-//         entry->valid = 0;
-//     }
-// }
-
-// struct futex *futex_init(uint64 uaddr) {
-//     struct futex *entry;
-//     for (entry = futex_table; entry < &futex_table[FUTEX_NUM]; entry++) {
-//         if (!entry->valid) {
-//             entry->valid = 1;
-//             entry->uaddr = uaddr;
-//             return entry;
-//         }
-//     }
-//     return NULL;
-// }
-
-// struct futex *futex_get(uint64 uaddr) {
-//     struct futex *entry;
-//     for (entry = futex_table; entry < &futex_table[FUTEX_NUM]; entry++) {
-//         if (entry->valid && entry->uaddr == uaddr) {
-//             return entry;
-//         }
-//     }
-//     return NULL;
-// }
-
-// void futex_clear(uint64 uaddr) {
-//     struct futex *entry;
-//     for (entry = futex_table; entry < &futex_table[FUTEX_NUM]; entry++) {
-//         if (entry->valid && entry->uaddr == uaddr) {
-//             entry->valid = 0;
-//             entry->uaddr = 0;
-//             return;
-//         }
-//     }
-// }
-
-// int futex_wait(uint64 uaddr, uint val, struct timespec ts) {
-//     struct futex *fp;
-//     if ((fp = futex_init(uaddr)) == NULL) {
-//         printfRed("no emptry entry for futex table\n");
-//         return -1;
-//     }
-//     struct tcb *t = thread_current();
-//     if (t) {
-//         do_sleep_ns(t, ts);
-//     }
-
-//     return 0;
-// }
-
-// struct futex *getfutex(int *uaddr) {
-//     struct futex_cond *p = futex_entry(uaddr, struct futex_cond, value);
-//     return p->fp;
-// };
-
-// void futex_wait(uint64 uaddr, struct timespec* tsp) {
-//     struct futex *fp = getfutex(uaddr);
-//     acquire(&fp->lock);
-//     if (*uaddr == val) {
-//         struct tcb *t = thread_current();
-
-//         acquire(&t->lock);
-//         TCB_Q_changeState(t, TCB_SLEEPING);
-//         Waiting_Q_push_back(&fp->waiting_queue, t);
-//         release(&fp->lock);
-
-//         thread_sched();
-//         release(&t->lock);
-//     } else {
-//         release(&fp->lock);
-//     }
-// }
-
-// void futex_wake(uint64 uaddr) {
-//     struct futex *fp = getfutex(uaddr);
-//     struct tcb *t;
-
-//     acquire(&fp->lock);
-
-//     if (!Waiting_Q_isempty_atomic(&fp->waiting_queue)) {
-//         t = Waiting_Q_provide(&fp->waiting_queue);
-//         if (t == NULL)
-//             panic("cond signal : this cond has no object waiting queue");
-//         if (t->state != TCB_SLEEPING) {
-//             printf("%s\n", t->state);
-//             panic("cond signal : this thread is not sleeping");
-//         }
-//         acquire(&t->lock);
-//         TCB_Q_changeState(t, TCB_RUNNABLE);
-//         release(&t->lock);
-//     }
-
-//     release(&fp->lock);
-// }
-
-// void futex_cond_wait(struct futex_cond *cond, struct spinlock *mutex) {
-//     return ;
-//     // uint local = cond->value;
-//     // release(mutex);
-//     // futex_wait(&cond->value, local);
-//     // acquire(mutex);
-// }
-
-// void futex_cond_signal(struct futex_cond *cond) {
-//     cond->value += 1;
-//     futex_signal(&cond->value);
-// }
-
-// #define futex_cmpxchg_enabled 1
 
 int do_futex(uint64 uaddr, int op, uint32 val, struct timespec *ts,
              uint64 uaddr2, uint32 val2, uint32 val3) {
     int cmd = op & FUTEX_CMD_MASK;
 
-    // struct proc *p = proc_current();
-
-    int ret;
+    int ret = -1;
     switch (cmd) {
     case FUTEX_WAIT:
         ret = futex_wait(uaddr, val, ts);
-        if (ret == -1)
-            return -1;
         break;
 
     case FUTEX_WAKE:
-
+        ret = futex_wakeup(uaddr, val);
         break;
 
     case FUTEX_REQUEUE:
-
+        ret = futex_requeue(uaddr, val, uaddr2, val2); // must use val2 as a limit of requeue
         break;
 
     default:
         panic("do_futex : error\n");
         break;
     }
-
-    return 0;
+    return ret;
 }
