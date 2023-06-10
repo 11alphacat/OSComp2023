@@ -13,7 +13,7 @@
 
 // #define __STRACE__
 // Fetch the uint64 at addr from the current process.
-#define INSTACK(addr) ((addr) >= USTACK && (addr) + sizeof(uint64) < USTACK + PGSIZE)
+#define INSTACK(addr) ((addr) >= USTACK && (addr) + sizeof(uint64) < USTACK + USTACK_PAGE * PGSIZE)
 int fetchaddr(vaddr_t addr, uint64 *ip) {
     struct proc *p = proc_current();
     if ((addr >= p->mm->brk || addr + sizeof(uint64) > p->mm->brk) && !INSTACK(addr)) // both tests needed, in case of overflow
@@ -172,6 +172,22 @@ static struct syscall_info info[] = {
     [SYS_wait4] { "wait4", 4, "dpxp" },
     // void exit_group(int status);
     [SYS_exit_group] { "exit_group", 1, "d", 'd' },
+    //int rt_sigprocmask(int how, const kernel_sigset_t *set,
+    // kernel_sigset_t *oldset, size_t sigsetsize);
+    [SYS_rt_sigprocmask] { "rt_sigprocmask", 4, "dppd", 'd' },
+    //        int sigaction(int signum, const struct sigaction *act,
+    //                 struct sigaction *oldact);
+    [SYS_rt_sigaction] { "rt_sigaction", 3, "dpp", 'd' },
+    // pid_t getppid(void);
+    [SYS_getppid] { "getppid", 0, },
+    // int uname(struct utsname *buf);
+    [SYS_uname] { "uname", 1, "p" },
+    // char *getcwd(char *buf, size_t size);
+    [SYS_getcwd] { "getcwd", 2, "pd", 's' },
+    // int fcntl(int fd, int cmd, ... /* arg */ );
+    [SYS_fcntl] { "fcntl", 2, "dd", 'd' },
+    // ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+    [SYS_writev] { "writev", 3, "dpd", 'u' }
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -227,7 +243,7 @@ void syscall(void) {
     int num;
 #ifdef __STRACE__
     /* a0 use both in argument and return value, so need to preserve it when open STRACE */
-    int a0;
+    uint64 a0;
     struct proc *p = proc_current();
 #endif
 
@@ -275,6 +291,14 @@ void syscall(void) {
         if (is_strace_target()) {
             switch (info[num].return_type) {
             case 'p': STRACE(") -> %#x\n", t->trapframe->a0); break;
+            case 'u': STRACE(") -> %u\n", t->trapframe->a0); break;
+            case 's': {
+                char str[100];
+                fetchstr(t->trapframe->a0, str, 100);
+                STRACE(") -> %s\n", str);
+                break;
+            }
+            case 'c': STRACE(") -> %c\n", t->trapframe->a0); break;
             default: STRACE(") -> %d\n", t->trapframe->a0); break;
             }
         }
@@ -282,6 +306,6 @@ void syscall(void) {
     } else {
         printf("tid : %d name : %s: unknown sys call %d\n",
                t->tid, t->name, num);
-        t->trapframe->a0 = -1;
+        t->trapframe->a0 = 0;
     }
 }

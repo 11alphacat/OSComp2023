@@ -19,9 +19,13 @@ main(void)
   //   open("console", O_RDWR);
   // }
   
-  if(openat(AT_FDCWD,"/dev/console.dev", O_RDWR) < 0){
-    mknod("/dev/console.dev", CONSOLE,0);
-    openat(AT_FDCWD,"/dev/console.dev", O_RDWR);
+  // if(openat(AT_FDCWD,"/dev/console.dev", O_RDWR) < 0){
+  //   mknod("/dev/console.dev", CONSOLE,0);
+  //   openat(AT_FDCWD,"/dev/console.dev", O_RDWR);
+  // }
+  if(openat(AT_FDCWD,"/dev/tty", O_RDWR) < 0){
+    mknod("/dev/tty", CONSOLE,0);
+    openat(AT_FDCWD,"/dev/tty", O_RDWR);
   }
 
   // printf("\n\tNow you come here, welcome my dear friend.\n\n");

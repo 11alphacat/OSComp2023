@@ -90,7 +90,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
     /* sp has to be the top address of a page */
     ASSERT(sp % PGSIZE == 0);
     vaddr_t stackbase;
-    stackbase = sp - PGSIZE;
+    stackbase = sp - USTACK_PAGE * PGSIZE;
 
     /*       Initial Process Stack (follows SYSTEM V ABI)
         +---------------------------+ <-- High Address
@@ -232,7 +232,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
 
     commit->sp = sp; // initial stack pointer
     // Log("sp is %p", sp);
-    // print_ustack(pagetable, stackbase + PGSIZE);
+    // print_ustack(pagetable, stackbase + USTACK_PAGE * PGSIZE);
     return argc;
 }
 
@@ -248,9 +248,9 @@ void print_ustack(pagetable_t pagetable, uint64 stacktop) {
         }
 
         if (stacktop - i == p_argc || stacktop - i == p_argv || stacktop - i == p_envp || stacktop - i == p_auxv) {
-            printfBlue("%#x:", stacktop - i);
+            printfBlue("%#p:", stacktop - i);
         } else {
-            printfGreen("%#x:", stacktop - i);
+            printfGreen("%#p:", stacktop - i);
         }
 
         for (int j = 0; j < 8; j++) {
@@ -374,11 +374,11 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         Warn("bad");
         goto bad;
     }
-    if (vma_map(mm, USTACK, PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
+    if (vma_map(mm, USTACK, USTACK_PAGE * PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
         goto bad;
     }
 
-    int argc = ustack_init(p, mm->pagetable, &commit, USTACK + PGSIZE, argv, envp);
+    int argc = ustack_init(p, mm->pagetable, &commit, USTACK + USTACK_PAGE * PGSIZE, argv, envp);
     if (argc < 0) {
         goto bad;
     }

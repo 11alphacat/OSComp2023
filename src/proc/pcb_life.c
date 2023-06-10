@@ -277,9 +277,11 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     // Cause fork to return 0 in the child.
     np->tg->group_leader->trapframe->a0 = 0;
 
+    acquire(&p->lock);
     /* Copy vma */
     if (vmacopy(p->mm, np->mm) < 0) {
         free_proc(np);
+        release(&p->lock);
         release(&np->lock);
         return -1;
     }
@@ -290,6 +292,7 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     } else {
         if (uvmcopy(p->mm, np->mm) < 0) {
             free_proc(np);
+            release(&p->lock);
             release(&np->lock);
             return -1;
         }
@@ -297,6 +300,7 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
 
     np->mm->start_brk = p->mm->start_brk;
     np->mm->brk = p->mm->brk;
+    release(&p->lock);
     // increment reference counts on open file descriptors.
     if (flags & CLONE_FILES) {
     } else {

@@ -39,8 +39,6 @@ void free_mm(struct mm_struct *mm, int thread_cnt) {
     if (mm->pagetable)
         proc_freepagetable(mm, thread_cnt);
 
-    /* we use vma in proc_freepagetable, so free it after that */
-    free_all_vmas(mm);
     mm->pagetable = 0;
     mm->brk = 0;
     kfree(mm);

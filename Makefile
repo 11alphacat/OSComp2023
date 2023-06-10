@@ -104,7 +104,7 @@ CFLAGS += -D__DEBUG_FS__
 endif
 
 CFLAGS += -MD
-CFLAGS += -mcmodel=medany
+CFLAGS += -mcmodel=medany -march=rv64g -mabi=lp64f
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -I$(ROOT)/include
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
@@ -160,7 +160,7 @@ kernel: kernel-qemu
 	$(QEMU) $(QEMUOPTS)
 
 gdb: kernel-qemu .gdbinit
-	@echo "$(READ)*** Please make sure to execute 'make image' before attempting to run gdb!!!$(RESET)" 1>&2
+	@echo "$(RED)*** Please make sure to execute 'make image' before attempting to run gdb!!!$(RESET)" 1>&2
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 

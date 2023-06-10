@@ -79,7 +79,7 @@ void *sys_mmap(void) {
         }
     }
 
-    print_vma(mm);
+    // print_vma(mm);
     return (void *)mapva;
 }
 

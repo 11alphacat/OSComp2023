@@ -24,11 +24,11 @@ struct file;
 // return-to-user path via usertrapret() doesn't return through
 // the entire kernel call stack.
 struct trapframe {
-    /*   0 */ uint64 kernel_satp;   // kernel page table
-    /*   8 */ uint64 kernel_sp;     // top of process's kernel stack
-    /*  16 */ uint64 kernel_trap;   // usertrap()
-    /*  24 */ uint64 epc;           // saved user program counter
-    /*  32 */ uint64 kernel_hartid; // saved sscratch
+    /*   0 */ uint64 kernel_satp; // kernel page table
+    /*   8 */ uint64 kernel_sp;   // top of process's kernel stack
+    /*  16 */ uint64 kernel_trap; // usertrap()
+    /*  24 */ uint64 epc;         // saved user program counter
+    /*  32 */ uint64 dontuse;     // saved sscratch
     /*  40 */ uint64 ra;
     /*  48 */ uint64 sp;
     /*  56 */ uint64 gp;

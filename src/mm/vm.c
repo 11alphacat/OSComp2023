@@ -394,25 +394,7 @@ void freewalk(pagetable_t pagetable) {
 // Free all pages in vmas,
 // then free page-table pages.
 void uvmfree(struct mm_struct *mm) {
-    struct vma *pos;
-    vaddr_t startva, endva;
-    // print_vma(mm);
-    // vmprint(mm->pagetable, 1, 0, 0, 0);
-    list_for_each_entry(pos, &mm->head_vma, node) {
-        startva = pos->startva;
-        endva = startva + pos->size;
-        // if (!(startva % PGSIZE == 0 && endva % PGSIZE == 0)) {
-        //     print_vma(mm);
-        //     Log("hit");
-        // }
-        ASSERT(startva % PGSIZE == 0 && endva % PGSIZE == 0);
-        // Warn("%p~%p", startva, endva);
-        uvmunmap(mm->pagetable, startva, (endva - startva) / PGSIZE, 1, 1);
-        // vmprint(mm->pagetable, 1, 0, 0, 0);
-        // if (pos->type == VMA_STACK) {
-        //     uvmunmap(mm->pagetable, USTACK_GURAD_PAGE, 1, 1, 0);
-        // }
-    }
+    free_all_vmas(mm);
     // print_vma(mm);
     freewalk(mm->pagetable);
 }
@@ -434,20 +416,23 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
 
         /* for STACK VMA, copy both the pagetable and the physical memory */
         if (pos->type == VMA_STACK) {
-            ASSERT(pos->size == PGSIZE);
-            level = walk(srcmm->pagetable, pos->startva, 0, 0, &pte);
-            ASSERT(level <= 1 && level >= 0);
-            pa = PTE2PA(*pte);
+            ASSERT(pos->size == USTACK_PAGE * PGSIZE);
+            for (uint64 offset = 0; offset < pos->size; offset += PGSIZE) {
+                level = walk(srcmm->pagetable, pos->startva + offset, 0, 0, &pte);
+                ASSERT(level <= 1 && level >= 0);
+                pa = PTE2PA(*pte);
 
-            paddr_t new = (paddr_t)kzalloc(PGSIZE);
-            if (new == 0) {
-                Warn("uvmcopy: no free mem");
-                return -1;
-            }
-            memmove((void *)new, (void *)pa, PGSIZE);
-            if (mappages(dstmm->pagetable, pos->startva, PGSIZE, new, PTE_W | PTE_R | PTE_U, COMMONPAGE) != 0) {
-                panic("uvmcopy: map failed");
-                return -1;
+                paddr_t new = (paddr_t)kzalloc(PGSIZE);
+                if (new == 0) {
+                    Warn("uvmcopy: no free mem");
+                    return -1;
+                }
+                memmove((void *)new, (void *)pa, PGSIZE);
+                if (mappages(dstmm->pagetable, pos->startva + offset, PGSIZE, new, PTE_W | PTE_R | PTE_U, COMMONPAGE) != 0) {
+                    panic("uvmcopy: map failed");
+                    return -1;
+                }
+                // Log("stack %p", pos->startva + offset);
             }
             continue;
         }
@@ -667,13 +652,21 @@ void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 va
 }
 
 int uvm_thread_stack(pagetable_t pagetable, int thread_idx) {
-    /* map an empty page(with no pa) for guard page */
-    if (mappages(pagetable, USTACK_GURAD_PAGE - thread_idx * 2 * PGSIZE, PGSIZE, 0, PTE_R, COMMONPAGE) < 0) {
+    /* for guard page */
+    paddr_t pa = (paddr_t)kzalloc(PGSIZE);
+    if (pa == 0) {
+        Warn("no free mem for user stack");
         return -1;
     }
 
-    vaddr_t stackaddr = USTACK - thread_idx * 2 * PGSIZE;
-    if (uvmalloc(pagetable, stackaddr, stackaddr + PGSIZE, PTE_W | PTE_R) == 0) {
+    int offset = thread_idx * (USTACK_PAGE + 1);
+    /* guard page: page with PTE_R | PTE_W , but not PTE_U */
+    if (mappages(pagetable, USTACK_GURAD_PAGE - offset * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, COMMONPAGE) < 0) {
+        return -1;
+    }
+
+    vaddr_t stackdown = USTACK - offset * PGSIZE;
+    if (uvmalloc(pagetable, stackdown, stackdown + USTACK_PAGE * PGSIZE, PTE_W | PTE_R) == 0) {
         return -1;
     }
     return 0;

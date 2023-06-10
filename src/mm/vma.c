@@ -89,6 +89,8 @@ static int is_vma_in_vmspace(struct list_head *vma_head, struct vma *vma) {
 static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
     if (is_vma_in_vmspace(vma_head, vma)) {
         list_del(&(vma->node));
+    } else {
+        ASSERT(0);
     }
     free_vma(vma);
 }
@@ -177,6 +179,7 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
 
     vma = find_vma_for_va(mm, va);
     if (!vma) {
+        Warn("vmspace_unmap: va is not in vmas");
         return -1;
     }
 
