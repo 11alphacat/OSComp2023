@@ -1294,3 +1294,46 @@ uint64 sys_ioctl(void) {
 
     return ret;
 }
+
+
+// 功能：获取文件状态；
+// 输入：
+// - dirfd
+// - pathname
+// - statbuf
+// - flags
+// 返回值：成功返回0，失败返回-1；
+uint64 sys_fstatat(void) {
+    struct inode *ip;
+    char pathname[MAXPATH];
+    int dirfd, flags;
+    uint64 statbuf;
+    argint(0, &dirfd); // no need to check dirfd, because dirfd maybe AT_FDCWD(<0)
+                       // find_inode() will do the check
+    if ( argstr(1, pathname, MAXPATH) < 0) {
+        return -1;
+    }
+    argaddr(2,&statbuf);
+    argint(3, &flags);
+    ASSERT(flags==0);
+    if ( (ip = find_inode(pathname, dirfd, 0) )== 0) {
+        return -1;
+    } 
+    struct stat kbuf;
+    kbuf.st_dev = ip->i_dev;
+    kbuf.st_ino = ip->i_ino;
+    kbuf.st_mode = ip->i_mode;
+    kbuf.st_nlink = ip->i_nlink;
+    kbuf.st_uid = ip->i_uid;
+    kbuf.st_gid = ip->i_gid;
+    kbuf.st_rdev = ip->i_rdev;
+    kbuf.st_size = ip->i_size;
+    kbuf.st_blksize = ip->i_blksize;
+    kbuf.st_blocks = ip->i_blocks;  // assuming out block is 512B
+
+    if (either_copyout(1,(uint64)statbuf, &kbuf, sizeof(kbuf)) < 0) {
+        return -1;
+    }
+
+    return 0;
+}

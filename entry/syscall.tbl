@@ -68,6 +68,8 @@
 88	utimensat	sys_utimensat
 66 writev   sys_writev
 94 exit_group sys_exit_group
+79 fstatat sys_fstatat 
+
 
 129 kill sys_kill
 130 tkill sys_tkill
