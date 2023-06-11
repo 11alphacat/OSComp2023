@@ -127,6 +127,7 @@ static char *skepelem(char *path, char *name) {
 // return ip without ip->lock held, guarantee inode in memory
 // if nameparent =0, we guarantee ip->parent also in memory
 static struct inode *inode_namex(char *path, int nameeparent, char *name) {
+    // printf("enter inode_namex!\n");
     struct inode *ip = NULL, *next = NULL, *cwd = proc_current()->cwd;
     ASSERT(cwd);
     if (*path == '/') {
@@ -141,28 +142,39 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     }
 
     while ((path = skepelem(path, name)) != 0) {
+        // printf("path:%s name:%s\n",path,name);
+        // printf("namex: ip : %s ",ip->fat32_i.fname);
+        // printf("sem.value %d\n",ip->i_sem.value);
         ip->i_op->ilock(ip);
-
+        // printf("namex: LOCK 1 ok!\n");
+        // printf("2\n");
         if (!S_ISDIR(ip->i_type)) {
             ip->i_op->iunlock_put(ip);
+            // printf("3\n");
             return 0;
         }
         if (nameeparent && *path == '\0') {
             // Stop one level early.
             ip->i_op->iunlock(ip);
+            // printf("ip %s sem.value: %d  unlocked~\n",ip->fat32_i.fname, ip->i_sem.value);
+            // printf("4\n");
             return ip;
         }
+        // printf("dirlook up\n");
         if ((next = ip->i_op->idirlookup(ip, name, 0)) == 0) {
             ip->i_op->iunlock_put(ip);
             return 0;
         }
+        // printf("dirlook up ok!\n");
 
         ip->i_op->iunlock(ip);
+        // printf("ip %s sem.value: %d  unlocked~\n",ip->fat32_i.fname, ip->i_sem.value);
         if (likely(*path != '\0')) {
             ip->i_op->iput(ip);
         }
         ip = next;
     }
+    // printf("inode_namex got ip!\n");
 
     ASSERT(ip->i_op);
     if (nameeparent) {

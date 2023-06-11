@@ -18,8 +18,9 @@
 
 int pipe_alloc(struct file **f0, struct file **f1) {
     struct pipe *pi = 0;
+    fs_t type = proc_current()->cwd->fs_type;
     *f0 = *f1 = 0;
-    if ((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
+    if ((*f0 = filealloc(type)) == 0 || (*f1 = filealloc(type)) == 0)
         goto bad;
     if ((pi = (struct pipe *)kalloc()) == 0)
         goto bad;

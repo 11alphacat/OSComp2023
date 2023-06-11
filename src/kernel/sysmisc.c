@@ -259,7 +259,7 @@ void sys_print_rawfile(void) {
 
     printfGreen("fd is %d\n", fd);
     struct inode *ip = f->f_tp.f_inode;
-    if (ip->i_type != T_DIR && printdir == 1) {
+    if (!S_ISDIR(ip->i_type) && printdir == 1) {
         printfGreen("the file is not a directory\n");
         return;
     }

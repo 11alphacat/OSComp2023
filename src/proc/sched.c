@@ -81,7 +81,6 @@ void thread_wakeup(void *t) {
     ASSERT(thread->wait_chan_entry != NULL);
     Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
 
-
     acquire(&thread->lock);
     ASSERT(thread->state == TCB_SLEEPING);
     thread->wait_chan_entry = NULL;

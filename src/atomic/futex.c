@@ -105,7 +105,7 @@ int futex_requeue(uint64 uaddr1, int nr_wake, uint64 uaddr2, int nr_requeue) {
     int nr_wake1 = futex_wakeup(uaddr1, nr_wake);
     printfRed("futex_requeue : has wakeup %d threads\n", nr_wake1); // debug
 
-    struct futex *fp_old = get_futex(uaddr1, 1);                    // with assert
+    struct futex *fp_old = get_futex(uaddr1, 1); // with assert
     if (fp_old == NULL) {
         return 0;
     }

@@ -36,7 +36,6 @@
 // #define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
 // #define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
 
-
 // device
 #define MAJOR(rdev) ((rdev >> 8) & 0xff)
 #define MINOR(rdev) (rdev & 0xff)

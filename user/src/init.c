@@ -24,9 +24,15 @@ main(void)
   //   openat(AT_FDCWD,"/dev/console.dev", O_RDWR);
   // }
   if(openat(AT_FDCWD,"/dev/tty", O_RDWR) < 0){
-    mknod("/dev/tty", CONSOLE,0);
+    mknod("/dev/tty", S_IFCHR, CONSOLE << 8 );
     openat(AT_FDCWD,"/dev/tty", O_RDWR);
   }
+
+
+  // if(openat(AT_FDCWD,"/dev/tty", O_RDWR) < 0){
+  //   mknod("/dev/tty", S_IFCHR, CONSOLE << 8);
+  //   openat(AT_FDCWD,"/dev/tty", O_RDWR);
+  // }
 
   // printf("\n\tNow you come here, welcome my dear friend.\n\n");
   dup(0);  // stdout

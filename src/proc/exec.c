@@ -278,10 +278,12 @@ static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
     if ((ip = namei(path)) == 0) {
         return 0;
     }
-    fat32_inode_lock(ip);
-
+    // fat32_inode_lock(ip);
+    ip->i_op->ilock(ip);
+    // printf("loader: ip %s locked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
     // Check ELF header
-    if (fat32_inode_read(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+    // if (fat32_inode_read(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+    if (ip->i_op->iread(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
         goto unlock_put;
 
     if (elf.magic != ELF_MAGIC)
@@ -289,7 +291,8 @@ static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
 
     // Load program into memory.
     for (i = 0, off = elf.phoff; i < elf.phnum; i++, off += sizeof(ph)) {
-        if (fat32_inode_read(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+        // if (fat32_inode_read(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+        if (ip->i_op->iread(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
             goto unlock_put;
         if (ph.type != ELF_PROG_LOAD)
             continue;
@@ -313,7 +316,8 @@ static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
             }
             off = ph.vaddr - vaddrdown;
             size = PGROUNDUP(ph.vaddr) - ph.vaddr;
-            if (fat32_inode_read(ip, 0, (uint64)pa + off, ph.off, size) != size) {
+            // if (fat32_inode_read(ip, 0, (uint64)pa + off, ph.off, size) != size) {
+            if (ip->i_op->iread(ip, 0, (uint64)pa + off, ph.off, size) != size) {
                 goto unlock_put;
             }
             // Log("entry is %p", elf.entry);
@@ -335,14 +339,18 @@ static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
             goto unlock_put;
         }
     }
-    fat32_inode_unlock_put(ip);
+    // fat32_inode_unlock_put(ip);
+    ip->i_op->iunlock_put(ip);
+    // printf("loader: ip %s unlocked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
     ip = 0;
     commit->entry = elf.entry;
     return sz;
 
 unlock_put:
     // proc_freepagetable(mm->pagetable, sz, 0);
-    fat32_inode_unlock_put(ip);
+    // fat32_inode_unlock_put(ip);
+    ip->i_op->iunlock_put(ip);
+    // printf("loader: ip %s unlocked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
     return 0;
 }
 

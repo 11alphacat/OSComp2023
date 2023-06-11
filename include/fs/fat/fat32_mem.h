@@ -151,7 +151,6 @@ int fat32_isdirempty(struct inode *);
 // 29. delete fat32 inode
 int fat32_fcb_delete(struct inode *, struct inode *);
 
-
 // 30. acquire the time now
 // uint16 fat32_inode_get_time(int *);
 
@@ -166,7 +165,7 @@ void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
 
 // 35. is the inode a directory?
 
-// 36. copy ip to dp(only add fcbs in dp) 
+// 36. copy ip to dp(only add fcbs in dp)
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
 
 // 37. delete fcb in dp
@@ -198,6 +197,5 @@ int fat32_inode_load_from_disk(struct inode *ip);
 
 // 36. copy ip to dp(only add fcbs in dp)
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
-
 
 #endif

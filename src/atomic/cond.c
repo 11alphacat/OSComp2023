@@ -31,7 +31,7 @@ int cond_wait(struct cond *cond, struct spinlock *mutex) {
 
     // TODO : modify it to futex(ref to linux)
     release(mutex);
-    
+
     int ret = thread_sched();
 
     // Reacquire original lock.
@@ -54,7 +54,7 @@ void cond_signal(struct cond *cond) {
             panic("cond signal : this thread is not sleeping");
         }
         acquire(&t->lock);
-        ASSERT(t->wait_chan_entry!=NULL);
+        ASSERT(t->wait_chan_entry != NULL);
         t->wait_chan_entry = NULL;
         TCB_Q_changeState(t, TCB_RUNNABLE);
         release(&t->lock);
@@ -75,7 +75,7 @@ void cond_broadcast(struct cond *cond) {
             panic("cond broadcast : this thread is not sleeping");
         }
         acquire(&t->lock);
-        ASSERT(t->wait_chan_entry!=NULL);
+        ASSERT(t->wait_chan_entry != NULL);
         t->wait_chan_entry = NULL;
         TCB_Q_changeState(t, TCB_RUNNABLE);
         release(&t->lock);

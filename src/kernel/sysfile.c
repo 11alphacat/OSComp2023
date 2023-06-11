@@ -86,6 +86,7 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
     // 如果path是绝对路径，则dirfd被忽略。
     // 一般不对 path作检查
     // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
+    // printf("enter find_inode!\n");
     ASSERT(path);
     struct inode *ip;
     struct proc *p = proc_current();
@@ -93,6 +94,7 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
         // 绝对路径 || 相对于当前路径，忽略 dirfd
         // acquire(&p->tlock);
         ip = (!name) ? namei(path) : namei_parent(path, name);
+        // printf("about to leave find_inode!\n");
         if (ip == 0) {
             // release(&p->tlock);
             return 0;
@@ -106,6 +108,7 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
         // acquire(&p->tlock);
         if (dirfd < 0 || dirfd >= NOFILE || (f = p->ofile[dirfd]) == 0) {
             // release(&p->tlock);
+            // printf("about to leave find_inode!\n");
             return 0;
         }
         struct inode *oldcwd = p->cwd;
@@ -113,13 +116,16 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
         ip = (!name) ? namei(path) : namei_parent(path, name);
         if (ip == 0) {
             // release(&p->tlock);
+
             p->cwd = oldcwd;
+            // printf("about to leave find_inode!\n");
             return 0;
         }
         p->cwd = oldcwd;
         // release(&p->tlock);
     }
 
+    // printf("about to leave find_inode!\n");
     return ip;
 }
 
@@ -130,6 +136,7 @@ static struct inode *assist_icreate(char *path, int dirfd, uchar type, short maj
         return 0;
     }
     ASSERT(dp->i_op);
+    // dp->i_op->ilock(dp); // no need to lock dp !
     ip = dp->i_op->icreate(dp, name, type, major, minor); // don't check, caller will do this
     return ip;
 }
@@ -141,9 +148,9 @@ static void assist_unlink(struct inode *self) {
         panic("remove: nlink < 1");
     }
     --self->i_nlink;
-    // self->i_op->iupdate(self);   // fat32 don't support hard link
-    // but other file system may support
-    // so just note, DON'T DELETE this code
+    self->i_op->iupdate(self); // DON'T DELETE this code
+                               // fat32 don't support hard link
+                               //but other file system may support
     self->i_op->iunlock_put(self);
 }
 
@@ -167,6 +174,7 @@ static void assist_getcwd(char *kbuf) {
 }
 
 // caller should hold dp->lock && ip->lock
+/*
 static int do_unlinkat(struct inode *dp, struct inode *ip) {
     if (ip->i_nlink < 1) {
         panic("unlink: nlink < 1");
@@ -189,6 +197,7 @@ bad:
     dp->i_op->iunlock_put(dp);
     return -1;
 }
+*/
 
 static uint64 do_lseek(struct file *f, off_t offset, int whence) {
     ASSERT(f);
@@ -783,20 +792,22 @@ uint64 sys_linkat(void) {
 // 返回值：成功执行，返回0。失败，返回-1。
 // TODO: need to recify
 uint64 sys_unlinkat(void) {
+    // static int hit = 0;
     struct inode *ip, *dp;
     char name[NAME_LONG_MAX], path[MAXPATH];
-    int dirfd, flags, ret;
+    int dirfd, flags;
     argint(0, &dirfd); // don't need to check, find_inode() will do this
 
     argint(2, &flags);
     ASSERT(flags == 0);
-    if (argstr(1, path, MAXPATH) < 0)
+    if (argstr(1, path, MAXPATH) < 0 || __namecmp(path, "/") == 0)
         return -1;
+    // printf("unlinkat hit = %d name = %s\n",++hit,path);
 
     if ((dp = find_inode(path, dirfd, name)) == 0) {
         return -1;
     }
-
+    // printf("unlinkat: %d :find inode ok!\n",hit);
     if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0) {
         //  error: cannot unlink "." or "..".
         return -1;
@@ -805,14 +816,37 @@ uint64 sys_unlinkat(void) {
     dp->i_op->ilock(dp);
     if ((ip = dp->i_op->idirlookup(dp, name, 0)) == 0) {
         // error: target file not found
+        // printf("goto here1.\n");
         dp->i_op->iunlock_put(dp);
         return -1;
     }
+    // printf("goto here2.\n");
     ip->i_op->ilock(ip);
 
-    ret = do_unlinkat(dp, ip);
+    if (ip->i_nlink < 1) {
+        panic("unlink: nlink < 1");
+    }
 
-    return ret;
+    if (S_ISDIR(ip->i_type) && !ip->i_op->idempty(ip)) {
+        // error: trying to unlink a non-empty directory
+        printf("ip type : %x  name: %s\n", ip->i_type, ip->fat32_i.fname);
+        printf("不会来到这里吧！\n");
+        ip->i_op->iunlock_put(ip); //     bug!!!
+        dp->i_op->iunlock_put(dp); //     bug!!!
+        return -1;
+    }
+
+    dp->i_op->ientrydelete(dp, ip);
+    // printf("ok ?\n");
+    assist_unlink(ip);
+    // printf("ok !!\n");
+
+    dp->i_op->iunlock_put(dp); // bug !!!
+                               // dp unlock must after ip unlink
+                               // because we have inode cache!
+                               // fcb delete-> hash delete -> inode unlink(3 steps should be atomic)
+
+    return 0;
 }
 
 // 功能：创建目录；

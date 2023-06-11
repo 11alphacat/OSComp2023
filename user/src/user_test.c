@@ -1558,7 +1558,7 @@ void textwrite() {
         exit(1);
     }
     wait(&xstatus);
-    if (xstatus == -1 << 8) // kernel killed child?
+    if (xstatus == (-1 << 8) ) // kernel killed child?: 位移运算优先级低，，要加括号！
     {
         printf("textwrite test OK\n");
     } else
@@ -2221,7 +2221,7 @@ void stacktest() {
     pid = fork();
     if (pid == 0) {
         char *sp = (char *)r_sp();
-        sp -= PGSIZE;
+        sp -= 2*PGSIZE;
         // the *sp should cause a trap.
         printf("stacktest: read below stack %p\n", *sp);
         exit(1);
@@ -2760,89 +2760,90 @@ void dirfile() {
 
 
 int main(void) {
-    // print_sysinfo();
-    // forktest();
-    // print_sysinfo();
-    // exitwait();
-    // print_sysinfo();
-    // forkfork();    
-    // print_sysinfo();
-    // forkforkfork();
-    // print_sysinfo();
-    // twochildren();
-    // print_sysinfo();
-    // reparent();
-    // print_sysinfo();
-    reparent2();
-    // print_sysinfo();
-    // killstatus();
-    // print_sysinfo();
-    // opentest();
-    // print_sysinfo();
-    // openiputtest();
-    // print_sysinfo();
-    // writetest();
-    // print_sysinfo();
-    // writebig();
-    // print_sysinfo();
+    print_sysinfo();
+    forktest();
+    print_sysinfo();
+    exitwait();
+    print_sysinfo();
+    forkfork();    
+    print_sysinfo();
+    forkforkfork();
+    print_sysinfo();
+    twochildren();
+    print_sysinfo();
+    reparent();
+    print_sysinfo();
+
+    reparent2();     // seem to occur bug
+
+    print_sysinfo();
+    killstatus();
+    print_sysinfo();
+    opentest();
+    print_sysinfo();
+    openiputtest();
+    print_sysinfo();
+    writetest();
+    print_sysinfo();
+    writebig();
+    print_sysinfo();
     // preempt();
-    // print_sysinfo();
-    // truncate1();
-    // print_sysinfo();
-    // copyin();
-    // print_sysinfo();
-    // copyout();
-    // print_sysinfo();
-    // copyinstr1();
-    // print_sysinfo();
-    // truncate2();
-    // print_sysinfo();
-    // truncate3();
+    print_sysinfo();
+    truncate1();
+    print_sysinfo();
+    copyin();
+    print_sysinfo();
+    copyout();
+    print_sysinfo();
+    copyinstr1();
+    print_sysinfo();
+    truncate2();
+    print_sysinfo();
+    truncate3();
+    print_sysinfo();
+    sbrkbasic();
+    print_sysinfo();
+    sbrkmuch();
+    print_sysinfo();
+    iputtest();
+    print_sysinfo();
+    exitiputtest();
+    print_sysinfo();
+    createtest();
+    print_sysinfo();
+    sbrklast();
+    print_sysinfo();
+    dirtest();
+    print_sysinfo();
+    execvetest();
+    print_sysinfo();
+    uvmfree();
+    print_sysinfo();
+    pipe1();
+    print_sysinfo();
+    mem();
+    print_sysinfo();
 
-    // print_sysinfo();
-    // sbrkbasic();
-    // print_sysinfo();
-    // sbrkmuch();
-
-    // print_sysinfo();
-    // iputtest();
-    // print_sysinfo();
-    // exitiputtest();
-    // print_sysinfo();
-    // createtest();
-    // print_sysinfo();
-    // sbrklast();
-    // print_sysinfo();
-    // dirtest();
-    // print_sysinfo();
-    // execvetest();
-    // print_sysinfo();
-    // uvmfree();
-    // print_sysinfo();
-    // pipe1();
-    // print_sysinfo();
-    // mem();
-    // print_sysinfo();
-    // sharedfd();
-    // print_sysinfo();
-    // createdelete();
-    // print_sysinfo();
-    // fourfiles();
-    // print_sysinfo();
-    // bigwrite();
-    // print_sysinfo();
-    // bigfile();
-    // print_sysinfo();
-    // rmdot();
-    // print_sysinfo();
-    // badarg();
-    // print_sysinfo();
-    // sbrk8000();
-    // print_sysinfo();
-    // textwrite();
-    // print_sysinfo();
-    // outofinodes();
-    // print_sysinfo();
+    sharedfd();     // occur bug
+    print_sysinfo();
+    createdelete();
+    print_sysinfo();
+    fourfiles();
+    print_sysinfo();
+    bigwrite();
+    print_sysinfo();
+    bigfile();
+    print_sysinfo();
+    rmdot();
+    print_sysinfo();
+    badarg();
+    print_sysinfo();
+    sbrk8000();
+    print_sysinfo();
+    textwrite();
+    print_sysinfo();
+    outofinodes();
+    print_sysinfo();
     manywrites();
     print_sysinfo();
     badwrite();

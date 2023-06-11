@@ -299,7 +299,7 @@ void do_tkill(struct tcb *t, sig_t signo) {
 
 int do_sleep_ns(struct tcb *t, struct timespec ts) {
     uint64 interval_ns = TIMESEPC2NS(ts);
-    
+
     acquire(&tickslock);
     t->time_out = interval_ns;
     int wait_ret = cond_wait(&cond_ticks, &tickslock);

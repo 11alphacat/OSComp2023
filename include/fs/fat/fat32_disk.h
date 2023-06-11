@@ -243,7 +243,6 @@ extern struct _superblock fat32_sb;
 
 // #define ITYPE_TO_FATDEV(i_type) ( ()  )
 
-
 // the logistic number of cluster for position : off
 // start from 0
 #define LOGISTIC_C_NUM(off) ((off) / (__BPB_SecPerClus * __BPB_BytsPerSec))

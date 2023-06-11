@@ -40,7 +40,6 @@ struct proc {
     struct inode *cwd;          // Current directory
     char name[16];              // Process name (debugging)
 
-
     // proc state queue
     struct list_head state_list; // its state queue
 
