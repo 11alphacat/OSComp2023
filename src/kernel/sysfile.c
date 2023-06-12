@@ -1281,6 +1281,7 @@ uint64 sys_renameat2(void) {
 // - arg: a user address
 // 返回值：成功执行，返回0。错误，则返回-1。
 uint64 sys_ioctl(void) {
+    return 0;
     int fd, ret;
     struct file *f;
     unsigned long cmd, arg;
@@ -1303,6 +1304,17 @@ uint64 sys_ioctl(void) {
 // - statbuf
 // - flags
 // 返回值：成功返回0，失败返回-1；
+
+
+        //    S_IFMT     0170000   bit mask for the file type bit field
+
+        //    S_IFSOCK   0140000   socket
+        //    S_IFLNK    0120000   symbolic link
+        //    S_IFREG    0100000   regular file
+        //    S_IFBLK    0060000   block device
+        //    S_IFDIR    0040000   directory
+        //    S_IFCHR    0020000   character device
+        //    S_IFIFO    0010000   FIFO
 uint64 sys_fstatat(void) {
     struct inode *ip;
     char pathname[MAXPATH];
@@ -1319,10 +1331,12 @@ uint64 sys_fstatat(void) {
     if ( (ip = find_inode(pathname, dirfd, 0) )== 0) {
         return -1;
     } 
+
+// printf("inode name: %s\n ",ip->fat32_i.fname, ip->);
     struct stat kbuf;
     kbuf.st_dev = ip->i_dev;
     kbuf.st_ino = ip->i_ino;
-    kbuf.st_mode = ip->i_mode;
+    kbuf.st_mode = 0100000 | S_IRWXU | S_IRWXG | S_IRWXO; // not strict
     kbuf.st_nlink = ip->i_nlink;
     kbuf.st_uid = ip->i_uid;
     kbuf.st_gid = ip->i_gid;
@@ -1331,7 +1345,7 @@ uint64 sys_fstatat(void) {
     kbuf.st_blksize = ip->i_blksize;
     kbuf.st_blocks = ip->i_blocks;  // assuming out block is 512B
 
-    if (either_copyout(1,(uint64)statbuf, &kbuf, sizeof(kbuf)) < 0) {
+    if (either_copyout(1, statbuf, &kbuf, sizeof(kbuf)) < 0) {
         return -1;
     }
 

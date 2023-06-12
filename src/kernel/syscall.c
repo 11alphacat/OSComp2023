@@ -187,7 +187,9 @@ static struct syscall_info info[] = {
     // int fcntl(int fd, int cmd, ... /* arg */ );
     [SYS_fcntl] { "fcntl", 2, "dd", 'd' },
     // ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
-    [SYS_writev] { "writev", 3, "dpd", 'u' }
+    [SYS_writev] { "writev", 3, "dpd", 'u' },
+    //        int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags);
+    [SYS_fstatat] {"fstatat", 4, "dspx", 'd'}
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
