@@ -452,19 +452,21 @@ void preempt() {
         printf("fork failed");
         exit(1);
     }
-    if (pid1 == 0)
+    if (pid1 == 0) {
         for (;;)
-            ;
-
+        ;
+    }
+        
     pid2 = fork();
     if (pid2 < 0) {
         printf("fork failed\n");
         exit(1);
     }
-    if (pid2 == 0)
+    if (pid2 == 0) {
         for (;;)
             ;
-
+    }
+        
     pipe(pfds);
     pid3 = fork();
     if (pid3 < 0) {
@@ -481,7 +483,9 @@ void preempt() {
     }
 
     close(pfds[1]);
-    if (read(pfds[0], buf, sizeof(buf)) != 1) {
+    int n=0;
+    if ((n = read(pfds[0], buf, sizeof(buf))) != 1) {
+        printf("%s %d\n", buf, n);
         printf("preempt read error");
         return;
     }
@@ -2787,7 +2791,8 @@ int main(void) {
     print_sysinfo();
     writebig();
     print_sysinfo();
-    // preempt();
+    
+    preempt();
     print_sysinfo();
     truncate1();
     print_sysinfo();

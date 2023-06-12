@@ -29,6 +29,7 @@
 extern Queue_t unused_p_q, used_p_q, zombie_p_q;
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
 extern Queue_t *STATES[PCB_STATEMAX];
+extern struct tcb thread[NTCB];
 extern struct hash_table pid_map;
 
 struct proc proc[NPROC];
@@ -94,7 +95,7 @@ struct proc *proc_current(void) {
 struct proc *alloc_proc(void) {
     struct proc *p;
     // fetch a unused proc from unused queue
-    p = Queue_provide_atomic(&unused_p_q, 1);
+    p = (struct proc *)Queue_provide_atomic(&unused_p_q, 1);
 
     if (p == NULL)
         return 0;
@@ -240,6 +241,12 @@ void thread_forkret(void) {
     if (thread_current() == initproc->tg->group_leader) {
         init_ret();
     }
+    // if(thread_current()->tid==16||thread_current()->tid==17||thread_current()->tid==18){
+    //     proc_thread_print();
+    // }
+
+    // printfRed("tid : %d forkret\n", thread_current()->tid);// debug
+    // trapframe_print(thread_current()->trapframe);// debug
     thread_usertrapret();
 }
 
@@ -388,7 +395,7 @@ void do_exit(int status) {
     fat32_inode_put(p->cwd);
     p->cwd = 0;
 
-    // release all threads
+    // release all threads (group leader should be ZOMBIE, and be free with proc)
     proc_release_all_thread(p);
 
     // Give any children to init.
@@ -411,6 +418,7 @@ void do_exit(int status) {
     release(&p->lock);
 
     acquire(&t->lock);
+
     thread_sched();
     panic("existed thread is scheduled");
     return;
@@ -464,6 +472,11 @@ int waitpid(pid_t pid, uint64 status, int options) {
                     release(&p_child->lock);
                     return -1;
                 }
+
+                ASSERT(list_empty(&p_child->tg->threads)); // !!!
+                ASSERT(p_child->tg->group_leader->state == TCB_ZOMBIE);
+                free_thread(p_child->tg->group_leader); // group leader should be free with proc
+
                 free_proc(p_child);
 
                 acquire(&p->lock);
@@ -568,9 +581,32 @@ uint8 get_current_procs() {
 }
 
 void proc_thread_print(void) {
+    static char *PCB_states[] = {
+        [PCB_UNUSED] "pcb_unused",
+        [PCB_USED] "pcb_used",
+        [PCB_ZOMBIE] "pcb_zombie"};
+    static char *TCB_states[] = {
+        [TCB_UNUSED] "tcb_unused",
+        [TCB_USED] "tcb_used",
+        [TCB_RUNNABLE] "tcb_runnable",
+        [TCB_RUNNING] "tcb_running",
+        [TCB_SLEEPING] "tcb_sleeping",
+        [TCB_ZOMBIE] "tcb_zombie"};
+
     struct proc *p;
-    // char *state;
+    struct tcb *t;
+
     for (p = proc; p < &proc[NPROC]; p++) {
-        // pass
+        if (p->state == PCB_UNUSED)
+            continue;
+        printf("%d %s %s\n", p->pid, PCB_states[p->state], p->name);
     }
+
+    printf("\n");
+    for (t = thread; t < &thread[NTCB]; t++) {
+        if (t->state == TCB_UNUSED)
+            continue;
+        printf("%d %s %s\n", t->tid, TCB_states[t->state], t->name);
+    }
+    printf("\n");
 }

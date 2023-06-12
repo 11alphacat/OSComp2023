@@ -20,6 +20,7 @@ enum thread_state { TCB_UNUSED,
                     TCB_RUNNABLE,
                     TCB_RUNNING,
                     TCB_SLEEPING,
+                    TCB_ZOMBIE, // attention , only valid for group leader
                     TCB_STATEMAX };
 
 typedef enum thread_state thread_state_t;

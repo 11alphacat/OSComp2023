@@ -16,12 +16,13 @@ Queue_t *STATES[PCB_STATEMAX] = {
     [PCB_USED] & used_p_q,
     [PCB_ZOMBIE] & zombie_p_q};
 
-Queue_t unused_t_q, used_t_q, runnable_t_q, sleeping_t_q;
+Queue_t unused_t_q, used_t_q, runnable_t_q, sleeping_t_q, zombie_t_q;
 Queue_t *T_STATES[TCB_STATEMAX] = {
     [TCB_UNUSED] & unused_t_q,
     [TCB_USED] & used_t_q,
     [TCB_RUNNABLE] & runnable_t_q,
-    [TCB_SLEEPING] & sleeping_t_q};
+    [TCB_SLEEPING] & sleeping_t_q,
+    [TCB_ZOMBIE] & zombie_t_q};
 
 extern struct proc proc[NPROC];
 extern struct tcb thread[NTCB];
@@ -37,6 +38,7 @@ void TCB_Q_ALL_INIT() {
     Queue_init(&used_t_q, "TCB_USED", TCB_STATE_QUEUE);
     Queue_init(&runnable_t_q, "TCB_RUNNABLE", TCB_STATE_QUEUE);
     Queue_init(&sleeping_t_q, "TCB_SLEEPING", TCB_STATE_QUEUE);
+    Queue_init(&zombie_t_q, "TCB_ZOMBIE", TCB_STATE_QUEUE);
 }
 
 void PCB_Q_changeState(struct proc *p, enum procstate state_new) {

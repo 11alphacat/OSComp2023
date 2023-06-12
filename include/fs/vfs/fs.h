@@ -10,6 +10,7 @@
 #include "fs/vfs/fs.h"
 #include "fs/fat/fat32_mem.h"
 #include "lib/hash.h"
+#include "lib/radix-tree.h"
 
 struct kstat;
 extern struct ftable _ftable;
@@ -114,12 +115,20 @@ struct inode {
     // int idx_hint;
     int off_hint;
 
+    struct address_space *i_mapping; // used for page cache
+
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6inode_info xv6_i;
         // struct ext2inode_info ext2_i;
         // void *generic_ip;
     };
+};
+
+struct address_space {
+    struct inode *host;
+    struct radix_tree_root page_tree; /* radix tree(root) of all pages */
+    spinlock_t tree_lock;             /* and lock protecting it */
 };
 
 struct file_operations {

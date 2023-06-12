@@ -13,7 +13,6 @@ void timer_init() {
     initlock(&tickslock, "time");
     cond_init(&cond_ticks, "cond_ticks");
     timer_entry_init(&timer_head, "timer_entry");
-    SET_TIMER();
 }
 
 void timer_entry_init(struct timer_entry *t_entry, char *name) {

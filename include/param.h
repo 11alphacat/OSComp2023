@@ -1,7 +1,7 @@
 #ifndef __PARAM_H__
 #define __PARAM_H__
 
-#define NPROC 32 // maximum number of processes
+#define NPROC 16 // maximum number of processes
 #define NTCB_PER_PROC 10
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
 #define NCPU 4     // maximum number of CPUs

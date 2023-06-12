@@ -72,4 +72,7 @@ int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval);
 void thread_usertrapret(void);
 
+// debug
+void trapframe_print(struct trapframe *tf);
+
 #endif // __TRAP_H__

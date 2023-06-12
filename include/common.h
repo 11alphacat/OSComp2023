@@ -13,6 +13,7 @@
 // common round_up/down
 #define ROUND_UP(x, n) (((x) + (n)-1) & ~((n)-1))
 #define ROUND_DOWN(x, n) ((x) & ~((n)-1))
+#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 #define __user
 
 typedef enum { FD_NONE,

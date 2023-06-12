@@ -71,11 +71,11 @@ int vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd, unsigned lon
 
     // 处理标准的 ioctl (此处暂时未实现)
     /*
-	switch (cmd) {
-		case ...
-	}
+    switch (cmd) {
+        case ...
+    }
 
-	*/
+    */
 
     // 如果是常规文件，调用 file_ioctl => do_ioctl
     if (S_ISREG(filp->f_tp.f_inode->i_type)) {

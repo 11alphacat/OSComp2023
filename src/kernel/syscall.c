@@ -172,8 +172,8 @@ static struct syscall_info info[] = {
     [SYS_wait4] { "wait4", 4, "dpxp" },
     // void exit_group(int status);
     [SYS_exit_group] { "exit_group", 1, "d", 'd' },
-    //int rt_sigprocmask(int how, const kernel_sigset_t *set,
-    // kernel_sigset_t *oldset, size_t sigsetsize);
+    // int rt_sigprocmask(int how, const kernel_sigset_t *set,
+    //  kernel_sigset_t *oldset, size_t sigsetsize);
     [SYS_rt_sigprocmask] { "rt_sigprocmask", 4, "dppd", 'd' },
     //        int sigaction(int signum, const struct sigaction *act,
     //                 struct sigaction *oldact);

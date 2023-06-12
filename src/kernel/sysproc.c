@@ -354,6 +354,7 @@ uint64 sys_kill(void) {
     printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
 #endif
     proc_sendsignal_all_thread(p, signo, 0);
+
     return 0;
 }
 

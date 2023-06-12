@@ -45,8 +45,7 @@ void cond_signal(struct cond *cond) {
     struct tcb *t;
 
     if (!Queue_isempty_atomic(&cond->waiting_queue)) {
-        t = Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
-
+        t = (struct tcb *)Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");
         if (t->state != TCB_SLEEPING) {
@@ -65,7 +64,7 @@ void cond_signal(struct cond *cond) {
 void cond_broadcast(struct cond *cond) {
     struct tcb *t;
     while (!Queue_isempty_atomic(&cond->waiting_queue)) {
-        t = Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
+        t = (struct tcb *)Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
 
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");

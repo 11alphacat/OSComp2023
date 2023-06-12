@@ -77,7 +77,7 @@ int futex_wakeup(uint64 uaddr, int nr_wake) {
     int ret = 0;
 
     while (!Queue_isempty_atomic(&fp->waiting_queue) && ret < nr_wake) {
-        t = Queue_provide_atomic(&fp->waiting_queue, 1); // remove it
+        t = (struct tcb *)Queue_provide_atomic(&fp->waiting_queue, 1); // remove it
 
         if (t == NULL)
             panic("futex wakeup : no waiting queue");
@@ -117,7 +117,7 @@ int futex_requeue(uint64 uaddr1, int nr_wake, uint64 uaddr2, int nr_requeue) {
     int ret = 0;
 
     while (!Queue_isempty_atomic(&fp_old->waiting_queue) && ret < nr_requeue) {
-        t = Queue_provide_atomic(&fp_old->waiting_queue, 1); // remove it
+        t = (struct tcb *)Queue_provide_atomic(&fp_old->waiting_queue, 1); // remove it
         if (t == NULL)
             panic("futex wakeup : no waiting queue");
         if (t->state != TCB_SLEEPING) {

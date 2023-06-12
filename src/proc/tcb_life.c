@@ -8,7 +8,7 @@
 #include "lib/queue.h"
 #include "lib/timer.h"
 
-extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
+extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q, zombie_t_q;
 extern Queue_t *STATES[TCB_STATEMAX];
 extern struct hash_table tid_map;
 extern struct proc *initproc;
@@ -50,6 +50,7 @@ struct tcb *thread_current(void) {
     push_off();
     struct thread_cpu *c = t_mycpu();
     struct tcb *thread = c->thread;
+
     pop_off();
     return thread;
 }
@@ -125,6 +126,7 @@ void free_thread(struct tcb *t) {
     t->sig_ing = 0;
 
     signal_queue_flush(&t->pending); // !!!
+    t->killed = 0;                   // !!! bug qwq
 
     TCB_Q_changeState(t, TCB_UNUSED);
 }
@@ -163,7 +165,11 @@ void proc_release_all_thread(struct proc *p) {
     list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
         acquire(&t_cur->lock);
         list_del_reinit(&t_cur->threads);
-        free_thread(t_cur);
+        if (t_cur == p->tg->group_leader) { // !!!
+            TCB_Q_changeState(t_cur, TCB_ZOMBIE);
+        } else {
+            free_thread(t_cur);
+        }
         release(&t_cur->lock);
     }
     p->tg->thread_cnt = 0;

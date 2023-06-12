@@ -59,11 +59,12 @@ void main() {
         // map init
         hash_tables_init();
 
-        // Trap
-        trapinithart(); // install kernel trap vector
-
         // timer init
         timer_init();
+
+        // !!! bug attention : trapinithart must behind timer_init
+        // Trap
+        trapinithart(); // install kernel trap vector
 
         // PLIC
         plicinit();     // set up interrupt controller

@@ -150,7 +150,7 @@ static void assist_unlink(struct inode *self) {
     --self->i_nlink;
     self->i_op->iupdate(self); // DON'T DELETE this code
                                // fat32 don't support hard link
-                               //but other file system may support
+                               // but other file system may support
     self->i_op->iunlock_put(self);
 }
 

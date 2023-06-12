@@ -39,6 +39,7 @@ static char *cause[16] = {
 void trapinithart(void) {
     w_stvec((uint64)kernelvec);
     w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
+    SET_TIMER();
 }
 
 void killproc(struct proc *p) {
@@ -227,4 +228,20 @@ int devintr() {
     } else {
         return 0;
     }
+}
+
+void trapframe_print(struct trapframe *tf) {
+    printf("Trapframe {\n");
+    printf("    sp: %lx\n", tf->sp);
+    printf("    fp: %lx\n", tf->s0);
+    printf("    pc: %lx\n", tf->epc);
+    printf("    ra: %lx\n", tf->ra);
+    printf("    a0: %lx\n", tf->a0);
+    printf("    a1: %lx\n", tf->a1);
+    printf("    a2: %lx\n", tf->a2);
+    printf("    a3: %lx\n", tf->a3);
+    printf("    a4: %lx\n", tf->a4);
+    printf("    a5: %lx\n", tf->a5);
+    printf("    s3: %lx\n", tf->s3);
+    printf("}\n");
 }
