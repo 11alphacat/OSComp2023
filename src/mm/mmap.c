@@ -83,24 +83,46 @@ void *sys_mmap(void) {
     return (void *)mapva;
 }
 
-// memory
 /* int mprotect(void *addr, size_t len, int prot); */
 uint64 sys_mprotect(void) {
-    vaddr_t addr;
+    vaddr_t start;
     size_t len;
     int prot;
-    argaddr(0, &addr);
+    argaddr(0, &start);
     argulong(1, &len);
     argint(2, &prot);
-    // Log("%p", addr);
 
-    struct vma *vma = find_vma_for_va(proc_current()->mm, addr);
+    if (!len)
+        return 0;
+    len = PGROUNDUP(len);
+    uint64 end = start + len;
+    if (end < start)
+        return -1;
+
+    if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC))
+        return -1;
+
+    struct vma *vma = find_vma_for_va(proc_current()->mm, start);
     if (vma == NULL) {
         return -1;
     }
-    if (vma->size != len || vma->startva != addr) {
-        // return -1;
+
+    struct mm_struct *mm = proc_current()->mm;
+    // print_vma(mm);
+    if (start != vma->startva) {
+        if (split_vma(mm, vma, start, 1) < 0) {
+            return -1;
+        }
     }
+
+    if (end != vma->startva + vma->size) {
+        if (split_vma(mm, vma, start, 0) < 0) {
+            return -1;
+        }
+    }
+    // printfYELLOW("==========================");
+    // print_vma(mm);
+
     vma->perm = prot;
     return 0;
 }

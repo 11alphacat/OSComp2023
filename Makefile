@@ -38,7 +38,7 @@ OSCOMP=chdir close dup2 dup \
 
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
 BOOT=init
-BUSYBOX=busybox
+BUSYBOX=busybox busybox_cmd.txt busybox_testcode.sh
 
 TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
 OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))

@@ -12,9 +12,6 @@
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
 
-/* copy-on write */
-int cow(pagetable_t pagetable, uint64 stval);
-
 /*
  * the kernel's page table.
  */
@@ -216,6 +213,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm,
         }
         if (*pte & PTE_V) {
             vmprint(pagetable, 1, 0, 0, 0);
+            // Log("remap va is %x", *pte);
             Log("remap pte is %x", *pte);
             Log("remap pa is %x", PTE2PA(*pte));
             panic("mappages: remap");
@@ -444,8 +442,8 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
         for (vaddr_t i = startva; i < endva; i += PGSIZE) {
             level = walk(srcmm->pagetable, i, 0, 0, &pte);
             ASSERT(level <= 1 && level >= 0);
-            if (pte == NULL) {
-                panic("uvmcopy: NULL pte");
+            if (pte == NULL || *pte == 0) {
+                continue;
             }
 
             if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
@@ -496,6 +494,8 @@ void uvmclear(pagetable_t pagetable, uint64 va) {
     *pte &= ~PTE_U;
 }
 
+int is_a_cow_page(int flags);
+int cow(pte_t *pte, int level, paddr_t pa, int flags);
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
@@ -520,8 +520,12 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
         }
         flags = PTE_FLAGS(*pte);
         if ((flags & PTE_W) == 0) {
-            int ret = cow(pagetable, va0);
-            if (ret < 0) {
+            if (is_a_cow_page(flags)) {
+                int ret = cow(pte, COMMONPAGE, PTE2PA(*pte), flags);
+                if (ret < 0) {
+                    return -1;
+                }
+            } else {
                 return -1;
             }
         }

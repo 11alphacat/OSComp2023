@@ -1296,7 +1296,6 @@ uint64 sys_ioctl(void) {
     return ret;
 }
 
-
 // 功能：获取文件状态；
 // 输入：
 // - dirfd
@@ -1305,16 +1304,15 @@ uint64 sys_ioctl(void) {
 // - flags
 // 返回值：成功返回0，失败返回-1；
 
+//    S_IFMT     0170000   bit mask for the file type bit field
 
-        //    S_IFMT     0170000   bit mask for the file type bit field
-
-        //    S_IFSOCK   0140000   socket
-        //    S_IFLNK    0120000   symbolic link
-        //    S_IFREG    0100000   regular file
-        //    S_IFBLK    0060000   block device
-        //    S_IFDIR    0040000   directory
-        //    S_IFCHR    0020000   character device
-        //    S_IFIFO    0010000   FIFO
+//    S_IFSOCK   0140000   socket
+//    S_IFLNK    0120000   symbolic link
+//    S_IFREG    0100000   regular file
+//    S_IFBLK    0060000   block device
+//    S_IFDIR    0040000   directory
+//    S_IFCHR    0020000   character device
+//    S_IFIFO    0010000   FIFO
 uint64 sys_fstatat(void) {
     struct inode *ip;
     char pathname[MAXPATH];
@@ -1322,17 +1320,17 @@ uint64 sys_fstatat(void) {
     uint64 statbuf;
     argint(0, &dirfd); // no need to check dirfd, because dirfd maybe AT_FDCWD(<0)
                        // find_inode() will do the check
-    if ( argstr(1, pathname, MAXPATH) < 0) {
+    if (argstr(1, pathname, MAXPATH) < 0) {
         return -1;
     }
-    argaddr(2,&statbuf);
+    argaddr(2, &statbuf);
     argint(3, &flags);
-    ASSERT(flags==0);
-    if ( (ip = find_inode(pathname, dirfd, 0) )== 0) {
+    ASSERT(flags == 0);
+    if ((ip = find_inode(pathname, dirfd, 0)) == 0) {
         return -1;
-    } 
+    }
 
-// printf("inode name: %s\n ",ip->fat32_i.fname, ip->);
+    // printf("inode name: %s\n ",ip->fat32_i.fname, ip->);
     struct stat kbuf;
     kbuf.st_dev = ip->i_dev;
     kbuf.st_ino = ip->i_ino;
@@ -1343,7 +1341,7 @@ uint64 sys_fstatat(void) {
     kbuf.st_rdev = ip->i_rdev;
     kbuf.st_size = ip->i_size;
     kbuf.st_blksize = ip->i_blksize;
-    kbuf.st_blocks = ip->i_blocks;  // assuming out block is 512B
+    kbuf.st_blocks = ip->i_blocks; // assuming out block is 512B
 
     if (either_copyout(1, statbuf, &kbuf, sizeof(kbuf)) < 0) {
         return -1;

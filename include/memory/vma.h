@@ -39,7 +39,7 @@ struct vma {
     /* for VMA_FILE */
     int fd;
     uint64 offset;
-    struct file *fp;
+    struct file *vm_file;
 };
 
 extern struct vma vmas[NVMA];
@@ -50,6 +50,7 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len);
 
 struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr);
 vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size);
+int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new_below);
 int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm);
 int uvmcopy(struct mm_struct *old, struct mm_struct *new);
 void free_all_vmas(struct mm_struct *mm);

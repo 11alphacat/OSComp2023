@@ -15,7 +15,7 @@
                                 || ((cause) == INSTUCTION_PAGEFAULT && (vma->perm & PERM_EXEC)))
 
 /* copy-on write */
-int cow(pagetable_t pagetable, uint64 stval);
+int cow(pte_t *pte, int level, paddr_t pa, int flags);
 
 static uint32 perm_vma2pte(uint32 vma_perm) {
     uint32 pte_perm = 0;
@@ -31,6 +31,21 @@ static uint32 perm_vma2pte(uint32 vma_perm) {
     return pte_perm;
 }
 
+int is_a_cow_page(int flags) {
+    /* write to an unshared page is illegal */
+    if ((flags & PTE_SHARE) == 0) {
+        PAGEFAULT("cow: try to write a readonly page");
+        return 0;
+    }
+
+    /* write to readonly shared page is illegal */
+    if ((flags & PTE_READONLY) > 0) {
+        PAGEFAULT("cow: try to write a readonly shared page");
+        return 0;
+    }
+    return 1;
+}
+
 int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
     /* the va exceed the MAXVA is illegal */
     if (PGROUNDDOWN(stval) >= MAXVA) {
@@ -40,25 +55,37 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
 
     struct vma *vma = find_vma_for_va(proc_current()->mm, stval);
     if (vma != NULL) {
-        if (vma->type == VMA_FILE) {
-            if (CHECK_PERM(cause, vma)) {
-                uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
-                paddr_t pa = walkaddr(pagetable, stval);
-                fat32_inode_lock(vma->fp->f_tp.f_inode);
-                // fat32_inode_load_from_disk(vma->fp->f_tp.f_inode);
-
-                fat32_inode_read(vma->fp->f_tp.f_inode, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
-                fat32_inode_unlock(vma->fp->f_tp.f_inode);
-            } else {
-                PAGEFAULT("permission checked failed");
-            }
-        } else if (vma->type == VMA_ANON) {
-            // Log("hit");
-            uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
-        } else {
-            return cow(pagetable, stval);
+        if (!CHECK_PERM(cause, vma)) {
+            PAGEFAULT("permission checked failed");
+            return -1;
         }
-        return 0;
+
+        pte_t *pte;
+        uint64 pa;
+        uint flags;
+        int level;
+        level = walk(pagetable, stval, 0, 0, &pte);
+        if (pte == NULL || (*pte == 0)) {
+            uvmalloc(pagetable, PGROUNDDOWN(stval), PGROUNDUP(stval + 1), perm_vma2pte(vma->perm));
+            if (vma->type == VMA_FILE) {
+                paddr_t pa = walkaddr(pagetable, stval);
+
+                fat32_inode_lock(vma->vm_file->f_tp.f_inode);
+                fat32_inode_read(vma->vm_file->f_tp.f_inode, 0, pa, vma->offset + PGROUNDDOWN(stval) - vma->startva, PGSIZE);
+                fat32_inode_unlock(vma->vm_file->f_tp.f_inode);
+            }
+        } else {
+            pa = PTE2PA(*pte);
+            flags = PTE_FLAGS(*pte);
+            ASSERT(flags & PTE_V);
+            /* copy-on-write handler */
+            if (is_a_cow_page(flags)) {
+                return cow(pte, level, pa, flags);
+            } else {
+                return -1;
+            }
+        }
+
     } else {
         PAGEFAULT("va is not in the vmas");
         return -1;
@@ -67,41 +94,8 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
     return 0;
 }
 
-int cow(pagetable_t pagetable, uint64 stval) {
+int cow(pte_t *pte, int level, paddr_t pa, int flags) {
     void *mem;
-    pte_t *pte;
-    uint64 pa;
-    uint flags;
-    int level;
-
-    level = walk(pagetable, stval, 0, 0, &pte);
-    /* try to write to va which is not in the proc's pagetable is illegal */
-    if (pte == NULL) {
-        PAGEFAULT("try to access va which is not in the pagetable");
-        return -1;
-    }
-
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-
-    /* guard page for stack */
-    if ((flags & PTE_U) == 0) {
-        PAGEFAULT("access guard page");
-        return -1;
-    }
-
-    /* write to an unshared page is illegal */
-    if ((flags & PTE_SHARE) == 0) {
-        PAGEFAULT("try to write a readonly page");
-        return -1;
-    }
-
-    /* write to readonly shared page is illegal */
-    if ((flags & PTE_READONLY) > 0) {
-        PAGEFAULT("try to write a readonly shared page");
-        return -1;
-    }
-
     if (level == SUPERPAGE) {
         // 2MB superpage
         if ((mem = kmalloc(SUPERPGSIZE)) == 0) {

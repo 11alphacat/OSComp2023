@@ -29,26 +29,24 @@
 #define S_ISBLK(t) (((t)&S_IFMT) == S_IFBLK)
 #define S_ISFIFO(t) (((t)&S_IFMT) == S_IFIFO)
 
-#define S_ISUID     04000   // set-user-ID bit (see execve(2))
-#define S_ISGID     02000   // set-group-ID bit (see below)
-#define S_ISVTX     01000   // sticky bit (see below)
+#define S_ISUID 04000 // set-user-ID bit (see execve(2))
+#define S_ISGID 02000 // set-group-ID bit (see below)
+#define S_ISVTX 01000 // sticky bit (see below)
 
-#define S_IRWXU     00700   // owner has read, write, and execute permission
-#define S_IRUSR     00400   // owner has read permission
-#define S_IWUSR     00200   // owner has write permission
-#define S_IXUSR     00100   // owner has execute permission
- 
-#define S_IRWXG     00070   // group has read, write, and execute permission
-#define S_IRGRP     00040   // group has read permission
-#define S_IWGRP     00020   // group has write permission
-#define S_IXGRP     00010   // group has execute permission
- 
-#define S_IRWXO     00007   // others (not in group) have read,  write,  and execute permission
-#define S_IROTH     00004   // others have read permission
-#define S_IWOTH     00002   // others have write permission
-#define S_IXOTH     00001   // others have execute permission
+#define S_IRWXU 00700 // owner has read, write, and execute permission
+#define S_IRUSR 00400 // owner has read permission
+#define S_IWUSR 00200 // owner has write permission
+#define S_IXUSR 00100 // owner has execute permission
 
+#define S_IRWXG 00070 // group has read, write, and execute permission
+#define S_IRGRP 00040 // group has read permission
+#define S_IWGRP 00020 // group has write permission
+#define S_IXGRP 00010 // group has execute permission
 
+#define S_IRWXO 00007 // others (not in group) have read,  write,  and execute permission
+#define S_IROTH 00004 // others have read permission
+#define S_IWOTH 00002 // others have write permission
+#define S_IXOTH 00001 // others have execute permission
 
 // device
 #define MAJOR(rdev) ((rdev >> 8) & 0xff)
@@ -89,29 +87,29 @@ struct kstat {
     unsigned __unused[2];
 };
 
- struct stat {
-    dev_t     st_dev;         /* ID of device containing file */
-    ino_t     st_ino;         /* Inode number */
-    mode_t    st_mode;        /* File type and mode */
-    nlink_t   st_nlink;       /* Number of hard links */
-    uid_t     st_uid;         /* User ID of owner */
-    gid_t     st_gid;         /* Group ID of owner */
-    dev_t     st_rdev;        /* Device ID (if special file) */
-    off_t     st_size;        /* Total size, in bytes */
-    blksize_t st_blksize;     /* Block size for filesystem I/O */
-    blkcnt_t  st_blocks;      /* Number of 512B blocks allocated */
+struct stat {
+    dev_t st_dev;         /* ID of device containing file */
+    ino_t st_ino;         /* Inode number */
+    mode_t st_mode;       /* File type and mode */
+    nlink_t st_nlink;     /* Number of hard links */
+    uid_t st_uid;         /* User ID of owner */
+    gid_t st_gid;         /* Group ID of owner */
+    dev_t st_rdev;        /* Device ID (if special file) */
+    off_t st_size;        /* Total size, in bytes */
+    blksize_t st_blksize; /* Block size for filesystem I/O */
+    blkcnt_t st_blocks;   /* Number of 512B blocks allocated */
 
     /* Since Linux 2.6, the kernel supports nanosecond
         precision for the following timestamp fields.
         For the details before Linux 2.6, see NOTES. */
 
-    struct timespec st_atim;  /* Time of last access */
-    struct timespec st_mtim;  /* Time of last modification */
-    struct timespec st_ctim;  /* Time of last status change */
+    struct timespec st_atim; /* Time of last access */
+    struct timespec st_mtim; /* Time of last modification */
+    struct timespec st_ctim; /* Time of last status change */
 
-    #define st_atime st_atim.tv_sec      /* Backward compatibility */
-    #define st_mtime st_mtim.tv_sec
-    #define st_ctime st_ctim.tv_sec
+#define st_atime st_atim.tv_sec /* Backward compatibility */
+#define st_mtime st_mtim.tv_sec
+#define st_ctime st_ctim.tv_sec
 };
 
 #endif // __FS_STAT_H__

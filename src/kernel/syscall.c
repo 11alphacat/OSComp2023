@@ -16,8 +16,8 @@
 #define INSTACK(addr) ((addr) >= USTACK && (addr) + sizeof(uint64) < USTACK + USTACK_PAGE * PGSIZE)
 int fetchaddr(vaddr_t addr, uint64 *ip) {
     struct proc *p = proc_current();
-    if ((addr >= p->mm->brk || addr + sizeof(uint64) > p->mm->brk) && !INSTACK(addr)) // both tests needed, in case of overflow
-        return -1;
+    // if ((addr >= p->mm->brk || addr + sizeof(uint64) > p->mm->brk) && !INSTACK(addr)) // both tests needed, in case of overflow
+    //     return -1;
     if (copyin(p->mm->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
         return -1;
     return 0;
@@ -189,7 +189,9 @@ static struct syscall_info info[] = {
     // ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
     [SYS_writev] { "writev", 3, "dpd", 'u' },
     //        int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags);
-    [SYS_fstatat] {"fstatat", 4, "dspx", 'd'}
+    [SYS_fstatat] { "fstatat", 4, "dspx", 'd' },
+    //            long clone(unsigned long flags, void *stack, int *parent_tid, unsigned long tls, int *child_tid);
+    [SYS_clone] { "clone", 5, "xppup", 'd' },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);

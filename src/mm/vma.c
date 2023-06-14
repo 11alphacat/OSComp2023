@@ -108,8 +108,8 @@ int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint6
     }
     vma->fd = fd;
     vma->offset = offset;
-    vma->fp = fp;
-    fat32_filedup(vma->fp);
+    vma->vm_file = fp;
+    fat32_filedup(vma->vm_file);
     return 0;
 }
 
@@ -200,7 +200,7 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
     if (vma->type == VMA_FILE) {
         /* if the perm has PERM_SHREAD, call writeback */
         if ((vma->perm & PERM_SHARED) && (vma->perm & PERM_WRITE)) {
-            writeback(mm->pagetable, vma->fp, start, origin_len);
+            writeback(mm->pagetable, vma->vm_file, start, origin_len);
         }
     }
 
@@ -212,7 +212,7 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
         return 0;
     } else {
         if (vma->type == VMA_FILE) {
-            generic_fileclose(vma->fp);
+            generic_fileclose(vma->vm_file);
         }
     }
 
@@ -311,7 +311,7 @@ int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
             // int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
             //                  int fd, off_t offset, struct file *fp) {
             if (vma_map_file(dstmm, pos->startva, pos->size, pos->perm, pos->type,
-                             pos->fd, pos->offset, pos->fp)
+                             pos->fd, pos->offset, pos->vm_file)
                 < 0) {
                 return -1;
             }
@@ -340,4 +340,44 @@ void free_all_vmas(struct mm_struct *mm) {
             panic("free_all_vmas: unmap failed");
         }
     }
+}
+
+/*
+ * Split a vma into two pieces at address 'addr', a new vma is allocated
+ * either for the first part or the tail.
+ */
+int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new_below) {
+    struct vma *new;
+
+    new = alloc_vma();
+    if (!new) {
+        Warn("split_vma: no free mem");
+        return -1;
+    }
+
+    /* most fields are the same, copy all */
+    *new = *vma;
+
+    if (new_below) {
+        vma->size = vma->startva + vma->size - addr;
+        vma->startva = addr;
+        new->size = addr - new->startva;
+    } else {
+        new->startva = addr;
+        new->size = vma->startva + vma->size - addr;
+        vma->size = addr - vma->startva;
+        new->offset += (addr - vma->startva);
+    }
+    // Log("%p %p", new->startva, new->startva + new->size);
+    // Log("%p %p", vma->startva, vma->startva + vma->size);
+
+    if (new->vm_file)
+        fat32_filedup(new->vm_file);
+
+    if (add_vma_to_vmspace(&mm->head_vma, new) < 0) {
+        free_vma(new);
+        Warn("split_vma: add_vma_to_vmspace failed");
+        return -1;
+    }
+    return 0;
 }
