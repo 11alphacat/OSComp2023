@@ -3,8 +3,8 @@
 #include "unistd.h"
 #include "stdio.h"
 #include "string.h"
-#include "memory/memlayout.h"
-#include "memory/buddy.h"
+// #include "memory/memlayout.h"
+// #include "memory/buddy.h"
 
 #define NCHILD 2
 #define N 100000
@@ -100,6 +100,9 @@ countfree()
   return n;
 }
 
+#define PHYSTOP (0x80000000L + 130 * 1024 * 1024)
+#define START_MEM 0x80a00000
+#define PGSIZE 4096 // bytes per page
 // Test stealing
 void test2() {
   int free0 = countfree();

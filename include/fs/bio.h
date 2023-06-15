@@ -6,58 +6,58 @@
 #include "atomic/ops.h"
 #include "atomic/semaphore.h"
 #include "fs/vfs/fs_macro.h"
+#include "lib/list.h"
 
-// enum bh_state_bits {
-//     BH_Uptodate, /* Contains valid data */
-//     BH_Dirty,    /* Is dirty */
-//     BH_Lock,     /* Is locked */
-//     BH_Req,      /* Has been submitted for I/O */
-// };
+
+#define DISK_WRITE 1 // write disk
+#define DISK_READ 0  // read disk
 
 struct buffer_head {
     struct semaphore sem_lock;
     struct semaphore sem_disk_done;
-    uint64 b_state; // buffer state
-    int valid;      // has data been read from disk?
-    int disk;       // does disk "own" buf?
-    uint dev;
     uint blockno;
     atomic_t refcnt;
-    // struct buffer_head *prev; // LRU cache list
-    // struct buffer_head *next;
-    list_head_t lru;
+    list_head_t lru; // LRU cache list
     uchar data[BSIZE];
+    int valid;      // has data been read from disk?
     int dirty; // dirty
+    int disk;       // does disk "own" buf?
+    uint dev;
 };
 
-// struct bio_vec {
-//     // <page,offset,len>
-//     struct page *bv_page;
-//     uint bv_len;
-//     uint bv_offset;
-// };
 
-// struct bio {
-//     atomic_t bi_cnt;           // ref
-//     ushort bi_idx;             // current idx
-//     struct bio_vec *bi_io_vec; // bio vecs list
-//     uint64 bi_rw;              // read or write
-//     uint bi_bdev;              // device no
-//     ushort bi_vcnt;            // total number
-// };
+struct bio {
+    uint bi_bdev;              // device no
+    uint64 bi_rw;              // read or write
+    ushort bi_idx;             // current idx
+    ushort bi_vcnt;            // total number
+    struct bio_vec *bi_io_vec; // bio vecs list
+};
 
-// bio.c
+
+// different from Linux
+struct bio_vec {
+    struct semaphore sem_disk_done;
+    uint blockno_start;
+    uint block_len;
+    uchar* data;
+    int disk;
+};
+// no_start : 2
+// len : 4
+// -> 2 3 4 5 (a series of blocks)
+
+
+// xv6 origin :  buffer_head
 void binit(void);
 struct buffer_head *bread(uint, uint);
 void brelse(struct buffer_head *);
 void bwrite(struct buffer_head *);
+// bio
+void disk_rw_bio(struct buffer_head *b, int rw);
+void init_bio(struct bio* bio_p, struct bio_vec* vec_p, struct buffer_head* b, int rw);
+void submit_bio(struct bio *bio);
+void free_bio(struct bio *bio);
 
-// int bpin(struct buffer_head *);
-// int bunpin(struct buffer_head *);
 
-// int init_bio(void);
-// int submit_bio(int, struct bio *);
-// int free_bio(struct bio *);
-
-// void fat32_bzero(int, int);
 #endif // __BIO_H__

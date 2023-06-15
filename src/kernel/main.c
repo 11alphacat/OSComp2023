@@ -85,8 +85,9 @@ void main() {
 #endif
         printf("\nLostWakeup OS kernel is booting\n\n");
         __sync_synchronize();
-        started = 1;
 
+        printf("hart %d starting\n", cpuid());
+        started = 1;
     } else {
         while (atomic_read4((int *)&started) == 0)
             ;

@@ -17,7 +17,6 @@ extern struct ftable _ftable;
 
 union file_type {
     struct pipe *f_pipe; // FD_PIPE
-    // struct _pipe *f_pipe_;   // FD_PIPE (modify)
     struct inode *f_inode; // FDINODE and FD_DEVICE
 };
 
@@ -125,10 +124,14 @@ struct inode {
     };
 };
 
+
+#define PAGECACHE_TAG_DIRTY	0
+#define PAGECACHE_TAG_WRITEBACK	1
 struct address_space {
-    struct inode *host;
+    struct inode *host; /* owner: inode*/
     struct radix_tree_root page_tree; /* radix tree(root) of all pages */
-    spinlock_t tree_lock;             /* and lock protecting it */
+    spinlock_t tree_lock; /* and lock protecting it */
+    uint64 nrpages;	/* number of total pages */
 };
 
 struct file_operations {

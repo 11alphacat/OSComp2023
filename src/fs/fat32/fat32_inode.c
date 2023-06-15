@@ -15,9 +15,9 @@
 #include "lib/hash.h"
 
 // debug
-int cache_cnt;
-int hit_cnt;
-int dirlookup_cnt;
+// int cache_cnt;
+// int hit_cnt;
+// int dirlookup_cnt;
 
 extern struct file_operations fat32_fop;
 extern struct inode_operations fat32_iop;
@@ -85,12 +85,15 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_type = S_IFDIR;
     DIR_SET(root_ip->fat32_i.Attr);
 
-    // inode hash table
+    // inode hash table 
     fat32_inode_hash_init(root_ip);
 
     // speed up dirlookup using hint
-    // root_ip->idx_hint = 0;
     root_ip->off_hint = 0;
+
+    // mapping for root 
+    struct address_space* mapping = kzalloc(sizeof(struct address_space));
+    root_ip->i_mapping =mapping;
 
     ASSERT(root_ip->fat32_i.cluster_start == 2);
 
@@ -260,6 +263,9 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
     if (off + n > fileSize)
         n = fileSize - off;
 
+
+    // TODO :  using mapping to speed up read
+
     FAT_entry_t iter_c_n;
     int init_s_n;
     int init_s_offset;
@@ -425,8 +431,26 @@ struct inode *fat32_inode_get(uint dev, uint inum, const char *name, uint parent
 // 往 dp 中写入代表 ip 磁盘块信息的fcb
 // caller should hold dp->lock, ip->lock
 // 成功返回 0，失败返回 -1
+// similar to delete
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
-    ASSERT(1 == 0);
+//     int str_len = strlen(ip->fat32_i.fname);
+//     int off = ip->fat32_i.parent_off;
+//     ASSERT(off > 0);
+//     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
+//     char fcb_char[FCB_MAX_LENGTH];
+//     // memset(fcb_char, 0, sizeof(fcb_char));
+//     for (int i = 0; i < long_dir_len + 1; i++)
+//         fcb_char[i * 32] = ;
+
+//     ASSERT(off - long_dir_len > 0);
+// #ifdef __DEBUG_FS__
+//     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
+// #endif
+//     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
+//     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
+
+//     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
+    panic("error\n");
     return 0;
 }
 
@@ -531,43 +555,10 @@ void fat32_inode_put(struct inode *ip) {
     release(&inode_table.lock);
 }
 
-// original version
-// void fat32_inode_put(struct inode *ip) {
-//     acquire(&inode_table.lock);
-
-//     if (ip->ref == 1) {
-//         fat32_inode_hash_destroy(ip);
-//         if (ip->valid && ip->i_nlink == 0) {
-//             release(&inode_table.lock);
-//             if (ip->parent->valid) {
-//                 sema_wait(&ip->parent->i_sem);
-//                 hash_delete(ip->parent->i_hash, (void *)ip->fat32_i.fname);
-//                 // printfRed("delete : delete key, file %s , %s\n",ip->fat32_i.fname, ip->parent->fat32_i.fname);// debug
-//             }
-//             acquire(&inode_table.lock);
-//             sema_wait(&ip->i_sem);
-
-//             release(&inode_table.lock);
-//             fat32_inode_trunc(ip);
-
-//             // NOTE !!! : hash_delete + trunc must be atomic!!!
-//             // printf("file %s has been truncated\n", ip->fat32_i.fname);// debug
-//             sema_signal(&ip->parent->i_sem);
-//             sema_signal(&ip->i_sem);
-
-//             acquire(&inode_table.lock);
-//         }
-//     }
-
-//     ip->ref--;
-//     release(&inode_table.lock);
-// }
-
 // unlock and put
 void fat32_inode_unlock_put(struct inode *ip) {
     fat32_inode_unlock(ip);
-    // printf("lock: %s unlocked !! sem.value = %d\n",ip->fat32_i.fname, ip->i_sem.value);
-
+    // printf("lock: %s unlocked !! sem.value = %d\n",ip->fat32_i.fname, ip->i_sem.value);// debug
     fat32_inode_put(ip);
 }
 
@@ -579,7 +570,7 @@ void fat32_inode_trunc(struct inode *ip) {
     // truncate the fat chain
     while (!ISEOF(iter_c_n)) {
         FAT_entry_t fat_next = fat32_next_cluster(iter_c_n);
-        fat32_fat_set(iter_c_n, EOC);
+        fat32_fat_set(iter_c_n, FREE_MASK);// bug
         iter_c_n = fat_next;
     }
     // fat32_fcb_delete(ip->parent, ip);
@@ -598,7 +589,6 @@ void fat32_inode_trunc(struct inode *ip) {
     ip->i_hash = NULL; // !!!
 
     // speed up dirlookup
-    // ip->idx_hint = 0;
     ip->off_hint = 0;
 }
 
@@ -699,25 +689,22 @@ uchar ChkSum(uchar *pFcbName) {
 
 // dirlookup
 struct inode *fat32_inode_dirlookup(struct inode *dp, const char *name, uint *poff) {
-    // printf("dirlookup: dp %s sem.value %d\n",dp->fat32_i.fname,dp->i_sem.value);
+    // printf("dirlookup: dp %s sem.value %d\n",dp->fat32_i.fname,dp->i_sem.value); //debug
     if (!DIR_BOOL((dp->fat32_i.Attr)))
         panic("dirlookup not DIR");
     struct inode *ip_search = NULL;
 
-    // dirlookup_cnt++;
+    // dirlookup_cnt++; // debug
     if (dp->i_hash == NULL) {
         fat32_inode_hash_init(dp);
     } else {
         //  speed up dirlookup using hash table
         ip_search = fat32_inode_hash_lookup(dp, name);
         if (ip_search != NULL) {
-            // printfRed("cache, %d/%d\n", ++cache_cnt, dirlookup_cnt);
-            // printfBlue("hit , name is %s\n",name);
+            // printfRed("cache, %d/%d\n", ++cache_cnt, dirlookup_cnt);// debug
+            // printfBlue("hit , name is %s\n",name); // debug
             return ip_search;
         }
-        // else{
-        //     return 0;
-        // }
     }
 
     // speed up dirlookup using off hint
@@ -728,103 +715,11 @@ struct inode *fat32_inode_dirlookup(struct inode *dp, const char *name, uint *po
         // printfBlue("hit, %d/%d\n", ++hit_cnt, dirlookup_cnt);
         return ip_search;
     } else {
-        // if(off_hit==0) {
-        //     return 0; // avoid search twice
-        // }
         if (off_hit != 0) {
             // printfBlue("hit, %d/%d, off_hit, %d\n", ++hit_cnt, dirlookup_cnt, off_hit);
         }
         return 0;
     }
-
-    //     // dirlookup from the start
-    //     FAT_entry_t iter_c_n = dp->fat32_i.cluster_start;
-    //     uint off = 0;
-    //     int idx = 0;
-    //     int first_sector;
-    //     struct buffer_head *bp;
-    //     char name_buf[NAME_LONG_MAX];
-    //     memset(name_buf, 0, sizeof(name_buf));
-    //     Stack_t fcb_stack;
-    //     stack_init(&fcb_stack);
-    //     // FAT seek cluster chains
-    //     while (!ISEOF(iter_c_n)) {
-    //         first_sector = FirstSectorofCluster(iter_c_n);
-    //         // sectors in a cluster
-    //         for (int s = 0; s < (dp->i_sb->sectors_per_block); s++) {
-    //             bp = bread(dp->i_dev, first_sector + s);
-    //             dirent_s_t *fcb_s = (dirent_s_t *)(bp->data);
-    //             dirent_l_t *fcb_l = (dirent_l_t *)(bp->data);
-
-    //             idx = 0;
-    //             // FCB in a sector
-    //             while (idx < FCB_PER_BLOCK) {
-    //                 // long dirctory item push into the stack
-    //                 if (NAME0_FREE_ALL(fcb_s[idx].DIR_Name[0])) {
-    //                     brelse(bp);
-    //                     goto finish;
-    //                 }
-    //                 while (LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && idx < FCB_PER_BLOCK) {
-    //                     // printf("%d, %d, %d\n",LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr), first_long_dir(dp), idx < FCB_PER_BLOCK);
-    //                     stack_push(&fcb_stack, fcb_l[idx++]);
-    //                     off++;
-    //                 }
-
-    //                 // pop stack
-    //                 if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0]) && idx < FCB_PER_BLOCK) {
-    //                     memset(name_buf, 0, sizeof(name_buf));
-    //                     ushort long_valid = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
-    //                     // if the long directory is invalid
-    //                     if (!long_valid) {
-    //                         fat32_short_name_parser(fcb_s[idx], name_buf);
-    //                     }
-
-    //                     uint ino = SECTOR_TO_FATINUM(first_sector + s, idx);
-
-    //                     // insert cache into the hash table (except . and ..)
-    //                     if(name_buf[0]!='.') {
-    //                         int ret = fat32_inode_hash_insert(dp, name_buf, ino, off);
-    //                         if(ret==0) {
-    //                             // printfGreen("dirlookup : insert : %s, looking for %s\n", name_buf, name); //debug
-    //                         } else if(ret==-1) {
-    //                             // printfGreen("dirlookup : insert , name %s has existed, looking for %s\n", name_buf, name); //debug
-    //                         }
-    //                     }
-
-    //                     //  search for?
-    //                     if (fat32_namecmp(name, name_buf) == 0) {
-    //                         // inode matches path element
-    //                         if (poff)
-    //                             *poff = off;
-    //                         brelse(bp);
-
-    //                         ip_search = fat32_inode_get(dp->i_dev, ino, name, off);
-    //                         ip_search->parent = dp;
-    //                         ip_search->i_nlink = 1;
-    //                         stack_free(&fcb_stack);
-    //                         // save hint
-    //                         // dp->idx_hint = idx;
-    //                         dp->off_hint = off + 1;
-    //                         return ip_search;
-    //                     }
-    //                 }
-    //                 idx++;
-    //                 off++;
-
-    //                 // avoid search twice
-    //                 if(off == off_hit) {
-    //                     brelse(bp);
-    //                     goto finish;
-    //                 }
-    //             }
-    //             brelse(bp);
-    //         }
-    //         iter_c_n = fat32_next_cluster(iter_c_n);
-    //     }
-    // finish:
-    //     dp->off_hint = 0;
-    //     stack_free(&fcb_stack);
-    //     return 0;
 }
 
 // dirlookup optimization (dirlookup with hint)
@@ -1054,7 +949,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) 
     ip_new->i_type = type;
     ip_new->i_op = get_inodeops[FAT32]();
     ip_new->fs_type = FAT32;
-    dp->off_hint = off;
+    dp->off_hint = off + 1;// don't use off 
 
 #ifdef __DEBUG_FS__
     printf("inode alloc : pid %d, filename : %s\n", proc_current()->pid, ip_new->fat32_i.fname);
@@ -1469,7 +1364,6 @@ void fat32_inode_hash_destroy(struct inode *ip) {
         ip->i_hash = NULL;           // !!!
 
         // speed up dirlookup using hit
-        // ip->idx_hint = 0;
         ip->off_hint = 0;
     }
 }

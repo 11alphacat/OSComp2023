@@ -84,10 +84,12 @@ void *kmalloc(size_t size) {
         }
     }
 
-    acquire(&page->lock);
-    ASSERT(page->count == 0);
-    page->count = 1;
-    release(&page->lock);
+    // acquire(&page->lock);
+    // ASSERT(page->count == 0);
+    ASSERT(atomic_read(&page->refcnt)==0);
+    atomic_set(&page->refcnt, 1);
+    // page->count = 1;
+    // release(&page->lock);
     return (void *)page_to_pa(page);
 }
 
@@ -120,23 +122,28 @@ void *kalloc(void) {
         }
     }
 
-    acquire(&page->lock);
-    ASSERT(page->count == 0);
-    page->count = 1;
-    release(&page->lock);
+    // acquire(&page->lock);
+    ASSERT(atomic_read(&page->refcnt)==0);
+    atomic_set(&page->refcnt, 1);
+    // ASSERT(page->count == 0);
+    // page->count = 1;
+    // release(&page->lock);
     return (void *)page_to_pa(page);
 }
 
 void kfree(void *pa) {
     struct page *page = pa_to_page((uint64)pa);
     acquire(&page->lock);
-    ASSERT(page->count >= 1);
-    page->count--;
-    if (page->count >= 1) {
+    // ASSERT(page->count >= 1);
+    ASSERT(atomic_read(&page->refcnt)>=1);
+    // page->count--;
+    atomic_dec_return(&page->refcnt);
+    if (atomic_read(&page->refcnt) >= 1) {
         release(&page->lock);
         return;
     }
-    ASSERT(page->count == 0);
+    // ASSERT(page->count == 0);
+    ASSERT(atomic_read(&page->refcnt)==0);
     release(&page->lock);
 
     ASSERT(page->allocated == 1);
@@ -147,9 +154,12 @@ void kfree(void *pa) {
 
 void share_page(uint64 pa) {
     struct page *page = pa_to_page(pa);
-    acquire(&page->lock);
-    ASSERT(page->count >= 1);
-    page->count++;
-    release(&page->lock);
+    // acquire(&page->lock);
+    // ASSERT(page->count >= 1);
+    ASSERT(atomic_read(&page->refcnt)>=1);
+    atomic_inc_return(&page->refcnt);
+    // page->count++;
+
+    // release(&page->lock);
     return;
 }

@@ -8,6 +8,7 @@
 #include "param.h"
 #include "lib/riscv.h"
 #include "memory/memlayout.h"
+#include "fs/vfs/fs.h"
 
 /*
     +---------------------------+ <-- rust-sbi jump to 0x80200000
@@ -29,6 +30,22 @@
 #define PAGES_PER_CPU (NPAGES / NCPU)
 extern struct page *pagemeta_start;
 
+
+enum pageflags {
+	PG_locked,
+};
+// static inline void __set_page_locked(struct page *page)
+// {
+// 	set_bit(PG_locked, &page->flags);
+// }
+
+// static inline void __clear_page_locked(struct page *page)
+// {
+// 	clear_bit(PG_locked, &page->flags);
+// }
+
+#define page_cache_get(page) (atomic_inc_return(&page->refcnt))
+
 struct page {
     // use for buddy system
     int allocated;
@@ -37,7 +54,13 @@ struct page {
 
     // use for copy-on-write
     struct spinlock lock;
-    int count;
+    atomic_t refcnt;
+
+    // for i-mapping
+    uint64 flags;
+    struct address_space *mapping;
+    // pagecache index
+    uint32 index;
 };
 
 struct free_list {

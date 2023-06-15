@@ -47,7 +47,8 @@ static struct disk {
     // for use when completion interrupt arrives.
     // indexed by first descriptor index of chain.
     struct {
-        struct buffer_head *b;
+        struct buffer_head *b_old;
+        struct bio_vec* b_new;
         char status;
     } info[NUM];
 
@@ -209,11 +210,22 @@ alloc3_desc(int *idx) {
     return 0;
 }
 
-void virtio_disk_rw(struct buffer_head *b, int write) {
-    uint64 sector = b->blockno * (BSIZE / 512);
+void virtio_disk_rw(void *b, int write, int type) {
+    uint64 sector;
+    struct buffer_head *b_old = NULL;
+    struct bio_vec *b_new = NULL;
+    if (type == BLOCK_OLD) {
+        // we don't use this 
+        b_old = (struct buffer_head *)b;
+        sector = b_old->blockno * (BSIZE / 512);
+    } else if (type == BLOCK_NEW) {
+        b_new = (struct bio_vec *)b;
+        sector = b_new->blockno_start * (BSIZE / 512);
+    } else{
+        panic("error\n");
+    }
 
     acquire(&disk.vdisk_lock);
-
     // the spec's Section 5.2 says that legacy block operations use
     // three descriptors: one for type/reserved/sector, one for the
     // data, one for a 1-byte status result.
@@ -227,7 +239,6 @@ void virtio_disk_rw(struct buffer_head *b, int write) {
         release(&disk.vdisk_lock);
         sema_wait(&disk.sem_disk);
         acquire(&disk.vdisk_lock);
-        // sleep(&disk.free[0], &disk.vdisk_lock);
     }
 
     // format the three descriptors.
@@ -238,7 +249,7 @@ void virtio_disk_rw(struct buffer_head *b, int write) {
     if (write)
         buf0->type = VIRTIO_BLK_T_OUT; // write the disk
     else
-        buf0->type = VIRTIO_BLK_T_IN; // read the disk
+        buf0->type = VIRTIO_BLK_T_IN;  // read the disk
     buf0->reserved = 0;
     buf0->sector = sector;
 
@@ -247,10 +258,20 @@ void virtio_disk_rw(struct buffer_head *b, int write) {
     disk.desc[idx[0]].flags = VRING_DESC_F_NEXT;
     disk.desc[idx[0]].next = idx[1];
 
-    disk.desc[idx[1]].addr = (uint64)b->data;
-    disk.desc[idx[1]].len = BSIZE;
+    if (type == BLOCK_OLD) {
+        // we don't use this 
+        disk.desc[idx[1]].addr = (uint64)b_old->data;
+        disk.desc[idx[1]].len = BSIZE;
+    } else if (type == BLOCK_NEW) {
+        disk.desc[idx[1]].addr = (uint64)b_new->data;
+        disk.desc[idx[1]].len = BSIZE *(b_new->block_len);
+    } else{
+        panic("error\n");
+    }
+
+
     if (write)
-        disk.desc[idx[1]].flags = 0; // device reads b->data
+        disk.desc[idx[1]].flags = 0;                  // device reads b->data
     else
         disk.desc[idx[1]].flags = VRING_DESC_F_WRITE; // device writes b->data
     disk.desc[idx[1]].flags |= VRING_DESC_F_NEXT;
@@ -263,8 +284,17 @@ void virtio_disk_rw(struct buffer_head *b, int write) {
     disk.desc[idx[2]].next = 0;
 
     // record struct buffer_head for virtio_disk_intr().
-    b->disk = 1;
-    disk.info[idx[0]].b = b;
+    
+    if (type == BLOCK_OLD) {
+        // we don't use this 
+        b_old->disk = 1;
+        disk.info[idx[0]].b_old = b_old;
+    } else if (type == BLOCK_NEW) {
+        b_new->disk = 1;
+        disk.info[idx[0]].b_new = b_new;
+    } else {
+        panic("error\n");
+    }
 
     // tell the device the first index in our chain of descriptors.
     disk.avail->ring[disk.avail->idx % NUM] = idx[0];
@@ -279,16 +309,27 @@ void virtio_disk_rw(struct buffer_head *b, int write) {
     *R(VIRTIO_MMIO_QUEUE_NOTIFY) = 0; // value is queue number
 
     // Wait for virtio_disk_intr() to say request has finished.
-    while (b->disk == 1) {
-        release(&disk.vdisk_lock);
-        sema_wait(&b->sem_disk_done);
-        acquire(&disk.vdisk_lock);
-        // sleep(b, &disk.vdisk_lock);
+
+    if (type == BLOCK_OLD) {
+        while (b_old->disk == 1) {
+            // we don't use this 
+            release(&disk.vdisk_lock);
+            sema_wait(&b_old->sem_disk_done);
+            acquire(&disk.vdisk_lock);
+        }
+        disk.info[idx[0]].b_old = 0;
+    } else if (type == BLOCK_NEW) {
+        while (b_new->disk == 1) {
+            release(&disk.vdisk_lock);
+            sema_wait(&b_new->sem_disk_done);
+            acquire(&disk.vdisk_lock);
+        }
+        disk.info[idx[0]].b_new = 0;
+    } else {
+        panic("error\n");
     }
 
-    disk.info[idx[0]].b = 0;
     free_chain(idx[0]);
-
     release(&disk.vdisk_lock);
 }
 
@@ -314,11 +355,20 @@ void virtio_disk_intr() {
 
         if (disk.info[id].status != 0)
             panic("virtio_disk_intr status");
-
-        struct buffer_head *b = disk.info[id].b;
-        b->disk = 0; // disk is done with buf
-        // wakeup(b);
-        sema_signal(&b->sem_disk_done);
+        
+        if(BLOCK_SEL == BLOCK_OLD) {
+            // we don't use this 
+            struct buffer_head *b_old = disk.info[id].b_old;
+            b_old->disk = 0; // disk is done with buf
+            sema_signal(&b_old->sem_disk_done);
+        }
+        else if(BLOCK_SEL == BLOCK_NEW) {
+            struct bio_vec *b_new = disk.info[id].b_new;
+            b_new->disk = 0; // disk is done with buf
+            sema_signal(&b_new->sem_disk_done);
+        } else{
+            panic("error\n");
+        }
 
         disk.used_idx += 1;
     }

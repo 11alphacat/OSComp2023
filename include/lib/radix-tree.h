@@ -22,10 +22,15 @@
 // 1 : indirent node, 0 : data item
 #define RADIX_TREE_MAP_MASK (RADIX_TREE_MAP_SIZE - 1) // 1<<6-1 = 64 -1
 
+typedef unsigned int gfp_t;
+#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
+#define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+
 // root of radix tree
 struct radix_tree_root {
     uint32 height;                 // height of radix tree
     struct radix_tree_node *rnode; // root node pointer
+    gfp_t gfp_mask;
 };
 
 // node of radix tree
@@ -47,8 +52,11 @@ void *radix_tree_tag_set(struct radix_tree_root *root, uint64 index, uint32 tag)
 void *radix_tree_tag_clear(struct radix_tree_root *root, uint64 index, uint32 tag);
 int radix_tree_tag_get(struct radix_tree_root *root, uint64 index, uint32 tag);
 
-// init
-struct radix_tree_node *radix_tree_node_init(struct radix_tree_root *root);
+// auxiliary functions
+uint64 radix_tree_maxindex(uint height);
+
+// allocate
+struct radix_tree_node *radix_tree_node_alloc(struct radix_tree_root *root);
 // search
 void *radix_tree_lookup_node(struct radix_tree_root *root, uint64 index);
 void **radix_tree_lookup_slot(struct radix_tree_root *root, uint64 index);
@@ -61,6 +69,6 @@ void radix_tree_shrink(struct radix_tree_root *root);
 // delete
 void *radix_tree_delete(struct radix_tree_root *root, uint64 index);
 // free
-// inline void radix_tree_node_free(struct radix_tree_node *node);
+void radix_tree_node_free(struct radix_tree_node *node);
 
 #endif

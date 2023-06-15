@@ -54,12 +54,14 @@ typedef unsigned int DWORD;
 typedef unsigned char *byte_pointer;
 #define NULL ((void *)0)
 
+typedef uint64 sector_t;
 typedef int pid_t;
 typedef int tid_t;
 typedef int pgrp_t;
 typedef uint64 pte_t;
 typedef uint64 pde_t;
 typedef uint64 *pagetable_t; // 512 PTEs
+
 
 // remember return to fat32_file.h
 struct devsw {
