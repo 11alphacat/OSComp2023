@@ -13,6 +13,7 @@ struct inode *namei(char *path);
 struct inode *namei_parent(char *path, char *name);
 
 // inode layer
+unsigned char __IMODE_TO_DTYPE(uint16 mode);
 extern const struct inode_operations *(*get_inodeops[])(void);
 
 #endif // __VFS_OPS_H__

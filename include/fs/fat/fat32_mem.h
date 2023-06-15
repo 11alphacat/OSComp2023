@@ -125,13 +125,13 @@ struct inode *fat32_inode_get(uint, uint, const char *, uint);
 void fat32_inode_stati(struct inode *, struct kstat *);
 
 // 22. create a fat32 inode for device
-struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor); // now use this
+struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type, short major, short minor); // now use this
 
 // 22. allocate the fat32 inode
-struct inode *fat32_inode_alloc(struct inode *, const char *, uchar);
+struct inode *fat32_inode_alloc(struct inode *, const char *, uint16);
 
 // 23. init the fat32 fcb (short + long)
-int fat32_fcb_init(struct inode *, const uchar *, uchar, char *);
+int fat32_fcb_init(struct inode *, const uchar *, uint16, char *);
 
 // 24. the number of files with the same name prefix
 uint fat32_find_same_name_cnt(struct inode *, char *);

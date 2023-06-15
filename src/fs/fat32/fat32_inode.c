@@ -41,12 +41,14 @@ void inode_table_init() {
 
 // caller must pass a valid pointer !
 static uint8 __inode_update_to_fatdev(struct inode *ip) {
-    uint8 DIR_dev;
+    uint8 DIR_Dev;
     uint16 i_rdev = ip->i_rdev;
-    uint16 i_type = ip->i_type;
-
-    DIR_dev = i_type | (MAJOR(i_rdev) << 2) | (MINOR(i_rdev));
-    return DIR_dev;
+    // uint16 i_mode = ip->i_mode;
+    uint8 type = (ip->i_mode & S_IFMT) >> 8;
+    ASSERT(MAJOR(i_rdev) < 4);
+    // DIR_Dev: 4 + 2 + 2
+    DIR_Dev = type | ((MAJOR(i_rdev) & 0x3) << 2) | (MINOR(i_rdev) & 0x3);
+    return DIR_Dev;
 }
 
 struct inode *fat32_root_inode_init(struct _superblock *sb) {
@@ -54,7 +56,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     struct inode *root_ip = (struct inode *)kalloc();
     sema_init(&root_ip->i_sem, 1, "fat_root_inode");
     root_ip->i_dev = sb->s_dev;
-    root_ip->i_mode = IMODE_NONE;
+    // root_ip->i_mode = IMODE_NONE;
     // set root inode num to 0
     root_ip->i_ino = 0;
     root_ip->ref = 0;
@@ -82,7 +84,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_size = DIRLENGTH(root_ip);
     root_ip->i_sb = sb;
     root_ip->fat32_i.DIR_FileSize = 0;
-    root_ip->i_type = S_IFDIR;
+    root_ip->i_mode = S_IFDIR | 0666;
     DIR_SET(root_ip->fat32_i.Attr);
 
     // inode hash table 
@@ -360,7 +362,7 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
         }
     }
     if (off + n > fileSize) {
-        if (S_ISREG(ip->i_type))
+        if (S_ISREG(ip->i_mode))
             ip->i_size = off + tot;
         else
             ip->i_size = CEIL_DIVIDE(off + tot, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
@@ -473,6 +475,7 @@ void fat32_inode_lock(struct inode *ip) {
 
 int fat32_inode_load_from_disk(struct inode *ip) {
     struct buffer_head *bp;
+    uint16 mode;
     uint sector_num = FATINUM_TO_SECTOR(ip->i_ino);
     uint sector_offset = FATINUM_TO_OFFSET(ip->i_ino);
     bp = bread(ip->i_dev, sector_num);
@@ -480,7 +483,7 @@ int fat32_inode_load_from_disk(struct inode *ip) {
 
     ip->fat32_i.Attr = dirent_s_tmp->DIR_Attr;
     if (ip->fat32_i.Attr == 0) {
-        printf("ip type:0x%x name:%s\n", ip->i_type, ip->fat32_i.fname);
+        printf("ip type:0x%x name:%s\n", ip->i_mode, ip->fat32_i.fname);
         panic("fat32_inode_lock: no Attr");
     }
     ip->fat32_i.cluster_start = DIR_FIRST_CLUS(dirent_s_tmp->DIR_FstClusHI, dirent_s_tmp->DIR_FstClusLO);
@@ -490,8 +493,8 @@ int fat32_inode_load_from_disk(struct inode *ip) {
     // !!!
     if (ip->fat32_i.cluster_start != 0) {
         ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
-    } else if (!S_ISCHR(ip->i_type) && !S_ISBLK(ip->i_type)) {
-        printfRed("i_type = %x\n", ip->i_type);
+    } else if (!S_ISCHR(ip->i_mode) && !S_ISBLK(ip->i_mode)) {
+        printfRed("i_mode = 0x%x\n", ip->i_mode);
         printfRed("the cluster_start of the file %s is zero\n ", ip->fat32_i.fname);
     }
 
@@ -503,19 +506,25 @@ int fat32_inode_load_from_disk(struct inode *ip) {
     ip->fat32_i.DIR_CrtDate = dirent_s_tmp->DIR_CrtDate;
     ip->fat32_i.DIR_FileSize = dirent_s_tmp->DIR_FileSize;
 
+    // ip->i_mode = FATDEV_TO_ITYPE(dirent_s_tmp->DIR_Dev);
+    // ip->i_mode = READONLY_GET(dirent_s_tmp->DIR_Attr);
+
     ip->i_rdev = FATDEV_TO_IRDEV(dirent_s_tmp->DIR_Dev);
-    if (ip->i_rdev) {
-        ip->i_type = FATDEV_TO_ITYPE(dirent_s_tmp->DIR_Dev);
+    mode = FATDEV_TO_ITYPE(dirent_s_tmp->DIR_Dev);
+    if (S_ISCHR(mode) || S_ISBLK(mode)) { // bug!! 不能用 i_rdev 判断，新创建的设备还没写入设备号！
+        // a device file
         ip->i_size = 0;
+        ip->i_mode = mode;
     } else if (DIR_BOOL(ip->fat32_i.Attr)) {
-        ip->i_type = S_IFDIR;
+        // a directory
+        ip->i_mode = S_IFDIR;
         ip->i_size = DIRLENGTH(ip);
-    } else {
-        ip->i_type = S_IFREG;
+    } else { // 暂不支持 FIFO 和 SOCKET 文件
+        ip->i_mode = S_IFREG;
         ip->i_size = ip->fat32_i.DIR_FileSize;
     }
+    ip->i_mode |= 0777; // a sloppy handle : make it rwx able
 
-    ip->i_mode = READONLY_GET(dirent_s_tmp->DIR_Attr);
     ip->fs_type = FAT32;
     brelse(bp);
     ip->valid = 1;
@@ -611,15 +620,14 @@ void fat32_inode_update(struct inode *ip) {
     dirent_s_tmp->DIR_FstClusHI = DIR_FIRST_HIGH(ip->fat32_i.cluster_start);
     dirent_s_tmp->DIR_FstClusLO = DIR_FIRST_LOW(ip->fat32_i.cluster_start);
 
-    if (S_ISDIR(ip->i_type) || S_ISCHR(ip->i_type) || S_ISBLK(ip->i_type)) {
+    if (S_ISDIR(ip->i_mode) || S_ISCHR(ip->i_mode) || S_ISBLK(ip->i_mode)) {
         dirent_s_tmp->DIR_FileSize = 0;
     } else {
         dirent_s_tmp->DIR_FileSize = ip->i_size;
-        // dirent_s_tmp->DIR_Dev = 0;
     }
 
     dirent_s_tmp->DIR_Dev = __inode_update_to_fatdev(ip);
-    dirent_s_tmp->DIR_Attr |= ip->i_mode;
+    // dirent_s_tmp->DIR_Attr |= ip->i_mode; // why write this code ?
 
     bwrite(bp);
     brelse(bp);
@@ -838,7 +846,7 @@ int fat32_inode_dirlink(struct inode *dp, char *name) {
 
 // return a pointer to a new inode with lock on
 // no need to  lock dp before call this func
-struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type, short major, short minor) {
+struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type, short major, short minor) {
     struct inode *ip = NULL;
 
     ASSERT(dp);
@@ -848,10 +856,7 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
         fat32_inode_unlock_put(dp);
         fat32_inode_lock(ip);
 
-        if (type == ip->i_type) {
-#ifdef __DEBUG_FS__
-            printf("create : pid %d, file %s exists\n", proc_current()->pid, name);
-#endif
+        if (type == (ip->i_mode & S_IFMT)) {
             return ip;
         }
         fat32_inode_unlock_put(ip);
@@ -867,7 +872,7 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
 
     fat32_inode_lock(ip);
     ip->i_nlink = 1;
-    ip->i_type = type;
+    // ip->i_mode = type;   // type is only type!!
     if (S_ISCHR(type) || S_ISBLK(type)) {
         ip->i_rdev = mkrdev(major, minor);
     } else {
@@ -885,13 +890,13 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
         // direntory . and .. , write them to the disk
         uchar fcb_dot_char[64];
         memset(fcb_dot_char, 0, sizeof(fcb_dot_char));
-        fat32_fcb_init(ip, (const uchar *)".", ATTR_DIRECTORY, (char *)fcb_dot_char);
+        fat32_fcb_init(ip, (const uchar *)".", S_IFDIR, (char *)fcb_dot_char);
         uint tot = fat32_inode_write(ip, 0, (uint64)fcb_dot_char, 0, 32);
         ASSERT(tot == 32);
 
         uchar fcb_dotdot_char[64];
         memset(fcb_dotdot_char, 0, sizeof(fcb_dotdot_char));
-        fat32_fcb_init(ip, (const uchar *)"..", ATTR_DIRECTORY, (char *)fcb_dotdot_char);
+        fat32_fcb_init(ip, (const uchar *)"..", S_IFDIR, (char *)fcb_dotdot_char);
         tot = fat32_inode_write(ip, 0, (uint64)fcb_dotdot_char, 32, 32);
         ASSERT(tot == 32);
     }
@@ -904,7 +909,7 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uchar type,
 }
 
 // allocate a new inode
-struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) {
+struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uint16 type) {
     uchar fcb_char[FCB_MAX_LENGTH];
 
     memset(fcb_char, 0, sizeof(fcb_char));
@@ -946,7 +951,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) 
     ip_new->i_nlink = 1;
     ip_new->ref = 1;
     ip_new->parent = dp;
-    ip_new->i_type = type;
+    // ip_new->i_mode = type;
     ip_new->i_op = get_inodeops[FAT32]();
     ip_new->fs_type = FAT32;
     dp->off_hint = off + 1;// don't use off 
@@ -962,7 +967,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uchar type) 
 
 // fcb init
 // 为 long_name 初始化若干个 dirent_l_t 和一个dirent_s_t，写入 fcb_char中，返回需要的 fcb 总数
-int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar type, char *fcb_char) {
+int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uint16 type, char *fcb_char) {
     uchar attr;
     dirent_s_t dirent_s_cur;
     memset((void *)&dirent_s_cur, 0, sizeof(dirent_s_cur));
@@ -973,7 +978,7 @@ int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uchar type, 
         NONE_DIR_SET(attr);
 
     dirent_s_cur.DIR_Attr = attr;
-
+    dirent_s_cur.DIR_Dev = ITYPE_TO_FATDEV(type);
     uint long_idx = -1;
     // . and ..
     if (!fat32_namecmp((const char *)long_name, ".") || !fat32_namecmp((const char *)long_name, "..")) {
@@ -1246,6 +1251,7 @@ void fat32_inode_stati(struct inode *ip, struct kstat *st) {
     st->st_rdev = ip->i_rdev;
     st->st_size = ip->i_size;
     st->st_uid = ip->i_uid;
+    // ip->fat32_i.cluster_cnt;
     return;
 }
 

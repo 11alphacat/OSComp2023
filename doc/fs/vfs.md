@@ -71,7 +71,7 @@ struct inode {
     uint i_gid;
     uint16 i_rdev; // major、minor, 8 + 8
     uint32 i_size;
-    uint16 i_type;
+    uint16 i_mode;
 
     uint64 i_blksize; // bytes of one block
     uint64 i_blocks;  // numbers of blocks
@@ -152,7 +152,7 @@ struct inode_operations {
     struct inode *(*idirlookup)(struct inode *dself, const char *name, uint *poff);
     int (*idempty)(struct inode *dself);
     ssize_t (*igetdents)(struct inode *dself, char *buf, size_t len);
-    struct inode *(*icreate)(struct inode *dself, const char *name, uchar type, short major, short minor);
+    struct inode *(*icreate)(struct inode *dself, const char *name, uint16 type, short major, short minor);
     int (*ientrycopy)(struct inode *dself, const char *name, struct inode *ip);
     int (*ientrydelete)(struct inode *dself, struct inode *ip);
 };

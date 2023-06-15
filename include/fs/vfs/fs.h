@@ -7,7 +7,6 @@
 #include "atomic/semaphore.h"
 #include "fs/stat.h"
 #include "fs/fcntl.h"
-#include "fs/vfs/fs.h"
 #include "fs/fat/fat32_mem.h"
 #include "lib/hash.h"
 #include "lib/radix-tree.h"
@@ -76,9 +75,10 @@ struct ftable {
 
 // abstract datas in disk
 struct inode {
-    uint8 i_dev;   // note: 未在磁盘中存储
-    uint32 i_ino;  // 对任意给定的文件系统的唯一编号标识：由具体文件系统解释
-    uint16 i_mode; // 访问权限和所有权
+    uint8 i_dev;  // note: 未在磁盘中存储
+    uint32 i_ino; // 对任意给定的文件系统的唯一编号标识：由具体文件系统解释
+    // uint16 i_mode; // 访问权限和所有权
+    uint16 i_mode; // 文件类型 + ..? + 访问权限  (4 + 3 + 9) : obey Linux
     int ref;       // Reference count
     int valid;
     // Note: fat fs does not support hard link, reserve for vfs interface
@@ -87,7 +87,7 @@ struct inode {
     uint i_gid;
     uint16 i_rdev; // major、minor, 8 + 8
     uint32 i_size;
-    uint16 i_type;
+    // uint16 i_type;       // we do no use it anymore
 
     long i_atime;     // access time
     long i_mtime;     // modify time
@@ -135,7 +135,7 @@ struct address_space {
 };
 
 struct file_operations {
-    struct file *(*alloc)(void);
+    // struct file *(*alloc)(void);
     struct file *(*dup)(struct file *self);
     ssize_t (*read)(struct file *self, uint64 __user dst, int n);
     ssize_t (*write)(struct file *self, uint64 __user src, int n);
@@ -159,7 +159,7 @@ struct inode_operations {
     struct inode *(*idirlookup)(struct inode *self, const char *name, uint *poff);
     int (*idempty)(struct inode *self);
     ssize_t (*igetdents)(struct inode *self, char *buf, size_t len);
-    struct inode *(*icreate)(struct inode *self, const char *name, uchar type, short major, short minor);
+    struct inode *(*icreate)(struct inode *self, const char *name, uint16 type, short major, short minor);
     int (*ientrycopy)(struct inode *dself, const char *name, struct inode *ip);
     int (*ientrydelete)(struct inode *dself, struct inode *ip);
 };

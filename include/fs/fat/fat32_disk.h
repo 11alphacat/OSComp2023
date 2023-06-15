@@ -236,12 +236,12 @@ extern struct _superblock fat32_sb;
 #define INUM_TRANSFER(ino) ((ino == 0) ? 0 : ino - 1)
 #define FATINUM_TO_SECTOR(ino) (INUM_TRANSFER(ino) / (FCB_PER_BLOCK) + FirstDataSector)
 #define FATINUM_TO_OFFSET(ino) (INUM_TRANSFER(ino) % (FCB_PER_BLOCK))
-#define FATDEV_TO_DEVMAJOR(DIR_Dev) (((DIR_Dev)&0x1C) >> 2)
+#define FATDEV_TO_DEVMAJOR(DIR_Dev) (((DIR_Dev)&0xC) >> 2)
 #define FATDEV_TO_DEVMINOR(DIR_Dev) ((DIR_Dev)&0x3)
 #define FATDEV_TO_IRDEV(DIR_Dev) ((FATDEV_TO_DEVMAJOR(DIR_Dev) << 8) | FATDEV_TO_DEVMINOR(DIR_Dev))
-#define FATDEV_TO_ITYPE(DIR_Dev) ((DIR_Dev)&0xE0)
-
-// #define ITYPE_TO_FATDEV(i_type) ( ()  )
+#define FATDEV_TO_ITYPE(DIR_Dev) (((DIR_Dev)&0xF0) << 8) // DIR_Dev: 4 + 2 + 2
+#define ITYPE_TO_FATDEV(type) (((type)&S_IFMT) >> 8)
+// #define ITYPE_TO_FATDEV(i_mode) ( ()  )
 
 // the logistic number of cluster for position : off
 // start from 0
@@ -378,8 +378,16 @@ typedef struct FAT32_Fsinfo {
 typedef struct Short_Dir_t {
     uchar DIR_Name[FAT_SFN_LENGTH]; // directory name
     uchar DIR_Attr;                 // directory attribute
-    uchar DIR_Dev;                  // reserved, but we use it as DEVICE
-    // DIR_NTRes                        // 3(i_type) + 3(major) + 2(minor)
+
+    // ====>
+    // origin
+    // uchar DIR_Dev;                  // reserved, but we use it as DEVICE
+    // // DIR_NTRes                        // 3(i_mode) + 3(major) + 2(minor)
+    // new
+    uchar DIR_Dev; // reserved, but we use it as DEVICE
+    // DIR_NTRes                        // 4(type) + 2(major) + 2(minor)
+    // <====
+
     uchar DIR_CrtTimeTenth; // create time
     // Count of tenths of a second
     // 0 <= DIR_CrtTimeTenth <= 199

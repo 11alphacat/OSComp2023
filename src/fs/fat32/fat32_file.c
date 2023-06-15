@@ -8,6 +8,7 @@
 #include "fs/bio.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
+#include "fs/vfs/ops.h"
 #include "fs/fcntl.h"
 #include "fs/fat/fat32_disk.h"
 #include "fs/fat/fat32_mem.h"
@@ -17,7 +18,6 @@
 
 // #define _O_READ              (~O_WRONLY)
 // #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
-
 void fileinit(void) {
     initlock(&_ftable.lock, "_ftable");
 }
@@ -289,7 +289,8 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len) {
 
                     dirent_buf->d_ino = ip_buf->i_ino;
                     dirent_buf->d_off = cnt;
-                    dirent_buf->d_type = ip_buf->i_type;
+                    // dirent_buf->d_type = (ip_buf->i_mode & S_IFMT) >> 8; // error, not use
+                    dirent_buf->d_type = __IMODE_TO_DTYPE(ip_buf->i_mode);
                     fname_len = strlen(ip_buf->fat32_i.fname);
                     safestrcpy(dirent_buf->d_name, name_buf, fname_len); // !!!!!
 

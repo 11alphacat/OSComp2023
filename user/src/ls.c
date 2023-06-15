@@ -52,11 +52,11 @@ int main(int argc, char *argv[]) {
             printf("%d %d %s \n", d->d_reclen,
                    d->d_off, d->d_name);
 */
-            switch (d_type & S_IFMT) {
-            case S_IFDIR: 
+            switch (d_type) {
+            case DT_DIR: 
                 printf("\033[34;1m%s\t\033[0m",d->d_name);
                 break;
-            case S_IFCHR: case S_IFBLK: 
+            case DT_CHR: case DT_BLK: 
                 printf("\033[38;5;214m%s\t\033[0m",d->d_name);
                 break;
             default:

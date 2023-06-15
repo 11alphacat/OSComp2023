@@ -6,8 +6,6 @@
 #include "common.h"
 #endif
 
-#define TFILE 2 // for xv6
-
 // type
 /*
         note: below are NOT USED any more !
@@ -17,17 +15,38 @@
 // #define T_DEVICE 3 // Device
 
 // now use these
-#define S_IFMT (0xf0)
-#define S_IFIFO (0xA0)                       // 1010_0000
-#define S_IFREG (0x80)                       // 1000_0000
-#define S_IFBLK (0x60)                       // 0110_0000
-#define S_IFDIR (0x40)                       // 0100_0000
-#define S_IFCHR (0x20)                       // 0010_0000
-#define S_ISREG(t) (((t)&S_IFMT) == S_IFREG) // ip->i_type
-#define S_ISDIR(t) (((t)&S_IFMT) == S_IFDIR)
-#define S_ISCHR(t) (((t)&S_IFMT) == S_IFCHR)
-#define S_ISBLK(t) (((t)&S_IFMT) == S_IFBLK)
-#define S_ISFIFO(t) (((t)&S_IFMT) == S_IFIFO)
+#define S_IFMT 0170000   // bit mask for the file type bit field
+#define S_IFSOCK 0140000 // socket
+#define S_IFLNK 0120000  // symbolic link
+#define S_IFREG 0100000  // regular file
+#define S_IFBLK 0060000  // block device
+#define S_IFDIR 0040000  // directory
+#define S_IFCHR 0020000  // character device
+#define S_IFIFO 0010000  // FIFO
+
+#define S_ISREG(mode) (((mode)&S_IFMT) == S_IFREG)
+#define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
+#define S_ISCHR(mode) (((mode)&S_IFMT) == S_IFCHR)
+#define S_ISBLK(mode) (((mode)&S_IFMT) == S_IFBLK)
+#define S_ISFIFO(mode) (((mode)&S_IFMT) == S_IFIFO)
+
+/* these are defined by POSIX and also present in glibc's dirent.h */
+#define DT_UNKNOWN 0
+#define DT_FIFO 1
+#define DT_CHR 2
+#define DT_DIR 4
+#define DT_BLK 6
+#define DT_REG 8
+#define DT_LNK 10
+#define DT_SOCK 12
+#define DT_WHT 14
+
+// #define S_IFMT (0xf0)
+// #define S_IFIFO (0xA0)                       // 1010_0000
+// #define S_IFREG (0x80)                       // 1000_0000
+// #define S_IFBLK (0x60)                       // 0110_0000
+// #define S_IFDIR (0x40)                       // 0100_0000
+// #define S_IFCHR (0x20)                       // 0010_0000
 
 #define S_ISUID 04000 // set-user-ID bit (see execve(2))
 #define S_ISGID 02000 // set-group-ID bit (see below)
@@ -49,8 +68,8 @@
 #define S_IXOTH 00001 // others have execute permission
 
 // device
-#define MAJOR(rdev) ((rdev >> 8) & 0xff)
-#define MINOR(rdev) (rdev & 0xff)
+#define MAJOR(rdev) (((rdev) >> 8) & 0xff)
+#define MINOR(rdev) ((rdev)&0xff)
 #define mkrdev(ma, mi) ((uint)(((ma)&0xff) << 8 | ((mi)&0xff)))
 #define CONSOLE 1 // 终端的主设备号
 

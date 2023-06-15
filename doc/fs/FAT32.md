@@ -121,7 +121,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb);
 - 文件名为 /
 - 获取到最后一个簇号
 - 设置目录的i_size
-- 设置i_type
+- 设置i_mode
 - 初始化hash表的映射
 - 初始化off_hint
 
@@ -263,7 +263,7 @@ if (ISEOF(next)) {
 
 ```c
 if (off + n > fileSize) {
-    if (S_ISREG(ip->i_type))
+    if (S_ISREG(ip->i_mode))
         ip->i_size = off + tot;
     else
         ip->i_size = CEIL_DIVIDE(off + tot, 

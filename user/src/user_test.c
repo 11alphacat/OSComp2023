@@ -2810,7 +2810,9 @@ int main(void) {
     print_sysinfo();
     sbrkmuch();
     print_sysinfo();
+
     iputtest();
+    
     print_sysinfo();
     exitiputtest();
     print_sysinfo();

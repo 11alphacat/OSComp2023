@@ -204,7 +204,8 @@ void _user_init(void) {
 void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
-    proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
+    // proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
+    proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", NULL, NULL);
 }
 

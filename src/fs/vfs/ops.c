@@ -148,7 +148,8 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
         ip->i_op->ilock(ip);
         // printf("namex: LOCK 1 ok!\n");
         // printf("2\n");
-        if (!S_ISDIR(ip->i_type)) {
+        // printf("name %s i_mode 0x%x\n",ip->fat32_i.fname, ip->i_mode);
+        if (!S_ISDIR(ip->i_mode)) {
             ip->i_op->iunlock_put(ip);
             // printf("3\n");
             return 0;
@@ -193,6 +194,22 @@ struct inode *namei(char *path) {
 
 struct inode *namei_parent(char *path, char *name) {
     return inode_namex(path, 1, name);
+}
+
+// translate ip->mode to POSIX dirent.d_type(user level)
+unsigned char __IMODE_TO_DTYPE(uint16 mode) {
+    unsigned char dtype = DT_UNKNOWN;
+    switch (mode & S_IFMT) {
+    case S_IFREG: dtype = DT_REG; break;
+    case S_IFDIR: dtype = DT_DIR; break;
+    case S_IFCHR: dtype = DT_CHR; break;
+    case S_IFBLK: dtype = DT_BLK; break;
+    case S_IFIFO: dtype = DT_FIFO; break;
+    case S_IFSOCK: dtype = DT_SOCK; break;
+    default:
+        break;
+    }
+    return dtype;
 }
 
 static inline const struct inode_operations *get_fat32_iops(void) {
