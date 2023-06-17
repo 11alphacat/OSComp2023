@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Busybox version: 1.33.1
-# Thu Jun 15 21:05:30 2023
+# Thu Jun 15 21:09:27 2023
 #
 CONFIG_HAVE_DOT_CONFIG=y
 
@@ -40,8 +40,8 @@ CONFIG_BUSYBOX_EXEC_PATH="/proc/self/exe"
 #
 # Build Options
 #
-CONFIG_STATIC=y
-# CONFIG_PIE is not set
+# CONFIG_STATIC is not set
+CONFIG_PIE=y
 # CONFIG_NOMMU is not set
 # CONFIG_BUILD_LIBBUSYBOX is not set
 # CONFIG_FEATURE_LIBBUSYBOX_STATIC is not set

@@ -2,7 +2,7 @@
  * Automatically generated C config: don't edit
  * Busybox version: 1.33.1
  */
-#define AUTOCONF_TIMESTAMP "2023-06-15 21:09:27 CST"
+#define AUTOCONF_TIMESTAMP "2023-06-17 20:06:54 CST"
 
 #define CONFIG_HAVE_DOT_CONFIG 1
 #define ENABLE_HAVE_DOT_CONFIG 1
@@ -140,18 +140,18 @@
 /*
  * Build Options
  */
-#undef CONFIG_STATIC
-#define ENABLE_STATIC 0
-#define IF_STATIC(...)
-#define IF_NOT_STATIC(...) __VA_ARGS__
-#define CONFIG_PIE 1
-#define ENABLE_PIE 1
+#define CONFIG_STATIC 1
+#define ENABLE_STATIC 1
 #ifdef MAKE_SUID
-# define IF_PIE(...) __VA_ARGS__ "CONFIG_PIE"
+# define IF_STATIC(...) __VA_ARGS__ "CONFIG_STATIC"
 #else
-# define IF_PIE(...) __VA_ARGS__
+# define IF_STATIC(...) __VA_ARGS__
 #endif
-#define IF_NOT_PIE(...)
+#define IF_NOT_STATIC(...)
+#undef CONFIG_PIE
+#define ENABLE_PIE 0
+#define IF_PIE(...)
+#define IF_NOT_PIE(...) __VA_ARGS__
 #undef CONFIG_NOMMU
 #define ENABLE_NOMMU 0
 #define IF_NOMMU(...)
