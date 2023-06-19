@@ -268,6 +268,9 @@ extern struct _superblock fat32_sb;
 // compare the s and t
 #define fat32_namecmp(s, t) (strncmp(s, t, PATH_LONG_MAX))
 
+// whether adjacent clusters are physically adjacent?
+#define CLUSTER_ADJACENT(vec_cur, first_sector) ((vec_cur->blockno_start) + (vec_cur->block_len) == (first_sector))
+
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {
     /*FAT common field*/

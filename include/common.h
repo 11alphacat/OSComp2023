@@ -62,7 +62,6 @@ typedef uint64 pte_t;
 typedef uint64 pde_t;
 typedef uint64 *pagetable_t; // 512 PTEs
 
-
 // remember return to fat32_file.h
 struct devsw {
     int (*read)(int, uint64, int);
@@ -90,6 +89,7 @@ extern struct devsw devsw[];
 
 #define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
 #define NS_to_S(ns) (ns / (1000 * 1000 * 1000))
+#define S_to_NS(s) (s * 1UL * 1000 * 1000 * 1000)
 
 #define TIME2TIMESPEC(time)                                                       \
     (struct timespec) {                                                           \
@@ -164,6 +164,8 @@ void printf_bin(uchar *, int);
 // sprintf.c
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, int size, const char *fmt, ...);
+
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 
 #endif
 

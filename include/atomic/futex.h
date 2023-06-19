@@ -40,27 +40,4 @@ int futex_requeue(uint64 uaddr1, int nr_wake, uint64 uaddr2, int nr_requeue);
 int do_futex(uint64 uaddr, int op, uint32 val, struct timespec *ts,
              uint64 uaddr2, uint32 val2, uint32 val3);
 
-// struct futex_cond {
-//     int value;
-//     struct futex *fp;
-// };
-
-/**
- * futex_entry - get the struct for this entry
- * @ptr:	the &vlaue pointer.
- * @type:	the type of the futex_cond struct this is embedded in.
- * @member:	the name of the value within the struct.
- */
-
-// #define futex_entry(ptr, type, member)
-//     container_of(ptr, type, member)
-
-// struct futex *getfutex(int *uaddr);
-
-// void futex_wait(int *uaddr, int val, struct timespec* tsp);
-// void futex_signal(int *uaddr);
-
-// void futex_cond_wait(struct futex_cond *cond, struct spinlock *mutex);
-// void futex_cond_signal(struct futex_cond *cond);
-
 #endif

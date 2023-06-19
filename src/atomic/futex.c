@@ -53,7 +53,7 @@ int futex_wait(uint64 uaddr, uint val, struct timespec *ts) {
 
         acquire(&t->lock);
         TCB_Q_changeState(t, TCB_SLEEPING);
-        Queue_push_back_atomic(&fp->waiting_queue, t);
+        Queue_push_back(&fp->waiting_queue, t);
         release(&fp->lock);
 
         if (ts != NULL) {
@@ -76,7 +76,8 @@ int futex_wakeup(uint64 uaddr, int nr_wake) {
     struct tcb *t = NULL;
     int ret = 0;
 
-    while (!Queue_isempty_atomic(&fp->waiting_queue) && ret < nr_wake) {
+    acquire(&fp->lock);
+    while (!Queue_isempty(&fp->waiting_queue) && ret < nr_wake) {
         t = (struct tcb *)Queue_provide_atomic(&fp->waiting_queue, 1); // remove it
 
         if (t == NULL)
@@ -93,6 +94,7 @@ int futex_wakeup(uint64 uaddr, int nr_wake) {
         release(&t->lock);
         ret++;
     }
+    release(&fp->lock);
 
     if (Queue_isempty_atomic(&fp->waiting_queue)) {
         futex_free(uaddr); // !!! avoid memory leak

@@ -106,34 +106,31 @@ void disk_rw_bio(struct buffer_head *b, int rw) {
     submit_bio(&bio_new);
 }
 
+// we use data in stack, so we don't need to kalloc and free
+// init_bio only used in bread and bwrite, that is buffer cache
 void init_bio(struct bio *bio_p, struct bio_vec *vec_p, struct buffer_head *b, int rw) {
+    // bio
+    INIT_LIST_HEAD(&bio_p->list_entry);
+    bio_p->bi_rw = rw;
+    bio_p->bi_bdev = b->dev;
+
     // bio_vec
-    sema_init(&vec_p->sem_disk_done, 0, "bio_disk_done");// vec_p ！！！
+    sema_init(&vec_p->sem_disk_done, 0, "bio_disk_done"); // vec_p ！！！
+    INIT_LIST_HEAD(&vec_p->list);
     vec_p->blockno_start = b->blockno;
     vec_p->block_len = 1;
     vec_p->data = b->data;
     vec_p->disk = b->disk;
-    // bio
-    bio_p->bi_io_vec = vec_p;
-    bio_p->bi_idx = 0;
-    bio_p->bi_vcnt = 1;
-    bio_p->bi_rw = rw;
-    bio_p->bi_bdev = b->dev;
+
+    // join bio_vec to bio (don't forget it)
+    list_add_tail(&bio_p->list_entry, &vec_p->list);
 }
 
-// when using kalloc, don't forget free!!!
-void free_bio(struct bio *bio) {
-    struct bio_vec* vec;
-    for (vec = bio->bi_io_vec; vec < &bio->bi_io_vec[bio->bi_vcnt]; vec++) {
-        kfree(vec);
-    }
-    kfree(bio);
-}
-
-// read or write 
+// read or write
 void submit_bio(struct bio *bio) {
-    struct bio_vec* vec;
-    for (vec = bio->bi_io_vec; vec < &bio->bi_io_vec[bio->bi_vcnt]; vec++) {
-        virtio_disk_rw((void*)vec, bio->bi_rw, BLOCK_SEL);
+    struct bio_vec *vec_cur = NULL;
+    struct bio_vec *vec_tmp = NULL;
+    list_for_each_entry_safe(vec_cur, vec_tmp, &bio->list_entry, list) {
+        virtio_disk_rw((void *)vec_cur, bio->bi_rw, BLOCK_SEL);
     }
 }

@@ -3,14 +3,15 @@
 #include "lib/list.h"
 #include "memory/memlayout.h"
 #include "atomic/cond.h"
+#include "atomic/ops.h"
 
 struct timer_entry timer_head;
 struct spinlock tickslock;
 struct cond cond_ticks;
-uint ticks;
+atomic_t ticks;
 
 void timer_init() {
-    initlock(&tickslock, "time");
+    atomic_set(&ticks, 0);
     cond_init(&cond_ticks, "cond_ticks");
     timer_entry_init(&timer_head, "timer_entry");
 }
@@ -54,8 +55,6 @@ void timer_list_decrease_atomic(struct timer_entry *head) {
     release(&head->lock);
 }
 void clockintr() {
-    acquire(&tickslock);
-    ticks++;
+    atomic_inc_return(&ticks);
     timer_list_decrease_atomic(&timer_head);
-    release(&tickslock);
 }

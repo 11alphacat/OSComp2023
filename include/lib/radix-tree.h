@@ -2,6 +2,7 @@
 #define __RADIX_TREE_H__
 #include "common.h"
 #include "atomic/ops.h"
+#include "lib/list.h"
 
 #define RADIX_TREE_MAP_SHIFT 6
 #define RADIX_TREE_MAP_SIZE (1UL << RADIX_TREE_MAP_SHIFT) // 1<<6 = 64
@@ -23,14 +24,21 @@
 #define RADIX_TREE_MAP_MASK (RADIX_TREE_MAP_SIZE - 1) // 1<<6-1 = 64 -1
 
 typedef unsigned int gfp_t;
-#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
+#define __GFP_BITS_SHIFT 22 /* Room for 22 __GFP_FOO bits */
 #define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+
+// tag is valid ???
+#define tag_valid(tag) ((tag != -1))
+#define tag_invalid (-1)
+// grap all ???
+#define maxitems_valid(maxitems) ((maxitems != UINT64_MAX))
+#define maxitems_invald UINT64_MAX
 
 // root of radix tree
 struct radix_tree_root {
     uint32 height;                 // height of radix tree
     struct radix_tree_node *rnode; // root node pointer
-    gfp_t gfp_mask;
+    gfp_t gfp_mask;                // same as Linux
 };
 
 // node of radix tree
@@ -47,14 +55,15 @@ struct radix_tree_path {
     int offset;                   // 当前节点在父节点中对应的槽位（slot）索引
 };
 
+// list or array insert?
+typedef void (*page_op)(void *, void *, uint64, void *); // uint64 -> page index
+
 // ops for tag
 void *radix_tree_tag_set(struct radix_tree_root *root, uint64 index, uint32 tag);
 void *radix_tree_tag_clear(struct radix_tree_root *root, uint64 index, uint32 tag);
 int radix_tree_tag_get(struct radix_tree_root *root, uint64 index, uint32 tag);
-
 // auxiliary functions
 uint64 radix_tree_maxindex(uint height);
-
 // allocate
 struct radix_tree_node *radix_tree_node_alloc(struct radix_tree_root *root);
 // search
@@ -63,12 +72,25 @@ void **radix_tree_lookup_slot(struct radix_tree_root *root, uint64 index);
 // insert
 int radix_tree_insert(struct radix_tree_root *root, uint64 index, void *item);
 // extend
-int radix_tree_extend(struct radix_tree_root *root, unsigned long index);
+int radix_tree_extend(struct radix_tree_root *root, uint64 index);
 // shrink
 void radix_tree_shrink(struct radix_tree_root *root);
 // delete
 void *radix_tree_delete(struct radix_tree_root *root, uint64 index);
 // free
 void radix_tree_node_free(struct radix_tree_node *node);
+
+// lookup with batchsize(max_items)
+// tag == -1 , grap item
+// tag != -1 , grap item with tag
+int radix_tree_lookup_batch_elements(struct radix_tree_node *slot, void *page_head, page_op function, uint64 index,
+                                     uint64 max_items, uint64 *next_index, int tag);
+
+// we merged radix_tree_gang_lookup、radix_tree_gang_lookup_slot、
+// radix_tree_gang_lookup_tag and radix_tree_gang_lookup_tag_slot.
+// tag == -1 , grap item
+// tag != -1 , grap item with tag
+int radix_tree_general_gang_lookup_elements(struct radix_tree_root *root, void *page_head, page_op function,
+                                            uint64 first_index, uint64 max_items, int tag);
 
 #endif

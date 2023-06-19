@@ -7,6 +7,7 @@
 #include "lib/hash.h"
 #include "lib/queue.h"
 #include "lib/timer.h"
+#include "proc/options.h"
 
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q, zombie_t_q;
 extern Queue_t *STATES[TCB_STATEMAX];
@@ -14,7 +15,6 @@ extern struct hash_table tid_map;
 extern struct proc *initproc;
 
 extern struct cond cond_ticks;
-extern struct spinlock tickslock;
 
 struct tcb thread[NTCB];
 char tcb_lock_name[NTCB][10];
@@ -50,13 +50,12 @@ struct tcb *thread_current(void) {
     push_off();
     struct thread_cpu *c = t_mycpu();
     struct tcb *thread = c->thread;
-
     pop_off();
     return thread;
 }
 
 // allocate a new kernel thread
-struct tcb *alloc_thread(void) {
+struct tcb *alloc_thread(thread_callback callback) {
     struct tcb *t;
 
     t = (struct tcb *)Queue_provide_atomic(&unused_t_q, 1); // remove it from the queue
@@ -68,19 +67,19 @@ struct tcb *alloc_thread(void) {
     INIT_LIST_HEAD(&t->threads);
 
     t->tid = alloc_tid;
-    cnt_tid_dec;
+    cnt_tid_inc;
 
     // Allocate a trapframe page.
-    if ((t->trapframe = (struct trapframe *)kalloc()) == 0) {
+    if ((t->trapframe = (struct trapframe *)kzalloc(sizeof(struct trapframe))) == 0) {
         free_thread(t);
         release(&t->lock);
         panic("no space for trapframe\n");
         return 0;
     }
-    // memset(&(t->sig_trapframe), 0, sizeof(t->sig_trapframe));
-    t->sig_pending_cnt = 0;
 
-    if ((t->sig = (struct sighand *)kalloc()) == 0) {
+    // signal
+    t->sig_pending_cnt = 0;
+    if ((t->sig = (struct sighand *)kzalloc(sizeof(struct sighand))) == 0) {
         panic("no space for sighand\n");
     }
     sig_empty_set(&t->blocked);
@@ -89,7 +88,7 @@ struct tcb *alloc_thread(void) {
 
     // Set up new context to start executing at forkret, which returns to user space.
     memset(&t->context, 0, sizeof(t->context));
-    t->context.ra = (uint64)thread_forkret;
+    t->context.ra = (uint64)callback;
     t->context.sp = t->kstack + PGSIZE;
 
     // chage state of TCB
@@ -114,6 +113,8 @@ void free_thread(struct tcb *t) {
     // delete <tid, t>
     hash_delete(&tid_map, (void *)&t->tid);
 
+    cnt_tid_dec;
+
     t->tid = 0;
 
     t->trapframe = 0;
@@ -131,7 +132,7 @@ void free_thread(struct tcb *t) {
     TCB_Q_changeState(t, TCB_UNUSED);
 }
 
-void proc_join_thread(struct proc *p, struct tcb *t) {
+void proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     acquire(&p->tg->lock);
     if (p->tg->group_leader == NULL) {
         p->tg->group_leader = t;
@@ -140,6 +141,15 @@ void proc_join_thread(struct proc *p, struct tcb *t) {
     p->tg->thread_cnt++;
     t->tidx = p->tg->thread_idx;
     t->p = p;
+
+    if (name == NULL) {
+        char name_tmp[20];
+        snprintf(name_tmp, 20, "%s-%d", p->name, t->tidx);
+        strncpy(t->name, name_tmp, 20);
+    } else {
+        strncpy(t->name, name, 20);
+    }
+
     release(&p->tg->lock);
 }
 
@@ -193,27 +203,6 @@ void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
     if (signo == SIGKILL || signo == SIGSTOP) {
         proc_setkilled(p);
     }
-}
-
-// thread exit
-// similar to exit of proc
-void exit_thread(int status) {
-    struct tcb *t = thread_current();
-    struct proc *p = proc_current();
-
-    t->exit_status = status;
-    memset(&t->context, 0, sizeof(t->context));
-    int last = proc_release_thread(p, t);
-
-    free_thread(t);
-    cnt_tid_dec;
-    if (last == 0) {
-        do_exit(0);
-    } else {
-        thread_sched();
-        panic("existed thread is scheduled");
-    }
-    return;
 }
 
 // set killed state for thread
@@ -306,11 +295,48 @@ void do_tkill(struct tcb *t, sig_t signo) {
 int do_sleep_ns(struct tcb *t, struct timespec ts) {
     uint64 interval_ns = TIMESEPC2NS(ts);
 
-    acquire(&tickslock);
+    acquire(&cond_ticks.waiting_queue.lock);
     t->time_out = interval_ns;
-    int wait_ret = cond_wait(&cond_ticks, &tickslock);
-    release(&tickslock);
+    int wait_ret = cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
+    release(&cond_ticks.waiting_queue.lock);
     return wait_ret;
+}
+
+// thread exit
+// similar to exit of proc
+void exit_thread(int status) {
+    struct tcb *t = thread_current();
+    struct proc *p = proc_current();
+
+    t->exit_status = status;
+    memset(&t->context, 0, sizeof(t->context));
+    int last = proc_release_thread(p, t);
+
+    free_thread(t);
+
+    if (last == 0) {
+        do_exit(0);
+    } else {
+        thread_sched();
+        panic("existed thread is scheduled");
+    }
+    return;
+}
+
+// create thread valid inkernel space
+void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback callback) {
+    ASSERT(p != NULL);
+
+    if ((t = alloc_thread(callback)) == 0) {
+        panic("no free thread\n");
+    }
+
+    proc_join_thread(p, t, name);
+
+    p->tg->thread_idx++; // !!!
+
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+    release(&t->lock);
 }
 
 // // thread join

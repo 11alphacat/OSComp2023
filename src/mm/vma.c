@@ -326,17 +326,17 @@ int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
 }
 
 void free_all_vmas(struct mm_struct *mm) {
-    struct vma *pos;
-    struct vma *pos2;
+    struct vma *pos_cur;
+    struct vma *pos_tmp;
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    list_for_each_entry_safe(pos, pos2, &mm->head_vma, node) {
+    list_for_each_entry_safe(pos_cur, pos_tmp, &mm->head_vma, node) {
         // Warn("%p~%p", pos->startva, pos->size);
         // print_vma(mm);
-        if (pos->type == VMA_HEAP && pos->size == 0) {
-            del_vma_from_vmspace(&mm->head_vma, pos);
+        if (pos_cur->type == VMA_HEAP && pos_cur->size == 0) {
+            del_vma_from_vmspace(&mm->head_vma, pos_cur);
             continue;
         }
-        if (vmspace_unmap(mm, pos->startva, pos->size) < 0) {
+        if (vmspace_unmap(mm, pos_cur->startva, pos_cur->size) < 0) {
             panic("free_all_vmas: unmap failed");
         }
     }

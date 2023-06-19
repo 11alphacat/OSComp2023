@@ -11,7 +11,7 @@
 #include "fs/bio.h"
 #include "kernel/syscall.h"
 #include "lib/ctype.h"
-extern uint ticks;
+extern atomic_t ticks;
 
 struct tms {
     long tms_utime;
@@ -61,7 +61,7 @@ uint64 sys_times(void) {
     if (either_copyout(1, addr, &tms_buf, sizeof(tms_buf)) == -1)
         return -1;
 
-    return ticks;
+    return atomic_read(&ticks);
 }
 /*
  * 功能：打印系统信息；

@@ -7,7 +7,6 @@
 #include "lib/sbi.h"
 
 #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
-
 typedef void (*timer_expire)(void *); // uint64
 
 struct timer_entry {

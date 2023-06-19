@@ -9,6 +9,7 @@
 #include "lib/riscv.h"
 #include "memory/memlayout.h"
 #include "fs/vfs/fs.h"
+#include "debug.h"
 
 /*
     +---------------------------+ <-- rust-sbi jump to 0x80200000
@@ -30,21 +31,13 @@
 #define PAGES_PER_CPU (NPAGES / NCPU)
 extern struct page *pagemeta_start;
 
+// page status
+#define PG_locked 0x01
+#define PG_dirty 0x02
 
-enum pageflags {
-	PG_locked,
-};
-// static inline void __set_page_locked(struct page *page)
-// {
-// 	set_bit(PG_locked, &page->flags);
-// }
-
-// static inline void __clear_page_locked(struct page *page)
-// {
-// 	clear_bit(PG_locked, &page->flags);
-// }
-
+// chage the refcnt of page (atomic)
 #define page_cache_get(page) (atomic_inc_return(&page->refcnt))
+#define page_cache_put(page) (atomic_dec_return(&page->refcnt))
 
 struct page {
     // use for buddy system
@@ -60,7 +53,7 @@ struct page {
     uint64 flags;
     struct address_space *mapping;
     // pagecache index
-    uint32 index;
+    uint64 index;
 };
 
 struct free_list {
@@ -86,5 +79,21 @@ extern struct phys_mem_pool mempools[NCPU];
 
 void buddy_free_pages(struct phys_mem_pool *pool, struct page *page);
 struct page *buddy_get_pages(struct phys_mem_pool *pool, uint64 order);
+
+static inline void set_page_flags(struct page *page, uint64 flags) {
+    set_bit(flags, &page->flags);
+}
+
+static inline void clear_page_flags(struct page *page, uint64 flags) {
+    clear_bit(flags, &page->flags);
+}
+
+static inline uint64 page_to_pa(struct page *page) {
+    return (page - pagemeta_start) * PGSIZE + START_MEM;
+}
+static inline struct page *pa_to_page(uint64 pa) {
+    ASSERT((pa - START_MEM) % PGSIZE == 0);
+    return ((pa - START_MEM) / PGSIZE + pagemeta_start);
+}
 
 #endif // __BUDDY_H__

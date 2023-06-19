@@ -16,10 +16,11 @@
 #include "atomic/futex.h"
 #include "common.h"
 #include "kernel/syscall.h"
+#include "atomic/ops.h"
 
 #define ROOT_UID 0
 
-extern uint ticks;
+extern atomic_t ticks;
 extern struct spinlock tickslock;
 /*
  * 功能：获取进程ID；
@@ -217,12 +218,7 @@ uint64 sys_print_pgtable(void) {
 // since start.
 uint64
 sys_uptime(void) {
-    uint xticks;
-
-    acquire(&tickslock);
-    xticks = ticks;
-    release(&tickslock);
-    return xticks;
+    return atomic_read(&ticks);
 }
 
 // getuid() returns the real user ID of the calling process.

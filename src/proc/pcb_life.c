@@ -144,19 +144,18 @@ struct proc *create_proc() {
         return 0;
     }
 
-    if ((t = alloc_thread()) == 0) {
+    if ((t = alloc_thread(thread_forkret)) == 0) {
         free_proc(p);
         return 0;
     }
 
-    proc_join_thread(p, t);
+    proc_join_thread(p, t, NULL);
 
     // wait semaphore
     sema_init(&t->sem_wait_chan_parent, 0, "thread_sema_chan");
 
-    // uvm_thread_trapframe(p->mm->pagetable, 0, (paddr_t)t->trapframe);
     thread_trapframe(t, 0);
-    // vmprint(p->mm->pagetable, 1, 0, 0, 0);
+
     release(&t->lock);
 
     return p;
@@ -242,10 +241,6 @@ void thread_forkret(void) {
     if (thread_current() == initproc->tg->group_leader) {
         init_ret();
     }
-    // if(thread_current()->tid==16||thread_current()->tid==17||thread_current()->tid==18){
-    //     proc_thread_print();
-    // }
-
     // printfRed("tid : %d forkret\n", thread_current()->tid);// debug
     // trapframe_print(thread_current()->trapframe);// debug
     thread_usertrapret();
@@ -258,33 +253,68 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     struct tcb *t = NULL;
 
     if (flags & CLONE_THREAD) {
-        if ((t == alloc_thread()) == 0) {
+        if ((t = alloc_thread(thread_forkret)) == 0) {
             return -1;
         }
-        proc_join_thread(p, t);
-        // wait semaphore
-        sema_init(&t->sem_wait_chan_parent, 0, "thread_sema_chan");
 
-        // uvm_thread_trapframe(t->p->mm->pagetable, 0, (paddr_t)t->trapframe);
-        thread_trapframe(t, 0);
-        release(&t->lock);
-        t->trapframe->a0 = 0;
+        proc_join_thread(p, t, NULL);
+        p->tg->thread_idx++; //  !!!
 
-        // TODO : append a thread to a proc
-        return p->pid;
+        panic("do_clone : error\n");
     } else {
         // Allocate process.
         if ((np = create_proc()) == 0) {
             return -1;
         }
+        t = np->tg->group_leader; // !!!
     }
 
+    // ==============create thread for proc=======================
     // copy saved user registers.
-    *(np->tg->group_leader->trapframe) = *(p->tg->group_leader->trapframe);
+    *(t->trapframe) = *(p->tg->group_leader->trapframe);
 
     // Cause fork to return 0 in the child.
-    np->tg->group_leader->trapframe->a0 = 0;
+    t->trapframe->a0 = 0;
 
+    // set the tls (Thread-local Storage，TLS)
+    // RISC-V使用TP寄存器
+    if (flags & CLONE_SETTLS) {
+        t->trapframe->tp = tls;
+    }
+
+    // 子线程中存储子线程 ID 的变量指针
+    if (flags & CLONE_CHILD_SETTID) {
+        t->set_child_tid = ctid;
+    }
+
+    if (flags & CLONE_CHILD_CLEARTID) {
+        t->clear_child_tid = ctid;
+    }
+
+    if (stack) {
+        t->trapframe->sp = stack;
+    }
+
+    if (flags & CLONE_SIGHAND) {
+        t->pending = p->tg->group_leader->pending;
+    } else {
+        // TODO : create a new signal
+    }
+
+    // store the parent pid
+    if (flags & CLONE_PARENT_SETTID) {
+        if (either_copyin(&ptid, 1, p->pid, sizeof(pid_t)) == -1)
+            return -1;
+    }
+
+    if (np == NULL) {
+        acquire(&t->lock);
+        TCB_Q_changeState(t, TCB_RUNNABLE);
+        release(&t->lock);
+        return t->tid;
+    }
+
+    // ==============create proc with group leader=======================
     acquire(&p->lock);
     /* Copy vma */
     if (vmacopy(p->mm, np->mm) < 0) {
@@ -321,41 +351,6 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     // TODO : vfs inode cmd
     np->cwd = fat32_inode_dup(p->cwd);
 
-    // TODO : signal
-    if (flags & CLONE_SIGHAND) {
-        np->tg->group_leader->pending = p->tg->group_leader->pending;
-    } else {
-        // TODO : create a new signal
-    }
-
-    // store the parent pid
-    if (flags & CLONE_PARENT_SETTID) {
-        if (either_copyin(&ptid, 1, p->pid, sizeof(pid_t)) == -1)
-            return -1;
-    }
-    // set the tls (Thread-local Storage，TLS)
-    // RISC-V使用TP寄存器
-    if (flags & CLONE_SETTLS) {
-        np->tg->group_leader->trapframe->tp = tls;
-    }
-
-    // 子线程中存储子线程 ID 的变量指针
-    if (flags & CLONE_CHILD_SETTID) {
-        // np->ctid = *ctid;
-        // np->set_child_tid = ctid;
-        np->tg->group_leader->set_child_tid = ctid;
-    }
-
-    if (flags & CLONE_CHILD_CLEARTID) {
-        np->ctid = 0;
-        // np->clear_child_tid = ctid;
-        np->tg->group_leader->clear_child_tid = ctid;
-    }
-
-    if (stack) {
-        np->tg->group_leader->trapframe->sp = stack;
-    }
-
     safestrcpy(np->name, p->name, sizeof(p->name));
 
     pid = np->pid;
@@ -369,9 +364,9 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     printfRed("clone : %d -> %d\n", p->pid, np->pid); // debug
 #endif
 
-    acquire(&np->tg->group_leader->lock);
-    TCB_Q_changeState(np->tg->group_leader, TCB_RUNNABLE);
-    release(&np->tg->group_leader->lock);
+    acquire(&t->lock);
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+    release(&t->lock);
 
     release(&np->lock);
     return pid;

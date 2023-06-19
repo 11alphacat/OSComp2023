@@ -34,6 +34,8 @@ struct thread_group {
     struct tcb *group_leader; // its proc thread group leader
 };
 
+typedef void (*thread_callback)(void);
+
 struct tcb {
     // spinlock
     spinlock_t lock; // spinlock protecting the thread control block
@@ -63,18 +65,13 @@ struct tcb {
     struct sigpending pending; // pending (private)
     sig_t sig_ing;
 
-    // uint64 sas_ss_sp;
-    // size_t sas_ss_size;
-    // uint64 sas_ss_flags;
-    // struct sigpending shared_pending; // pending (shared)
-
     // kernel stack, trapframe and context
     uint64 kstack;               // kernel stack
     struct trapframe *trapframe; // data page for trampoline.S
     struct context context;      // swtch() here to run thread
 
     // thread name
-    char name[16]; // Thread name (debugging)
+    char name[20]; // Thread name (debugging)
 
     // thread list
     struct list_head threads; // thread list
@@ -85,6 +82,7 @@ struct tcb {
     struct list_head wait_list;    // waiting queue list
     struct Queue *wait_chan_entry; //  waiting queue entry
 
+    // only valid for group leader
     struct semaphore sem_wait_chan_parent;
     struct semaphore sem_wait_chan_self;
 
@@ -98,12 +96,12 @@ struct tcb {
 
 void tcb_init(void);
 struct tcb *thread_current(void);
-struct tcb *alloc_thread(void);
+struct tcb *alloc_thread(thread_callback callback);
 void free_thread(struct tcb *t);
 void exit_thread(int status);
 int thread_killed(struct tcb *t);
 void thread_setkilled(struct tcb *t);
-void proc_join_thread(struct proc *p, struct tcb *t);
+void proc_join_thread(struct proc *p, struct tcb *t, char *name);
 int proc_release_thread(struct proc *p, struct tcb *t);
 void proc_release_all_thread(struct proc *p);
 void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt);
@@ -115,5 +113,6 @@ struct tcb *find_get_tid(tid_t tid);
 struct tcb *find_get_tidx(int pid, int tidx);
 void do_tkill(struct tcb *t, sig_t signo);
 int do_sleep_ns(struct tcb *t, struct timespec ts);
+void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback callback);
 
 #endif

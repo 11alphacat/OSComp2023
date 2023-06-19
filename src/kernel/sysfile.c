@@ -869,7 +869,7 @@ uint64 sys_mkdirat(void) {
     }
     /*
         -> these two steps should have been necessary
-        -> but fat32 can not store the message 
+        -> but fat32 can not store the message
     ip->i_mode |= (mode & 0777);
     ip->i_op->iupdate(ip);
     */

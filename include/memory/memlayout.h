@@ -86,4 +86,9 @@
 #define USTACK (MAXVA - 512 * PGSIZE - USTACK_PAGE * PGSIZE)
 #define USTACK_GURAD_PAGE (USTACK - PGSIZE)
 
+#define TOTAL_MEM (PHYSTOP - START_MEM)
+#define FREE_MEM (get_free_mem())
+#define USED_MEM (FREE_MEM - TOTAL_MEM)
+#define FREE_RATE(rate) (DIV_ROUND_UP(FREE_MEM, rate))
+
 #endif // __MEMLAYOUT_H__

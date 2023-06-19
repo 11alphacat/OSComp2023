@@ -4,13 +4,10 @@
 #include "param.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
-
 #include "kernel/trap.h"
 #include "memory/allocator.h"
 #include "atomic/cond.h"
 #include "ipc/signal.h"
-// #include "fs/fat/fat32_mem.h"
-// #include "fs/fat/fat32_file.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
 #include "lib/sbuf.h"

@@ -13,6 +13,7 @@
 #include "kernel/trap.h"
 #include "lib/ctype.h"
 #include "lib/hash.h"
+#include "fs/mpage.h"
 
 // debug
 // int cache_cnt;
@@ -87,15 +88,15 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_mode = S_IFDIR | 0666;
     DIR_SET(root_ip->fat32_i.Attr);
 
-    // inode hash table 
+    // inode hash table
     fat32_inode_hash_init(root_ip);
 
     // speed up dirlookup using hint
     root_ip->off_hint = 0;
 
-    // mapping for root 
-    struct address_space* mapping = kzalloc(sizeof(struct address_space));
-    root_ip->i_mapping =mapping;
+    // mapping for root
+    struct address_space *mapping = kzalloc(sizeof(struct address_space));
+    root_ip->i_mapping = mapping;
 
     ASSERT(root_ip->fat32_i.cluster_start == 2);
 
@@ -265,7 +266,6 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
     if (off + n > fileSize)
         n = fileSize - off;
 
-
     // TODO :  using mapping to speed up read
 
     FAT_entry_t iter_c_n;
@@ -420,7 +420,6 @@ struct inode *fat32_inode_get(uint dev, uint inum, const char *name, uint parent
     ip->i_hash = NULL;
 
     // speed up dirlookup using hint
-    // ip->idx_hint = 0;
     ip->off_hint = 0;
 
     // full name of file
@@ -435,23 +434,23 @@ struct inode *fat32_inode_get(uint dev, uint inum, const char *name, uint parent
 // 成功返回 0，失败返回 -1
 // similar to delete
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
-//     int str_len = strlen(ip->fat32_i.fname);
-//     int off = ip->fat32_i.parent_off;
-//     ASSERT(off > 0);
-//     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
-//     char fcb_char[FCB_MAX_LENGTH];
-//     // memset(fcb_char, 0, sizeof(fcb_char));
-//     for (int i = 0; i < long_dir_len + 1; i++)
-//         fcb_char[i * 32] = ;
+    //     int str_len = strlen(ip->fat32_i.fname);
+    //     int off = ip->fat32_i.parent_off;
+    //     ASSERT(off > 0);
+    //     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
+    //     char fcb_char[FCB_MAX_LENGTH];
+    //     // memset(fcb_char, 0, sizeof(fcb_char));
+    //     for (int i = 0; i < long_dir_len + 1; i++)
+    //         fcb_char[i * 32] = ;
 
-//     ASSERT(off - long_dir_len > 0);
-// #ifdef __DEBUG_FS__
-//     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
-// #endif
-//     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
-//     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
+    //     ASSERT(off - long_dir_len > 0);
+    // #ifdef __DEBUG_FS__
+    //     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
+    // #endif
+    //     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
+    //     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
 
-//     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
+    //     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
     panic("error\n");
     return 0;
 }
@@ -579,7 +578,7 @@ void fat32_inode_trunc(struct inode *ip) {
     // truncate the fat chain
     while (!ISEOF(iter_c_n)) {
         FAT_entry_t fat_next = fat32_next_cluster(iter_c_n);
-        fat32_fat_set(iter_c_n, FREE_MASK);// bug
+        fat32_fat_set(iter_c_n, FREE_MASK); // bug
         iter_c_n = fat_next;
     }
     // fat32_fcb_delete(ip->parent, ip);
@@ -954,7 +953,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uint16 type)
     // ip_new->i_mode = type;
     ip_new->i_op = get_inodeops[FAT32]();
     ip_new->fs_type = FAT32;
-    dp->off_hint = off + 1;// don't use off 
+    dp->off_hint = off + 1; // don't use off
 
 #ifdef __DEBUG_FS__
     printf("inode alloc : pid %d, filename : %s\n", proc_current()->pid, ip_new->fat32_i.fname);
@@ -1373,6 +1372,105 @@ void fat32_inode_hash_destroy(struct inode *ip) {
         ip->off_hint = 0;
     }
 }
+
+// similar to inode_read
+// we need to fill the bio using off and n
+// The unit of off is byte
+// The unit of n is byte
+int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n) {
+    // need alignment
+    ASSERT(!PGMASK(off));
+    // suppose it is an integer multiple of BSIZE
+    ASSERT(n % __BPB_BytsPerSec == 0);
+    ASSERT(n > 0);
+    ASSERT(off > 0);
+    ASSERT(list_empty(&bio_p->list_entry));
+
+    FAT_entry_t iter_c_n;
+    int init_s_n;
+    int init_s_offset;
+    // move cursor
+    fat32_cursor_to_offset(ip, off, &iter_c_n, &init_s_n, &init_s_offset);
+    ASSERT(init_s_offset == 0);
+
+    // The unit of cur_s_n and tot_s_n is sector(512 B, if the size of block is 512B)
+    uint cur_s_n = 0;
+    uint tot_s_n = CEIL_DIVIDE(n, __BPB_BytsPerSec);
+    uint b_per_c_n = ip->i_sb->sectors_per_block;
+
+    struct bio_vec *vec_cur = NULL;
+    while (!ISEOF(iter_c_n) && cur_s_n < tot_s_n) {
+        int first_sector = FirstSectorofCluster(iter_c_n);
+
+        if (vec_cur == NULL || !CLUSTER_ADJACENT(vec_cur, first_sector)) {
+            if ((vec_cur = (struct bio_vec *)kzalloc(sizeof(struct bio_vec))) == NULL) {
+                panic("fat_get_block : no free memory\n");
+            }
+            list_add_tail(&bio_p->list_entry, &vec_cur->list);
+        }
+
+        // m = MIN(BSIZE - init_s_offset, n - tot);
+        uint blocks_n = MIN(b_per_c_n - init_s_n, tot_s_n - cur_s_n);
+        if (vec_cur->blockno_start == 0) {
+            vec_cur->blockno_start = first_sector + init_s_n;
+            vec_cur->block_len = blocks_n;
+        } else {
+            vec_cur->block_len += blocks_n;
+        }
+        cur_s_n += blocks_n;
+
+        if (cur_s_n == tot_s_n)
+            break;
+
+        init_s_n = 0;
+        init_s_offset = 0;
+
+        iter_c_n = fat32_next_cluster(iter_c_n);
+    }
+
+    return cur_s_n;
+}
+
+// destory
+// similar to mpage_writepage
+void fat32_i_mapping_destroy(struct inode *ip) {
+    struct address_space *mapping = ip->i_mapping;
+    if (mapping->page_tree.height == 0) {
+        return;
+    }
+    struct Page_entry p_entry;
+    INIT_LIST_HEAD(&p_entry.entry); // !!!
+
+    int ret = radix_tree_general_gang_lookup_elements(&(mapping->page_tree), &p_entry, page_list_delete,
+                                                      0, maxitems_invald, tag_invalid);
+    ASSERT(ret > 0);
+}
+
+// void free_mapping(entry_t *entry) {
+//   struct radix_tree_root *root = &(entry->i_mapping->page_tree);
+//   void *addr;
+
+// /**
+//  * 当高度为0且node != NULL，表示里面存储的是一个页指针，否则为一个rdt node指针。
+//  */
+//   if (root->height > 0)
+//   {
+//     /* 高度超过限制 */
+//     if(root->height > RADIX_TREE_MAX_PATH)
+//       ER();
+//     walk_free_rdt(root->rnode, root->height, 1);
+//   } else if(root->height == 0 && root->rnode){
+//     put_page((page_t *)root->rnode);
+//   }
+//   /* free i_mapping */
+//   addr = entry->i_mapping;
+//   kfree(addr);
+//   entry->i_mapping = NULL;
+// }
+
+// bio_p->bi_vcnt = 0;
+// bio_p->bi_io_vec = NULL;
+// INIT_LIST_HEAD(bio_p->list_entry);
 
 // uint first_sector = FirstSectorofCluster(fat_new); // debug
 // uint sec_pos = DEBUG_SECTOR(ip, first_sector); // debug

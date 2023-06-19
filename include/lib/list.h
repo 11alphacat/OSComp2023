@@ -273,6 +273,19 @@ static inline void list_join_given_first(struct list_head *first_new, struct lis
          &pos->member != (head);                             \
          pos = n, n = list_next_entry(n, member))
 
+// mycode : given additonal condition of loop (not safe)
+#define list_for_each_entry_condition(pos, head, member, condition) \
+    for (pos = list_first_entry(head, typeof(*pos), member);        \
+         &pos->member != (head) && (condition);                     \
+         pos = list_next_entry(pos, member))
+
+// mycode : given additional condition of loop (safe)
+#define list_for_each_entry_safe_condition(pos, n, head, member, condition) \
+    for (pos = list_first_entry(head, typeof(*pos), member),                \
+        n = list_next_entry(pos, member);                                   \
+         &pos->member != (head) && (condition);                             \
+         pos = n, n = list_next_entry(n, member))
+
 // given first head
 #define list_for_each_entry_safe_given_first(pos, n, head_f, member, flag) \
     for (pos = head_f,                                                     \

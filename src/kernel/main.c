@@ -31,6 +31,7 @@ void proc_init();
 void inode_table_init(void);
 void hash_tables_init(void);
 void hartinit();
+void pdflush_init();
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
@@ -55,6 +56,9 @@ void main() {
         // Proc management
         proc_init(); // process table
         tcb_init();
+
+        // pdflush
+        pdflush_init();
 
         // map init
         hash_tables_init();

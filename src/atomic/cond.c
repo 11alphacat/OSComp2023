@@ -25,8 +25,8 @@ int cond_wait(struct cond *cond, struct spinlock *mutex) {
 
     TCB_Q_changeState(t, TCB_SLEEPING);
 
-    Queue_push_back_atomic(&cond->waiting_queue, (void *)t);
-    // Queue_push_back(&cond->waiting_queue, (void *)t);
+    Queue_push_back(&cond->waiting_queue, (void *)t);
+
     t->wait_chan_entry = &cond->waiting_queue; // !!!
 
     // TODO : modify it to futex(ref to linux)

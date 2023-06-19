@@ -38,7 +38,7 @@ void TCB_Q_ALL_INIT() {
     Queue_init(&used_t_q, "TCB_USED", TCB_STATE_QUEUE);
     Queue_init(&runnable_t_q, "TCB_RUNNABLE", TCB_STATE_QUEUE);
     Queue_init(&sleeping_t_q, "TCB_SLEEPING", TCB_STATE_QUEUE);
-    Queue_init(&zombie_t_q, "TCB_ZOMBIE", TCB_STATE_QUEUE);
+    Queue_init(&zombie_t_q, "TCB_ZOMBIE", TCB_STATE_QUEUE); // only valid for group leader
 }
 
 void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
@@ -77,9 +77,9 @@ void thread_yield(void) {
     release(&t->lock);
 }
 
+// it is essential !!!
 void thread_wakeup(void *t) {
     struct tcb *thread = (struct tcb *)t;
-
     ASSERT(thread->wait_chan_entry != NULL);
     Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
 
