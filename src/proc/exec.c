@@ -16,25 +16,72 @@
 #include "lib/auxv.h"
 #include "lib/ctype.h"
 #include "memory/vma.h"
+#include "elf.h"
 
-void print_ustack(pagetable_t pagetable, uint64 stacktop);
-/* this will commit to trapframe after execve success */
-struct commit {
-    uint64 entry; /* epc */
-    uint64 a1;
-    uint64 a2;
+/*
+ * This structure is used to hold the arguments that are used when loading binaries.
+ */
+struct binprm {
+    // const char *path;
+    int argc, envpc;
+    struct inode *ip;
+    struct mm_struct *mm;
     uint64 sp;
+
+    uint64 e_entry;  
+
+    /* interpreter */
+    int interp;
+    Elf64_Ehdr *elf_ex;
+    // uint64 e_phnu
+    // uint64 e_phoff; /* AT_PHDR = e_entry + e_phoff; */
+
+    /* reserve for xv6_user program */
+    uint64 a1, a2;
+    // # define MAX_ARG_PAGES	32
+    // 	struct page *page[MAX_ARG_PAGES];
+    // 	unsigned long p; /* current top of mem */
+    // 	unsigned long argmin; /* rlimit marker for copy_strings() */
+    // 	struct file *executable; /* Executable to pass to the interpreter */
+    // 	struct file *interpreter;
+    // 	struct file *file;
+    // 	struct cred *cred;	/* new credentials */
+    // 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
+    // 	unsigned int per_clear;	/* bits to clear in current->personality */
+    // 	int argc, envc;
+    // 	const char *filename;	/* Name of binary as seen by procps */
+    // 	const char *interp;	/* Name of the binary really executed. Most
+    // 				   of the time same as filename, but could be
+    // 				   different for binfmt_{misc,script} */
+    // 	const char *fdpath;	/* generated filename for execveat */
+    // 	unsigned interp_flags;
+    // 	int execfd;		/* File descriptor of the executable */
+    // 	unsigned long loader, exec;
+
+    // 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
+
+    // 	char buf[BINPRM_BUF_SIZE];
 };
+uint64 load_dyn(char *path);
+void map_dyn_loader(pagetable_t pagetable);
+void print_ustack(pagetable_t pagetable, uint64 stacktop);
+// /* this will commit to trapframe after execve success */
+// struct commit {
+//     uint64 entry; /* epc */
+//     uint64 a1;
+//     uint64 a2;
+//     uint64 sp;
+// };
 
 #define AUX_CNT 38
-typedef struct {
-    int a_type;
-    union {
-        long a_val;
-        void *a_ptr;
-        void (*a_fnc)();
-    } a_un;
-} auxv_t;
+// typedef struct {
+//     int a_type;
+//     union {
+//         long a_val;
+//         void *a_ptr;
+//         void (*a_fnc)();
+//     } a_un;
+// } auxv_t;
 
 int do_execve(char *path, char *const argv[], char *const envp[]);
 
@@ -77,6 +124,7 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
             n = sz - i;
         else
             n = PGSIZE;
+        // TODO, replace with elf_read
         if (fat32_inode_read(ip, 0, (uint64)pa, offset + i, n) != n)
             return -1;
     }
@@ -86,11 +134,12 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
 
 vaddr_t p_argc, p_envp, p_argv, p_auxv;
 /* return argc, or -1 to indicate error */
-static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *commit, vaddr_t sp, char *const argv[], char *const envp[]) {
-    /* sp has to be the top address of a page */
-    ASSERT(sp % PGSIZE == 0);
-    vaddr_t stackbase;
-    stackbase = sp - USTACK_PAGE * PGSIZE;
+static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bprm, char *const argv[], char *const envp[]) {
+    paddr_t spp = getphyaddr(pagetable, USTACK + USTACK_PAGE * PGSIZE - 1) + 1;
+    paddr_t stacktop = spp;
+    paddr_t stackbase = spp - USTACK_PAGE * PGSIZE;
+#define SPP2SP (USTACK + USTACK_PAGE * PGSIZE - (stacktop - spp)) /* only use this macro in this func! */
+    Log("%p %p", spp, stackbase);
 
     /*       Initial Process Stack (follows SYSTEM V ABI)
         +---------------------------+ <-- High Address
@@ -122,22 +171,21 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
 
     uint64 argc = 0, envpc = 0;
     vaddr_t argv_addr[MAXARG], envp_addr[MAXENV];
+    paddr_t cp;
     /* Information block */
     if (argv != 0) {
         for (; argv[argc]; argc++) {
             if (argc >= MAXARG)
                 return -1;
-            paddr_t cp = getphyaddr(p->mm->pagetable, (vaddr_t)argv[argc]);
-            if (cp == 0) {
+            if ((cp = getphyaddr(p->mm->pagetable, (vaddr_t)argv[argc])) == 0) {
                 return -1;
             }
-            sp -= strlen((const char *)cp) + 1;
-            sp -= sp % 8;
-            if (sp < stackbase)
+            spp -= strlen((const char *)cp) + 1;
+            spp -= spp % 8;
+            if (spp < stackbase)
                 return -1;
-            if (copyout(pagetable, sp, (char *)cp, strlen((const char *)cp) + 1) < 0)
-                return -1;
-            argv_addr[argc] = sp;
+            memmove((void *)spp, (void *)cp, strlen((const char *)cp) + 1);
+            argv_addr[argc] = SPP2SP;
         }
     }
     argv_addr[argc] = 0;
@@ -146,93 +194,81 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct commit *com
         for (; envp[envpc]; envpc++) {
             if (envpc >= MAXENV)
                 return -1;
-            paddr_t cp = getphyaddr(p->mm->pagetable, (vaddr_t)envp[envpc]);
-            if (cp == 0) {
+            if ((cp = getphyaddr(p->mm->pagetable, (vaddr_t)envp[envpc])) == 0) {
                 return -1;
             }
-            sp -= strlen((const char *)cp) + 1;
-            sp -= sp % 8;
-            if (sp < stackbase)
+            spp -= strlen((const char *)cp) + 1;
+            spp -= spp % 8;
+            if (spp < stackbase)
                 return -1;
-            if (copyout(pagetable, sp, (char *)cp, strlen((const char *)cp) + 1) < 0)
-                return -1;
-            envp_addr[envpc] = sp;
+            memmove((void *)spp, (void *)cp, strlen((const char *)cp) + 1);
+            envp_addr[envpc] = SPP2SP;
         }
     }
     envp_addr[envpc] = 0;
 
-    ASSERT(sp % 8 == 0);
+    ASSERT(spp % 8 == 0);
     // Log("%d %d", sp % 16, (uint64)(argc + envpc + 2 + 1) % 2);
     /* to make sp 16-bit aligned */
-    if ((sp % 16 != 0 && (uint64)(argc + envpc + 1 + AUX_CNT) % 2 == 0)
-        || ((sp % 16 == 0) && (uint64)(argc + envpc + 2 + 1) % 2 == 1)) {
+    if ((spp % 16 != 0 && (uint64)(argc + envpc + 1 + AUX_CNT) % 2 == 0)
+        || ((spp % 16 == 0) && (uint64)(argc + envpc + 2 + 1) % 2 == 1)) {
         // Log("aligned");
-        sp -= 8;
+        spp -= 8;
     }
 
     /* auxiliary vectors */
     uint64 auxv[AUX_CNT * 2] = {0};
     for (int i = 0; i < AUX_CNT; i++) {
-        if (i + 1 > AT_PAGESZ) {
+        if (i + 1 > AT_ENTRY) {
             break;
         }
         auxv[i * 2] = i + 1;
     }
     auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
-    sp -= AUX_CNT * 16;
-    p_auxv = sp;
-    if (sp < stackbase) {
+    if (bprm->interp) {
+        auxv[AT_BASE * 2 - 1] = LDSO;
+#ifdef __DEBUG_LDSO__
+        auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->elf_ex->e_phoff;
+#else
+        auxv[AT_PHDR * 2 - 1] = bprm->elf_ex->e_phoff;
+#endif
+        auxv[AT_PHNUM * 2 - 1] = bprm->elf_ex->e_phnum;
+        auxv[AT_PHENT * 2 - 1] = sizeof(Elf64_Phdr);
+        auxv[AT_ENTRY * 2 - 1] = bprm->e_entry;
+    }
+    spp -= AUX_CNT * 16;
+    if (spp < stackbase) {
         return -1;
     }
-    if (copyout(pagetable, sp, (char *)auxv, AUX_CNT * 16) < 0) {
-        return -1;
-    }
-
-    // /* pad 0 */
-    // uint8 temp = 0;
-    // sp -= 8;
-    // if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
-    //     return -1;
-    // }
+    p_auxv = SPP2SP;
+    memmove((void *)spp, (void *)auxv, AUX_CNT * 16);
 
     /* push the array of envp[] pointers */
-    sp -= (envpc + 1) * sizeof(uint64);
-    sp -= sp % 8;
-    p_envp = sp;
+    spp -= (envpc + 1) * sizeof(uint64);
+    spp -= spp % 8;
+    p_envp = SPP2SP;
     // Log("envp %p", sp);
-    if (sp < stackbase)
+    if (spp < stackbase)
         return -1;
-    if (copyout(pagetable, sp, (char *)envp_addr, (envpc + 1) * sizeof(uint64)) < 0)
-        return -1;
-    commit->a2 = sp;
-
-    // /* pad 0 */
-    // sp -= 8;
-    // if (copyout(pagetable, sp, (char *)&temp, sizeof(uint8))) {
-    //     return -1;
-    // }
+    memmove((void *)spp, (void *)envp_addr, (envpc + 1) * sizeof(uint64));
+    bprm->a2 = SPP2SP;
 
     /* push the array of argv[] pointers */
-    sp -= (argc + 1) * sizeof(uint64);
-    sp -= sp % 8;
-    p_argv = sp;
+    spp -= (argc + 1) * sizeof(uint64);
+    spp -= spp % 8;
+    p_argv = SPP2SP;
     // Log("argv %p", sp);
-    if (sp < stackbase)
+    if (spp < stackbase)
         return -1;
-    if (copyout(pagetable, sp, (char *)argv_addr, (argc + 1) * sizeof(uint64)) < 0)
-        return -1;
-    commit->a1 = sp;
-    sp -= 8;
-    p_argc = sp;
-    // Log("argc %p", sp);
-    if (copyout(pagetable, sp, (char *)&argc, sizeof(uint64)) < 0) {
-        return -1;
-    }
-    // Log("%d", argc);
+    memmove((void *)spp, (void *)argv_addr, (argc + 1) * sizeof(uint64));
+    bprm->a1 = SPP2SP;
+    spp -= 8;
+    p_argc = SPP2SP;
+    memmove((void *)spp, (void *)&argc, sizeof(uint64));
 
-    commit->sp = sp; // initial stack pointer
+    bprm->sp = SPP2SP; // initial stack pointer
     // Log("sp is %p", sp);
-    // print_ustack(pagetable, stackbase + USTACK_PAGE * PGSIZE);
+    // print_ustack(pagetable, sp);
     return argc;
 }
 
@@ -267,108 +303,204 @@ void print_ustack(pagetable_t pagetable, uint64 stacktop) {
     }
 }
 
-/* return the end of the virtual address after load segments, or 0 to indicate error */
-static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
-    int i, off;
-    uint64 sz = 0;
-    struct elfhdr elf;
-    struct proghdr ph;
-    struct inode *ip;
 
-    if ((ip = namei(path)) == 0) {
-        return 0;
+#define elf_phdr Elf64_Phdr
+#define elf_Ehdr Elf64_Ehdr
+
+static int elf_read(struct inode *ip, void *buf, uint64 size, uint64 offset) {
+    uint64 read;
+
+    // ip->i_op->ilock(ip);
+    read = ip->i_op->iread(ip, 0, (uint64)buf, offset, size);
+    if (unlikely(read != size)) {
+        ip->i_op->iunlock(ip);
+        return -1;
     }
-    // fat32_inode_lock(ip);
-    ip->i_op->ilock(ip);
-    // printf("loader: ip %s locked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
-    // Check ELF header
-    // if (fat32_inode_read(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
-    if (ip->i_op->iread(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
-        goto unlock_put;
+    return 0;
+    // ip->i_op->iunlock(ip);
+}
 
-    if (elf.magic != ELF_MAGIC)
-        goto unlock_put;
+static Elf64_Ehdr *load_elf_ehdr(struct binprm *bprm) {
+    struct inode *ip = bprm->ip;
+    Elf64_Ehdr *elf_ex = kmalloc(sizeof(Elf64_Ehdr));
 
-    // Load program into memory.
-    for (i = 0, off = elf.phoff; i < elf.phnum; i++, off += sizeof(ph)) {
-        // if (fat32_inode_read(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
-        if (ip->i_op->iread(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
-            goto unlock_put;
-        if (ph.type != ELF_PROG_LOAD)
+    if (elf_read(ip, elf_ex, sizeof(Elf64_Ehdr), 0) < 0) {
+        return NULL;
+    }
+
+    // CHECK
+    if (memcmp(elf_ex->e_ident, ELFMAG, SELFMAG) != 0)
+        goto out;
+    if (elf_ex->e_type != ET_EXEC && elf_ex->e_type != ET_DYN)
+        goto out;
+
+    return elf_ex;
+out:
+    kfree(elf_ex);
+    return NULL;
+}
+
+static Elf64_Phdr *load_elf_phdrs(const Elf64_Ehdr *elf_ex, struct inode *ip) {
+    Elf64_Phdr *elf_phdata = NULL;
+    int retval;
+    unsigned int size;
+
+    if (elf_ex->e_phentsize != sizeof(Elf64_Phdr))
+        return NULL;
+
+    /* Sanity check the number of program headers... */
+    /* ...and their total size. */
+    size = sizeof(Elf64_Phdr) * elf_ex->e_phnum;
+    if (size == 0 || size > PGSIZE)
+        return NULL;
+
+    elf_phdata = kmalloc(size);
+    if (!elf_phdata) {
+        Warn("load_elf_phdrs: no free mem");
+        return NULL;
+    }
+
+    /* Read in the program headers */
+    retval = elf_read(ip, elf_phdata, size, elf_ex->e_phoff);
+    if (retval < 0) {
+        goto out;
+    }
+
+    return elf_phdata;
+
+out:
+    kfree(elf_phdata);
+    return NULL;
+}
+
+static uint64 START = 0;
+static int load_elf_binary(struct binprm *bprm) {
+    Elf64_Ehdr *elf_ex;
+    Elf64_Phdr *elf_phdata, *elf_phpnt; /* ph poiner */
+    struct mm_struct *mm = bprm->mm;
+    struct inode *ip = bprm->ip;
+    uint64 sz = 0;
+
+    ip->i_op->ilock(bprm->ip);
+
+    elf_ex = load_elf_ehdr(bprm);
+    elf_phdata = load_elf_phdrs(elf_ex, bprm->ip);
+
+    elf_phpnt = elf_phdata;
+    for (int i = 0; i < elf_ex->e_phnum; i++, elf_phpnt++) {
+        if (elf_phpnt->p_type != PT_INTERP)
             continue;
-        if (ph.memsz < ph.filesz)
-            goto unlock_put;
-        if (ph.vaddr + ph.memsz < ph.vaddr)
-            goto unlock_put;
+        load_dyn("libc.so");
+        map_dyn_loader(bprm->mm->pagetable);
+        bprm->interp = 1;
+        break;
+    }
 
-        /* off: start offset in misaligned page
+    // for (int i = 0;)
+
+    elf_phpnt = elf_phdata;
+    // Load program into memory.
+    for (int i = 0; i < elf_ex->e_phnum; i++, elf_phpnt++) {
+        if (elf_phpnt->p_type != PT_LOAD)
+            continue;
+        if (elf_phpnt->p_memsz < elf_phpnt->p_filesz)
+            goto bad;
+        if (elf_phpnt->p_vaddr + elf_phpnt->p_memsz < elf_phpnt->p_vaddr)
+            goto bad;
+
+        /* offset: start offset in misaligned page
            size: read size of misaligned page
         */
-        uint64 off = 0, size = 0;
-        vaddr_t vaddrdown = PGROUNDDOWN(ph.vaddr);
-        if (ph.vaddr % PGSIZE != 0) {
+        uint64 offset = 0, size = 0;
+        vaddr_t vaddrdown = PGROUNDDOWN(elf_phpnt->p_vaddr);
+        if (elf_phpnt->p_vaddr % PGSIZE != 0) {
             // Warn("%p", vaddrdown);
             paddr_t pa = (paddr_t)kmalloc(PGSIZE);
-            if (mappages(mm->pagetable, vaddrdown, PGSIZE, pa, flags2perm(ph.flags) | PTE_U, COMMONPAGE) < 0) {
-                Warn("misaligned loader mappages failed");
+            if (mappages(mm->pagetable, START + vaddrdown, PGSIZE, pa, flags2perm(elf_phpnt->p_flags) | PTE_U, COMMONPAGE) < 0) {
+                Warn("misaligned load mappages failed");
                 kfree((void *)pa);
-                goto unlock_put;
+                goto bad;
             }
-            off = ph.vaddr - vaddrdown;
-            size = PGROUNDUP(ph.vaddr) - ph.vaddr;
-            // if (fat32_inode_read(ip, 0, (uint64)pa + off, ph.off, size) != size) {
-            if (ip->i_op->iread(ip, 0, (uint64)pa + off, ph.off, size) != size) {
-                goto unlock_put;
+            offset = elf_phpnt->p_vaddr - vaddrdown;
+            size = PGROUNDUP(elf_phpnt->p_vaddr) - elf_phpnt->p_vaddr;
+            if (ip->i_op->iread(ip, 0, (uint64)pa + offset, elf_phpnt->p_offset, size) != size) {
+                goto bad;
             }
             // Log("entry is %p", elf.entry);
         } else {
-            ASSERT(vaddrdown == ph.vaddr);
+            ASSERT(vaddrdown == elf_phpnt->p_vaddr);
         }
         uint64 sz1;
-        ASSERT((ph.vaddr + size) % PGSIZE == 0);
+        ASSERT((elf_phpnt->p_vaddr + size) % PGSIZE == 0);
         // Log("\nstart end:%p %p", ph.vaddr + size, ph.vaddr + ph.memsz);
-        if ((sz1 = uvmalloc(mm->pagetable, ph.vaddr + size, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
-            goto unlock_put;
+        if ((sz1 = uvmalloc(mm->pagetable, START + elf_phpnt->p_vaddr + size, START + elf_phpnt->p_vaddr + elf_phpnt->p_memsz, flags2perm(elf_phpnt->p_flags))) == 0)
+            goto bad;
         // vmprint(mm->pagetable, 1, 0, 0, 0);
         sz = sz1;
-        if (loadseg(mm->pagetable, ph.vaddr + size, ip, ph.off + size, ph.filesz - size) < 0)
-            goto unlock_put;
+        if (loadseg(mm->pagetable, elf_phpnt->p_vaddr + size + START, ip, elf_phpnt->p_offset + size, elf_phpnt->p_filesz - size) < 0)
+            goto bad;
 
-        vaddr_t vaddrup = PGROUNDUP(ph.vaddr + ph.memsz);
-        if (vma_map(mm, vaddrdown, vaddrup - vaddrdown, flags2vmaperm(ph.flags), VMA_TEXT) < 0) {
-            goto unlock_put;
+        vaddr_t vaddrup = PGROUNDUP(elf_phpnt->p_vaddr + elf_phpnt->p_memsz);
+        if (vma_map(mm, START + vaddrdown, vaddrup - vaddrdown, flags2vmaperm(elf_phpnt->p_flags), VMA_TEXT) < 0) {
+            goto bad;
         }
     }
-    // fat32_inode_unlock_put(ip);
+
+    // kfree(elf_ex);
+    kfree(elf_phdata);
     ip->i_op->iunlock_put(ip);
     // printf("loader: ip %s unlocked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
     ip = 0;
-    commit->entry = elf.entry;
+    // if (dyn_flags == 1) {
+    //     commit->entry = dyn_entry;
+    //     Log("loader entry is %p", dyn_entry);
+    // } else {
+        // commit->entry = elf.e_entry + START;
+    // }
+    bprm->elf_ex = elf_ex;
+    bprm->e_entry = elf_ex->e_entry + START;
     return sz;
 
-unlock_put:
-    // proc_freepagetable(mm->pagetable, sz, 0);
-    // fat32_inode_unlock_put(ip);
-    ip->i_op->iunlock_put(ip);
-    // printf("loader: ip %s unlocked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
+bad:
+    kfree(elf_ex);
+    kfree(elf_phdata);
+    bprm->ip->i_op->iunlock_put(bprm->ip);
     return 0;
 }
 
+struct dynamic_loader {
+    pagetable_t pagetable;
+    uint64 size;
+    uint64 entry;
+} ldso;
+
 int do_execve(char *path, char *const argv[], char *const envp[]) {
-    struct commit commit;
+    // struct commit commit;
+    // memset(&commit, 0, sizeof(commit));
+    struct binprm bprm;
+    memset(&bprm , 0, sizeof(struct binprm));
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
     vaddr_t brk; /* program_break */
-    memset(&commit, 0, sizeof(commit));
 
     struct mm_struct *mm, *oldmm = p->mm;
     mm = alloc_mm();
     if (mm == NULL) {
         return -1;
     }
+    bprm.mm = mm;
+#ifdef __DEBUG_LDSO__
+    if (strcmp(path, "/busybox/busybox_d") == 0) {
+        START = 0x20000000;
+    }
+#endif
+    bprm.ip = namei(path);
+    if (bprm.ip == 0) {
+        return -1;
+    }
 
     /* Loader */
-    if ((brk = loader(path, mm, &commit)) == 0) {
+    if ((brk = load_elf_binary(&bprm)) == 0) {
         goto bad;
     }
 
@@ -386,7 +518,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         goto bad;
     }
 
-    int argc = ustack_init(p, mm->pagetable, &commit, USTACK + USTACK_PAGE * PGSIZE, argv, envp);
+    int argc = ustack_init(p, mm->pagetable, &bprm, argv, envp);
     if (argc < 0) {
         goto bad;
     }
@@ -399,10 +531,14 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     safestrcpy(p->name, last, sizeof(p->name));
 
     /* Commit to the user image */
-    t->trapframe->sp = commit.sp;
-    t->trapframe->a1 = commit.a1;
-    t->trapframe->a2 = commit.a2;
-    t->trapframe->epc = commit.entry;
+    t->trapframe->sp = bprm.sp;
+    t->trapframe->a1 = bprm.a1;
+    t->trapframe->a2 = bprm.a2;
+    if (bprm.interp) {
+        t->trapframe->epc = ldso.entry + LDSO;
+    } else {
+        t->trapframe->epc = bprm.e_entry;
+    }
     // uvm_thread_trapframe(mm->pagetable, 0, (paddr_t)t->trapframe);
 
     /* free the old pagetable */
@@ -411,12 +547,15 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     /* commit new mm */
     p->mm = mm;
 
+    kfree(bprm.elf_ex);
+
     /* TODO */
     thread_trapframe(t, 1);
 
     /* for debug, print the pagetable and vmas after exec */
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
+    // panic(0);
 
     return argc; // this ends up in a0, the first argument to main(argc, argv)
 
@@ -424,5 +563,110 @@ bad:
     // TODO
     // Note: cnt is 1!
     free_mm(mm, 0);
+    // todo 
+    // kfree(ex);
     return -1;
+}
+
+
+uint64 load_dyn(char *path) {
+    ldso.pagetable = (pagetable_t)kzalloc(PGSIZE);
+    vmprint(ldso.pagetable, 1, 0, 0, 0);
+    int i, off;
+    uint64 sz = 0;
+    Elf64_Ehdr elf;
+    Elf64_Phdr ph;
+    struct inode *ip;
+
+    if ((ip = namei(path)) == 0) {
+        return -1;
+    }
+    ip->i_op->ilock(ip);
+    // Check ELF header
+    if (ip->i_op->iread(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+        goto unlock_put;
+
+    if (*(uint32 *)(elf.e_ident) != ELF_MAGIC)
+        goto unlock_put;
+
+    // Load program into memory.
+    for (i = 0, off = elf.e_phoff; i < elf.e_phnum; i++, off += sizeof(ph)) {
+        if (ip->i_op->iread(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+            goto unlock_put;
+        if (ph.p_type != PT_LOAD)
+            continue;
+        if (ph.p_memsz < ph.p_filesz)
+            goto unlock_put;
+        if (ph.p_vaddr + ph.p_memsz < ph.p_vaddr)
+            goto unlock_put;
+
+        /* off: start offset in misaligned page
+           size: read size of misaligned page
+        */
+        uint64 off = 0, size = 0;
+        vaddr_t vaddrdown = PGROUNDDOWN(ph.p_vaddr);
+        if (ph.p_vaddr % PGSIZE != 0) {
+            // Warn("%p", vaddrdown);
+            paddr_t pa = (paddr_t)kmalloc(PGSIZE);
+            if (mappages(ldso.pagetable, vaddrdown, PGSIZE, pa, flags2perm(ph.p_flags) | PTE_U, COMMONPAGE) < 0) {
+                Warn("misaligned loader mappages failed");
+                kfree((void *)pa);
+                goto unlock_put;
+            }
+            off = ph.p_vaddr - vaddrdown;
+            size = PGROUNDUP(ph.p_vaddr) - ph.p_vaddr;
+            // if (fat32_inode_read(ip, 0, (uint64)pa + off, ph.off, size) != size) {
+            if (ip->i_op->iread(ip, 0, (uint64)pa + off, ph.p_offset, size) != size) {
+                goto unlock_put;
+            }
+            // Log("entry is %p", elf.entry);
+        } else {
+            ASSERT(vaddrdown == ph.p_vaddr);
+        }
+        uint64 sz1;
+        ASSERT((ph.p_vaddr + size) % PGSIZE == 0);
+        // Log("\nstart end:%p %p", ph.vaddr + size, ph.vaddr + ph.memsz);
+        if ((sz1 = uvmalloc(ldso.pagetable, ph.p_vaddr + size, ph.p_vaddr + ph.p_memsz, flags2perm(ph.p_flags))) == 0)
+            goto unlock_put;
+        // vmprint(mm->pagetable, 1, 0, 0, 0);
+        sz = sz1;
+        if (loadseg(ldso.pagetable, ph.p_vaddr + size, ip, ph.p_offset + size, ph.p_filesz - size) < 0)
+            goto unlock_put;
+
+        // vaddr_t vaddrup = PGROUNDUP(ph.p_vaddr + ph.p_memsz);
+        // if (vma_map(mm, START + vaddrdown, vaddrup - vaddrdown, flags2vmaperm(ph.p_flags), VMA_TEXT) < 0) {
+        //     goto unlock_put;
+        // }
+    }
+    // fat32_inode_unlock_put(ip);
+    ip->i_op->iunlock_put(ip);
+    // printf("loader: ip %s unlocked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
+    ip = 0;
+    ldso.size = sz;
+    // vmprint(ldso.pagetable, 1, 0, 0, 0);
+    ldso.entry = elf.e_entry;
+
+    return 1;
+unlock_put:
+    // proc_freepagetable(mm->pagetable, sz, 0);
+    // fat32_inode_unlock_put(ip);
+    ip->i_op->iunlock_put(ip);
+    // printf("loader: ip %s unlocked! sem.value = %d\n",ip->fat32_i.fname,ip->i_sem.value);
+    return -1;
+}
+
+void map_dyn_loader(pagetable_t pagetable) {
+    vaddr_t ldva = LDSO;
+    paddr_t ldpa;
+    pte_t *pte;
+    int flags;
+    for (vaddr_t i = 0; i < ldso.size; i += PGSIZE, ldva += PGSIZE) {
+        if (i == 140 * PGSIZE) {
+            Log("hit");
+        }
+        walk(ldso.pagetable, i, 0, 0, &pte);
+        flags = PTE_FLAGS(*pte);
+        ldpa = PTE2PA(*pte);
+        mappages(pagetable, ldva, PGSIZE, ldpa, flags, 0);
+    }
 }

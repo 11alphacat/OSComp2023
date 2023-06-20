@@ -54,6 +54,6 @@ int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new
 int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm);
 int uvmcopy(struct mm_struct *old, struct mm_struct *new);
 void free_all_vmas(struct mm_struct *mm);
-void print_vma(struct mm_struct *mm);
+void print_vma(struct list_head *head_vma);
 
 #endif // __VMA_H__

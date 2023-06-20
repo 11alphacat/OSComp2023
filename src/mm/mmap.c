@@ -79,7 +79,7 @@ void *sys_mmap(void) {
         }
     }
 
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
     return (void *)mapva;
 }
 
@@ -108,7 +108,7 @@ uint64 sys_mprotect(void) {
     }
 
     struct mm_struct *mm = proc_current()->mm;
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
     if (start != vma->startva) {
         if (split_vma(mm, vma, start, 1) < 0) {
             return -1;
@@ -116,12 +116,12 @@ uint64 sys_mprotect(void) {
     }
 
     if (end != vma->startva + vma->size) {
-        if (split_vma(mm, vma, start, 0) < 0) {
+        if (split_vma(mm, vma, end, 0) < 0) {
             return -1;
         }
     }
     // printfYELLOW("==========================");
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
 
     vma->perm = prot;
     return 0;

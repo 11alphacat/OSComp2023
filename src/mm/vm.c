@@ -12,6 +12,8 @@
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
 
+#include "memory/buddy.h"
+
 /*
  * the kernel's page table.
  */
@@ -59,6 +61,7 @@ kvmmake(void) {
 
     // allocate and map a kernel stack for each process.
     tcb_mapstacks(kpgtbl);
+    kvmmap(kpgtbl, 0, START_MEM, PGSIZE * 100, PTE_R | PTE_W, 0);
 
     // vmprint(kpgtbl, 1, 0, 0, 0);
     return kpgtbl;
@@ -375,6 +378,9 @@ uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
 void freewalk(pagetable_t pagetable) {
     // there are 2^9 = 512 PTEs in a page table.
     for (int i = 0; i < 512; i++) {
+        // if (level == 0 && i == 1) {
+        //     continue;
+        // }
         pte_t pte = pagetable[i];
         if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
             // this PTE points to a lower-level page table.
@@ -393,7 +399,7 @@ void freewalk(pagetable_t pagetable) {
 // then free page-table pages.
 void uvmfree(struct mm_struct *mm) {
     free_all_vmas(mm);
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
     freewalk(mm->pagetable);
 }
 

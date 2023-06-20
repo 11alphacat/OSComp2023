@@ -152,7 +152,7 @@ int growheap(int n) {
     }
 
     if (mm->heapvma == NULL) {
-        if (vma_map(mm, mm->start_brk, sz, PERM_READ | PERM_WRITE, VMA_HEAP) < 0) {
+        if (vma_map(mm, mm->start_brk, sz - mm->start_brk, PERM_READ | PERM_WRITE, VMA_HEAP) < 0) {
             panic("TODO: ERROR HANDLER");
         }
     }

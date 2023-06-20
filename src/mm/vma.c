@@ -64,6 +64,8 @@ static int check_vma_intersect(struct list_head *vma_head, struct vma *checked_v
 }
 
 static int add_vma_to_vmspace(struct list_head *head, struct vma *vma) {
+    // printfYELLOW("===============\n");
+    // print_vma(head);
     if (check_vma_intersect(head, vma) != 0) {
         Log("add_vma_to_vmspace: vma overlap\n");
         ASSERT(0);
@@ -237,7 +239,7 @@ struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr) {
     return NULL;
 }
 
-#define MMAP_START 0x10000000
+#define MMAP_START 0x30000000
 vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
     struct vma *pos;
     vaddr_t max = MMAP_START;
@@ -264,13 +266,13 @@ vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
 
 void sys_print_vma() {
     struct mm_struct *mm = proc_current()->mm;
-    print_vma(mm);
+    print_vma(&mm->head_vma);
 }
 
-void print_vma(struct mm_struct *mm) {
+void print_vma(struct list_head *head_vma) {
     struct vma *pos;
     // VMA("%s vmas:\n", proc_current()->name);
-    list_for_each_entry(pos, &mm->head_vma, node) {
+    list_for_each_entry(pos, head_vma, node) {
         VMA("%#p-%#p %dKB\t", pos->startva, pos->startva + pos->size, pos->size / PGSIZE);
         if (pos->perm & PERM_READ) {
             VMA("r");
@@ -329,9 +331,10 @@ void free_all_vmas(struct mm_struct *mm) {
     struct vma *pos;
     struct vma *pos2;
     // vmprint(mm->pagetable, 1, 0, 0, 0);
+    print_vma(&mm->head_vma);
     list_for_each_entry_safe(pos, pos2, &mm->head_vma, node) {
         // Warn("%p~%p", pos->startva, pos->size);
-        // print_vma(mm);
+        // print_vma(&mm->head_vma);
         if (pos->type == VMA_HEAP && pos->size == 0) {
             del_vma_from_vmspace(&mm->head_vma, pos);
             continue;
