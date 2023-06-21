@@ -244,6 +244,9 @@ vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
     struct vma *pos;
     vaddr_t max = MMAP_START;
     list_for_each_entry(pos, &mm->head_vma, node) {
+        if (pos->type == VMA_INTERP) {
+            continue;
+        }
         if (pos->type == VMA_STACK) {
             continue;
         }
@@ -300,6 +303,7 @@ void print_vma(struct list_head *head_vma) {
         case VMA_HEAP: VMA("  VMA_HEAP  "); break;
         case VMA_FILE: VMA("  VMA_FILE  "); break;
         case VMA_ANON: VMA("  VMA_ANON  "); break;
+        case VMA_INTERP: VMA("  libc.so  "); break;
         default: panic("no such vma type");
         }
         VMA("\n");
@@ -331,10 +335,13 @@ void free_all_vmas(struct mm_struct *mm) {
     struct vma *pos;
     struct vma *pos2;
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    print_vma(&mm->head_vma);
+    // print_vma(&mm->head_vma);
     list_for_each_entry_safe(pos, pos2, &mm->head_vma, node) {
         // Warn("%p~%p", pos->startva, pos->size);
         // print_vma(&mm->head_vma);
+        if (pos->type == VMA_INTERP) {
+            continue;
+        }
         if (pos->type == VMA_HEAP && pos->size == 0) {
             del_vma_from_vmspace(&mm->head_vma, pos);
             continue;

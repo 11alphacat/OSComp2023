@@ -47,14 +47,14 @@ pagetable_t proc_pagetable() {
     // only the supervisor uses it, on the way
     // to/from user space, so not PTE_U.
     if (mappages(pagetable, TRAMPOLINE, PGSIZE, (uint64)trampoline, PTE_R | PTE_X, 0) < 0) {
-        freewalk(pagetable);
+        freewalk(pagetable, 0);
         return 0;
     }
 
     /* map with PTE_U */
     if (mappages(pagetable, SIGRETURN, PGSIZE, (uint64)__user_rt_sigreturn, PTE_R | PTE_X | PTE_U, 0) < 0) {
         uvmunmap(pagetable, TRAMPOLINE, 1, 0, 0);
-        freewalk(pagetable);
+        freewalk(pagetable, 0);
         return 0;
     }
 

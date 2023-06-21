@@ -23,6 +23,7 @@ typedef enum {
     VMA_TEXT,
     VMA_FILE,
     VMA_ANON, /* anonymous */
+    VMA_INTERP,
 } vmatype;
 
 /* virtual memory area */

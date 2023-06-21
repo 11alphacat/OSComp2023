@@ -18,7 +18,7 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm);
 void uvmfree(struct mm_struct *mm);
 void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int on_demand);
 void uvmclear(pagetable_t pagetable, uint64 va);
-void freewalk(pagetable_t pagetable);
+void freewalk(pagetable_t pagetable, int level);
 
 int uvm_thread_stack(pagetable_t pagetable, int thread_idx);
 int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa);
