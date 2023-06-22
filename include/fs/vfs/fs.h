@@ -10,6 +10,7 @@
 #include "fs/fat/fat32_mem.h"
 #include "lib/hash.h"
 #include "lib/radix-tree.h"
+#include "lib/list.h"
 
 struct kstat;
 extern struct ftable _ftable;
@@ -40,6 +41,8 @@ struct _superblock {
     struct inode *s_mount;
     struct inode *root;
 
+    struct spinlock dirty_lock; // used to protect dirty list
+    struct list_head s_dirty;	/* dirty inodes */
     union {
         struct fat32_sb_info fat32_sb_info;
         // struct xv6fs_sb_info xv6fs_sb;
@@ -73,6 +76,7 @@ struct ftable {
 //     char d_name[NAME_MAX + 1];
 // };
 
+
 // abstract datas in disk
 struct inode {
     uint8 i_dev;  // note: 未在磁盘中存储
@@ -94,10 +98,8 @@ struct inode {
     long i_ctime;     // create time
     uint64 i_blksize; // bytes of one block
     uint64 i_blocks;  // numbers of blocks
-    // uint32 i_blksize;
-    // uint32 i_blocks;
+
     struct semaphore i_sem; /* binary semaphore */
-    // struct sleeplock i_sem;
 
     const struct inode_operations *i_op;
     struct _superblock *i_sb;
@@ -111,10 +113,13 @@ struct inode {
     struct hash_table *i_hash;
 
     // speed up dirlookup
-    // int idx_hint;
     int off_hint;
 
+    struct spinlock i_lock;// protecting other fields
+    uint64 i_writeback;// writing back ?
+    struct list_head dirty_list;// link with superblock s_dirty
     struct address_space *i_mapping; // used for page cache
+    
 
     union {
         struct fat32_inode_info fat32_i;
@@ -131,6 +136,9 @@ struct address_space {
     struct radix_tree_root page_tree; /* radix tree(root) of all pages */
     spinlock_t tree_lock;             /* and lock protecting it */
     uint64 nrpages;                   /* number of total pages */
+    uint64 last_index;// 2 4 6 8 ... read head policy
+    uint64 read_ahead_cnt;// the number of read ahead 
+    uint64 read_ahead_end;// the end index of read ahead
 };
 
 struct file_operations {

@@ -200,8 +200,11 @@ int fat32_inode_load_from_disk(struct inode *ip);
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
 
 // 43. get blocks
-int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n);
+int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int alloc);
 
 // 44. destory i_mapping
 void fat32_i_mapping_destroy(struct inode *ip);
+
+// 45. init i_mapping
+void fat32_i_mapping_init(struct inode *ip);
 #endif

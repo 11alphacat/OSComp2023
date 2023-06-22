@@ -7,6 +7,7 @@ BUILD=build
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
+DEBUG_PAGE_CACHE ?=1
 STRACE ?= 0
 
 FSIMG = fsimg
@@ -101,6 +102,9 @@ CFLAGS += -D__DEBUG_PROC__
 endif
 ifeq ($(DEBUG_FS), 1)
 CFLAGS += -D__DEBUG_FS__
+endif
+ifeq ($(DEBUG_PAGE_CACHE), 1)
+CFLAGS += -D__DEBUG_PAGE_CACHE__
 endif
 
 CFLAGS += -MD

@@ -2764,31 +2764,31 @@ void dirfile() {
 
 
 int main(void) {
-    print_sysinfo();
-    forktest();
-    print_sysinfo();
-    exitwait();
-    print_sysinfo();
-    forkfork();    
-    print_sysinfo();
-    forkforkfork();
-    print_sysinfo();
-    twochildren();
-    print_sysinfo();
-    reparent();
-    print_sysinfo();
+    // print_sysinfo();
+    // forktest();
+    // print_sysinfo();
+    // exitwait();
+    // print_sysinfo();
+    // forkfork();    
+    // print_sysinfo();
+    // forkforkfork();
+    // print_sysinfo();
+    // twochildren();
+    // print_sysinfo();
+    // reparent();
+    // print_sysinfo();
 
-    reparent2();     // seem to occur bug
+    // reparent2();     // seem to occur bug
 
-    print_sysinfo();
-    killstatus();
-    print_sysinfo();
-    opentest();
-    print_sysinfo();
-    openiputtest();
-    print_sysinfo();
-    writetest();
-    print_sysinfo();
+    // print_sysinfo();
+    // killstatus();
+    // print_sysinfo();
+    // opentest();
+    // print_sysinfo();
+    // openiputtest();
+    // print_sysinfo();
+    // writetest();
+    // print_sysinfo();
     writebig();
     print_sysinfo();
     

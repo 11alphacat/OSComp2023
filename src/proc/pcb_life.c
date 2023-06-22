@@ -12,6 +12,7 @@
 #include "proc/pcb_life.h"
 #include "proc/pcb_mm.h"
 #include "proc/exec.h"
+#include "proc/pdflush.h"
 #include "ipc/signal.h"
 #include "proc/options.h"
 #include "fs/stat.h"
@@ -25,6 +26,7 @@
 #include "param.h"
 #include "debug.h"
 #include "test.h"
+
 
 extern Queue_t unused_p_q, used_p_q, zombie_p_q;
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
@@ -185,10 +187,14 @@ void _user_init(void) {
     struct proc *p = NULL;
 
     p = create_proc();
-    initproc = p;
 
     safestrcpy(p->name, "/init", 10);
+    safestrcpy(p->tg->group_leader->name, "/init-0", 10);
+    
     p->mm->brk = 0;
+
+
+    initproc = p;
 
     console.f_type = S_IFCHR;
     console.f_mode = O_RDWR;
@@ -196,6 +202,7 @@ void _user_init(void) {
 
     TCB_Q_changeState(p->tg->group_leader, TCB_RUNNABLE);
     release(&p->lock);
+
     return;
 }
 
@@ -206,6 +213,7 @@ void init_ret(void) {
     // proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", NULL, NULL);
+
 }
 
 // initialize the proc table.
@@ -576,33 +584,60 @@ uint8 get_current_procs() {
     return procs;
 }
 
+
+// debug
+static char *PCB_states[] = {
+    [PCB_UNUSED] "pcb_unused",
+    [PCB_USED] "pcb_used",
+    [PCB_ZOMBIE] "pcb_zombie"};
+static char *TCB_states[] = {
+    [TCB_UNUSED] "tcb_unused",
+    [TCB_USED] "tcb_used",
+    [TCB_RUNNABLE] "tcb_runnable",
+    [TCB_RUNNING] "tcb_running",
+    [TCB_SLEEPING] "tcb_sleeping",
+    [TCB_ZOMBIE] "tcb_zombie"};
+
+void printProcessTree(struct proc* p, int indent) {
+    if (p->state == PCB_UNUSED) {
+        return;
+    }
+    
+    for (int i = 0; i < indent * 4; i++) {
+        printf(" ");
+    }
+
+    printf("pid %d %s %s\n", p->pid, PCB_states[p->state], p->name);
+
+    struct tcb* t_cur = NULL;
+    acquire(&p->tg->lock);
+    list_for_each_entry(t_cur, &p->tg->threads, threads) {
+        acquire(&t_cur->lock);
+        for (int i = 0; i < (indent + 1) * 4; i++) {
+
+            printf(" ");
+        }
+        printf("└─tid %d %s %s\n", t_cur->tid, TCB_states[t_cur->state], t_cur->name);
+        release(&t_cur->lock);
+    }
+    release(&p->tg->lock);
+    printf("\n");
+    
+    if (nochildren(p)) {
+        return;
+    }
+    struct proc *p_child = NULL;
+    struct proc *p_tmp = NULL;
+    struct proc *p_first = firstchild(p);
+    int flag = 1;
+    list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
+        acquire(&p_child->lock);
+        printProcessTree(p_child, indent + 1);
+        release(&p_child->lock);
+    }
+}
+
 void proc_thread_print(void) {
-    static char *PCB_states[] = {
-        [PCB_UNUSED] "pcb_unused",
-        [PCB_USED] "pcb_used",
-        [PCB_ZOMBIE] "pcb_zombie"};
-    static char *TCB_states[] = {
-        [TCB_UNUSED] "tcb_unused",
-        [TCB_USED] "tcb_used",
-        [TCB_RUNNABLE] "tcb_runnable",
-        [TCB_RUNNING] "tcb_running",
-        [TCB_SLEEPING] "tcb_sleeping",
-        [TCB_ZOMBIE] "tcb_zombie"};
-
-    struct proc *p;
-    struct tcb *t;
-
-    for (p = proc; p < &proc[NPROC]; p++) {
-        if (p->state == PCB_UNUSED)
-            continue;
-        printf("%d %s %s\n", p->pid, PCB_states[p->state], p->name);
-    }
-
     printf("\n");
-    for (t = thread; t < &thread[NTCB]; t++) {
-        if (t->state == TCB_UNUSED)
-            continue;
-        printf("%d %s %s\n", t->tid, TCB_states[t->state], t->name);
-    }
-    printf("\n");
+    printProcessTree(initproc, 0);
 }

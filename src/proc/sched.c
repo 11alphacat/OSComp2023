@@ -110,6 +110,7 @@ int thread_sched(void) {
     int set_timer = thread->time_out; // !!!
     struct timer_list timer;
     timer.expires = 0;
+    timer.count = 1; // only once
     if (set_timer != 0) {
         add_timer_atomic(&timer, thread->time_out, thread_wakeup, (void *)thread);
     }
@@ -136,6 +137,7 @@ void thread_scheduler(void) {
         t = (struct tcb *)Queue_provide_atomic(&runnable_t_q, 1); // remove it
         if (t == NULL)
             continue;
+        
         acquire(&t->lock);
         t->state = TCB_RUNNING;
         c->thread = t;

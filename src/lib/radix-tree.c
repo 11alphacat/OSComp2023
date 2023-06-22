@@ -585,7 +585,9 @@ int radix_tree_general_gang_lookup_elements(struct radix_tree_root *root, void *
     if (!radix_tree_is_indirect_ptr(node)) {
         if (first_index > 0)
             return 0;
-        panic("radix_tree_gang_lookup : error\n");
+        function(page_head, node, 0, NULL);
+        return 1;
+        // panic("radix_tree_gang_lookup : error\n");
         // return 1;
     }
 

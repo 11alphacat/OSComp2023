@@ -89,8 +89,8 @@ void _acquire(struct spinlock *lk) {
 // Release the lock.
 void _release(struct spinlock *lk) {
     if (!holding(lk)) {
-        printf("%s\n", lk->name);
-        panic("release");
+        printf("%s ", lk->name);
+        panic("release\n");
     }
     lk->cpu = 0;
 

@@ -32,6 +32,7 @@ void inode_table_init(void);
 void hash_tables_init(void);
 void hartinit();
 void pdflush_init();
+void page_writeback_timer_init(void);
 
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
@@ -57,9 +58,6 @@ void main() {
         proc_init(); // process table
         tcb_init();
 
-        // pdflush
-        pdflush_init();
-
         // map init
         hash_tables_init();
 
@@ -78,12 +76,17 @@ void main() {
         binit(); // buffer cache
         fileinit();
         inode_table_init();
-
+        
+        
         // virtual disk
         virtio_disk_init(); // emulated hard disk
 
         // First user process
         _user_init(); // first user process
+
+        // pdflush kernel thread
+        pdflush_init();
+
 #ifdef KCSAN
         kcsaninit();
 #endif

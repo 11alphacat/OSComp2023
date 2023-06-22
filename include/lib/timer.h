@@ -17,8 +17,11 @@ struct timer_entry {
 struct timer_list {
     struct list_head list;
     uint64 expires;
+    uint64 expires_end;
     void (*function)(void *); // uint64
     void *data;               // uint64
+    int count; // 
+
 };
 
 void timer_entry_init(struct timer_entry *t_entry, char *name);

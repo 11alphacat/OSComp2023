@@ -8,7 +8,7 @@
 #include "atomic/cond.h"
 
 #define MIN_PDFLUSH_THREADS 2
-#define MAX_PDFLUSH_THREADS 8
+#define MAX_PDFLUSH_THREADS 4
 
 struct pdflush {
     struct list_head entry;
@@ -25,6 +25,7 @@ struct pdflush_work {
     uint64 when_i_went_to_sleep;
 };
 
+void pdflush_init();
 int pdflush_operation(void (*fn)(uint64), uint64 arg0);
 void start_one_pdflush_thread();
 

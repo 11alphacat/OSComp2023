@@ -2,6 +2,7 @@
 #include "proc/tcb_life.h"
 #include "proc/sched.h"
 #include "lib/list.h"
+#include "memory/writeback.h"
 #include "debug.h"
 
 struct pdflush pdflush_control;
@@ -13,6 +14,10 @@ void pdflush_init() {
     atomic_set(&pdflush_control.nr_pdflush_threads, 0);
     INIT_LIST_HEAD(&pdflush_control.entry);
     cond_init(&pdflush_control.pdflush_cond, "pdflush_cond");
+
+    for (int i = 0; i < MIN_PDFLUSH_THREADS; i++)
+        start_one_pdflush_thread();
+    // page_writeback_timer_init();
 }
 
 static int __pdflush(struct pdflush_work *my_work) {
@@ -27,21 +32,18 @@ static int __pdflush(struct pdflush_work *my_work) {
 
         // suspend this pdflush into list
         list_move(&my_work->list, &pdflush_control.entry);
-        release(&pdflush_control.lock);
 
         // unit is s !!!
         my_work->when_i_went_to_sleep = TIME2SEC(rdtime());
-
-        // set 10 s
-        thread_current()->time_out = S_to_NS(10);
-
+        
         int wait_ret = cond_wait(&pdflush_control.pdflush_cond, &pdflush_control.lock);
         if (wait_ret == 0) {
-            printfRed("pdflush : timeout!!!\n");
+            printfRed("pdflush : error\n");
+        } else {
+            printfRed("pdflush : wakeup\n");
         }
 
         // ensure my_work is removed form list
-        acquire(&pdflush_control.lock);
         if (!list_empty(&my_work->list)) {
             printfRed("pdflush: bogus wakeup!\n");
             my_work->fn = NULL;
@@ -90,10 +92,14 @@ static int __pdflush(struct pdflush_work *my_work) {
     atomic_inc_return(&pdflush_control.nr_pdflush_threads);
 
     release(&pdflush_control.lock);
+
+    panic("pdflush decrease\n");
     return 0;
 }
 
 static void pdflush(void) {
+    // similar to thread_forkret
+    release(&thread_current()->lock);
     struct pdflush_work my_work;
     __pdflush(&my_work);
 }

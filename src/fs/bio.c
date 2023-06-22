@@ -103,7 +103,7 @@ void disk_rw_bio(struct buffer_head *b, int rw) {
     struct bio bio_new;
     struct bio_vec vec_new;
     init_bio(&bio_new, &vec_new, b, rw);
-    submit_bio(&bio_new);
+    submit_bio(&bio_new, 0);
 }
 
 // we use data in stack, so we don't need to kalloc and free
@@ -123,14 +123,27 @@ void init_bio(struct bio *bio_p, struct bio_vec *vec_p, struct buffer_head *b, i
     vec_p->disk = b->disk;
 
     // join bio_vec to bio (don't forget it)
-    list_add_tail(&bio_p->list_entry, &vec_p->list);
+    list_add_tail(&vec_p->list, &bio_p->list_entry);
+    // bug like this : list_add_tail(&bio_p->list_entr, &vec_p->list);
 }
 
 // read or write
-void submit_bio(struct bio *bio) {
+// free bio_vec, if necessary 
+void submit_bio(struct bio *bio, int free) {
     struct bio_vec *vec_cur = NULL;
     struct bio_vec *vec_tmp = NULL;
     list_for_each_entry_safe(vec_cur, vec_tmp, &bio->list_entry, list) {
         virtio_disk_rw((void *)vec_cur, bio->bi_rw, BLOCK_SEL);
+        if(free) {
+            kfree(vec_cur);
+        }
     }
 }
+
+// debug
+void bio_print(struct bio *bio) {
+    struct bio_vec *vec_cur = NULL;
+    list_for_each_entry(vec_cur, &bio->list_entry, list) {
+        printf("start : %d, end : %d, cnt : %d\n", vec_cur->blockno_start, vec_cur->blockno_start + vec_cur->block_len - 1, vec_cur->block_len);
+    }
+}   

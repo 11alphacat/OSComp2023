@@ -53,7 +53,7 @@ void bwrite(struct buffer_head *);
 // bio
 void disk_rw_bio(struct buffer_head *b, int rw);
 void init_bio(struct bio *bio_p, struct bio_vec *vec_p, struct buffer_head *b, int rw);
-void submit_bio(struct bio *bio);
-void free_bio(struct bio *bio);
+void submit_bio(struct bio *bio, int free);
+void bio_print(struct bio *bio);
 
 #endif // __BIO_H__

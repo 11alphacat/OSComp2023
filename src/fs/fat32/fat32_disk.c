@@ -35,10 +35,9 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     sb->root = fat32_root_inode_init(sb);
     sb->s_mount = sb->root;
 
-    // snprintf_test();
-    // printf_test();
-    // fat32_test_functions();
-    // panic("fs_mount");
+    // dirty list and lock protecting it
+    INIT_LIST_HEAD(&sb->s_dirty);
+    initlock(&sb->dirty_lock, "dirty_lock");
     return 0;
 }
 

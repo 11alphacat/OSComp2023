@@ -12,42 +12,45 @@
 
 // index : page index
 // cnt : page count
-void block_full_pages(struct inode *ip, struct bio *bio_p, uint64 dst, uint64 index, uint64 cnt) {
+void block_full_pages(struct inode *ip, struct bio *bio_p, uint64 src, uint64 index, uint64 cnt, int alloc) {
     // fill the bio using fat32_get_block
     uint32 off = index * PGSIZE;
     uint32 n = cnt * PGSIZE;
     uint32 bsize = ip->i_sb->sector_size;
-    int blocks_n = fat32_get_block(ip, bio_p, off, n);
-    ASSERT(blocks_n * bsize == n);
+
+    // pay attention to alloc!!!
+    int blocks_n = fat32_get_block(ip, bio_p, off, n, alloc);
+    if (alloc == 1) // it is ok, if only read
+        ASSERT(blocks_n * bsize == n);
 
     // copy bio_vec into dst
     struct bio_vec *vec_cur = NULL;
-    struct bio_vec *vec_tmp = NULL;
-    list_for_each_entry_safe(vec_cur, vec_tmp, &bio_p->list_entry, list) {
-        memmove((void *)dst, (char *)vec_cur->data, vec_cur->block_len * bsize);
-        dst += vec_cur->block_len * bsize;
+    list_for_each_entry(vec_cur, &bio_p->list_entry, list) {
+        vec_cur->data = (uchar *)src;
+        src += vec_cur->block_len * bsize;
     }
 }
 
 // read/write more than one page
-void fat32_rw_pages(struct inode *ip, uint64 dst, uint64 index, int rw, uint64 cnt) {
+void fat32_rw_pages(struct inode *ip, uint64 src, uint64 index, int rw, uint64 cnt, int alloc) {
     struct bio bio_cur;
 
+    // init bio
     INIT_LIST_HEAD(&bio_cur.list_entry);
     bio_cur.bi_rw = rw;
     bio_cur.bi_bdev = ip->i_dev;
 
     // fill bio
-    block_full_pages(ip, &bio_cur, dst, index, cnt);
+    block_full_pages(ip, &bio_cur, src, index, cnt, alloc);
 
     // submit bio
-    if (list_empty(&bio_cur.list_entry)) {
-        submit_bio(&bio_cur);
+    if (!list_empty(&bio_cur.list_entry)) {
+        submit_bio(&bio_cur, 1); // free bio_vec of bio
     }
 }
 
 // read/write more than one page using page batch
-void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw) {
+void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, int alloc) {
     struct Page_item *p_cur_out = NULL;
     struct Page_item *p_first = NULL;
     int batch_size = 1;
@@ -65,14 +68,23 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw) 
             if (PAGE_ADJACENT(p_nxt_in, p_cur_in)) {
                 p_cur_out = p_cur_in; // !!!
                 batch_size++;
-                struct page *page_cur = pa_to_page(p_cur_in->pa);
-                page_cache_put(page_cur);
-                release(&page_cur->lock);
+                // struct page *page_cur = pa_to_page(p_cur_in->pa);
+                // page_cache_put(page_cur);
+                // release(&page_cur->lock);
             } else {
                 break;
             }
         }
-        fat32_rw_pages(ip, p_tmp_head_in->pa, p_tmp_head_in->index, rw, batch_size * PGSIZE);
+#ifdef __DEBUG_PAGE_CACHE__
+        // if(batch_size > 1) {
+        //     if(rw == DISK_READ)
+        //         printfCYAN("read : batchsize : %d, index from %d to %d\n", batch_size, p_tmp_head_in->index, p_tmp_head_in->index + batch_size - 1);
+        //     else
+        //         printfBlue("write : batchsize : %d, index from %d to %d\n", batch_size, p_tmp_head_in->index, p_tmp_head_in->index + batch_size - 1);
+        // }
+#endif
+        // release(&pa_to_page(p_tmp_head_in->pa)->lock); // !!! maybe the lock protecting page is not needed ??
+        fat32_rw_pages(ip, p_tmp_head_in->pa, p_tmp_head_in->index, rw, batch_size, alloc); // don't write batch_size as batch_size * PGSIZE
     }
 }
 
@@ -81,34 +93,37 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw) 
 // cnt : page count
 // read_from_disk : need read from disk ??
 // return : pa of the first page
-uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from_disk) {
+uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from_disk, int alloc) {
     struct Page_entry p_entry;
     struct address_space *mapping = ip->i_mapping;
 
     ASSERT(cnt > 0);
-    uint64 pa_first = 0;
+
     INIT_LIST_HEAD(&p_entry.entry); // !!!
+    p_entry.n_pages = 0;            // !!!!!! bug
+
+    uint64 first_pa = 0;
+    // we want cnt * pagesize is continous
+    if ((first_pa = (uint64)kzalloc(PGSIZE * cnt)) == 0) {
+        panic("mpage_readpages : no enough memory\n");
+    }
+
+    uint64 pa = 0;
     for (int i = 0; i < cnt; i++) {
         if (find_get_page_atomic(mapping, index, 0)) {
             // find it, not holding lock
             continue;
         }
+
         // pa and page
-        uint64 pa = 0;
-        if ((pa = (uint64)kzalloc(PGSIZE)) == 0) {
-            panic("mpage_readpages : no enough memory\n");
-        }
+        pa = first_pa + i * PGSIZE;
         struct page *page = pa_to_page(pa);
 
         // refcnt ++ and acquire lock
-        page_cache_get(page);
-        acquire(&page->lock);
+        // page_cache_get(page);
+        // acquire(&page->lock);
 
         add_to_page_cache_atomic(page, mapping, index);
-
-        if (pa_first == 0) {
-            pa_first = pa; // !!!
-        }
 
         if (cnt == 1 && read_from_disk == 0)
             break; // !!!
@@ -125,32 +140,38 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
         INIT_LIST_HEAD(&p_item->list);
 
         // join p_item into p_entry
-        list_add_tail(&p_entry.entry, &p_item->list);
+        list_add_tail(&p_item->list, &p_entry.entry);
+        // bug like this : list_add_tail(&p_entry.entry, &p_item->list)
         p_entry.n_pages++;
     }
 
     if (read_from_disk)
         // read pages using page list
-        fat32_rw_pages_batch(ip, &p_entry, DISK_READ);
+        fat32_rw_pages_batch(ip, &p_entry, DISK_READ, alloc);
 
-    return pa_first;
+    return first_pa;
 }
 
 // write pages
-void mpage_writepage(struct inode *ip) {
+void mpage_writepage(struct inode *ip, int alloc) {
     struct address_space *mapping = ip->i_mapping;
-    if (mapping->page_tree.height == 0) {
+    if (mapping->page_tree.height == 0 && mapping->page_tree.rnode == NULL) {
         return;
     }
+
     struct Page_entry p_entry;
     INIT_LIST_HEAD(&p_entry.entry); // !!!
+    p_entry.n_pages = 0;// !!! bug
 
     int ret = radix_tree_general_gang_lookup_elements(&(mapping->page_tree), &p_entry, page_list_add,
                                                       0, maxitems_invald, PAGECACHE_TAG_DIRTY);
     ASSERT(ret > 0);
+    if(mapping->page_tree.height == 0 && ret != 1) {
+        panic("mpage_writepage : error\n");
+    }
 
     // write pages using page list
-    fat32_rw_pages_batch(ip, &p_entry, DISK_WRITE);
+    fat32_rw_pages_batch(ip, &p_entry, DISK_WRITE, alloc);
 }
 
 // add page item into page list

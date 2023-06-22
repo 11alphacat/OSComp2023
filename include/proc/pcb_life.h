@@ -38,7 +38,7 @@ struct proc {
     // these are private to the process, so p->lock need not be held.
     struct file *ofile[NOFILE]; // Open files
     struct inode *cwd;          // Current directory
-    char name[16];              // Process name (debugging)
+    char name[20];              // Process name (debugging)
 
     // proc state queue
     struct list_head state_list; // its state queue

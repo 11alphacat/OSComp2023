@@ -24,7 +24,8 @@ void timer_entry_init(struct timer_entry *t_entry, char *name) {
 // expires : ns!!!
 void add_timer_atomic(struct timer_list *timer, uint64 expires, timer_expire function, void *data) {
     timer->data = data;
-    timer->expires = expires + TIME2NS(rdtime());
+    timer->expires_end = expires + TIME2NS(rdtime());
+    timer->expires = expires;
     timer->function = function;
     INIT_LIST_HEAD(&timer->list);
 
@@ -46,10 +47,15 @@ void timer_list_decrease_atomic(struct timer_entry *head) {
     acquire(&head->lock);
     list_for_each_entry_safe(timer_cur, timer_tmp, &head->entry, list) {
         uint64 time_now_ns = TIME2NS(rdtime());
-        if (time_now_ns > timer_cur->expires) {
+        if (time_now_ns > timer_cur->expires_end) {
             timer_cur->function(timer_cur->data);
-            list_del_reinit(&timer_cur->list);
-            timer_cur->expires = 0;
+            if (timer_cur->count != -1) {
+                list_del_reinit(&timer_cur->list);
+                timer_cur->expires_end = 0;
+                timer_cur->expires = 0;
+            } else {
+                timer_cur->expires_end = timer_cur->expires + TIME2NS(rdtime());
+            }
         }
     }
     release(&head->lock);

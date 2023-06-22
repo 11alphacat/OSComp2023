@@ -34,6 +34,25 @@ typedef unsigned int gfp_t;
 #define maxitems_valid(maxitems) ((maxitems != UINT64_MAX))
 #define maxitems_invald UINT64_MAX
 
+
+#define GFP_FS	((gfp_t)0x80u)	/* Can call down to low-level FS? */
+#define RADIX_TREE_INIT(mask)	{					\
+	.height = 0,							\
+	.gfp_mask = (mask),						\
+	.rnode = NULL,							\
+}
+
+#define RADIX_TREE(name, mask) \
+	struct radix_tree_root name = RADIX_TREE_INIT(mask)
+
+#define INIT_RADIX_TREE(root, mask)					\
+do {									\
+	(root)->height = 0;						\
+	(root)->gfp_mask = (mask);					\
+	(root)->rnode = NULL;						\
+} while (0)
+
+
 // root of radix tree
 struct radix_tree_root {
     uint32 height;                 // height of radix tree
