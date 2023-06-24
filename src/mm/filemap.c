@@ -27,11 +27,10 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
     }
 #ifdef __DEBUG_PAGE_CACHE__
     if (!error) {
-        printfMAGENTA("page_insert : fname : %s, index : %d, pa : %0x\n",
-                      mapping->host->fat32_i.fname, index, page_to_pa(page));
+        printfMAGENTA("page_insert : fname : %s, index : %d, pa : %0x, rest memory : %d PAGES\n",
+                      mapping->host->fat32_i.fname, index, page_to_pa(page), get_free_mem() / 4096);
     }
 #endif
-
     return error;
 }
 
@@ -66,7 +65,6 @@ uint64 max_sane_readahead(uint64 nr, uint64 read_ahead, uint64 tot_nr) {
 ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64 dst, uint off, uint n) {
     struct inode *ip = mapping->host;
     ASSERT(ip->i_size > 0);
-    ASSERT(n > 0);
 
     uint64 index = off >> PGSHIFT; // page number
     uint64 offset = PGMASK(off);   // offset in a page
@@ -90,6 +88,7 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
             nr = (PGMASK((isize - 1))) + 1;
             // it is larger than offset of off
             if (nr <= offset) {
+                panic("not tested\n");
                 goto out;
             }
         }
@@ -145,9 +144,6 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
 
         // printfRed("name : %s, retval : %d, n : %d, index : %d, end_index : %d\n",
         //         ip->fat32_i.fname, retval, n, index, end_index);
-        // if(index == 74) {
-        //     printfBlue("ready\n");
-        // }
         if (retval == n) {
             break; // !!!
         }
@@ -183,10 +179,12 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
         if (page == NULL) {
             int read_from_disk = -1;
-            if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset, n - retval)) {
+            // if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset, n - retval)) {
+            if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset)) {
                 // need read page in disk
                 read_from_disk = 1;
             } else {
+                // panic("not tested\n");
                 read_from_disk = 0;
             }
             pa = mpage_readpages(ip, index, 1, read_from_disk, 1); // just read one page, allocate clusters if necessary
@@ -236,16 +234,3 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
     return retval;
 }
-
-// to replace bread of xv6
-// some functions using i_ino may useless
-// void do_generic_buffer_read(struct inode* ip, int user_dst, uint64 dst, ,uint n) {
-
-// // init the i_mapping
-// if (ip->i_mapping == NULL) {
-//     fat32_i_mapping_init(ip);
-// }
-
-// // using mapping to speed up read
-// int ret = do_generic_file_read(ip->i_mapping, user_dst, dst, ip->fat32_i.parent_off * 32, n);
-// }

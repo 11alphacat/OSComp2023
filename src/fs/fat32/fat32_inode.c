@@ -114,6 +114,8 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     // is writing back ?
     root_ip->i_writeback = 0;
 
+    // is dirty in parent ?
+    root_ip->dirty_in_parent = 0;
     ASSERT(root_ip->fat32_i.cluster_start == 2);
 
     return root_ip;
@@ -281,6 +283,10 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
     if (off + n > fileSize)
         n = fileSize - off;
 
+    if (n == 0) {
+        return 0;
+    }
+
     // init the i_mapping
     if (ip->i_mapping == NULL) {
         fat32_i_mapping_init(ip);
@@ -324,7 +330,11 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
             ip->i_size = off + tot;
         else
             ip->i_size = CEIL_DIVIDE(off + tot, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
-        fat32_inode_update(ip);
+        // fat32_inode_update(ip);
+        ip->dirty_in_parent = 1;
+#ifdef __DEBUG_PAGE_CACHE__
+        printfCYAN("file %s is dirty in parent\n", ip->fat32_i.fname);
+#endif
     }
 
     return tot;
@@ -394,6 +404,8 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
     ip->i_mapping = NULL;
 
     ip->i_nlink = 1;
+
+    ip->dirty_in_parent = 0; // !!!
 
     // full name of file
     safestrcpy(ip->fat32_i.fname, name, strlen(name));
@@ -538,7 +550,8 @@ void fat32_inode_put(struct inode *ip) {
             release(&inode_table.lock);
 
             fat32_inode_trunc(ip);
-            fat32_inode_update(ip);
+            ip->dirty_in_parent = 1;
+            // fat32_inode_update(ip);
 
             fat32_inode_unlock(ip);
             acquire(&inode_table.lock);
@@ -759,7 +772,8 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type
     } else {
         ip->i_rdev = 0;
     }
-    fat32_inode_update(ip);
+    fat32_inode_update(ip); // !!!! very important
+    // bug like this :  ip->dirty_in_parent = 1;
 
     // if (type == S_IFDIR) { // Create . and .. entries.
     if (S_ISDIR(type)) { // Create . and .. entries.

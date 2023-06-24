@@ -121,6 +121,8 @@ struct inode {
 
     struct list_head list; // to speed up inode_get
 
+    int dirty_in_parent; // need to update ??
+
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6inode_info xv6_i;

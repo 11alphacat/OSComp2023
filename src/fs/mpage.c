@@ -85,7 +85,6 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, 
 #endif
         // release(&pa_to_page(p_tmp_head_in->pa)->lock); // !!! maybe the lock protecting page is not needed ??
         fat32_rw_pages(ip, p_tmp_head_in->pa, p_tmp_head_in->index, rw, batch_size, alloc); // don't write batch_size as batch_size * PGSIZE
-        // fat32_rw_pages(ip, p_tmp_head_in, p_tmp_head_in->index, rw, batch_size, alloc); // don't write batch_size as batch_size * PGSIZE
     }
 }
 
@@ -103,6 +102,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 
     // the process below may be some complex
     // [start_idx, end_idx) is valid
+    // we use two pointer to filter valid interval
     uint64 first_pa = 0;
     uint64 pa = 0;
     for (uint64 start_idx = 0; start_idx < cnt;) {
@@ -154,6 +154,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 
             start_idx = end_idx + 1;
         } else {
+            panic("mpage_readpages : not tested\n");
             if (start_idx == 0) {
                 panic("mpage_readpages : error\n");
             }
@@ -214,16 +215,7 @@ void page_list_add(void *entry, void *item, uint64 index, void *node) {
     INIT_LIST_HEAD(&p_item->list);
 
     // join p_item into p_entry
-    list_add_tail(&p_entry->entry, &p_item->list);
+    list_add_tail(&p_item->list, &p_entry->entry);
+    // bug like this :     list_add_tail&p_entry->entry, &p_item->list);
     p_entry->n_pages++;
 }
-
-// // delete pagecache
-// void page_list_delete(void *entry, void *item, uint64 index, void *node) {
-//     // p_item
-//     struct page *page = (struct page *)item;
-
-//     // put pagecache and free node
-//     page_cache_put(page);
-//     radix_tree_node_free((struct radix_tree_node *)node);
-// }

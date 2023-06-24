@@ -11,7 +11,7 @@ void print_sysinfo() {
         printf("error : sysinfo\n");
     // printf("Uptime: %d seconds\n", info.uptime);
     // printf("Total RAM: %d bytes\n", info.totalram);
-    printf("Free RAM: %d bytes\n", info.freeram);
+    printf("Free RAM: %d PAGES\n", info.freeram/4096);
     // printf("Number of processes: %d\n", info.procs);
 }
 
@@ -2764,8 +2764,9 @@ void dirfile() {
 
 
 int main(void) {
-    print_sysinfo();
-    forktest();
+    // ==== process =====
+    // print_sysinfo();
+    // forktest();
     // print_sysinfo();
     // exitwait();
     // print_sysinfo();
@@ -2777,19 +2778,19 @@ int main(void) {
     // print_sysinfo();
     // reparent();
     // print_sysinfo();
-
-    // reparent2();     // seem to occur bug
-
+    // reparent2(); 
     // print_sysinfo();
     // killstatus();
     // print_sysinfo();
+
+    // ====== file system ======
     // opentest();
     // print_sysinfo();
     // openiputtest();
     // print_sysinfo();
     // writetest();
     // print_sysinfo();
-    // writebig();
+    writebig();
     // print_sysinfo();
     
     // preempt();

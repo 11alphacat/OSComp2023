@@ -21,6 +21,10 @@ int sync_inode(struct inode *ip) {
     // page write back (all)
     mpage_writepage(ip, 1); // allocate if necessary
 
+    // update fcb in parent
+    if (ip->dirty_in_parent) {
+        fat32_inode_update(ip);
+    }
     return 0;
 }
 

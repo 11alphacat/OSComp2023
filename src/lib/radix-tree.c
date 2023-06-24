@@ -542,7 +542,9 @@ int radix_tree_lookup_batch_elements(struct radix_tree_node *slot, void *page_he
         if (tag_valid(tag) && !tag_get(slot, tag, i))
             continue;
         if (slot->slots[i]) {
-            function(page_head, &(slot->slots[i]), index - 1, slot->slots[i]);
+            // function(page_head, &(slot->slots[i]), index - 1, slot->slots[i]);
+            function(page_head, slot->slots[i], index - 1, slot->slots[i]);
+
             nr_found++;
             if (nr_found == max_items)
                 goto out;

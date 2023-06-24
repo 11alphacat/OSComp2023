@@ -8,7 +8,8 @@
 #define READ_AHEAD_PAGE_MAX_CNT 16
 
 #define OUTFILE(index, pgsize) ((index) > (pgsize))
-#define NOT_FULL_PAGE(offset, restval) ((offset) != 0 || (restval) < PGSIZE)
+// #define NOT_FULL_PAGE(offset, restval) ((offset) != 0 || (restval) < PGSIZE)
+#define NOT_FULL_PAGE(offset) ((offset) != 0)
 
 #define CHANGE_READ_AHEAD(mapping) (mapping->read_ahead_cnt = ((mapping->read_ahead_cnt) == 0) ? 1 : mapping->read_ahead_cnt * 2)
 
