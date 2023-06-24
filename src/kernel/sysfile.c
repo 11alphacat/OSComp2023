@@ -929,7 +929,8 @@ uint64 sys_getdents64(void) {
     memset(kbuf, 0, len); // !!!!
     ASSERT(ip->i_op);
     ASSERT(ip->i_op->igetdents);
-    if ((nread = ip->i_op->igetdents(ip, kbuf, sz)) < 0) {
+    // TODO : modify offset
+    if ((nread = ip->i_op->igetdents(ip, kbuf, 0, sz)) < 0) {
         kfree(kbuf);
         return -1;
     }

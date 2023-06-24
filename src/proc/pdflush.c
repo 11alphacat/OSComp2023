@@ -35,7 +35,7 @@ static int __pdflush(struct pdflush_work *my_work) {
 
         // unit is s !!!
         my_work->when_i_went_to_sleep = TIME2SEC(rdtime());
-        
+
         int wait_ret = cond_wait(&pdflush_control.pdflush_cond, &pdflush_control.lock);
         if (wait_ret == 0) {
             printfRed("pdflush : error\n");

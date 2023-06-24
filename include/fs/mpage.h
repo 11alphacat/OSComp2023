@@ -18,14 +18,16 @@ struct Page_item {
     struct list_head list;
 };
 
-#define PAGE_ADJACENT(p_nxt, p_cur) (((p_nxt->pa) == (p_cur->pa) + PGSIZE) && (p_nxt->index == p_cur->index + 1))
+#define PAGE_ADJACENT(p_cur, p_nxt) ((p_cur->index + 1 == p_nxt->index) && (p_cur->pa + PGSIZE == p_nxt->pa))
 
+// void block_full_pages(struct inode *ip, struct bio *bio_p, struct Page_item *page_list, uint64 index, uint64 cnt, int alloc);
 void block_full_pages(struct inode *ip, struct bio *bio_p, uint64 src, uint64 index, uint64 cnt, int alloc);
+// void fat32_rw_pages(struct inode *ip, struct Page_item *page_list, uint64 index, int rw, uint64 cnt, int alloc);
 void fat32_rw_pages(struct inode *ip, uint64 src, uint64 index, int rw, uint64 cnt, int alloc);
 void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, int alloc);
 uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from_disk, int alloc);
 void mpage_writepage(struct inode *ip, int alloc);
 void page_list_add(void *entry, void *item, uint64 index, void *node);
-void page_list_delete(void *entry, void *item, uint64 index, void *node);
+// void page_list_delete(void *entry, void *item, uint64 index, void *node);
 
 #endif

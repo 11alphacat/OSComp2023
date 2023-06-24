@@ -137,7 +137,7 @@ void thread_scheduler(void) {
         t = (struct tcb *)Queue_provide_atomic(&runnable_t_q, 1); // remove it
         if (t == NULL)
             continue;
-        
+
         acquire(&t->lock);
         t->state = TCB_RUNNING;
         c->thread = t;

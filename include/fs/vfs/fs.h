@@ -42,7 +42,7 @@ struct _superblock {
     struct inode *root;
 
     struct spinlock dirty_lock; // used to protect dirty list
-    struct list_head s_dirty;	/* dirty inodes */
+    struct list_head s_dirty;   /* dirty inodes */
     union {
         struct fat32_sb_info fat32_sb_info;
         // struct xv6fs_sb_info xv6fs_sb;
@@ -75,7 +75,6 @@ struct ftable {
 //     long d_ino;
 //     char d_name[NAME_MAX + 1];
 // };
-
 
 // abstract datas in disk
 struct inode {
@@ -115,11 +114,12 @@ struct inode {
     // speed up dirlookup
     int off_hint;
 
-    struct spinlock i_lock;// protecting other fields
-    uint64 i_writeback;// writing back ?
-    struct list_head dirty_list;// link with superblock s_dirty
+    struct spinlock i_lock;          // protecting other fields
+    uint64 i_writeback;              // writing back ?
+    struct list_head dirty_list;     // link with superblock s_dirty
     struct address_space *i_mapping; // used for page cache
-    
+
+    struct list_head list; // to speed up inode_get
 
     union {
         struct fat32_inode_info fat32_i;
@@ -136,9 +136,9 @@ struct address_space {
     struct radix_tree_root page_tree; /* radix tree(root) of all pages */
     spinlock_t tree_lock;             /* and lock protecting it */
     uint64 nrpages;                   /* number of total pages */
-    uint64 last_index;// 2 4 6 8 ... read head policy
-    uint64 read_ahead_cnt;// the number of read ahead 
-    uint64 read_ahead_end;// the end index of read ahead
+    uint64 last_index;                // 2 4 6 8 ... read head policy
+    uint64 read_ahead_cnt;            // the number of read ahead
+    uint64 read_ahead_end;            // the end index of read ahead
 };
 
 struct file_operations {
@@ -165,7 +165,7 @@ struct inode_operations {
     // for directory inode
     struct inode *(*idirlookup)(struct inode *self, const char *name, uint *poff);
     int (*idempty)(struct inode *self);
-    ssize_t (*igetdents)(struct inode *self, char *buf, size_t len);
+    ssize_t (*igetdents)(struct inode *self, char *buf, uint32 off, size_t len);
     struct inode *(*icreate)(struct inode *self, const char *name, uint16 type, short major, short minor);
     int (*ientrycopy)(struct inode *dself, const char *name, struct inode *ip);
     int (*ientrydelete)(struct inode *dself, struct inode *ip);

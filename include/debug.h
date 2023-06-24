@@ -91,6 +91,6 @@ void backtrace();
 #define RED(str) "\e[31;1m" str "\e[0m"
 #define Info_R(fmt, ...) printf("[INFO] " RED(fmt) "", ##__VA_ARGS__);
 #define TODO() 0
-#define DEBUG_SECTOR(dp, sec_num) ((sec_num) * (dp->i_sb->sector_size))
+#define DEBUG_SECTOR(sec_num) ((sec_num) * (BSIZE))
 
 #endif // __DEBUG_H__

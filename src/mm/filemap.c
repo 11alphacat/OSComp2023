@@ -21,13 +21,16 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
         panic("add_to_page_cache : error\n");
     }
     release(&mapping->tree_lock);
-    
-    #ifdef __DEBUG_PAGE_CACHE__
-    if(!error) {
-        printfMAGENTA("page_insert : fname : %s, index : %d, pa : %0x\n",
-            mapping->host->fat32_i.fname, index, page_to_pa(page));
+
+    if (mapping->host->fat32_i.fname[0] == 'd' && index == 0) {
+        printf("ready\n");
     }
-    #endif
+#ifdef __DEBUG_PAGE_CACHE__
+    if (!error) {
+        printfMAGENTA("page_insert : fname : %s, index : %d, pa : %0x\n",
+                      mapping->host->fat32_i.fname, index, page_to_pa(page));
+    }
+#endif
 
     return error;
 }
@@ -41,11 +44,11 @@ struct page *find_get_page_atomic(struct address_space *mapping, uint64 index, i
     release(&mapping->tree_lock);
 
     if (page) {
-        #ifdef __DEBUG_PAGE_CACHE__
+#ifdef __DEBUG_PAGE_CACHE__
         printf("page_lookup : fname : %s, index : %d, pa : %0x\n",
-                mapping->host->fat32_i.fname, index, page_to_pa(page));
-        #endif
-        page_cache_get(page);
+               mapping->host->fat32_i.fname, index, page_to_pa(page));
+#endif
+        // page_cache_get(page);
         if (lock)
             acquire(&page->lock);
     }
@@ -54,8 +57,8 @@ struct page *find_get_page_atomic(struct address_space *mapping, uint64 index, i
 }
 
 // read ahead
-uint64 max_sane_readahead(uint64 nr, uint64 read_ahead) {
-    return MIN(PGROUNDUP(nr) / PGSIZE + read_ahead, DIV_ROUND_UP(FREE_RATE(READ_AHEAD_RATE), PGSIZE));
+uint64 max_sane_readahead(uint64 nr, uint64 read_ahead, uint64 tot_nr) {
+    return MIN(MIN(PGROUNDUP(nr) / PGSIZE + read_ahead, DIV_ROUND_UP(FREE_RATE(READ_AHEAD_RATE), PGSIZE)), PGROUNDUP(tot_nr) / PGSIZE);
     // don't forget /PGSIZE
 }
 
@@ -94,29 +97,35 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         /* Find the page */
         page = find_get_page_atomic(mapping, index, 0); // not acquire the lock of page
         if (page == NULL) {
-            read_sane_cnt = max_sane_readahead(n - retval, mapping->read_ahead_cnt);
+            read_sane_cnt = max_sane_readahead(n - retval, mapping->read_ahead_cnt, isize - (off + retval));
             mapping->read_ahead_end = index + read_sane_cnt - 1; // !!!
             ASSERT(read_sane_cnt > 0);
-            pa = mpage_readpages(ip, index, read_sane_cnt, 1, 0);   // must read from disk, can't allocate new clusters
+#ifdef __DEBUG_PAGE_CACHE__
+            printfRed("read miss : fname : %s, off : %d, n : %d, index : %d, offset : %d, read_sane_cnt : %d, read_ahead_cnt : %d, read_ahead_end : %d\n",
+                      ip->fat32_i.fname, off, n, index, offset, read_sane_cnt, mapping->read_ahead_cnt, mapping->read_ahead_end);
+#endif
+            pa = mpage_readpages(ip, index, read_sane_cnt, 1, 0); // must read from disk, can't allocate new clusters
 
-            // change the read_ahead_cnt dynamically (The exponential growth is 2)
+            // change the read_ahead_cnt dynamically
             if (index > (mapping->last_index)) {
-                if((mapping->read_ahead_end + mapping->read_ahead_cnt <= end_index))
-                    CHANGE_READ_AHEAD(mapping);
-            } else{
-                // not increase
-                mapping->read_ahead_cnt = 1;
+                int ahead_tmp = mapping->read_ahead_end + mapping->read_ahead_cnt;
+                if (ahead_tmp <= end_index) {
+                    if (mapping->read_ahead_cnt < READ_AHEAD_PAGE_MAX_CNT) {
+                        CHANGE_READ_AHEAD(mapping); // exponential growth with base 2
+                    } else {
+                        mapping->read_ahead_cnt += 1; // linear growth with 1
+                    }
+                }
+            } else {
+                // not increase, set cnt to zero
+                mapping->read_ahead_cnt = 0;
             }
             mapping->last_index = index;
-            #ifdef __DEBUG_PAGE_CACHE__
-            printfRed("read miss : fname : %s, off : %d, n : %d, index : %d, offset : %d, read_sane_cnt : %d, read_ahead_cnt : %d, read_ahead_end : %d\n",
-                    ip->fat32_i.fname, off, n, index, offset, read_sane_cnt, mapping->read_ahead_cnt, mapping->read_ahead_end);
-            #endif
         } else {
-            #ifdef __DEBUG_PAGE_CACHE__
+#ifdef __DEBUG_PAGE_CACHE__
             printfGreen("read hit : fname : %s, off : %d, n : %d, index : %d, offset : %d, read_ahead_cnt : %d, read_ahead_end : %d\n",
                         ip->fat32_i.fname, off, n, index, offset, mapping->read_ahead_cnt, mapping->read_ahead_end);
-            #endif
+#endif
             pa = page_to_pa(page);
         }
 
@@ -134,7 +143,7 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         retval += len;
         dst += len;
 
-        // printfRed("name : %s, retval : %d, n : %d, index : %d, end_index : %d\n", 
+        // printfRed("name : %s, retval : %d, n : %d, index : %d, end_index : %d\n",
         //         ip->fat32_i.fname, retval, n, index, end_index);
         // if(index == 74) {
         //     printfBlue("ready\n");
@@ -183,15 +192,15 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
             pa = mpage_readpages(ip, index, 1, read_from_disk, 1); // just read one page, allocate clusters if necessary
             page = pa_to_page(pa);
 
-            #ifdef __DEBUG_PAGE_CACHE__
+#ifdef __DEBUG_PAGE_CACHE__
             printfCYAN("write miss : fname : %s, off : %d, n : %d, index : %d, offset : %d, read_from_disk : %d\n",
-                    ip->fat32_i.fname, off, n, index, offset, read_from_disk);
-            #endif
+                       ip->fat32_i.fname, off, n, index, offset, read_from_disk);
+#endif
         } else {
-            #ifdef __DEBUG_PAGE_CACHE__
+#ifdef __DEBUG_PAGE_CACHE__
             printfBlue("write hit : fname : %s, off : %d, n : %d, index : %d, offset : %d\n",
-                        ip->fat32_i.fname, off, n, index, offset);
-            #endif
+                       ip->fat32_i.fname, off, n, index, offset);
+#endif
             pa = page_to_pa(page);
         }
 
@@ -229,14 +238,14 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 }
 
 // to replace bread of xv6
-// some functions using i_ino may useless 
+// some functions using i_ino may useless
 // void do_generic_buffer_read(struct inode* ip, int user_dst, uint64 dst, ,uint n) {
 
-    // // init the i_mapping
-    // if (ip->i_mapping == NULL) {
-    //     fat32_i_mapping_init(ip);
-    // }
-    
-    // // using mapping to speed up read
-    // int ret = do_generic_file_read(ip->i_mapping, user_dst, dst, ip->fat32_i.parent_off * 32, n);
+// // init the i_mapping
+// if (ip->i_mapping == NULL) {
+//     fat32_i_mapping_init(ip);
+// }
+
+// // using mapping to speed up read
+// int ret = do_generic_file_read(ip->i_mapping, user_dst, dst, ip->fat32_i.parent_off * 32, n);
 // }

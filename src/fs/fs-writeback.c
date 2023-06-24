@@ -14,19 +14,19 @@ int sync_inode(struct inode *ip) {
         release(&ip->i_lock);
         return -1;
     }
-	// TODO : FCB 字段写回
-	ip->i_writeback = 1;
+    // TODO : FCB 字段写回
+    ip->i_writeback = 1;
     release(&ip->i_lock);
 
-	// page write back (all)
-	mpage_writepage(ip, 1);// allocate if necessary
+    // page write back (all)
+    mpage_writepage(ip, 1); // allocate if necessary
 
     return 0;
 }
 
 void writeback_inodes(uint64 nr_to_write) {
-	// nr_to_write is not important
-	struct inode *ip_cur = NULL;
+    // nr_to_write is not important
+    struct inode *ip_cur = NULL;
     struct inode *ip_tmp = NULL;
 
     acquire(&fat32_sb.dirty_lock);
@@ -35,10 +35,10 @@ void writeback_inodes(uint64 nr_to_write) {
         int ret = sync_inode(ip_cur);
 
         acquire(&fat32_sb.dirty_lock);
-		if(ret == 0) {
-		    list_del_reinit(&ip_cur->dirty_list);
-			ip_cur->i_writeback = 0;
-		}
-	}
+        if (ret == 0) {
+            list_del_reinit(&ip_cur->dirty_list);
+            ip_cur->i_writeback = 0;
+        }
+    }
     release(&fat32_sb.dirty_lock);
 }

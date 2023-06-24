@@ -53,158 +53,229 @@ struct fat32_inode_info {
     uint32 parent_off;  // offset in parent clusters
 };
 
+struct __dirent {
+    uint64 d_ino;            // 索引结点号
+    int64 d_off;             // 到下一个dirent的偏移 (start from 1)
+    unsigned short d_reclen; // 当前dirent的长度
+    unsigned char d_type;    // 文件类型
+    char d_name[];           // 文件名
+};
+
 struct inode_cache {
-    uint32 ino;
+    // uint32 ino;
+    struct inode *ip;
     uint32 off;
 };
 
-// 0. init the root fat32 inode
-struct inode *fat32_root_inode_init(struct _superblock *);
+struct trav_control {
+    // general
+    struct inode *dp;
+    char *kbuf;
+    int idx;
+    char name_search[50]; // the length of file may exceed 50
+    int start_off;        // unit is 1 Byte
+    int end_off;          // unit is 1 Byte
+    uint32 off;           // unit is 32 Bytes
 
-// 1. traverse the fat32 chain
-uint fat32_fat_travel(struct inode *, uint);
+    void *retval;
+    uchar stop;
 
-// 2. return the next cluster number
-uint fat32_next_cluster(uint);
+    // options
+    int ops;
 
-// 3. allocate a new cluster
-uint fat32_cluster_alloc(uint);
+    // using stack
+    Stack_t *fcb_stack;
+    char *name_buf;
 
-// 4. allocate a new fat entry
-uint fat32_fat_alloc();
+    // dirlookup
+    uint *poff;
+    struct inode *ip_search;
 
-// 5. set the fat entry to given value
-void fat32_fat_set(uint, uint);
+    // getdents
+    int file_idx;
+    uint32 i_ino;
 
-// 6. lookup inode given its name and inode of its parent
-struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
+    // insert_off
+    int fcb_cnt_req;
+    int fcb_free_cnt;
+    int offset_ret_base;
+};
 
-// 7. get information about inodes
-void fat32_inode_stati(struct inode *, struct kstat *);
+typedef void (*trav_handler)(struct trav_control *);
 
-ssize_t fat32_inode_read(struct inode *, int, uint64, uint, uint);
+#define DIRLOOKUP_OP 1
+#define GETDENTS_OP 2
+#define dirent_len(dirent) (sizeof(dirent->d_ino) + sizeof(dirent->d_off) + sizeof(dirent->d_type) + sizeof(dirent->d_reclen) + strlen(dirent->d_name) + 1)
 
-// 9. write the data given the fat32 inode, offset and length
-ssize_t fat32_inode_write(struct inode *, int, uint64, uint, uint);
+// ==================== part I : the management of inode ====================
+// init the root fat32 inode
+struct inode *fat32_root_inode_init(struct _superblock *sb);
 
-// 10. dup a existed fat32 inode
-struct inode *fat32_inode_dup(struct inode *);
+// get information about inodes
+void fat32_inode_stati(struct inode *ip, struct kstat *st);
 
-// 11. find a existed or new fat32 inode
-struct inode *fat32_inode_get(uint, uint, const char *, uint);
+// lock the fat32 inode
+void fat32_inode_lock(struct inode *ip);
 
-// 12. lock the fat32 inode
-void fat32_inode_lock(struct inode *);
+// unlock the fat32 inode
+void fat32_inode_unlock(struct inode *ip);
 
-// 13. unlock the fat32 inode
-void fat32_inode_unlock(struct inode *);
+// put the fat32 inode
+void fat32_inode_put(struct inode *ip);
 
-// 14. put the fat32 inode
-void fat32_inode_put(struct inode *);
+// unlock and put the fat32 inode
+void fat32_inode_unlock_put(struct inode *ip);
 
-// 15. unlock and put the fat32 inode
-void fat32_inode_unlock_put(struct inode *);
+// dup a existed fat32 inode
+struct inode *fat32_inode_dup(struct inode *ip);
 
-// 16. truncate the fat32 inode
-void fat32_inode_trunc(struct inode *);
+// find a existed or new fat32 inode
+struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint parentoff);
 
-// 17. update the fat32 inode in the disk
-void fat32_inode_update(struct inode *);
-
-// 18. cat the Name1, Name2 and Name3 of dirent_l
-int fat32_filter_longname(dirent_l_t *, char *);
-
-// 19. reverse the dirent_l to get the long name
-ushort fat32_longname_popstack(Stack_t *, uchar *, char *);
-
-// 20. the check sum of dirent_l
-uchar ChkSum(uchar *);
-
-// 21. lookup the inode given its parent inode and name
-struct inode *fat32_inode_dirlookup(struct inode *, const char *, uint *);
-struct inode *fat32_inode_get(uint, uint, const char *, uint);
-void fat32_inode_stati(struct inode *, struct kstat *);
-
-// 22. create a fat32 inode for device
-struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type, short major, short minor); // now use this
-
-// 22. allocate the fat32 inode
-struct inode *fat32_inode_alloc(struct inode *, const char *, uint16);
-
-// 23. init the fat32 fcb (short + long)
-int fat32_fcb_init(struct inode *, const uchar *, uint16, char *);
-
-// 24. the number of files with the same name prefix
-uint fat32_find_same_name_cnt(struct inode *, char *);
-
-// 25. the right fcb insert offset ?
-uint fat32_dir_fcb_insert_offset(struct inode *, uchar);
-
-// 26. is empty?
-int fat32_isdirempty(struct inode *);
-
-// 27. timer to string
-// int fat32_time_parser(uint16 *, char *, int);
-
-// 28. date to string
-// int fat32_date_parser(uint16 *, char *);
-
-// 29. delete fat32 inode
-int fat32_fcb_delete(struct inode *, struct inode *);
-
-// 30. acquire the time now
-// uint16 fat32_inode_get_time(int *);
-
-// 31. acquire the date now
-// uint16 fat32_inode_get_date();
-
-// 32. zero the cluster given cluster num
-void fat32_zero_cluster(uint64 c_num);
-
-// 33. short name parser
-void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
-
-// 35. is the inode a directory?
-
-// 36. copy ip to dp(only add fcbs in dp)
-int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
-
-// 37. delete fcb in dp
-int fat32_fcb_delete(struct inode *dp, struct inode *ip);
-
-// 36. init the hash table of inode
-void fat32_inode_hash_init(struct inode *dp);
-
-// 37. move cursor
-void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset);
-
-// 38. update fsinfo
-void fat32_update_fsinfo(uint dev);
-
-// 39. insert inode hash table
-int fat32_inode_hash_insert(struct inode *dp, const char *name, uint ino, uint off);
-
-// 40. lookup the hash table of inode
-struct inode *fat32_inode_hash_lookup(struct inode *dp, const char *name);
-
-// 41. delete hash table of inode
-void fat32_inode_hash_destroy(struct inode *dp);
-
-// 42. dirlookup with hint
-struct inode *fat32_inode_dirlookup_with_hint(struct inode *dp, const char *name, uint *poff);
-
-// 34. load inode from disk
+// load inode from disk
 int fat32_inode_load_from_disk(struct inode *ip);
 
-// 36. copy ip to dp(only add fcbs in dp)
+// create a fat32 inode for device
+struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type, short major, short minor); // now use this
+
+// allocate the fat32 inode
+struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uint16 type);
+
+// init the fat32 fcb (short entry + long entry)
+int fat32_fcb_init(struct inode *, const uchar *, uint16, char *);
+
+// the right fcb insert offset
+int fat32_dir_fcb_insert_offset(struct inode *, uchar);
+
+// update the fat32 inode in the disk
+void fat32_inode_update(struct inode *);
+
+// copy ip to dp(only add fcbs in dp)
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
 
-// 43. get blocks
+// truncate the fat32 inode
+void fat32_inode_trunc(struct inode *ip);
+
+// delete fat32 inode (short entry + long entry)
+int fat32_fcb_delete(struct inode *dp, struct inode *ip);
+
+// ==================== part II : the management of BPB、FSINFO and FAT table ====================
+// allocate a new fat entry
+uint fat32_fat_alloc(void);
+
+// set the fat entry to given value
+void fat32_fat_set(uint cluster, uint value);
+
+// traverse the fat32 chain
+uint32 fat32_fat_travel(struct inode *ip, uint num);
+
+// allocate a new cluster
+uint fat32_cluster_alloc(uint dev);
+
+// return the next cluster number
+uint fat32_next_cluster(uint cluster_cur);
+
+// update fsinfo
+void fat32_update_fsinfo(uint dev);
+
+// ==================== part III : special for long entry and short entry ====================
+// reverse the dirent_l to get the long name
+ushort fat32_longname_popstack(Stack_t *fcb_stack, uchar *fcb_s_name, char *name_buf);
+
+// cat the Name1, Name2 and Name3 of dirent_l
+int fat32_filter_longname(dirent_l_t *dirent_l_tmp, char *ret_name);
+
+// the check sum of dirent_l
+uchar ChkSum(uchar *pFcbName);
+
+// the number of files with the same name prefix
+int fat32_find_same_name_cnt(struct inode *dp, char *name);
+
+// short name parser
+void fat32_short_name_parser(dirent_s_t dirent_l, char *name_buf);
+
+// ==================== part IV : the management of data region ====================
+// direcotry is empty?
+int fat32_isdirempty(struct inode *dp);
+
+// lookup inode given its name and inode of its parent
+struct inode *fat32_inode_dirlookup(struct inode *dp, const char *name, uint *poff);
+
+// dirlookup with hint
+struct inode *fat32_inode_dirlookup_with_hint(struct inode *dp, const char *name, uint *poff);
+
+// inode read
+ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, uint n);
+
+// inode write
+ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, uint n);
+
+// ==================== part V : the management of blocks ====================
+// move cursor
+void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset);
+
+// get bio of blocks
 int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int alloc);
 
-// 44. destory i_mapping
+// ==================== part VI : general interface of travel、read and write ====================
+// general_travel
+void fat32_inode_general_trav(struct inode *dp, struct trav_control *tc, trav_handler fn);
+
+// for dirlookup and getdents
+void fat32_inode_travel_fcb_handler(struct trav_control *tc);
+
+// for dirlookup
+void fat32_inode_dirlookup_handler(struct trav_control *tc);
+
+// for getdents
+void fat32_inode_getdents_handler(struct trav_control *tc);
+
+// for fat32_dir_fcb_insert_offset
+void fat32_dir_fcb_insert_offset_handler(struct trav_control *tc);
+
+// for fat32_isdirempty
+void fat32_isdirempty_handler(struct trav_control *tc);
+
+// for fat32_find_same_name_cnt
+void fat32_find_same_name_cnt_handler(struct trav_control *tc);
+
+// ==================== part VII : hash table for speeding up dirlookup ====================
+// init the hash table of inode
+void fat32_inode_hash_init(struct inode *dp);
+
+// insert inode hash table
+int fat32_inode_hash_insert(struct inode *dp, const char *name, struct inode *ip, uint off);
+
+// lookup the hash table of inode
+struct inode *fat32_inode_hash_lookup(struct inode *dp, const char *name);
+
+// delete hash table of inode
+void fat32_inode_hash_destroy(struct inode *dp);
+
+// ==================== part VIII ： the management of i_mapping ===========================
+// init i_mapping
+void fat32_i_mapping_init(struct inode *ip);
+
+// i_mapping writeback
+void fat32_i_mapping_writeback(struct inode *ip);
+
+// destory i_mapping
 void fat32_i_mapping_destroy(struct inode *ip);
 
-// 45. init i_mapping
-void fat32_i_mapping_init(struct inode *ip);
+// ======================= abandon， may be ============================
+// timer to string
+// int fat32_time_parser(uint16 *, char *, int);
+
+// date to string
+// int fat32_date_parser(uint16 *, char *);
+
+// acquire the time now
+// uint16 fat32_inode_get_time(int *);
+
+// acquire the date now
+// uint16 fat32_inode_get_date();
+
+// zero the cluster given cluster num
+// void fat32_zero_cluster(uint64 c_num);
+
 #endif

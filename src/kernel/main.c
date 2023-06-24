@@ -76,8 +76,7 @@ void main() {
         binit(); // buffer cache
         fileinit();
         inode_table_init();
-        
-        
+
         // virtual disk
         virtio_disk_init(); // emulated hard disk
 

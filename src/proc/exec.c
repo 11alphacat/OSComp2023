@@ -333,7 +333,7 @@ static uint64 loader(char *path, struct mm_struct *mm, struct commit *commit) {
         sz = sz1;
         if (loadseg(mm->pagetable, ph.vaddr + size, ip, ph.off + size, ph.filesz - size) < 0)
             goto unlock_put;
-
+        // vmprint(mm->pagetable, 1, 0, 0, 0);
         vaddr_t vaddrup = PGROUNDUP(ph.vaddr + ph.memsz);
         if (vma_map(mm, vaddrdown, vaddrup - vaddrdown, flags2vmaperm(ph.flags), VMA_TEXT) < 0) {
             goto unlock_put;
@@ -397,7 +397,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         if (*s == '/')
             last = s + 1;
     safestrcpy(p->name, last, sizeof(p->name));
-    
+
     // thread name
     char name_tmp[20];
     snprintf(name_tmp, 20, "%s-%d", p->name, p->tg->group_leader->tidx);

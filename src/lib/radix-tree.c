@@ -1,5 +1,6 @@
 #include "lib/radix-tree.h"
 #include "memory/allocator.h"
+#include "memory/buddy.h"
 #include "atomic/ops.h"
 #include "debug.h"
 
@@ -52,21 +53,6 @@ uint64 radix_tree_maxindex(uint height) {
         panic("radix_tree : error\n");
     }
     return (1 << (height * RADIX_TREE_MAP_SHIFT)) - 1; // at easy way to get maxindex
-}
-
-// Hint : in order to distinguish data item and radix_tree_node pointer
-// * An indirect pointer (root->rnode pointing to a radix_tree_node, rather
-// * than a data item) is signalled by the low bit set in the root->rnode pointer.
-static inline int radix_tree_is_indirect_ptr(void *ptr) {
-    return (int)((uint64)ptr & RADIX_TREE_INDIRECT_PTR);
-}
-
-static inline void *radix_tree_indirect_to_ptr(void *ptr) {
-    return (void *)((uint64)ptr & ~RADIX_TREE_INDIRECT_PTR);
-}
-
-static inline void *radix_tree_ptr_to_indirect(void *ptr) {
-    return (void *)((uint64)ptr | RADIX_TREE_INDIRECT_PTR);
 }
 
 /*
@@ -211,6 +197,9 @@ struct radix_tree_node *radix_tree_node_alloc(struct radix_tree_root *root) {
     if (ret == NULL) {
         panic("radix_tree_node_init : no memory\n");
     }
+    ret->count = 0;
+    for (int i = 0; i < RADIX_TREE_MAP_SIZE; i++)
+        ret->slots[i] = NULL;
     return ret;
 }
 
@@ -615,4 +604,36 @@ int radix_tree_general_gang_lookup_elements(struct radix_tree_root *root, void *
     }
 
     return ret;
+}
+
+void radix_tree_free_whole_tree(struct radix_tree_node *node, uint32 max_height, uint32 height) {
+#ifdef __DEBUG_PAGE_CACHE__
+    uint64 pa_prev = 0;
+#endif
+    for (int i = 0; i < (1 << RADIX_TREE_MAP_SHIFT); i++) {
+        if (node->slots[i]) {
+            if (height == max_height) {
+                struct page *page = (struct page *)(node->slots[i]);
+                if (page->allocated == 1) { // don't forget it
+                    uint64 pa = page_to_pa(page);
+                    kfree((void *)pa); // must use page_to_pa
+
+#ifdef __DEBUG_PAGE_CACHE__
+                    pa_prev = pa;
+                    printfBlue("radix tree free, pa : %x\n", pa);
+#endif
+                } else {
+#ifdef __DEBUG_PAGE_CACHE__
+                    pa_prev = pa_prev + PGSIZE;
+                    printfBlue("radix tree free, pa : %x\n", pa_prev);
+#endif
+                    // panic("radix_tree free : error\n");
+                }
+            } else {
+                radix_tree_free_whole_tree((struct radix_tree_node *)node->slots[i], max_height, height + 1);
+            }
+        }
+    }
+    // !!!
+    kfree(node);
 }

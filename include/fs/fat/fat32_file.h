@@ -20,6 +20,6 @@ ssize_t fat32_filewrite(struct file *, uint64, int n);
 // 5. current working directory
 void fat32_getcwd(char *buf);
 void get_absolute_path(struct inode *ip, char *kbuf);
-ssize_t fat32_getdents(struct inode *dp, char *buf, size_t len);
+ssize_t fat32_getdents(struct inode *dp, char *buf, uint32 off, size_t len);
 
 #endif

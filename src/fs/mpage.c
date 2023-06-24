@@ -40,7 +40,8 @@ void fat32_rw_pages(struct inode *ip, uint64 src, uint64 index, int rw, uint64 c
     bio_cur.bi_rw = rw;
     bio_cur.bi_bdev = ip->i_dev;
 
-    // fill bio
+    // fill bio with bio_vec
+    // block_full_pages(ip, &bio_cur, page_list, index, cnt, alloc);
     block_full_pages(ip, &bio_cur, src, index, cnt, alloc);
 
     // submit bio
@@ -52,21 +53,20 @@ void fat32_rw_pages(struct inode *ip, uint64 src, uint64 index, int rw, uint64 c
 // read/write more than one page using page batch
 void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, int alloc) {
     struct Page_item *p_cur_out = NULL;
-    struct Page_item *p_first = NULL;
     int batch_size = 1;
 
     // out : we don't use list_for_each_entry_safe in order to change p_cur_out in inner
     list_for_each_entry(p_cur_out, &p_entry->entry, list) {
-        if (p_first == NULL)
-            p_first = p_cur_out;
         struct Page_item *p_cur_in = NULL;
         struct Page_item *p_nxt_in = NULL;
+
         struct Page_item *p_tmp_head_in = p_cur_out; // !!!
         batch_size = 1;
         // inner :
-        list_for_each_entry_safe_condition(p_cur_in, p_nxt_in, &p_tmp_head_in->list, list, p_cur_in != p_first) {
-            if (PAGE_ADJACENT(p_nxt_in, p_cur_in)) {
-                p_cur_out = p_cur_in; // !!!
+        list_for_each_entry_safe_condition(p_cur_in, p_nxt_in, &p_tmp_head_in->list, list,
+                                           &p_cur_in->list != &p_entry->entry) {
+            if (PAGE_ADJACENT(p_cur_out, p_cur_in)) {
+                p_cur_out = p_cur_in; // !!!!!!!!!
                 batch_size++;
                 // struct page *page_cur = pa_to_page(p_cur_in->pa);
                 // page_cache_put(page_cur);
@@ -85,6 +85,7 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, 
 #endif
         // release(&pa_to_page(p_tmp_head_in->pa)->lock); // !!! maybe the lock protecting page is not needed ??
         fat32_rw_pages(ip, p_tmp_head_in->pa, p_tmp_head_in->index, rw, batch_size, alloc); // don't write batch_size as batch_size * PGSIZE
+        // fat32_rw_pages(ip, p_tmp_head_in, p_tmp_head_in->index, rw, batch_size, alloc); // don't write batch_size as batch_size * PGSIZE
     }
 }
 
@@ -96,53 +97,68 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, 
 uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from_disk, int alloc) {
     struct Page_entry p_entry;
     struct address_space *mapping = ip->i_mapping;
-
     ASSERT(cnt > 0);
-
     INIT_LIST_HEAD(&p_entry.entry); // !!!
     p_entry.n_pages = 0;            // !!!!!! bug
 
+    // the process below may be some complex
+    // [start_idx, end_idx) is valid
     uint64 first_pa = 0;
-    // we want cnt * pagesize is continous
-    if ((first_pa = (uint64)kzalloc(PGSIZE * cnt)) == 0) {
-        panic("mpage_readpages : no enough memory\n");
-    }
-
     uint64 pa = 0;
-    for (int i = 0; i < cnt; i++) {
-        if (find_get_page_atomic(mapping, index, 0)) {
-            // find it, not holding lock
-            continue;
+    for (uint64 start_idx = 0; start_idx < cnt;) {
+        if (!find_get_page_atomic(mapping, index + start_idx, 0)) {
+            // not find it, not holding lock
+            uint64 end_idx = start_idx + 1;
+            while (end_idx < cnt) {
+                if (find_get_page_atomic(mapping, index + end_idx, 0)) {
+                    // find it, not holding lock
+                    break;
+                }
+                end_idx++;
+            }
+
+            // allocpages:
+            if ((pa = (uint64)kzalloc(PGSIZE * (end_idx - start_idx))) == 0) {
+                panic("mpage_readpages : no enough memory\n");
+            }
+
+            if (first_pa == 0) {
+                first_pa = pa; // !!!
+            }
+
+            struct Page_item *p_item = NULL;
+            for (int z = start_idx; z < end_idx; z++) {
+                uint64 pa_tmp = pa + (z - start_idx) * PGSIZE;
+                uint64 index_tmp = index + z;
+                struct page *page = pa_to_page(pa_tmp);
+
+                add_to_page_cache_atomic(page, mapping, index_tmp); // don't forget it
+
+                if (cnt == 1 && read_from_disk == 0)
+                    return first_pa; // !!!
+
+                // page list item :
+                if ((p_item = (struct Page_item *)kzalloc(sizeof(struct Page_item))) == NULL) {
+                    panic("mpage_readpages : no enough memory\n");
+                }
+                p_item->index = index_tmp; // !!!
+                p_item->pa = pa_tmp;       // !!!
+
+                INIT_LIST_HEAD(&p_item->list);
+
+                // join p_item into p_entry
+                list_add_tail(&p_item->list, &p_entry.entry);
+                // bug like this : list_add_tail(&p_entry.entry, &p_item->list)
+                p_entry.n_pages++;
+            }
+
+            start_idx = end_idx + 1;
+        } else {
+            if (start_idx == 0) {
+                panic("mpage_readpages : error\n");
+            }
+            start_idx++;
         }
-
-        // pa and page
-        pa = first_pa + i * PGSIZE;
-        struct page *page = pa_to_page(pa);
-
-        // refcnt ++ and acquire lock
-        // page_cache_get(page);
-        // acquire(&page->lock);
-
-        add_to_page_cache_atomic(page, mapping, index);
-
-        if (cnt == 1 && read_from_disk == 0)
-            break; // !!!
-        // don't forget to release lock !!!
-
-        // page list item
-        struct Page_item *p_item = NULL;
-        if ((p_item = (struct Page_item *)kzalloc(sizeof(struct Page_item))) == NULL) {
-            panic("mpage_readpages : no enough memory\n");
-        }
-        p_item->index = index++;
-        p_item->pa = pa;
-
-        INIT_LIST_HEAD(&p_item->list);
-
-        // join p_item into p_entry
-        list_add_tail(&p_item->list, &p_entry.entry);
-        // bug like this : list_add_tail(&p_entry.entry, &p_item->list)
-        p_entry.n_pages++;
     }
 
     if (read_from_disk)
@@ -161,12 +177,16 @@ void mpage_writepage(struct inode *ip, int alloc) {
 
     struct Page_entry p_entry;
     INIT_LIST_HEAD(&p_entry.entry); // !!!
-    p_entry.n_pages = 0;// !!! bug
+    p_entry.n_pages = 0;            // !!! bug
+
+#ifdef __DEBUG_PAGE_CACHE__
+    printfCYAN("write back , file : %s\n", ip->fat32_i.fname);
+#endif
 
     int ret = radix_tree_general_gang_lookup_elements(&(mapping->page_tree), &p_entry, page_list_add,
                                                       0, maxitems_invald, PAGECACHE_TAG_DIRTY);
     ASSERT(ret > 0);
-    if(mapping->page_tree.height == 0 && ret != 1) {
+    if (mapping->page_tree.height == 0 && ret != 1) {
         panic("mpage_writepage : error\n");
     }
 
@@ -186,6 +206,11 @@ void page_list_add(void *entry, void *item, uint64 index, void *node) {
     struct page *page = (struct page *)item;
     p_item->index = index;
     p_item->pa = page_to_pa(page);
+
+#ifdef __DEBUG_PAGE_CACHE__
+    printfCYAN("write back , index : %d, pa : %x\n", index, p_item->pa);
+#endif
+
     INIT_LIST_HEAD(&p_item->list);
 
     // join p_item into p_entry
@@ -193,12 +218,12 @@ void page_list_add(void *entry, void *item, uint64 index, void *node) {
     p_entry->n_pages++;
 }
 
-// delete pagecache
-void page_list_delete(void *entry, void *item, uint64 index, void *node) {
-    // p_item
-    struct page *page = (struct page *)item;
+// // delete pagecache
+// void page_list_delete(void *entry, void *item, uint64 index, void *node) {
+//     // p_item
+//     struct page *page = (struct page *)item;
 
-    // put pagecache and free node
-    page_cache_put(page);
-    radix_tree_node_free((struct radix_tree_node *)node);
-}
+//     // put pagecache and free node
+//     page_cache_put(page);
+//     radix_tree_node_free((struct radix_tree_node *)node);
+// }

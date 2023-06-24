@@ -34,24 +34,38 @@ typedef unsigned int gfp_t;
 #define maxitems_valid(maxitems) ((maxitems != UINT64_MAX))
 #define maxitems_invald UINT64_MAX
 
-
-#define GFP_FS	((gfp_t)0x80u)	/* Can call down to low-level FS? */
-#define RADIX_TREE_INIT(mask)	{					\
-	.height = 0,							\
-	.gfp_mask = (mask),						\
-	.rnode = NULL,							\
-}
+#define GFP_FS ((gfp_t)0x80u) /* Can call down to low-level FS? */
+#define RADIX_TREE_INIT(mask) \
+    {                         \
+        .height = 0,          \
+        .gfp_mask = (mask),   \
+        .rnode = NULL,        \
+    }
 
 #define RADIX_TREE(name, mask) \
-	struct radix_tree_root name = RADIX_TREE_INIT(mask)
+    struct radix_tree_root name = RADIX_TREE_INIT(mask)
 
-#define INIT_RADIX_TREE(root, mask)					\
-do {									\
-	(root)->height = 0;						\
-	(root)->gfp_mask = (mask);					\
-	(root)->rnode = NULL;						\
-} while (0)
+#define INIT_RADIX_TREE(root, mask) \
+    do {                            \
+        (root)->height = 0;         \
+        (root)->gfp_mask = (mask);  \
+        (root)->rnode = NULL;       \
+    } while (0)
 
+// Hint : in order to distinguish data item and radix_tree_node pointer
+// * An indirect pointer (root->rnode pointing to a radix_tree_node, rather
+// * than a data item) is signalled by the low bit set in the root->rnode pointer.
+static inline int radix_tree_is_indirect_ptr(void *ptr) {
+    return (int)((uint64)ptr & RADIX_TREE_INDIRECT_PTR);
+}
+
+static inline void *radix_tree_indirect_to_ptr(void *ptr) {
+    return (void *)((uint64)ptr & ~RADIX_TREE_INDIRECT_PTR);
+}
+
+static inline void *radix_tree_ptr_to_indirect(void *ptr) {
+    return (void *)((uint64)ptr | RADIX_TREE_INDIRECT_PTR);
+}
 
 // root of radix tree
 struct radix_tree_root {
@@ -111,5 +125,7 @@ int radix_tree_lookup_batch_elements(struct radix_tree_node *slot, void *page_he
 // tag != -1 , grap item with tag
 int radix_tree_general_gang_lookup_elements(struct radix_tree_root *root, void *page_head, page_op function,
                                             uint64 first_index, uint64 max_items, int tag);
+// free the whole tree
+void radix_tree_free_whole_tree(struct radix_tree_node *node, uint32 max_height, uint32 height);
 
 #endif
