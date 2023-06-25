@@ -51,6 +51,12 @@ static uint8 __inode_update_to_fatdev(struct inode *ip) {
     return DIR_Dev;
 }
 
+inline static int __get_blocks(int size) {
+    int q = size / __CLUSTER_SIZE;
+    int r = size & (__CLUSTER_SIZE - 1);
+    return (q + (r!=0));
+}
+
 struct inode *fat32_root_inode_init(struct _superblock *sb) {
     // root inode initialization
     struct inode *root_ip = (struct inode *)kalloc();
@@ -87,15 +93,15 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_mode = S_IFDIR | 0666;
     DIR_SET(root_ip->fat32_i.Attr);
 
-    // inode hash table 
+    // inode hash table
     fat32_inode_hash_init(root_ip);
 
     // speed up dirlookup using hint
     root_ip->off_hint = 0;
 
-    // mapping for root 
-    struct address_space* mapping = kzalloc(sizeof(struct address_space));
-    root_ip->i_mapping =mapping;
+    // mapping for root
+    struct address_space *mapping = kzalloc(sizeof(struct address_space));
+    root_ip->i_mapping = mapping;
 
     ASSERT(root_ip->fat32_i.cluster_start == 2);
 
@@ -238,7 +244,7 @@ void fat32_fat_set(uint cluster, uint value) {
 }
 
 // move search cursor(<cluster, sector, offset>) given off
-// 这里假设off不会超出文件大小。
+
 void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset) {
     uint C_NUM_off = LOGISTIC_C_NUM(off) + 1;
     // find the target cluster of off
@@ -264,7 +270,6 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
         return 0;
     if (off + n > fileSize)
         n = fileSize - off;
-
 
     // TODO :  using mapping to speed up read
 
@@ -314,9 +319,9 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
     uint tot = 0, m;
     struct buffer_head *bp;
 
-    // 是一个目录
+    // 是一个目录   <== ??是一个啥？
     int fileSize = ip->i_size;
-    if (off > fileSize || off + n < off)
+    if ( off + n < off )
         return -1;
     if (off + n > DataSec * ip->i_sb->sector_size)
         return -1;
@@ -435,23 +440,23 @@ struct inode *fat32_inode_get(uint dev, uint inum, const char *name, uint parent
 // 成功返回 0，失败返回 -1
 // similar to delete
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
-//     int str_len = strlen(ip->fat32_i.fname);
-//     int off = ip->fat32_i.parent_off;
-//     ASSERT(off > 0);
-//     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
-//     char fcb_char[FCB_MAX_LENGTH];
-//     // memset(fcb_char, 0, sizeof(fcb_char));
-//     for (int i = 0; i < long_dir_len + 1; i++)
-//         fcb_char[i * 32] = ;
+    //     int str_len = strlen(ip->fat32_i.fname);
+    //     int off = ip->fat32_i.parent_off;
+    //     ASSERT(off > 0);
+    //     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
+    //     char fcb_char[FCB_MAX_LENGTH];
+    //     // memset(fcb_char, 0, sizeof(fcb_char));
+    //     for (int i = 0; i < long_dir_len + 1; i++)
+    //         fcb_char[i * 32] = ;
 
-//     ASSERT(off - long_dir_len > 0);
-// #ifdef __DEBUG_FS__
-//     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
-// #endif
-//     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
-//     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
+    //     ASSERT(off - long_dir_len > 0);
+    // #ifdef __DEBUG_FS__
+    //     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
+    // #endif
+    //     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
+    //     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
 
-//     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
+    //     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
     panic("error\n");
     return 0;
 }
@@ -515,14 +520,18 @@ int fat32_inode_load_from_disk(struct inode *ip) {
         // a device file
         ip->i_size = 0;
         ip->i_mode = mode;
+        ip->i_blocks = 0;
     } else if (DIR_BOOL(ip->fat32_i.Attr)) {
         // a directory
         ip->i_mode = S_IFDIR;
         ip->i_size = DIRLENGTH(ip);
+        ip->i_blocks = __get_blocks(ip->i_size);
     } else { // 暂不支持 FIFO 和 SOCKET 文件
         ip->i_mode = S_IFREG;
         ip->i_size = ip->fat32_i.DIR_FileSize;
+        ip->i_blocks = __get_blocks(ip->i_size);
     }
+    ip->i_blksize = __CLUSTER_SIZE;
     ip->i_mode |= 0777; // a sloppy handle : make it rwx able
 
     ip->fs_type = FAT32;
@@ -579,7 +588,7 @@ void fat32_inode_trunc(struct inode *ip) {
     // truncate the fat chain
     while (!ISEOF(iter_c_n)) {
         FAT_entry_t fat_next = fat32_next_cluster(iter_c_n);
-        fat32_fat_set(iter_c_n, FREE_MASK);// bug
+        fat32_fat_set(iter_c_n, FREE_MASK); // bug
         iter_c_n = fat_next;
     }
     // fat32_fcb_delete(ip->parent, ip);
@@ -954,7 +963,7 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uint16 type)
     // ip_new->i_mode = type;
     ip_new->i_op = get_inodeops[FAT32]();
     ip_new->fs_type = FAT32;
-    dp->off_hint = off + 1;// don't use off 
+    dp->off_hint = off + 1; // don't use off
 
 #ifdef __DEBUG_FS__
     printf("inode alloc : pid %d, filename : %s\n", proc_current()->pid, ip_new->fat32_i.fname);

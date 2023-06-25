@@ -62,7 +62,6 @@ typedef uint64 pte_t;
 typedef uint64 pde_t;
 typedef uint64 *pagetable_t; // 512 PTEs
 
-
 // remember return to fat32_file.h
 struct devsw {
     int (*read)(int, uint64, int);

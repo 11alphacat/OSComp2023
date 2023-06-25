@@ -18,7 +18,7 @@ int test_unlink()
     char *fname = "./test_unlink";
     int fd, ret;
 
-    fd = open(fname, O_CREATE | O_WRONLY);
+    fd = open(fname, O_CREAT | O_WRONLY);
     assert(fd > 0);
     close(fd);
 

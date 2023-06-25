@@ -314,12 +314,14 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
     } else {
         for (int i = 0; i < NOFILE; i++)
             if (p->ofile[i])
-                np->ofile[i] = fat32_filedup(p->ofile[i]);
-        // TODO : clone a completely same fdtable
+                // np->ofile[i] = fat32_filedup(p->ofile[i]);
+                np->ofile[i] = p->ofile[i]->f_op->dup(p->ofile[i]);
+        // TODO : clone a completely same fdtable   >> not necessary
     }
 
-    // TODO : vfs inode cmd
-    np->cwd = fat32_inode_dup(p->cwd);
+    // TODO : vfs inode cmd  >> Done
+    // np->cwd = fat32_inode_dup(p->cwd);
+    np->cwd = p->cwd->i_op->idup(p->cwd);
 
     // TODO : signal
     if (flags & CLONE_SIGHAND) {

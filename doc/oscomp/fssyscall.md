@@ -43,7 +43,7 @@
 
 - 功能：打开或创建一个文件。
 
-- 实现：如果传入了 `O_CREATE`，则调用 <span style="color: purple;">assist_create</span>，  
+- 实现：如果传入了 `O_CREAT`，则调用 <span style="color: purple;">assist_create</span>，  
 该函数最后调用 <span style="color: purple;">dp->i_op->icreate</span>
  尝试创建一个 inode  
 （如果已经存在则相当于做查找）；否则，调用 <span style="color: purple;">find_inode</span>

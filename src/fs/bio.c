@@ -108,7 +108,7 @@ void disk_rw_bio(struct buffer_head *b, int rw) {
 
 void init_bio(struct bio *bio_p, struct bio_vec *vec_p, struct buffer_head *b, int rw) {
     // bio_vec
-    sema_init(&vec_p->sem_disk_done, 0, "bio_disk_done");// vec_p ！！！
+    sema_init(&vec_p->sem_disk_done, 0, "bio_disk_done"); // vec_p ！！！
     vec_p->blockno_start = b->blockno;
     vec_p->block_len = 1;
     vec_p->data = b->data;
@@ -123,17 +123,17 @@ void init_bio(struct bio *bio_p, struct bio_vec *vec_p, struct buffer_head *b, i
 
 // when using kalloc, don't forget free!!!
 void free_bio(struct bio *bio) {
-    struct bio_vec* vec;
+    struct bio_vec *vec;
     for (vec = bio->bi_io_vec; vec < &bio->bi_io_vec[bio->bi_vcnt]; vec++) {
         kfree(vec);
     }
     kfree(bio);
 }
 
-// read or write 
+// read or write
 void submit_bio(struct bio *bio) {
-    struct bio_vec* vec;
+    struct bio_vec *vec;
     for (vec = bio->bi_io_vec; vec < &bio->bi_io_vec[bio->bi_vcnt]; vec++) {
-        virtio_disk_rw((void*)vec, bio->bi_rw, BLOCK_SEL);
+        virtio_disk_rw((void *)vec, bio->bi_rw, BLOCK_SEL);
     }
 }

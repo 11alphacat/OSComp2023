@@ -23,7 +23,7 @@
 #define RADIX_TREE_MAP_MASK (RADIX_TREE_MAP_SIZE - 1) // 1<<6-1 = 64 -1
 
 typedef unsigned int gfp_t;
-#define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
+#define __GFP_BITS_SHIFT 22 /* Room for 22 __GFP_FOO bits */
 #define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 // root of radix tree

@@ -1,8 +1,6 @@
 #include "common.h"
 #include "fs/vfs/fs.h"
 
-
-
 // int fat_get_block(struct inode *inode, uint64 iblock, struct buffer_head *bh_result, int create) {
 // 	return 0;
 // }

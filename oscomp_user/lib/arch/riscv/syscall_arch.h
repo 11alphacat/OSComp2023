@@ -39,8 +39,10 @@ static inline long __syscall3(long n, long a, long b, long c)
     __asm_syscall("r"(a7), "0"(a0), "r"(a1), "r"(a2))
 }
 
+
 static inline long __syscall4(long n, long a, long b, long c, long d)
 {
+
     register long a7 __asm__("a7") = n;
     register long a0 __asm__("a0") = a;
     register long a1 __asm__("a1") = b;

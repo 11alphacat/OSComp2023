@@ -48,7 +48,7 @@ static struct disk {
     // indexed by first descriptor index of chain.
     struct {
         struct buffer_head *b_old;
-        struct bio_vec* b_new;
+        struct bio_vec *b_new;
         char status;
     } info[NUM];
 
@@ -215,13 +215,13 @@ void virtio_disk_rw(void *b, int write, int type) {
     struct buffer_head *b_old = NULL;
     struct bio_vec *b_new = NULL;
     if (type == BLOCK_OLD) {
-        // we don't use this 
+        // we don't use this
         b_old = (struct buffer_head *)b;
         sector = b_old->blockno * (BSIZE / 512);
     } else if (type == BLOCK_NEW) {
         b_new = (struct bio_vec *)b;
         sector = b_new->blockno_start * (BSIZE / 512);
-    } else{
+    } else {
         panic("error\n");
     }
 
@@ -249,7 +249,7 @@ void virtio_disk_rw(void *b, int write, int type) {
     if (write)
         buf0->type = VIRTIO_BLK_T_OUT; // write the disk
     else
-        buf0->type = VIRTIO_BLK_T_IN;  // read the disk
+        buf0->type = VIRTIO_BLK_T_IN; // read the disk
     buf0->reserved = 0;
     buf0->sector = sector;
 
@@ -259,19 +259,18 @@ void virtio_disk_rw(void *b, int write, int type) {
     disk.desc[idx[0]].next = idx[1];
 
     if (type == BLOCK_OLD) {
-        // we don't use this 
+        // we don't use this
         disk.desc[idx[1]].addr = (uint64)b_old->data;
         disk.desc[idx[1]].len = BSIZE;
     } else if (type == BLOCK_NEW) {
         disk.desc[idx[1]].addr = (uint64)b_new->data;
-        disk.desc[idx[1]].len = BSIZE *(b_new->block_len);
-    } else{
+        disk.desc[idx[1]].len = BSIZE * (b_new->block_len);
+    } else {
         panic("error\n");
     }
 
-
     if (write)
-        disk.desc[idx[1]].flags = 0;                  // device reads b->data
+        disk.desc[idx[1]].flags = 0; // device reads b->data
     else
         disk.desc[idx[1]].flags = VRING_DESC_F_WRITE; // device writes b->data
     disk.desc[idx[1]].flags |= VRING_DESC_F_NEXT;
@@ -284,9 +283,9 @@ void virtio_disk_rw(void *b, int write, int type) {
     disk.desc[idx[2]].next = 0;
 
     // record struct buffer_head for virtio_disk_intr().
-    
+
     if (type == BLOCK_OLD) {
-        // we don't use this 
+        // we don't use this
         b_old->disk = 1;
         disk.info[idx[0]].b_old = b_old;
     } else if (type == BLOCK_NEW) {
@@ -312,7 +311,7 @@ void virtio_disk_rw(void *b, int write, int type) {
 
     if (type == BLOCK_OLD) {
         while (b_old->disk == 1) {
-            // we don't use this 
+            // we don't use this
             release(&disk.vdisk_lock);
             sema_wait(&b_old->sem_disk_done);
             acquire(&disk.vdisk_lock);
@@ -355,18 +354,17 @@ void virtio_disk_intr() {
 
         if (disk.info[id].status != 0)
             panic("virtio_disk_intr status");
-        
-        if(BLOCK_SEL == BLOCK_OLD) {
-            // we don't use this 
+
+        if (BLOCK_SEL == BLOCK_OLD) {
+            // we don't use this
             struct buffer_head *b_old = disk.info[id].b_old;
             b_old->disk = 0; // disk is done with buf
             sema_signal(&b_old->sem_disk_done);
-        }
-        else if(BLOCK_SEL == BLOCK_NEW) {
+        } else if (BLOCK_SEL == BLOCK_NEW) {
             struct bio_vec *b_new = disk.info[id].b_new;
             b_new->disk = 0; // disk is done with buf
             sema_signal(&b_new->sem_disk_done);
-        } else{
+        } else {
             panic("error\n");
         }
 

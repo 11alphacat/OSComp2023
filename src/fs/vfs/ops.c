@@ -72,6 +72,7 @@ static inline const struct file_operations *get_fat32_fileops(void) {
         .read = fat32_fileread,
         .write = fat32_filewrite,
         .fstat = fat32_filestat,
+        .readdir = fat32_getdents,
     };
 
     return &fops_instance;
@@ -221,7 +222,7 @@ static inline const struct inode_operations *get_fat32_iops(void) {
         .iupdate = fat32_inode_update,
         .idirlookup = fat32_inode_dirlookup,
         .idempty = fat32_isdirempty,
-        .igetdents = fat32_getdents,
+        // .igetdents = fat32_getdents,
         .idup = fat32_inode_dup,
         .icreate = fat32_inode_create,
         .ipathquery = get_absolute_path,

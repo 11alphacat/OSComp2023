@@ -12,7 +12,7 @@
 
 void test_close(void) {
     TEST_START(__func__);
-    int fd = open("test_close.txt", O_CREATE | O_RDWR);
+    int fd = open("test_close.txt", O_CREAT | O_RDWR);
     //assert(fd > 0);
     const char *str = "  close error.\n";
     int str_len = strlen(str);

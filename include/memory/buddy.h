@@ -30,9 +30,8 @@
 #define PAGES_PER_CPU (NPAGES / NCPU)
 extern struct page *pagemeta_start;
 
-
 enum pageflags {
-	PG_locked,
+    PG_locked,
 };
 // static inline void __set_page_locked(struct page *page)
 // {

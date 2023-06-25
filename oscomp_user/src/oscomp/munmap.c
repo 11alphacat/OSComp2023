@@ -16,7 +16,7 @@ void test_munmap(void){
     const char *str = "  Hello, mmap successfully!";
     int fd;
 
-    fd = open("test_mmap.txt", O_RDWR | O_CREATE);
+    fd = open("test_mmap.txt", O_RDWR | O_CREAT);
     write(fd, str, strlen(str));
     fstat(fd, &kst);
     printf("file len: %d\n", kst.st_size);
