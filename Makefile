@@ -137,7 +137,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 1
+CPUS := 4
 endif
 
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
@@ -176,6 +176,12 @@ export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS User
 
 image: user fat32.img
 
+# apps: _apps fat32.img
+
+# # use `make apps` instead of using `make _apps` directly
+# _apps:
+# 	make -C apps
+
 # user: oscomp busybox
 user: busybox
 	@echo "$(YELLOW)build user:$(RESET)"
@@ -212,7 +218,7 @@ clean-all: clean
 clean: 
 	-rm build/* kernel-qemu $(GENINC) -rf 
 
-.PHONY: qemu clean user clean-all format test oscomp dep image busybox
+.PHONY: qemu clean user clean-all format test oscomp dep image busybox apps _apps
 
 ## 6. Build Kernel
 include $(SCRIPTS)/build.mk

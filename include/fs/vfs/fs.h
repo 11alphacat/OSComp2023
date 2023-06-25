@@ -141,7 +141,7 @@ struct file_operations {
     int (*fstat)(struct file *self, uint64 __user dst);
     // int (*ioctl) (struct inode *, struct file *, unsigned int cmd, unsigned long __user arg);
     long (*ioctl)(struct file *self, unsigned int cmd, unsigned long arg);
-    size_t (*readdir) (struct file *self, char * buf, size_t len);
+    size_t (*readdir)(struct file *self, char *buf, size_t len);
 };
 
 struct inode_operations {
@@ -171,6 +171,5 @@ struct linux_dirent {
     unsigned char d_type;    // 文件类型
     char d_name[];           //文件名
 };
-
 
 #endif // __VFS_FS_H__

@@ -68,7 +68,7 @@
 
 #ifdef __DEBUG_LDSO__
 #define LDSO 0x00000000
-#else 
+#else
 #define LDSO 0x40000000
 #endif
 // User memory layout.

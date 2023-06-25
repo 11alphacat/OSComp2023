@@ -24,4 +24,4 @@ uint64 sys_prlimit64(void) {
 
 uint64 sys_rt_sigtimedwait(void) {
     return 0;
-} 
+}

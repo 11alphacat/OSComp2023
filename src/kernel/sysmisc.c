@@ -256,7 +256,6 @@ void sys_print_rawfile(void) {
 }
 
 void print_rawfile(struct file *f, int fd, int printdir) {
-
     ASSERT(f->f_type == FD_INODE);
     int cnt = 0;
     int pos = 0;

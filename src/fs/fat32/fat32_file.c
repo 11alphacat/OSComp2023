@@ -220,7 +220,7 @@ size_t fat32_getdents(struct file *f, char *buf, size_t len) {
     memset(name_buf, 0, sizeof(name_buf));
     Stack_t fcb_stack;
     stack_init(&fcb_stack);
-    
+
     dp = f->f_tp.f_inode;
     fat32_inode_lock(dp);
     FAT_entry_t iter_c_n = dp->fat32_i.cluster_start;

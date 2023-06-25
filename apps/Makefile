@@ -1,6 +1,6 @@
 .DEFAULT_GOAL=all
 
-all: musl busybox
+all: musl busybox libc-test
 
 musl:
 	make -C musl-1.2.4 -j4
@@ -13,9 +13,15 @@ busybox:
 	cp busybox/busybox_unstripped ../busybox/busybox
 	riscv64-linux-gnu-objdump -S ../busybox/busybox > ../busybox/busybox.asm
 
+libctest:
+	make -C libc-test disk -j4
+	riscv64-linux-gnu-objdump -S ./libc-test/disk/dlopen_dso.so > ./libc-test/disk/dlopen_dso_so.asm
+	riscv64-linux-gnu-objdump -S ./libc-test/entry-dynamic.exe > ./libc-test/disk/entry-dynamic.asm
+
 clean:
 	make -C musl-1.2.4 clean
 	make -C busybox clean
+	make -C libc-test clean
 
 configure:	
 	echo TODO

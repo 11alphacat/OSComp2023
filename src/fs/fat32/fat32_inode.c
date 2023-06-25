@@ -54,7 +54,7 @@ static uint8 __inode_update_to_fatdev(struct inode *ip) {
 inline static int __get_blocks(int size) {
     int q = size / __CLUSTER_SIZE;
     int r = size & (__CLUSTER_SIZE - 1);
-    return (q + (r!=0));
+    return (q + (r != 0));
 }
 
 struct inode *fat32_root_inode_init(struct _superblock *sb) {
@@ -321,7 +321,7 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
 
     // 是一个目录   <== ??是一个啥？
     int fileSize = ip->i_size;
-    if ( off + n < off )
+    if (off + n < off)
         return -1;
     if (off + n > DataSec * ip->i_sb->sector_size)
         return -1;

@@ -2,8 +2,8 @@
 #define __FCNTL_H__
 
 // f_flags
-#define O_ASYNC      020000
-#define O_PATH    010000000
+#define O_ASYNC 020000
+#define O_PATH 010000000
 #define O_TMPFILE 020040000
 // #define O_NDELAY O_NONBLOCK
 
@@ -14,22 +14,22 @@
 #define O_WRONLY 00000001
 #define O_RDWR 00000002
 
-#define O_CREAT        0100   /* not fcntl */
-#define O_TRUNC       01000   /* not fcntl */
-#define O_EXCL         0200    /* not fcntl */
-#define O_NOCTTY       0400 /* not fcntl */
+#define O_CREAT 0100  /* not fcntl */
+#define O_TRUNC 01000 /* not fcntl */
+#define O_EXCL 0200   /* not fcntl */
+#define O_NOCTTY 0400 /* not fcntl */
 
-#define O_NONBLOCK    04000
-#define O_APPEND      02000
-#define O_SYNC     04010000
-#define O_RSYNC    04010000
-#define O_DSYNC      010000      /* used to be O_SYNC, see below */
-#define O_DIRECTORY  040000 /* must be a directory */
-#define O_NOFOLLOW  0100000   /* don't follow links */
+#define O_NONBLOCK 04000
+#define O_APPEND 02000
+#define O_SYNC 04010000
+#define O_RSYNC 04010000
+#define O_DSYNC 010000     /* used to be O_SYNC, see below */
+#define O_DIRECTORY 040000 /* must be a directory */
+#define O_NOFOLLOW 0100000 /* don't follow links */
 // #define O_LARGEFILE 0400000 /* will be set by the kernel on every open */
-#define O_DIRECT    0200000   /* direct disk access - should check with OSF/1 */
-#define O_NOATIME  01000000
-#define O_CLOEXEC  02000000  /* set close_on_exec */
+#define O_DIRECT 0200000 /* direct disk access - should check with OSF/1 */
+#define O_NOATIME 01000000
+#define O_CLOEXEC 02000000 /* set close_on_exec */
 
 #define FCNTLABLE(value) \
     (value == O_NONBLOCK || value == O_APPEND)

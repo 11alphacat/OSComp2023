@@ -304,7 +304,10 @@ void print_vma(struct list_head *head_vma) {
         case VMA_TEXT: VMA("  VMA_TEXT  "); break;
         case VMA_STACK: VMA("  VMA_STACK  "); break;
         case VMA_HEAP: VMA("  VMA_HEAP  "); break;
-        case VMA_FILE: VMA("  VMA_FILE  "); VMA("%p", pos->offset); break;
+        case VMA_FILE:
+            VMA("  VMA_FILE  ");
+            VMA("%p", pos->offset);
+            break;
         case VMA_ANON: VMA("  VMA_ANON  "); break;
         case VMA_INTERP: VMA("  libc.so  "); break;
         default: panic("no such vma type");

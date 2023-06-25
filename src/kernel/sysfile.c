@@ -622,7 +622,7 @@ uint64 sys_openat(void) {
         return -1;
     }
     argint(2, &flags);
-    flags = flags & (~O_LARGEFILE);     // bugs!!
+    flags = flags & (~O_LARGEFILE); // bugs!!
 
     argint(3, &omode);
 
@@ -808,8 +808,6 @@ uint64 sys_unlinkat(void) {
         return -1;
     }
 
-
-
     dp->i_op->ilock(dp);
     if ((ip = dp->i_op->idirlookup(dp, name, 0)) == 0) {
         // error: target file not found
@@ -819,12 +817,12 @@ uint64 sys_unlinkat(void) {
     }
     // printf("goto here2.\n");
     ip->i_op->ilock(ip);
-    if ( (flags == 0 && S_ISDIR(ip->i_mode) ) 
-        || (flags == AT_REMOVEDIR && !S_ISDIR(ip->i_mode) )  ) {
+    if ((flags == 0 && S_ISDIR(ip->i_mode))
+        || (flags == AT_REMOVEDIR && !S_ISDIR(ip->i_mode))) {
         ip->i_op->iunlock_put(ip);
         dp->i_op->iunlock_put(dp);
         return -1;
-    } 
+    }
 
     if (ip->i_nlink < 1) {
         panic("unlink: nlink < 1");
@@ -944,8 +942,8 @@ uint64 sys_getdents64(void) {
     if ((kbuf = kzalloc(sz)) == 0) {
         goto bad_ret;
     }
-    
-    if ((nread = f->f_op->readdir(f,(char*)kbuf,sz)) < 0) {
+
+    if ((nread = f->f_op->readdir(f, (char *)kbuf, sz)) < 0) {
         /*
             readdir:
             从 f->pos 的偏移开始，尽可能地读取目录项，以填充 kbuf。
@@ -956,8 +954,8 @@ uint64 sys_getdents64(void) {
         kfree(kbuf);
         goto bad_ret;
     }
-    
-    if (either_copyout(1, buf, kbuf, nread) < 0) { 
+
+    if (either_copyout(1, buf, kbuf, nread) < 0) {
         kfree(kbuf);
         goto bad_ret;
     }
@@ -1138,7 +1136,7 @@ uint64 sys_writev(void) {
         struct inode *ip;
         ip = f->f_tp.f_inode;
         ip->i_op->ilock(ip);
-        if ( S_ISDIR(ip->i_mode) ) {
+        if (S_ISDIR(ip->i_mode)) {
             // writev 不应该写目录
             ip->i_op->iunlock(ip);
             return -1;
@@ -1325,71 +1323,69 @@ uint64 sys_statfs(void) {
 // pseudo implement
 // #define pthread __pthread
 struct __ptcb {
-	void (*__f)(void *);
-	void *__x;
-	struct __ptcb *__next;
+    void (*__f)(void *);
+    void *__x;
+    struct __ptcb *__next;
 };
 
 struct pthread {
-	/* Part 1 -- these fields may be external or
+    /* Part 1 -- these fields may be external or
 	 * internal (accessed via asm) ABI. Do not change. */
-	struct pthread *self;
+    struct pthread *self;
 
-	uintptr_t *dtv;
+    uintptr_t *dtv;
 
-	struct pthread *prev, *next; /* non-ABI */
-	uintptr_t sysinfo;
+    struct pthread *prev, *next; /* non-ABI */
+    uintptr_t sysinfo;
 
-	uintptr_t canary;
+    uintptr_t canary;
 
+    /* Part 2 -- implementation details, non-ABI. */
+    int tid;
+    int errno_val;
+    volatile int detach_state;
+    volatile int cancel;
+    volatile unsigned char canceldisable, cancelasync;
+    unsigned char tsd_used : 1;
+    unsigned char dlerror_flag : 1;
+    unsigned char *map_base;
+    size_t map_size;
+    void *stack;
+    size_t stack_size;
+    size_t guard_size;
+    void *result;
+    struct __ptcb *cancelbuf;
+    void **tsd;
+    struct {
+        volatile void *volatile head;
+        long off;
+        volatile void *volatile pending;
+    } robust_list;
+    int h_errno_val;
+    volatile int timer_id;
+#define locale_t void * // temporary
+    locale_t locale;
+    volatile int killlock[1];
+    char *dlerror_buf;
+    void *stdio_locks;
 
-	/* Part 2 -- implementation details, non-ABI. */
-	int tid;
-	int errno_val;
-	volatile int detach_state;
-	volatile int cancel;
-	volatile unsigned char canceldisable, cancelasync;
-	unsigned char tsd_used:1;
-	unsigned char dlerror_flag:1;
-	unsigned char *map_base;
-	size_t map_size;
-	void *stack;
-	size_t stack_size;
-	size_t guard_size;
-	void *result;
-	struct __ptcb *cancelbuf;
-	void **tsd;
-	struct {
-		volatile void *volatile head;
-		long off;
-		volatile void *volatile pending;
-	} robust_list;
-	int h_errno_val;
-	volatile int timer_id;
-#define locale_t void*          // temporary 
-	locale_t locale;
-	volatile int killlock[1];
-	char *dlerror_buf;
-	void *stdio_locks;
-
-	/* Part 3 -- the positions of these fields relative to
+    /* Part 3 -- the positions of these fields relative to
 	 * the end of the structure is external and internal ABI. */
-
 };
 
 // TODO(): set_errno
 uint64 sys_utimensat(void) {
     // ASSERT(0);
-printf("welcome to SYS_utimensat\n\n");
-    struct tcb * t = thread_current();
-printf("tp = 0x%x\n",t->trapframe->tp);
+    printf("welcome to SYS_utimensat\n\n");
+    struct tcb *t = thread_current();
+    printf("tp = 0x%x\n", t->trapframe->tp);
 
-// set_errno(ERRORCODE);
+    // set_errno(ERRORCODE);
     struct pthread pt;
-    either_copyin(&pt,1,t->trapframe->tp,sizeof(pt));
+    either_copyin(&pt, 1, t->trapframe->tp, sizeof(pt));
     pt.errno_val = 2;
     pt.h_errno_val = 2;
-    either_copyout(1,t->trapframe->tp,&pt,sizeof (pt));
+    either_copyout(1, t->trapframe->tp, &pt, sizeof(pt));
     // *(int*)(t->trapframe->tp) = 2;
     return 1;
 }

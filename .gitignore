@@ -17,6 +17,3 @@ include/syscall_gen
 compile_commands.json
 !.vscode/launch.json
 !.vscode/tasks.json
-
-# busybox
-apps/busybox
