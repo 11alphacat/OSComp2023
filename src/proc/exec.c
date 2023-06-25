@@ -31,40 +31,20 @@ struct binprm {
     uint64 size; /* current top of program(program break) */
 
     /* if define __DEBUG_LDSO__, the e_entry is different from elf_ex->e_entry
-     * so we need to add this field
+     * so there is need to add this field
      */
     uint64 e_entry;
 
     /* interpreter */
     int interp;
     Elf64_Ehdr *elf_ex;
+
     // uint64 e_phnu
     // uint64 e_phoff; /* AT_PHDR = e_entry + e_phoff; */
     uint64 last_bss, elf_bss;
+
     /* reserve for xv6_user program */
     uint64 a1, a2;
-    // # define MAX_ARG_PAGES	32
-    // 	struct page *page[MAX_ARG_PAGES];
-    // 	unsigned long argmin; /* rlimit marker for copy_strings() */
-    // 	struct file *executable; /* Executable to pass to the interpreter */
-    // 	struct file *interpreter;
-    // 	struct file *file;
-    // 	struct cred *cred;	/* new credentials */
-    // 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
-    // 	unsigned int per_clear;	/* bits to clear in current->personality */
-    // 	int argc, envc;
-    // 	const char *filename;	/* Name of binary as seen by procps */
-    // 	const char *interp;	/* Name of the binary really executed. Most
-    // 				   of the time same as filename, but could be
-    // 				   different for binfmt_{misc,script} */
-    // 	const char *fdpath;	/* generated filename for execveat */
-    // 	unsigned interp_flags;
-    // 	int execfd;		/* File descriptor of the executable */
-    // 	unsigned long loader, exec;
-
-    // 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
-
-    // 	char buf[BINPRM_BUF_SIZE];
 };
 
 struct interpreter {
@@ -86,14 +66,6 @@ static Elf64_Phdr *load_elf_phdrs(const Elf64_Ehdr *elf_ex, struct inode *ip);
 static int load_program(struct binprm *bprm, Elf64_Phdr *elf_phdata);
 
 #define AUX_CNT 38
-// typedef struct {
-//     int a_type;
-//     union {
-//         long a_val;
-//         void *a_ptr;
-//         void (*a_fnc)();
-//     } a_un;
-// } auxv_t;
 
 int do_execve(char *path, char *const argv[], char *const envp[]);
 
@@ -118,19 +90,18 @@ int flags2vmaperm(int flags) {
         perm |= PERM_READ;
     return perm;
 }
-#define ELF_PAGEOFFSET(_v) ((_v) & (PGSIZE-1))
+#define ELF_PAGEOFFSET(_v) ((_v) & (PGSIZE - 1))
 
-static int padzero(uint64 elf_bss)
-{
-	uint64 nbyte;
+static int padzero(uint64 elf_bss) {
+    uint64 nbyte;
 
-	nbyte = ELF_PAGEOFFSET(elf_bss);
-	if (nbyte) {
-		nbyte = PGSIZE - nbyte;
+    nbyte = ELF_PAGEOFFSET(elf_bss);
+    if (nbyte) {
+        nbyte = PGSIZE - nbyte;
         paddr_t pa = getphyaddr(ldso.mm->pagetable, elf_bss);
         memset((void *)pa, 0, nbyte);
-	}
-	return 0;
+    }
+    return 0;
 }
 
 static int clear_bss(uint64 elf_bss, uint64 last_bss) {
@@ -140,12 +111,17 @@ static int clear_bss(uint64 elf_bss, uint64 last_bss) {
 
     elf_bss = PGROUNDUP(elf_bss);
     last_bss = PGROUNDUP(last_bss);
-    // TODO: fix
-    if (last_bss > elf_bss) {
-        paddr_t elf_bss_pa = getphyaddr(ldso.mm->pagetable, elf_bss); 
-        paddr_t last_bss_pa = getphyaddr(ldso.mm->pagetable, last_bss - 1);
-        memset((void *)elf_bss_pa, 0, last_bss_pa - elf_bss_pa);
+    paddr_t pa;
+    for (uint64 i = elf_bss; i < last_bss; i += PGSIZE) {
+        pa = walkaddr(ldso.mm->pagetable, i);
+        memset((void *)pa, 0, PGSIZE);
     }
+    // after mapping contious phy mem, use these:
+    // if (last_bss > elf_bss) {
+    // paddr_t elf_bss_pa = getphyaddr(ldso.mm->pagetable, elf_bss);
+    // paddr_t last_bss_pa = getphyaddr(ldso.mm->pagetable, last_bss - 1);
+    // memset((void *)elf_bss_pa, 0, last_bss_pa - elf_bss_pa);
+    // }
 
     return 0;
 }
@@ -156,7 +132,7 @@ static int load_elf_interp(char *path) {
         return 0;
     }
 
-    struct binprm bprm; /* just use this to keep the interface compatible */
+    struct binprm bprm;
     Elf64_Ehdr *elf_ex;
     Elf64_Phdr *elf_phdata; /* ph poiner */
     struct inode *ip;
@@ -240,6 +216,7 @@ static int map_interpreter(struct mm_struct *mm) {
 
     return 0;
 }
+
 // Load a program segment into pagetable at virtual address va.
 // va must be page-aligned
 // and the pages from va to va+sz must already be mapped.
@@ -272,7 +249,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
     paddr_t stacktop = spp;
     paddr_t stackbase = spp - USTACK_PAGE * PGSIZE;
 #define SPP2SP (USTACK + USTACK_PAGE * PGSIZE - (stacktop - spp)) /* only use this macro in this func! */
-    Log("%p %p", spp, stackbase);
+    // Log("%p %p", spp, stackbase);
 
     /*       Initial Process Stack (follows SYSTEM V ABI)
         +---------------------------+ <-- High Address
@@ -583,7 +560,7 @@ static int load_program(struct binprm *bprm, Elf64_Phdr *elf_phdata) {
         * Find the end of the file mapping for this phdr, and
         * keep track of the largest address we see for this.
         */
-        tmp =  elf_phpnt->p_vaddr + elf_phpnt->p_filesz;
+        tmp = elf_phpnt->p_vaddr + elf_phpnt->p_filesz;
         if (tmp > elf_bss)
             elf_bss = tmp;
 
@@ -601,7 +578,7 @@ static int load_program(struct binprm *bprm, Elf64_Phdr *elf_phdata) {
     bprm->last_bss = last_bss;
     bprm->elf_bss = elf_bss;
     bprm->size = sz;
-    Log("load successfully!");
+    // Log("load successfully!");
     return 0;
 }
 
@@ -635,7 +612,7 @@ static int load_elf_binary(struct binprm *bprm) {
     for (int i = 0; i < elf_ex->e_phnum; i++, elf_phpnt++) {
         if (elf_phpnt->p_type != PT_INTERP)
             continue;
-        load_elf_interp("libc.so");
+        load_elf_interp("/libc.so");
         map_interpreter(bprm->mm);
         bprm->interp = 1;
         break;
@@ -674,6 +651,9 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     bprm.mm = mm;
 #ifdef __DEBUG_LDSO__
     if (strcmp(path, "/busybox/busybox_d") == 0) {
+        START = 0x20000000;
+    }
+    if (strcmp(path, "entry-dynamic.exe") == 0) {
         START = 0x20000000;
     }
 #endif
@@ -740,7 +720,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     }
     /* for debug, print the pagetable and vmas after exec */
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    print_vma(&mm->head_vma);
+    // print_vma(&mm->head_vma);
     // panic(0);
 
     return argc; // this ends up in a0, the first argument to main(argc, argv)

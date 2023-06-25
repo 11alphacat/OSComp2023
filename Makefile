@@ -52,6 +52,7 @@ $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
 $(shell mkdir -p $(FSIMG)/boot)
 $(shell mkdir -p $(FSIMG)/busybox)
+$(shell mkdir -p $(FSIMG)/libc-test)
 
 ## 2. Compilation Flags 
 
@@ -179,6 +180,7 @@ image: user fat32.img
 user: busybox
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
+	@cp apps/libc-test/disk/* fsimg/libc-test
 	@cp README.md $(FSIMG)/
 	@make -C $(User)
 #	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/

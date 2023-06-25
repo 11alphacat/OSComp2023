@@ -77,3 +77,6 @@
 130 tkill sys_tkill
 131 tgkill sys_tgkill
 98 futex sys_futex
+
+137 rt_sigtimedwait sys_rt_sigtimedwait
+261 prlimit64 sys_prlimit64

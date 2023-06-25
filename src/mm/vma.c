@@ -88,7 +88,7 @@ static int is_vma_in_vmspace(struct list_head *vma_head, struct vma *vma) {
     return 0;
 }
 
-static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
+void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
     if (is_vma_in_vmspace(vma_head, vma)) {
         list_del(&(vma->node));
     } else {
@@ -97,6 +97,7 @@ static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
     free_vma(vma);
 }
 
+void print_rawfile(struct file *f, int fd, int printdir);
 int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type,
                  int fd, off_t offset, struct file *fp) {
     struct vma *vma;
@@ -112,6 +113,7 @@ int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint6
     vma->offset = offset;
     vma->vm_file = fp;
     fat32_filedup(vma->vm_file);
+    // print_rawfile(vma->vm_file, 0, 0);
     return 0;
 }
 
@@ -275,6 +277,7 @@ void sys_print_vma() {
 void print_vma(struct list_head *head_vma) {
     struct vma *pos;
     // VMA("%s vmas:\n", proc_current()->name);
+    printfYELLOW("=====================\n");
     list_for_each_entry(pos, head_vma, node) {
         VMA("%#p-%#p %dKB\t", pos->startva, pos->startva + pos->size, pos->size / PGSIZE);
         if (pos->perm & PERM_READ) {
@@ -301,7 +304,7 @@ void print_vma(struct list_head *head_vma) {
         case VMA_TEXT: VMA("  VMA_TEXT  "); break;
         case VMA_STACK: VMA("  VMA_STACK  "); break;
         case VMA_HEAP: VMA("  VMA_HEAP  "); break;
-        case VMA_FILE: VMA("  VMA_FILE  "); break;
+        case VMA_FILE: VMA("  VMA_FILE  "); VMA("%p", pos->offset); break;
         case VMA_ANON: VMA("  VMA_ANON  "); break;
         case VMA_INTERP: VMA("  libc.so  "); break;
         default: panic("no such vma type");
@@ -371,6 +374,7 @@ int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new
     if (new_below) {
         vma->size = vma->startva + vma->size - addr;
         vma->startva = addr;
+        vma->offset += (addr - new->startva);
         new->size = addr - new->startva;
     } else {
         new->startva = addr;

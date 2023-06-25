@@ -54,6 +54,9 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
     }
 
     struct vma *vma = find_vma_for_va(proc_current()->mm, stval);
+    // if (stval > 0x3000b0000) {
+    //     Log("hit");
+    // }
     if (vma != NULL) {
         if (!CHECK_PERM(cause, vma)) {
             PAGEFAULT("permission checked failed");

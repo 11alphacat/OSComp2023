@@ -240,6 +240,7 @@ static void print_long_dir(const dirent_l_t *buf) {
     printf("attr %#x\n", buf->LDIR_Attr);
 }
 
+void print_rawfile(struct file *f, int fd, int printdir);
 void sys_print_rawfile(void) {
     int fd;
     int printdir;
@@ -251,6 +252,10 @@ void sys_print_rawfile(void) {
         return;
     }
     argint(1, &printdir);
+    print_rawfile(f, fd, printdir);
+}
+
+void print_rawfile(struct file *f, int fd, int printdir) {
 
     ASSERT(f->f_type == FD_INODE);
     int cnt = 0;
