@@ -26,5 +26,5 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, 
 uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from_disk, int alloc);
 void mpage_writepage(struct inode *ip, int alloc);
 void page_list_add(void *entry, void *item, uint64 index, void *node);
-
+void page_list_free(struct Page_entry *p_entry);
 #endif

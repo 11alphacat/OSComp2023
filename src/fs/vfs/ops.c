@@ -162,10 +162,22 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
             return ip;
         }
         // printf("dirlook up\n");
-        if ((next = ip->i_op->idirlookup(ip, name, 0)) == 0) {
-            ip->i_op->iunlock_put(ip);
-            return 0;
+        // if ((next = ip->i_op->idirlookup(ip, name, 0)) == 0) {
+        //     ip->i_op->iunlock_put(ip);
+        //     return 0;
+        // }
+
+        if (strncmp(name, "..", 2) == 0) {
+            next = fat32_inode_dup(ip->parent);
+        } else if (strncmp(name, ".", 1) == 0) {
+            next = fat32_inode_dup(ip);
+        } else {
+            if ((next = fat32_inode_dirlookup(ip, name, 0)) == 0) {
+                fat32_inode_unlock_put(ip);
+                return 0;
+            }
         }
+
         // printf("dirlook up ok!\n");
 
         ip->i_op->iunlock(ip);

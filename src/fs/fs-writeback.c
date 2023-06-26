@@ -14,7 +14,6 @@ int sync_inode(struct inode *ip) {
         release(&ip->i_lock);
         return -1;
     }
-    // TODO : FCB 字段写回
     ip->i_writeback = 1;
     release(&ip->i_lock);
 
@@ -25,6 +24,7 @@ int sync_inode(struct inode *ip) {
     if (ip->dirty_in_parent) {
         fat32_inode_update(ip);
     }
+
     return 0;
 }
 

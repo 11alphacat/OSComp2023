@@ -43,6 +43,7 @@ void main() {
         // console and printf
         consoleinit();
         printfinit();
+
         hartinit();
         debug_lock = 1;
 

@@ -13,18 +13,15 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
     page->mapping = mapping;
     page->index = index;
 
-    acquire(&mapping->tree_lock);
+    acquire(&mapping->host->tree_lock);
     int error = radix_tree_insert(&mapping->page_tree, index, page);
     if (likely(!error)) {
         mapping->nrpages++;
     } else {
         panic("add_to_page_cache : error\n");
     }
-    release(&mapping->tree_lock);
+    release(&mapping->host->tree_lock);
 
-    if (mapping->host->fat32_i.fname[0] == 'd' && index == 0) {
-        printf("ready\n");
-    }
 #ifdef __DEBUG_PAGE_CACHE__
     if (!error) {
         printfMAGENTA("page_insert : fname : %s, index : %d, pa : %0x, rest memory : %d PAGES\n",
@@ -38,9 +35,9 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
 struct page *find_get_page_atomic(struct address_space *mapping, uint64 index, int lock) {
     struct page *page;
 
-    acquire(&mapping->tree_lock);
+    acquire(&mapping->host->tree_lock);
     page = (struct page *)radix_tree_lookup_node(&mapping->page_tree, index);
-    release(&mapping->tree_lock);
+    release(&mapping->host->tree_lock);
 
     if (page) {
 #ifdef __DEBUG_PAGE_CACHE__
@@ -133,7 +130,8 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         len = MIN(MIN(n - retval, nr), isize - offset);
 
         if (either_copyout(user_dst, dst, (void *)(pa + offset), len) == -1) {
-            panic("do_generic_file_read : copyout error\n");
+            // panic("do_generic_file_read : copyout error\n");
+            return -1;
         }
 
         // off、retval、src
@@ -205,7 +203,8 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
         // similar to fat32_inode_read
         len = MIN(n - retval, nr);
         if (either_copyin((void *)(pa + offset), user_src, src, len) == -1) {
-            panic("do_generic_file_write : copyin error\n");
+            // panic("do_generic_file_write : copyin error\n");
+            return -1;
         }
 
         // set page dirty

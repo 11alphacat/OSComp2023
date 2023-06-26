@@ -11,7 +11,7 @@ void print_sysinfo() {
         printf("error : sysinfo\n");
     // printf("Uptime: %d seconds\n", info.uptime);
     // printf("Total RAM: %d bytes\n", info.totalram);
-    printf("Free RAM: %d PAGES\n", info.freeram/4096);
+    printf("Free RAM: %d PAGES, %d Bytes\n", info.freeram/4096, info.freeram);
     // printf("Number of processes: %d\n", info.procs);
 }
 
@@ -681,10 +681,6 @@ void rwsbrk() {
     printf("rwsbrk test OK\n");
 }
 
-// write to an open FD whose file has just been truncated.
-// this causes a write at an offset beyond the end of the file.
-// such writes fail on xv6 (unlike POSIX) but at least
-// they don't crash.
 void truncate2() {
     printf("==========truncate2 test==========\n");
     unlink("truncfile");
@@ -695,12 +691,12 @@ void truncate2() {
     int fd2 = open("truncfile", O_TRUNC | O_WRONLY);
 
     int n = write(fd1, "x", 1);
-    if (n != -1) {
-        printf("write returned %d, expected -1\n", n);
+    if (n == -1) {
+        printf("write returned %d, expected 1\n", n);
         exit(1);
     }
 
-    unlink("truncfile");
+    // unlink("truncfile");
     close(fd1);
     close(fd2);
     printf("truncate2 test OK\n");
@@ -813,7 +809,7 @@ void exitiputtest() {
 void createtest() {
     printf("==========createtest test==========\n");
     int i, fd;
-    int N = 50;
+    int N = 200;
     char name[3];
     name[0] = 'a';
     name[2] = '\0';
@@ -2784,105 +2780,106 @@ int main(void) {
     // print_sysinfo();
 
     // ====== file system ======
-    // opentest();
-    // print_sysinfo();
-    // openiputtest();
-    // print_sysinfo();
-    // writetest();
-    // print_sysinfo();
+    opentest();
+    print_sysinfo();
+    openiputtest();
+    print_sysinfo();
+    writetest();
+    print_sysinfo();
     writebig();
-    // print_sysinfo();
+    print_sysinfo();
     
-    // preempt();
-    // print_sysinfo();
-    // truncate1();
-    // print_sysinfo();
-    // copyin();
-    // print_sysinfo();
-    // copyout();
-    // print_sysinfo();
-    // copyinstr1();
-    // print_sysinfo();
-    // truncate2();
-    // print_sysinfo();
-    // truncate3();
-    // print_sysinfo();
-    // sbrkbasic();
-    // print_sysinfo();
-    // sbrkmuch();
-    // print_sysinfo();
+    preempt();
+    print_sysinfo();
+    truncate1();
+    print_sysinfo();
+    copyin();
+    print_sysinfo();
+    copyout();
+    print_sysinfo();
+    copyinstr1();
+    print_sysinfo();
+    truncate2(); // not valid
+    print_sysinfo();
+    truncate3();
+    print_sysinfo();
+    sbrkbasic();
+    print_sysinfo();
+    sbrkmuch();
+    print_sysinfo();
 
-    // iputtest();
+    iputtest();
     
-    // print_sysinfo();
-    // exitiputtest();
-    // print_sysinfo();
-    // createtest();
-    // print_sysinfo();
-    // sbrklast();
-    // print_sysinfo();
-    // dirtest();
-    // print_sysinfo();
-    // execvetest();
-    // print_sysinfo();
-    // uvmfree();
-    // print_sysinfo();
-    // pipe1();
-    // print_sysinfo();
-    // mem();
-    // print_sysinfo();
+    print_sysinfo();
+    exitiputtest();
+    print_sysinfo();
+    createtest();
+    print_sysinfo();
+    sbrklast();
+    print_sysinfo();
+    dirtest();
+    print_sysinfo();
+    execvetest();
+    print_sysinfo();
+    uvmfree();
+    print_sysinfo();
+    pipe1();
+    print_sysinfo();
+    mem();
+    print_sysinfo();
 
-    // sharedfd();     // occur bug
-    // print_sysinfo();
-    // createdelete();
-    // print_sysinfo();
-    // fourfiles();
-    // print_sysinfo();
-    // bigwrite();
-    // print_sysinfo();
-    // bigfile();
-    // print_sysinfo();
-    // rmdot();
-    // print_sysinfo();
-    // badarg();
-    // print_sysinfo();
-    // sbrk8000();
-    // print_sysinfo();
-    // textwrite();
-    // print_sysinfo();
-    // outofinodes();
-    // print_sysinfo();
-    // manywrites();
-    // print_sysinfo();
-    // badwrite();
+    sharedfd();     // occur bug
+    print_sysinfo();
+    createdelete();
+    print_sysinfo();
+    fourfiles();
+    print_sysinfo();
+    bigwrite();
+    print_sysinfo();
+    bigfile();
+    print_sysinfo();
+    rmdot();
+    print_sysinfo();
+    badarg();
+    print_sysinfo();
+    sbrk8000();
+    print_sysinfo();
+    textwrite();
+    print_sysinfo();
+    outofinodes();
+    print_sysinfo();
+    manywrites();
+    print_sysinfo();
+    badwrite();
 
-    // print_sysinfo();
-    // kernmem();
-    // print_sysinfo();
-    // MAXVAplus();
-    // print_sysinfo();
-    // sbrkfail();
-    // print_sysinfo();
-    // sbrkarg();
-    // print_sysinfo();
-    // bsstest();
-    // print_sysinfo();
-    // bigargtest();
-    // print_sysinfo();
-    // argptest();
-    // print_sysinfo();
-    // stacktest();
-    // print_sysinfo();
-    // pgbug();
-    // print_sysinfo();
-    // sbrkbugs();
-    // print_sysinfo();
-    // cowtest();
-    // print_sysinfo();
-    // copyinstr3();
-    // print_sysinfo();
-    // stressfs();
-    // print_sysinfo();
+    print_sysinfo();
+    kernmem();
+    print_sysinfo();
+    MAXVAplus();
+    print_sysinfo();
+    sbrkfail();
+    print_sysinfo();
+    sbrkarg();
+    print_sysinfo();
+    bsstest();
+    print_sysinfo();
+    bigargtest();
+
+    print_sysinfo();
+    argptest();
+    print_sysinfo();
+    stacktest();
+    print_sysinfo();
+    pgbug();
+    print_sysinfo();
+    sbrkbugs();
+    print_sysinfo();
+    cowtest();
+    print_sysinfo();
+    copyinstr3();
+    print_sysinfo();
+    stressfs();
+    print_sysinfo();
 
 //     // TODO :
 //     // fsfull();

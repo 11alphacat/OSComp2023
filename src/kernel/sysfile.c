@@ -792,9 +792,14 @@ uint64 sys_unlinkat(void) {
 
     argint(2, &flags);
     ASSERT(flags == 0);
+
     if (argstr(1, path, MAXPATH) < 0 || __namecmp(path, "/") == 0)
         return -1;
     // printf("unlinkat hit = %d name = %s\n",++hit,path);
+
+    if (path[0] == 'b' && path[1] == 'i' && path[2] == 'g' && path[3] == 'a') {
+        printf("ready\n");
+    }
 
     if ((dp = find_inode(path, dirfd, name)) == 0) {
         return -1;

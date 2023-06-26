@@ -2,6 +2,7 @@
 #define __LIST_H__
 
 #include "common.h"
+#include "atomic/spinlock.h"
 #include <stddef.h>
 
 // 一个给定变量偏移
@@ -138,6 +139,13 @@ static inline void list_move_tail(struct list_head *list,
  */
 static inline int list_empty(const struct list_head *head) {
     return head->next == head;
+}
+
+static inline int list_empty_atomic(const struct list_head *head, struct spinlock *mutex) {
+    acquire(mutex);
+    int ret = (head->next == head);
+    release(mutex);
+    return ret;
 }
 
 // 将两个链表合并

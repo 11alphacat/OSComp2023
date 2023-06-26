@@ -578,8 +578,6 @@ int radix_tree_general_gang_lookup_elements(struct radix_tree_root *root, void *
             return 0;
         function(page_head, node, 0, NULL);
         return 1;
-        // panic("radix_tree_gang_lookup : error\n");
-        // return 1;
     }
 
     node = radix_tree_indirect_to_ptr(node);
@@ -619,7 +617,7 @@ void radix_tree_free_whole_tree(struct radix_tree_node *node, uint32 max_height,
                 if (page->allocated == 1) { // don't forget it
                     uint64 pa = page_to_pa(page);
                     kfree((void *)pa); // must use page_to_pa
-
+                                       // printfBlue("memory : %d PAGES\n", get_free_mem()/4096);
 #ifdef __DEBUG_PAGE_CACHE__
                     pa_prev = pa;
                     printfBlue("radix tree free, pa : %x\n", pa);
@@ -638,4 +636,5 @@ void radix_tree_free_whole_tree(struct radix_tree_node *node, uint32 max_height,
     }
     // !!!
     kfree(node);
+    // printfBlue("memory : %d PAGES\n", get_free_mem()/4096);
 }

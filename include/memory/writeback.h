@@ -4,7 +4,7 @@
 #include "fs/vfs/fs.h"
 
 #define MAX_WRITEBACK_PAGES 1024
-#define dirty_writeback_cycle 1 // seconds
+#define dirty_writeback_cycle 45 // seconds
 
 int sync_inode(struct inode *ip);
 void wakeup_bdflush(void *nr_pages);

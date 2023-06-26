@@ -86,6 +86,17 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, 
         // release(&pa_to_page(p_tmp_head_in->pa)->lock); // !!! maybe the lock protecting page is not needed ??
         fat32_rw_pages(ip, p_tmp_head_in->pa, p_tmp_head_in->index, rw, batch_size, alloc); // don't write batch_size as batch_size * PGSIZE
     }
+
+    // must remember to free page list
+    page_list_free(p_entry);
+}
+
+void page_list_free(struct Page_entry *p_entry) {
+    struct Page_item *p_cur = NULL;
+    struct Page_item *p_tmp = NULL;
+    list_for_each_entry_safe(p_cur, p_tmp, &p_entry->entry, list) {
+        kfree(p_cur);
+    }
 }
 
 // read pages
@@ -172,7 +183,12 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 // write pages
 void mpage_writepage(struct inode *ip, int alloc) {
     struct address_space *mapping = ip->i_mapping;
+    acquire(&ip->tree_lock);
+    if (mapping == NULL) {
+        panic("mapping is NULL\n");
+    }
     if (mapping->page_tree.height == 0 && mapping->page_tree.rnode == NULL) {
+        release(&ip->tree_lock);
         return;
     }
 
@@ -190,6 +206,7 @@ void mpage_writepage(struct inode *ip, int alloc) {
     if (mapping->page_tree.height == 0 && ret != 1) {
         panic("mpage_writepage : error\n");
     }
+    release(&ip->tree_lock);
 
     // write pages using page list
     fat32_rw_pages_batch(ip, &p_entry, DISK_WRITE, alloc);

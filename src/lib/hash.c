@@ -19,9 +19,6 @@ struct hash_entry *hash_get_entry(struct hash_table *table, void *key) {
     uint64 hash_val = 0;
     struct hash_entry *entry = NULL;
 
-    if (table == NULL) {
-        printf("ready\n");
-    }
     switch (table->type) {
     case PID_MAP:
         hash_val = *(int *)key % table->size;

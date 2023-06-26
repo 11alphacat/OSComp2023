@@ -70,7 +70,7 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
         // r = piperead(f->f_tp.f_pipe, 1, addr, n);
         r = pipe_read(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_FS__
-        printfMAGENTA("read : read %d chars of pipe file (no name pipe) starting from %d \n", r, f->f_tp.f_pipe->nread - r);
+        printfMAGENTA("read : read %d chars of pipe file (no name pipe) starting from %d \n", r, f->f_tp.f_pipe->buffer.r - r);
 #endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
@@ -110,7 +110,7 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
         // ret = pipewrite(f->f_tp.f_pipe, 1, addr, n);
         ret = pipe_write(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_FS__
-        printfYELLOW("write : write %d chars -> pipe file (no name pipe) starting from %d\n", ret, f->f_tp.f_pipe->nwrite - ret);
+        printfYELLOW("write : write %d chars -> pipe file (no name pipe) starting from %d\n", ret, f->f_tp.f_pipe->buffer.w - ret);
 #endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].write)
@@ -213,125 +213,6 @@ ssize_t fat32_getdents(struct inode *dp, char *buf, uint32 off, size_t len) {
     }
     fat32_inode_general_trav(dp, &tc, fat32_inode_travel_fcb_handler);
     return nreads;
-    // ====using bread====
-    //     if (!DIR_BOOL((dp->fat32_i.Attr)))
-    //         panic("getdents : not DIR");
-    //     struct buffer_head *bp;
-    //     struct inode *ip_buf;
-    //     char buf_tmp[NAME_LONG_MAX + 30];
-    //     struct __dirent *dirent_buf = (struct __dirent *)buf_tmp;
-
-    //     ssize_t nread = 0;
-    //     char name_buf[NAME_LONG_MAX];
-    //     memset(name_buf, 0, sizeof(name_buf));
-    //     Stack_t fcb_stack;
-    //     stack_init(&fcb_stack);
-    //     FAT_entry_t iter_c_n = dp->fat32_i.cluster_start;
-
-    //     int first_sector;
-    //     uint off = 0;
-    //     uint cnt = 0;
-    //     int fname_len = 0;
-
-    //     if (dp->i_hash == NULL) {
-    //         fat32_inode_hash_init(dp);
-    //     }
-
-    //     int idx = 0;
-    //     // FAT seek cluster chains
-    //     while (!ISEOF(iter_c_n)) {
-    //         first_sector = FirstSectorofCluster(iter_c_n);
-    //         // sectors in a cluster
-    //         for (int s = 0; s < (dp->i_sb->sectors_per_block); s++) {
-    //             // uint sec_pos = DEBUG_SECTOR(dp, first_sector + s); // debug
-    //             // printf("%d\n",sec_pos); // debug
-    //             bp = bread(dp->i_dev, first_sector + s);
-    //             dirent_s_t *fcb_s = (dirent_s_t *)(bp->data);
-    //             dirent_l_t *fcb_l = (dirent_l_t *)(bp->data);
-    //             idx = 0;
-    //             // FCB in a sector
-    //             while (idx < FCB_PER_BLOCK) {
-    //                 // long dirctory item push into the stack
-    //                 if (NAME0_FREE_ALL(fcb_s[idx].DIR_Name[0])) {
-    //                     brelse(bp);
-    //                     goto finish;
-    //                 }
-    //                 while ((LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr)) && idx < FCB_PER_BLOCK) {
-    //                     stack_push(&fcb_stack, fcb_l[idx++]);
-    //                     off++;
-    //                 }
-    //                 // pop stack
-    //                 if (!LONG_NAME_BOOL(fcb_l[idx].LDIR_Attr) && !NAME0_FREE_BOOL(fcb_s[idx].DIR_Name[0]) && idx < FCB_PER_BLOCK){
-    //                     memset(name_buf, 0, sizeof(name_buf));
-    //                     ushort long_valid = fat32_longname_popstack(&fcb_stack, fcb_s[idx].DIR_Name, name_buf);
-
-    //                     // if (fat32_namecmp(name_buf, "console.dev") == 0) {
-    //                     //     Log("ready\n");
-    //                     // }
-    //                     // if long directory is invalid
-    //                     if (!long_valid) {
-    //                         fat32_short_name_parser(fcb_s[idx], name_buf);
-    //                     }
-    //                     // speciall judgement for the first long directory in the data region
-    //                     cnt++;
-
-    //                     // uint ino = SECTOR_TO_FATINUM(first_sector + s, idx);
-
-    //                     // insert cache into the hash table
-    //                     // int ret = fat32_inode_hash_insert(dp, name_buf, ino, off);
-    //                     int ret = fat32_inode_hash_insert(dp, name_buf, NULL, off);
-    //                     if (ret == 0) {
-    //                         // printfGreen("getdents : insert : %s\n", name_buf); //debug
-    //                     }
-
-    //                     // get a pos for inode
-    //                     // ip_buf = fat32_inode_get(dp->i_dev, ino, name_buf, off);
-    //                     // ip_buf->parent = dp;
-    //                     // ip_buf->i_nlink = 1;
-    //                     brelse(bp); // !!!!
-
-    //                     // fat32_inode_lock(ip_buf);
-
-    //                     // dirent_buf->d_ino = ip_buf->i_ino;
-    //                     uint32 cluster_start = DIR_FIRST_CLUS(fcb_s[idx].DIR_FstClusHI, fcb_s[idx].DIR_FstClusLO);
-    //                     dirent_buf->d_ino = UNIQUE_INO(off, cluster_start);
-
-    //                     dirent_buf->d_off = cnt;
-    //                     // dirent_buf->d_type = (ip_buf->i_mode & S_IFMT) >> 8; // error, not use
-    //                     dirent_buf->d_type = __IMODE_TO_DTYPE(ip_buf->i_mode);
-    //                     fname_len = strlen(ip_buf->fat32_i.fname);
-    //                     safestrcpy(dirent_buf->d_name, name_buf, fname_len); // !!!!!
-
-    //                     dirent_buf->d_name[fname_len] = '\0';
-
-    //                     dirent_buf->d_reclen = dirent_len(dirent_buf);
-    //                     // memmove((void *)(buf + nread), (void *)&dirent_buf, sizeof(dirent_buf));
-    //                     memmove((void *)(buf + nread), (void *)dirent_buf, dirent_buf->d_reclen);
-
-    //                     nread += dirent_buf->d_reclen;
-    //                     // fat32_inode_unlock_put(ip_buf);
-
-    //                     bp = bread(dp->i_dev, first_sector + s);
-    //                 }
-    //                 idx++;
-    //                 off++;
-    //             }
-    //             brelse(bp);
-    //         }
-    //         iter_c_n = fat32_next_cluster(iter_c_n);
-    //     }
-
-    //     stack_free(&fcb_stack);
-    //     // save hint
-    //     // dp->idx_hint = idx;
-    //     dp->off_hint = off;
-    //     return nread;
-    // finish:
-    //     // save hint
-    //     // dp->idx_hint = idx;
-    //     dp->off_hint = off;
-    //     stack_free(&fcb_stack);
-    //     return nread;
 }
 
 // 往 dp 目录文件中 写入 代表 ip 的 fcb

@@ -14,6 +14,7 @@ static struct page *merge_page(struct phys_mem_pool *pool, struct page *page);
 static struct page *split_page(struct phys_mem_pool *pool, uint64 order, struct page *page);
 void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 start_addr, uint64 page_num);
 
+// uint64 get_free_mem();// debug
 static inline uint64 page_to_offset(struct phys_mem_pool *pool, struct page *page) {
     return (page - pool->page_metadata) * PGSIZE;
 }
@@ -112,6 +113,10 @@ struct page *buddy_get_pages(struct phys_mem_pool *pool, uint64 order) {
     // kalloc() will call push_off, so use pop_off here to prevent long time interrupt off
     pop_off();
 
+    // if(get_free_mem()/4096 < 30200) {
+    //     printf("decrease , memory : %d , ready\n", get_free_mem()/4096);
+    // }
+    // printf("memory %d PAGES, %d Bytes\n", get_free_mem()/4096, get_free_mem());
     ASSERT(order <= BUDDY_MAX_ORDER);
     struct page *page = NULL;
     struct list_head *lists;

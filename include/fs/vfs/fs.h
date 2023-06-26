@@ -118,6 +118,7 @@ struct inode {
     uint64 i_writeback;              // writing back ?
     struct list_head dirty_list;     // link with superblock s_dirty
     struct address_space *i_mapping; // used for page cache
+    spinlock_t tree_lock;            /* and lock protecting radix tree */
 
     struct list_head list; // to speed up inode_get
 
@@ -136,7 +137,6 @@ struct inode {
 struct address_space {
     struct inode *host;               /* owner: inode*/
     struct radix_tree_root page_tree; /* radix tree(root) of all pages */
-    spinlock_t tree_lock;             /* and lock protecting it */
     uint64 nrpages;                   /* number of total pages */
     uint64 last_index;                // 2 4 6 8 ... read head policy
     uint64 read_ahead_cnt;            // the number of read ahead

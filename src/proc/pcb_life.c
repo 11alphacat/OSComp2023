@@ -211,6 +211,7 @@ void init_ret(void) {
     // proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", NULL, NULL);
+    // fat32_sb.root->i_op->iput(fat32_sb.root);// ??? maybe
 }
 
 // initialize the proc table.
