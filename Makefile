@@ -54,6 +54,7 @@ $(shell mkdir -p $(FSIMG)/dev)
 $(shell mkdir -p $(FSIMG)/boot)
 $(shell mkdir -p $(FSIMG)/busybox)
 $(shell mkdir -p $(FSIMG)/libc-test)
+$(shell mkdir -p $(FSIMG)/lmbench)
 
 ## 2. Compilation Flags 
 
@@ -185,6 +186,10 @@ image: user fat32.img
 # # use `make apps` instead of using `make _apps` directly
 # _apps:
 # 	make -C apps
+apps:
+	@cp apps/musl-1.2.4/lib/libc.so fsimg/
+	@cp apps/libc-test/disk/* fsimg/libc-test
+	@cp apps/lmbench/bin/riscv64/* fsimg/lmbench
 
 # user: oscomp busybox
 user: busybox

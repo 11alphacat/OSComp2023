@@ -18,12 +18,16 @@ libctest:
 	riscv64-linux-gnu-objdump -S ./libc-test/disk/dlopen_dso.so > ./libc-test/disk/dlopen_dso_so.asm
 	riscv64-linux-gnu-objdump -S ./libc-test/entry-dynamic.exe > ./libc-test/disk/entry-dynamic.asm
 
+lmbench:
+	make -C lmbench CC="riscv64-linux-gnu-gcc -static" OS=riscv64 -j 4
+
 clean:
 	make -C musl-1.2.4 clean
 	make -C busybox clean
 	make -C libc-test clean
+	make -C lmbench clean
 
 configure:	
 	echo TODO
 
-.PHONY: all musl busybox clean configure
+.PHONY: all musl busybox clean configure lmbench
