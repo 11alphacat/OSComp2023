@@ -192,6 +192,12 @@ static struct syscall_info info[] = {
     [SYS_fstatat] { "fstatat", 4, "dspx", 'd' },
     //            long clone(unsigned long flags, void *stack, int *parent_tid, unsigned long tls, int *child_tid);
     [SYS_clone] { "clone", 5, "xppup", 'd' },
+    //          int pipe2(int pipefd[2], int flags);
+    [SYS_pipe2] { "pipe2", 2, "pd", 'd' },
+    //          int dup(int);
+    [SYS_dup] { "dup", 1, "d" },
+    //          int dup3(int oldfd, int newfd, int flags);
+    [SYS_dup3] { "dup3", 3, "ddd", 'd' },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -204,8 +210,6 @@ static struct syscall_info info[] = {
     // [SYS_fstat] { "fstat", 2, "dp" },
     // // int chdir(const char*);
     // [SYS_chdir] { "chdir", 1, "s" },
-    // // int dup(int);
-    // [SYS_dup] { "dup", 1, "d" },
     // // int sleep(int);
     // [SYS_sleep] { "sleep", 1, "d" },
     // // int uptime(void);

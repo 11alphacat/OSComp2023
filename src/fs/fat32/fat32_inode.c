@@ -354,7 +354,7 @@ struct inode *fat32_inode_dup(struct inode *ip) {
     release(&inode_table.lock);
     return ip;
 }
-
+// TODO():等待合并
 // get a inode , move it from disk to memory
 struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint parentoff) {
     struct inode *ip = NULL, *empty = NULL;

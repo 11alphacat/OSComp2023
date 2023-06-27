@@ -6,6 +6,7 @@
 //
 
 #include "common.h"
+#include "errno.h"
 #include "lib/riscv.h"
 #include "param.h"
 #include "debug.h"
@@ -156,7 +157,7 @@ static int assist_openat(struct inode *ip, int flags, int omode) {
     }
     f->f_tp.f_inode = ip;
     f->f_flags = flags;       // TODO(): &
-    f->f_mode = omode & 0777; // TODO(): &
+    f->f_mode = omode & 0777;
     f->f_count = 1;
 
     if (((flags & O_TRUNC) == O_TRUNC) && S_ISREG(ip->i_mode)) {
@@ -164,6 +165,8 @@ static int assist_openat(struct inode *ip, int flags, int omode) {
         f->f_pos = 0;
     } else if (((flags & O_APPEND) == O_APPEND) && S_ISREG(ip->i_mode)) {
         f->f_pos = ip->i_size + 1;
+    } else {
+        f->f_pos = 0;
     }
 
     ip->i_op->iunlock(ip);
@@ -404,11 +407,11 @@ create:
 }
 
 static int assist_dupfd(struct file *f) {
-    int ret;
-    if ((ret = fdalloc(f)) > 0) {
+    int newfd;
+    if ((newfd = fdalloc(f)) > 0) {
         f->f_op->dup(f);
     }
-    return ret;
+    return newfd;
 }
 
 static int assist_getfd(struct file *f) {
@@ -424,7 +427,8 @@ static int assist_setfd(struct file *f, int oldfd, int newfd) {
     struct proc *p = proc_current();
     if (oldfd == newfd) {
         // do nothing
-        return newfd;
+        return EINVAL;
+        // return newfd;
     }
     acquire(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
     if (p->ofile[newfd] == 0) {
@@ -467,12 +471,8 @@ static uint64 do_fcntl(struct file *f, int cmd) {
         break;
 
     case F_SETFD:
-        // if (argint(2, &arg) < 0) {
-        //     ret = -1;
-        // } else {
-        //     ret = assist_setfd(f, FILE2FD(f, proc_current()), arg);
-        // }
         ret = 0;
+        // f->f_flags |= FD_CLOEXEC;
         break;
 
     case F_GETFL:
@@ -485,6 +485,13 @@ static uint64 do_fcntl(struct file *f, int cmd) {
         } else {
             ret = assist_setflag(f, arg);
         }
+        break;
+
+    case F_DUPFD_CLOEXEC:
+        ret = assist_dupfd(f);
+        // if (ret >= 0) {
+        //     proc_current()->ofile[ret]->f_flags |= FD_CLOEXEC;
+        // }
         break;
 
     default:
@@ -719,12 +726,12 @@ uint64 sys_read(void) {
 // 返回值：成功执行，返回写入的字节数。错误，则返回-1。
 uint64 sys_write(void) {
     struct file *f;
-    int n;
+    int n, fd;
     uint64 p;
 
     argaddr(1, &p);
     argint(2, &n);
-    if (argfd(0, 0, &f) < 0)
+    if (argfd(0, &fd, &f) < 0)  // fd for debug
         return -1;
     if (!F_WRITEABLE(f))
         return -1;
@@ -1134,10 +1141,12 @@ uint64 sys_writev(void) {
     struct iovec *p;
 
     argaddr(1, &iov);
-    if (argint(2, &iovcnt) < 0) {
+    if (argint(2, &iovcnt) < 0) {   
         return -1;
     }
-
+    if (iovcnt == 0) {
+        return 0;
+    }
     if (argfd(0, 0, &f) < 0) {
         return -1;
     }
@@ -1383,8 +1392,9 @@ struct pthread {
 	 * the end of the structure is external and internal ABI. */
 };
 
-// TODO(): set_errno
+// TODO(): to be finished
 uint64 sys_utimensat(void) {
+    return -ENOENT;
     // ASSERT(0);
     printf("welcome to SYS_utimensat\n\n");
     struct tcb *t = thread_current();
@@ -1487,7 +1497,7 @@ uint64 sys_fstatat(void) {
     argint(3, &flags);
     // ASSERT(flags == 0);
     if ((ip = find_inode(pathname, dirfd, 0)) == 0) {
-        return -1;
+        return -ENOENT;
     }
 
     ip->i_op->ilock(ip);

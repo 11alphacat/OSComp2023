@@ -129,7 +129,7 @@ if (S_ISCHR(mode) || S_ISBLK(mode) ) {   // 用类型判断，而非用设备号
 ## 系统调用
 在测试 busybox 的 cat 程序时，我们发现其调用的 openat 系统调用总会返回不正确的值，经过  
 调试后发现时读取到的 `flags` 值有误。而其他参数均正确。  
-我们观察了几个寄存器的值，由于该系统调用是传递 4 个参数，所以对于与 a0~a3寄存器，结果确实  
+我们观察了几个寄存器的值，由于该系统调用是传递 4 个参数，所以对应于 a0~a3寄存器，结果确实  
 flags 对应的 a2 寄存器值不正确，而其他寄存器的值均正确。 
 <img src="../image/debug记录.assets/openat.png" style="zoom: 67%; display: block; margin: auto;">
 0x8000 目前没有 flags 定义。
@@ -171,4 +171,4 @@ int FAST_FUNC open3_or_warn(const char *pathname, int flags, int mode)
 ```
 这里对第三个参数进行了或运算，而 O_LARGEFILE 的某个定义恰好为 0100000，即 0x8000,  
 这就解释了为什么用户传入的 0 在内核中读到了 0x8000。  
-于是我们可以对 openat 系统调用的参数读取时加入特殊处理，以解决问题。
+于是我们可以对 openat 系统调用的参数读取时加入特殊处理，从而问题得以解决。

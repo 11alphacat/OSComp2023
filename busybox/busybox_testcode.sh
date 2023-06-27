@@ -6,10 +6,10 @@
 # fi
 # touch $RST
 
+echo "hello"
 # echo "If the CMD runs incorrectly, return value will put in $RST" > $RST
 # echo -e "Else nothing will put in $RST\n" >> $RST
 # echo "TEST START" >> $RST
-
 ./busybox/busybox cat ./busybox/busybox_cmd.txt | while read line
 do
 	eval "./busybox/busybox $line"

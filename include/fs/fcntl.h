@@ -63,6 +63,8 @@
 #define F_SETFD 2 /* set/clear close_on_exec */
 #define F_GETFL 3 /* get file->f_flags */
 #define F_SETFL 4 /* set file->f_flags */
+#define FD_CLOEXEC	1	/* actually anything with low bit set goes */
+#define F_DUPFD_CLOEXEC 1030
 
 // faccess
 #define F_OK 0           /* test existance */
