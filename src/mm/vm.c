@@ -12,6 +12,8 @@
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
 
+#include "memory/buddy.h"
+
 /*
  * the kernel's page table.
  */
@@ -59,6 +61,7 @@ kvmmake(void) {
 
     // allocate and map a kernel stack for each process.
     tcb_mapstacks(kpgtbl);
+    kvmmap(kpgtbl, 0, START_MEM, PGSIZE * 100, PTE_R | PTE_W, 0);
 
     // vmprint(kpgtbl, 1, 0, 0, 0);
     return kpgtbl;
@@ -283,10 +286,9 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int 
 // returns 0 if out of memory.
 pagetable_t uvmcreate() {
     pagetable_t pagetable;
-    pagetable = (pagetable_t)kalloc();
+    pagetable = (pagetable_t)kzalloc(PGSIZE);
     if (pagetable == 0)
         return 0;
-    memset(pagetable, 0, PGSIZE);
     return pagetable;
 }
 
@@ -372,18 +374,26 @@ uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
 
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
-void freewalk(pagetable_t pagetable) {
+void freewalk(pagetable_t pagetable, int level) {
     // there are 2^9 = 512 PTEs in a page table.
     for (int i = 0; i < 512; i++) {
+        if (level == 0 && i == 1) {
+            /* used for libc.so */
+            continue;
+        }
         pte_t pte = pagetable[i];
         if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
             // this PTE points to a lower-level page table.
             uint64 child = PTE2PA(pte);
-            freewalk((pagetable_t)child);
+            freewalk((pagetable_t)child, level + 1);
             pagetable[i] = 0;
         } else if (pte & PTE_V) {
+#ifdef __DEBUG_LDSO__
+            continue;
+#else
             vmprint(pagetable, 1, 0, 0, 0);
             panic("freewalk: leaf");
+#endif
         }
     }
     kfree((void *)pagetable);
@@ -393,8 +403,8 @@ void freewalk(pagetable_t pagetable) {
 // then free page-table pages.
 void uvmfree(struct mm_struct *mm) {
     free_all_vmas(mm);
-    // print_vma(mm);
-    freewalk(mm->pagetable);
+    // print_vma(&mm->head_vma);
+    freewalk(mm->pagetable, 0);
 }
 
 // Given a parent process's page table, copy

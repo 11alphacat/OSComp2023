@@ -125,3 +125,50 @@ if (S_ISCHR(mode) || S_ISBLK(mode) ) {   // 用类型判断，而非用设备号
 }
 ...
 ```
+
+## 系统调用
+在测试 busybox 的 cat 程序时，我们发现其调用的 openat 系统调用总会返回不正确的值，经过  
+调试后发现时读取到的 `flags` 值有误。而其他参数均正确。  
+我们观察了几个寄存器的值，由于该系统调用是传递 4 个参数，所以对于与 a0~a3寄存器，结果确实  
+flags 对应的 a2 寄存器值不正确，而其他寄存器的值均正确。 
+<img src="../image/debug记录.assets/openat.png" style="zoom: 67%; display: block; margin: auto;">
+0x8000 目前没有 flags 定义。
+
+我们从用户库代码中查找，找到 cat 程序为 openat 系统调用传递的原始参数如下  
+```c
+int FAST_FUNC open_or_warn_stdin(const char *filename)
+{
+	int fd = STDIN_FILENO;
+
+	if (filename != bb_msg_standard_input
+	 && NOT_LONE_DASH(filename)
+	) {
+		fd = open_or_warn(filename, O_RDONLY);  // <== here
+		// fd = open_or_warn(filename, 0x5656);		// test
+	}
+
+	return fd;
+}
+
+int FAST_FUNC open3_or_warn(const char *pathname, int flags, int mode)
+{
+	int ret;
+// bb_perror_msg("open3_or_warn: flags = %d\n",flags);
+	ret = open(pathname, flags, mode);
+	if (ret < 0) {
+		bb_perror_msg("can't open '%s'", pathname);
+	}
+	return ret;
+}
+```
+也就是 flags 应当为 O_RDONLY，这个值为 0。说明在目前用户传递的参数是正确的，  
+但在内核中读取到的值却变为了 0x8000.  
+我们再一层层地寻找 open 的实现，最后发现它会调用如下代码。
+
+``` c
+// syscall.h
+#define __sys_open_cp3(x,pn,fl,mo) __syscall_cp4(SYS_openat, AT_FDCWD, pn, (fl)|O_LARGEFILE, mo)
+```
+这里对第三个参数进行了或运算，而 O_LARGEFILE 的某个定义恰好为 0100000，即 0x8000,  
+这就解释了为什么用户传入的 0 在内核中读到了 0x8000。  
+于是我们可以对 openat 系统调用的参数读取时加入特殊处理，以解决问题。

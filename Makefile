@@ -9,6 +9,7 @@ DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_PAGE_CACHE ?=0
 STRACE ?= 0
+DEBUG_LDSO ?= 0
 
 FSIMG = fsimg
 ROOT=$(shell pwd)
@@ -27,19 +28,19 @@ TEST=user_test kalloctest mmaptest \
 	writev_test readv_test lseek_test \
 	sendfile_test renameat2_test
 
-OSCOMP=chdir close dup2 dup \
-    fstat getcwd mkdir_ write \
-    openat open read test_echo \
-	getdents unlink pipe \
-    brk clone execve exit fork \
-    getpid getppid sleep times \
-    gettimeofday mmap munmap \
-    uname wait waitpid yield \
-    mount umount text.txt run-all.sh mnt
+# OSCOMP=chdir close dup2 dup \
+#     fstat getcwd mkdir_ write \
+#     openat open read test_echo \
+# 	getdents unlink pipe \
+#     brk clone execve exit fork \
+#     getpid getppid sleep times \
+#     gettimeofday mmap munmap \
+#     uname wait waitpid yield \
+#     mount umount text.txt run-all.sh mnt
 
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
 BOOT=init
-BUSYBOX=busybox busybox_cmd.txt busybox_testcode.sh
+BUSYBOX=busybox busybox_cmd.txt busybox_testcode.sh busybox_d
 
 TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
 OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
@@ -52,6 +53,7 @@ $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
 $(shell mkdir -p $(FSIMG)/boot)
 $(shell mkdir -p $(FSIMG)/busybox)
+$(shell mkdir -p $(FSIMG)/libc-test)
 
 ## 2. Compilation Flags 
 
@@ -91,6 +93,9 @@ OBJS_KCSAN = \
   build/src/lib/kcsan.o
 endif
 
+ifeq ($(DEBUG_LDSO), 1)
+CFLAGS += -D__DEBUG_LDSO__
+endif
 ifeq ($(STRACE), 1)
 CFLAGS += -D__STRACE__
 endif
@@ -175,12 +180,20 @@ export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS User
 
 image: user fat32.img
 
-user: oscomp busybox
-# user: busybox
+# apps: _apps fat32.img
+
+# # use `make apps` instead of using `make _apps` directly
+# _apps:
+# 	make -C apps
+
+# user: oscomp busybox
+user: busybox
 	@echo "$(YELLOW)build user:$(RESET)"
+	@cp apps/musl-1.2.4/lib/libc.so fsimg/
+	@cp apps/libc-test/disk/* fsimg/libc-test
 	@cp README.md $(FSIMG)/
 	@make -C $(User)
-	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
+#	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
 	@mv $(BINFILE) $(FSIMG)/bin/
 	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/test/
@@ -209,7 +222,7 @@ clean-all: clean
 clean: 
 	-rm build/* kernel-qemu $(GENINC) -rf 
 
-.PHONY: qemu clean user clean-all format test oscomp dep image busybox
+.PHONY: qemu clean user clean-all format test oscomp dep image busybox apps _apps
 
 ## 6. Build Kernel
 include $(SCRIPTS)/build.mk

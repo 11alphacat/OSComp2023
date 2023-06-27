@@ -13,6 +13,7 @@
 #define MAP_FILE 0
 #define MAP_SHARED 0x01
 #define MAP_PRIVATE 0x02
+#define MAP_FIXED 0x10     /* Interpret addr exactly.  */
 #define MAP_ANONYMOUS 0x20 /* Don't use a file.  */
 
 // return (void *)0xfffff...ff to indicate fail
@@ -39,6 +40,7 @@ static uint64 mkperm(int prot, int flags) {
     return (perm | prot);
 }
 
+extern void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma);
 // return type!!!
 // 与声明不兼容不会出错
 /* void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset); */
@@ -62,13 +64,52 @@ void *sys_mmap(void) {
     }
     arglong(5, &offset);
 
-    if (addr != 0 || offset != 0) {
+    if (offset != 0) {
         Warn("mmap: not support");
         return MAP_FAILED;
     }
 
     struct mm_struct *mm = proc_current()->mm;
-    vaddr_t mapva = find_mapping_space(mm, addr, length);
+    vaddr_t mapva;
+    if (addr == 0) {
+        mapva = find_mapping_space(mm, addr, length);
+    } else {
+        if ((flags & MAP_FIXED) == 0) {
+            Warn("mmap: not support");
+            return MAP_FAILED;
+        }
+
+        uint64 start, end;
+        start = addr;
+        end = addr + length;
+        struct vma *vma;
+        if ((vma = find_vma_for_va(mm, addr)) != NULL) {
+            print_vma(&mm->head_vma);
+            if (start != vma->startva) {
+                if (split_vma(mm, vma, start, 1) < 0) {
+                    return MAP_FAILED;
+                }
+            }
+
+            if (end != vma->startva + vma->size) {
+                if (split_vma(mm, vma, end, 0) < 0) {
+                    return MAP_FAILED;
+                }
+            }
+
+            print_vma(&mm->head_vma);
+            if (vma != NULL) {
+                del_vma_from_vmspace(&mm->head_vma, vma);
+            }
+            mapva = addr;
+            // offset = ;
+            // print_vma(&mm->head_vma);
+            // if (walkaddr(mm->pagetable, mapva) != 0) {
+            //     Warn("the addr %p is already mapped", addr);
+            //     return MAP_FAILED;
+            // }
+        }
+    }
     if (flags & MAP_ANONYMOUS) {
         if (vma_map(mm, mapva, length, mkperm(prot, flags), VMA_ANON) < 0) {
             return MAP_FAILED;
@@ -78,8 +119,9 @@ void *sys_mmap(void) {
             return MAP_FAILED;
         }
     }
+    // print_vma(&mm->head_vma);
 
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
     return (void *)mapva;
 }
 
@@ -108,7 +150,7 @@ uint64 sys_mprotect(void) {
     }
 
     struct mm_struct *mm = proc_current()->mm;
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
     if (start != vma->startva) {
         if (split_vma(mm, vma, start, 1) < 0) {
             return -1;
@@ -116,12 +158,12 @@ uint64 sys_mprotect(void) {
     }
 
     if (end != vma->startva + vma->size) {
-        if (split_vma(mm, vma, start, 0) < 0) {
+        if (split_vma(mm, vma, end, 0) < 0) {
             return -1;
         }
     }
     // printfYELLOW("==========================");
-    // print_vma(mm);
+    // print_vma(&mm->head_vma);
 
     vma->perm = prot;
     return 0;

@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     }
 
     // 创建目标文件
-    int destination_fd = open(destination_file, O_WRONLY | O_CREATE | O_TRUNC);
+    int destination_fd = open(destination_file, O_WRONLY | O_CREAT | O_TRUNC);
     if (destination_fd == -1) {
         perror("无法创建目标文件");
         return 1;

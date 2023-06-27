@@ -17,4 +17,11 @@ uint64 sys_geteuid(void) {
 uint64 sys_gettid(void) {
     return 0;
 }
-// filesystem
+
+uint64 sys_prlimit64(void) {
+    return 0;
+}
+
+uint64 sys_rt_sigtimedwait(void) {
+    return 0;
+}

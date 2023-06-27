@@ -66,6 +66,11 @@
 // each surrounded by invalid guard pages.
 #define KSTACK(p) (TRAMPOLINE - ((p) + 1) * 2 * PGSIZE)
 
+#ifdef __DEBUG_LDSO__
+#define LDSO 0x00000000
+#else
+#define LDSO 0x40000000
+#endif
 // User memory layout.
 //   text
 //   original data and bss

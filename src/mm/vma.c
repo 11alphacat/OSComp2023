@@ -64,6 +64,8 @@ static int check_vma_intersect(struct list_head *vma_head, struct vma *checked_v
 }
 
 static int add_vma_to_vmspace(struct list_head *head, struct vma *vma) {
+    // printfYELLOW("===============\n");
+    // print_vma(head);
     if (check_vma_intersect(head, vma) != 0) {
         Log("add_vma_to_vmspace: vma overlap\n");
         ASSERT(0);
@@ -86,7 +88,7 @@ static int is_vma_in_vmspace(struct list_head *vma_head, struct vma *vma) {
     return 0;
 }
 
-static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
+void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
     if (is_vma_in_vmspace(vma_head, vma)) {
         list_del(&(vma->node));
     } else {
@@ -95,6 +97,7 @@ static void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
     free_vma(vma);
 }
 
+void print_rawfile(struct file *f, int fd, int printdir);
 int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type,
                  int fd, off_t offset, struct file *fp) {
     struct vma *vma;
@@ -110,6 +113,7 @@ int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint6
     vma->offset = offset;
     vma->vm_file = fp;
     fat32_filedup(vma->vm_file);
+    // print_rawfile(vma->vm_file, 0, 0);
     return 0;
 }
 
@@ -237,11 +241,14 @@ struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr) {
     return NULL;
 }
 
-#define MMAP_START 0x10000000
+#define MMAP_START 0x30000000
 vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
     struct vma *pos;
     vaddr_t max = MMAP_START;
     list_for_each_entry(pos, &mm->head_vma, node) {
+        if (pos->type == VMA_INTERP) {
+            continue;
+        }
         if (pos->type == VMA_STACK) {
             continue;
         }
@@ -264,13 +271,14 @@ vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
 
 void sys_print_vma() {
     struct mm_struct *mm = proc_current()->mm;
-    print_vma(mm);
+    print_vma(&mm->head_vma);
 }
 
-void print_vma(struct mm_struct *mm) {
+void print_vma(struct list_head *head_vma) {
     struct vma *pos;
     // VMA("%s vmas:\n", proc_current()->name);
-    list_for_each_entry(pos, &mm->head_vma, node) {
+    printfYELLOW("=====================\n");
+    list_for_each_entry(pos, head_vma, node) {
         VMA("%#p-%#p %dKB\t", pos->startva, pos->startva + pos->size, pos->size / PGSIZE);
         if (pos->perm & PERM_READ) {
             VMA("r");
@@ -296,8 +304,12 @@ void print_vma(struct mm_struct *mm) {
         case VMA_TEXT: VMA("  VMA_TEXT  "); break;
         case VMA_STACK: VMA("  VMA_STACK  "); break;
         case VMA_HEAP: VMA("  VMA_HEAP  "); break;
-        case VMA_FILE: VMA("  VMA_FILE  "); break;
+        case VMA_FILE:
+            VMA("  VMA_FILE  ");
+            VMA("%p", pos->offset);
+            break;
         case VMA_ANON: VMA("  VMA_ANON  "); break;
+        case VMA_INTERP: VMA("  libc.so  "); break;
         default: panic("no such vma type");
         }
         VMA("\n");
@@ -329,9 +341,13 @@ void free_all_vmas(struct mm_struct *mm) {
     struct vma *pos_cur;
     struct vma *pos_tmp;
     // vmprint(mm->pagetable, 1, 0, 0, 0);
+    // print_vma(&mm->head_vma);
     list_for_each_entry_safe(pos_cur, pos_tmp, &mm->head_vma, node) {
         // Warn("%p~%p", pos->startva, pos->size);
-        // print_vma(mm);
+        // print_vma(&mm->head_vma);
+        if (pos_cur->type == VMA_INTERP) {
+            continue;
+        }
         if (pos_cur->type == VMA_HEAP && pos_cur->size == 0) {
             del_vma_from_vmspace(&mm->head_vma, pos_cur);
             continue;
@@ -361,6 +377,7 @@ int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new
     if (new_below) {
         vma->size = vma->startva + vma->size - addr;
         vma->startva = addr;
+        vma->offset += (addr - new->startva);
         new->size = addr - new->startva;
     } else {
         new->startva = addr;

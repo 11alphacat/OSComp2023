@@ -64,7 +64,7 @@ makefile(const char *f)
   int n = PGSIZE/BSIZE;
 
   unlink(f);
-  int fd = open(f, O_WRONLY | O_CREATE);
+  int fd = open(f, O_WRONLY | O_CREAT);
   if (fd == -1)
     err("open");
   memset(buf, 'A', BSIZE);
@@ -259,7 +259,7 @@ mmap_test(void)
   // mmap two files at the same time.
   //
   int fd1;
-  if((fd1 = open("mmap1", O_RDWR|O_CREATE)) < 0)
+  if((fd1 = open("mmap1", O_RDWR|O_CREAT)) < 0)
     err("open mmap1");
   if(write(fd1, "12345", 5) != 5)
     err("write mmap1");
@@ -273,7 +273,7 @@ mmap_test(void)
 
   // print_pgtable();
   int fd2;
-  if((fd2 = open("mmap2", O_RDWR|O_CREATE)) < 0)
+  if((fd2 = open("mmap2", O_RDWR|O_CREAT)) < 0)
     err("open mmap2");
   if(write(fd2, "67890", 5) != 5)
     err("write mmap2");

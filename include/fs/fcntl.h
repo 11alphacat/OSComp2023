@@ -2,16 +2,35 @@
 #define __FCNTL_H__
 
 // f_flags
-#define O_RDONLY 0x000
-#define O_WRONLY 0x001
-#define O_RDWR 0x002
-#define O_CREATE 0x40
-#define O_DIRECTORY 0x0200000
-// #define O_CREATE 0x200      // for xv6
-#define O_TRUNC 0x400
+#define O_ASYNC 020000
+#define O_PATH 010000000
+#define O_TMPFILE 020040000
+// #define O_NDELAY O_NONBLOCK
 
-#define O_NONBLOCK 00004
-#define O_APPEND 00010
+//
+#define O_LARGEFILE 0100000
+#define O_ACCMODE 00000003
+#define O_RDONLY 00000000
+#define O_WRONLY 00000001
+#define O_RDWR 00000002
+
+#define O_CREAT 0100  /* not fcntl */
+#define O_TRUNC 01000 /* not fcntl */
+#define O_EXCL 0200   /* not fcntl */
+#define O_NOCTTY 0400 /* not fcntl */
+
+#define O_NONBLOCK 04000
+#define O_APPEND 02000
+#define O_SYNC 04010000
+#define O_RSYNC 04010000
+#define O_DSYNC 010000     /* used to be O_SYNC, see below */
+#define O_DIRECTORY 040000 /* must be a directory */
+#define O_NOFOLLOW 0100000 /* don't follow links */
+// #define O_LARGEFILE 0400000 /* will be set by the kernel on every open */
+#define O_DIRECT 0200000 /* direct disk access - should check with OSF/1 */
+#define O_NOATIME 01000000
+#define O_CLOEXEC 02000000 /* set close_on_exec */
+
 #define FCNTLABLE(value) \
     (value == O_NONBLOCK || value == O_APPEND)
 
@@ -28,6 +47,7 @@
 #define PROT_EXEC 0x4
 
 #define AT_FDCWD -100
+#define AT_REMOVEDIR 0x200
 
 #define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)
 #define F_READABLE(fp) (((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1)
@@ -50,4 +70,5 @@
 #define W_OK 2           /* test writable */
 #define X_OK 1           /* test executable */
 #define AT_EACCESS 0x100 /* 使用进程的有效用户ID 和 组ID */
-#endif                   // __FCNTL_H__
+
+#endif // __FCNTL_H__

@@ -64,6 +64,12 @@ static uint8 __inode_update_to_fatdev(struct inode *ip) {
     return DIR_Dev;
 }
 
+inline static int __get_blocks(int size) {
+    int q = size / __CLUSTER_SIZE;
+    int r = size & (__CLUSTER_SIZE - 1);
+    return (q + (r != 0));
+}
+
 struct inode *fat32_root_inode_init(struct _superblock *sb) {
     // root inode initialization
     struct inode *root_ip = (struct inode *)kalloc();
@@ -354,9 +360,6 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
     struct inode *ip = NULL, *empty = NULL;
     acquire(&inode_table.lock);
 
-    if (name[0] == 'i' && name[1] == 'p') {
-        printf("ready\n");
-    }
     // Is the fat32 inode already in the table?
     empty = 0;
     // ===== using array =====
@@ -516,14 +519,18 @@ int fat32_inode_load_from_disk(struct inode *ip) {
         // a device file
         ip->i_size = 0;
         ip->i_mode = mode;
+        ip->i_blocks = 0;
     } else if (DIR_BOOL(ip->fat32_i.Attr)) {
         // a directory
         ip->i_mode = S_IFDIR;
         ip->i_size = DIRLENGTH(ip);
+        ip->i_blocks = __get_blocks(ip->i_size);
     } else { // 暂不支持 FIFO 和 SOCKET 文件
         ip->i_mode = S_IFREG;
         ip->i_size = ip->fat32_i.DIR_FileSize;
+        ip->i_blocks = __get_blocks(ip->i_size);
     }
+    ip->i_blksize = __CLUSTER_SIZE;
     ip->i_mode |= 0777; // a sloppy handle : make it rwx able
     ip->valid = 1;
 

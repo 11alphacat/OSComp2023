@@ -151,6 +151,8 @@ struct file_operations {
     int (*fstat)(struct file *self, uint64 __user dst);
     // int (*ioctl) (struct inode *, struct file *, unsigned int cmd, unsigned long __user arg);
     long (*ioctl)(struct file *self, unsigned int cmd, unsigned long arg);
+    // size_t (*readdir)(struct file *self, char *buf, size_t len);
+    size_t (*readdir)(struct inode *dp, char *buf, uint32 off, size_t len);
 };
 
 struct inode_operations {
@@ -165,10 +167,10 @@ struct inode_operations {
     ssize_t (*iwrite)(struct inode *self, int user_dst, uint64 dst, uint off, uint n);
 
     // for directory inode
-    struct inode *(*idirlookup)(struct inode *self, const char *name, uint *poff);
-    int (*idempty)(struct inode *self);
-    ssize_t (*igetdents)(struct inode *self, char *buf, uint32 off, size_t len);
-    struct inode *(*icreate)(struct inode *self, const char *name, uint16 type, short major, short minor);
+    struct inode *(*idirlookup)(struct inode *dself, const char *name, uint *poff);
+    int (*idempty)(struct inode *dself);
+    // ssize_t (*igetdents)(struct inode *dself, char *buf, size_t len);
+    struct inode *(*icreate)(struct inode *dself, const char *name, uint16 type, short major, short minor);
     int (*ientrycopy)(struct inode *dself, const char *name, struct inode *ip);
     int (*ientrydelete)(struct inode *dself, struct inode *ip);
 };
