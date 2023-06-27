@@ -64,6 +64,18 @@ static uint8 __inode_update_to_fatdev(struct inode *ip) {
     return DIR_Dev;
 }
 
+inline static uint16 __imode_from_fcb(dirent_s_t *pfcb) {
+    ASSERT(pfcb);
+    uint16 mode;
+    if (pfcb->DIR_Dev) {
+        mode = FATDEV_TO_ITYPE(pfcb->DIR_Dev);
+    } else {
+        mode = DIR_BOOL(pfcb->DIR_Attr) ? S_IFDIR : S_IFREG; 
+    }
+    mode |= 0777; // a sloppy handle : make it rwx able
+    return mode;
+}
+
 inline static int __get_blocks(int size) {
     int q = size / __CLUSTER_SIZE;
     int r = size & (__CLUSTER_SIZE - 1);
@@ -1414,6 +1426,7 @@ void fat32_inode_general_trav(struct inode *dp, struct trav_control *tc, trav_ha
 void fat32_inode_travel_fcb_handler(struct trav_control *tc) {
     dirent_s_t *fcb_s = (dirent_s_t *)(tc->kbuf) + tc->idx;
     dirent_l_t *fcb_l = (dirent_l_t *)(tc->kbuf) + tc->idx;
+    tc->fcb_s = *fcb_s;
     // bug like this :     dirent_l_t *fcb_l = (dirent_l_t *)(tc->kbuf + tc->idx);
     // all free, return directly
     if (NAME0_FREE_ALL(fcb_s->DIR_Name[0])) {
@@ -1494,9 +1507,12 @@ void fat32_inode_getdents_handler(struct trav_control *tc) {
     struct __dirent *dirent_buf = (struct __dirent *)buf_tmp;
 
     dirent_buf->d_off = ++tc->file_idx; // start from 1
-    // TODO : i_mode ???
-    // dirent_buf->d_type = (ip_buf->i_mode & S_IFMT) >> 8; // error, not use
-    // dirent_buf->d_type = __IMODE_TO_DTYPE(ip_buf->i_mode);
+    
+    // handle i_mode
+    uint16 mode = __imode_from_fcb(&(tc->fcb_s));
+    dirent_buf->d_type = (mode & S_IFMT) >> 8; 
+    dirent_buf->d_type = __IMODE_TO_DTYPE(mode);
+    
     int fname_len = strlen(tc->name_buf);
     safestrcpy(dirent_buf->d_name, tc->name_buf, fname_len); // !!!!!
     dirent_buf->d_name[fname_len] = '\0';

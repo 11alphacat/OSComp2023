@@ -760,7 +760,7 @@ void truncate3() {
 
 // does chdir() call iput(p->cwd) in a transaction?
 void iputtest() {
-    return 0;
+    return;
     printf("==========iput test==========\n");
     if (mkdir("iputdir", 0666) < 0) {
         printf("mkdir failed\n");
