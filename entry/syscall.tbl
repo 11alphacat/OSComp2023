@@ -12,6 +12,8 @@
 260   wait4            sys_wait4
 173  getppid          sys_getppid
 124  sched_yield          sys_sched_yield
+176 getgid      sys_getgid
+177 getegid     sys_getegid
 
 # fs
 80   fstat           sys_fstat

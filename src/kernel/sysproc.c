@@ -450,3 +450,13 @@ uint64 sys_futex() {
 
     return do_futex(uaddr, futex_op, val, timeout_addr ? &timeout : NULL, uaddr2, val2, val3);
 }
+
+// the real group ID of the calling process
+uint64 sys_getgid() {
+    return proc_current()->pid;
+}
+
+// the effective group ID of the calling process
+uint64 sys_getegid() {
+    return proc_current()->pid;
+}

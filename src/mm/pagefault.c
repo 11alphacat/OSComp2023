@@ -59,6 +59,7 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
     // }
     if (vma != NULL) {
         if (!CHECK_PERM(cause, vma)) {
+            print_vma(&proc_current()->mm->head_vma);
             PAGEFAULT("permission checked failed");
             return -1;
         }

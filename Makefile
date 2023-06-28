@@ -55,6 +55,10 @@ $(shell mkdir -p $(FSIMG)/boot)
 $(shell mkdir -p $(FSIMG)/busybox)
 $(shell mkdir -p $(FSIMG)/libc-test)
 $(shell mkdir -p $(FSIMG)/lmbench)
+$(shell mkdir -p $(FSIMG)/time-test)
+$(shell mkdir -p $(FSIMG)/libc-bench)
+$(shell mkdir -p $(FSIMG)/iozone)
+$(shell mkdir -p $(FSIMG)/lua)
 
 ## 2. Compilation Flags 
 
@@ -189,14 +193,20 @@ image: user fat32.img
 apps:
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
 	@cp apps/libc-test/disk/* fsimg/libc-test
-	@cp apps/lmbench/bin/riscv64/* fsimg/lmbench
+	@cp apps/lmbench/bin/riscv64/lmbench_all fsimg/lmbench
+	@cp apps/lmbench/bin/riscv64/hello fsimg/lmbench
+	@cp apps/libc-bench/libc-bench fsimg/libc-bench
+	@cp apps/time-test/time-test fsimg/time-test
+	@cp apps/iozone/iozone fsimg/iozone
+	@cp apps/lua/src/lua fsimg/lua
+	@cp apps/scripts/iozone/* fsimg/iozone
+	@cp apps/scripts/lua/* fsimg/lua
 
+	
 # user: oscomp busybox
 user: busybox
 	@echo "$(YELLOW)build user:$(RESET)"
-	@cp apps/musl-1.2.4/lib/libc.so fsimg/
-	@cp apps/libc-test/disk/* fsimg/libc-test
-	@cp README.md $(FSIMG)/
+	@cp README.md $(FSIMG)/	
 	@make -C $(User)
 #	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
 	@mv $(BINFILE) $(FSIMG)/bin/
@@ -213,7 +223,7 @@ oscomp:
 
 
 fat32.img: dep
-	@dd if=/dev/zero of=$@ bs=1M count=128
+	@dd if=/dev/zero of=$@ bs=1K count=62768
 	@sudo mkfs.vfat -F 32 -s 2 -a $@ 
 	@sudo mount -t vfat $@ $(MNT_DIR)
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/

@@ -172,3 +172,36 @@ int FAST_FUNC open3_or_warn(const char *pathname, int flags, int mode)
 这里对第三个参数进行了或运算，而 O_LARGEFILE 的某个定义恰好为 0100000，即 0x8000,  
 这就解释了为什么用户传入的 0 在内核中读到了 0x8000。  
 于是我们可以对 openat 系统调用的参数读取时加入特殊处理，从而问题得以解决。
+
+
+
+
+
+**lmbench 编译问题**
+
+![image-20230628191826196](debug记录.assets/image-20230628191826196.png)
+
+lmbench/src/Makefile 中在
+
+```c
+COMPILE=$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
+```
+
+上面添加：
+
+```c
+CPPFLAGS:=$(CPPFLAGS) -I /usr/include/tirpc/
+```
+
+
+
+**unix-bench 编译问题**
+
+![image-20230628191516333](debug记录.assets/image-20230628191516333.png)
+
+```c
+sudo cp stubs-64.h stubs-lp64.h
+```
+
+
+
