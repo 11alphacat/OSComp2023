@@ -42,9 +42,9 @@ int argfd(int n, int *pfd, struct file **pf) {
         return -1;
 
     // in case another thread writes after the current thead reads
-    acquire(&p->tlock);
+    sema_wait(&p->tlock);
     if ((f = proc_current()->ofile[fd]) == 0) {
-        release(&p->tlock);
+        sema_signal(&p->tlock);
         return -1;
     } else {
         if (pfd)
@@ -52,7 +52,7 @@ int argfd(int n, int *pfd, struct file **pf) {
         if (pf)
             *pf = f;
     }
-    release(&p->tlock);
+    sema_signal(&p->tlock);
     return 0;
 }
 
@@ -67,15 +67,15 @@ static int fdalloc(struct file *f) {
     int fd;
     struct proc *p = proc_current();
 
-    acquire(&p->tlock);
+    sema_wait(&p->tlock);
     for (fd = 0; fd < NOFILE; fd++) {
         if (p->ofile[fd] == 0) {
             p->ofile[fd] = f;
-            release(&p->tlock);
+            sema_signal(&p->tlock);
             return fd;
         }
     }
-    release(&p->tlock);
+    sema_signal(&p->tlock);
     return -1;
 }
 
@@ -430,17 +430,17 @@ static int assist_setfd(struct file *f, int oldfd, int newfd) {
         return EINVAL;
         // return newfd;
     }
-    acquire(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
+    sema_wait(&p->tlock); // 可以修改为粒度小一些的锁;可以往_file结构里加锁，或者fdtable
     if (p->ofile[newfd] == 0) {
         // not used, great!
         p->ofile[newfd] = f;
-        release(&p->tlock);
+        sema_signal(&p->tlock);
     } else {
         // close and reuse
         // two steps must be atomic!
         generic_fileclose(p->ofile[newfd]);
         p->ofile[newfd] = f;
-        release(&p->tlock);
+        sema_signal(&p->tlock);
     }
     // fat32_filedup(f);
     f->f_op->dup(f);

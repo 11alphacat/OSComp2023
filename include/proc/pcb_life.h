@@ -52,7 +52,7 @@ struct proc {
     struct thread_group *tg;
     pid_t ctid;
 
-    struct spinlock tlock;
+    struct semaphore tlock;
     // // signal
     // int sig_pending_cnt;                   // have signal?
     // struct sighand *sig;        // signal

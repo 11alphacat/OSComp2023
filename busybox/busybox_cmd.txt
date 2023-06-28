@@ -39,7 +39,7 @@ echo "aaaaaaa" >> test.txt
 echo "2222222" >> test.txt
 echo "1111111" >> test.txt
 echo "bbbbbbb" >> test.txt
-sort test.txt | ./busybox uniq
+sort test.txt | ./busybox/busybox uniq
 stat test.txt
 strings test.txt 
 wc test.txt
@@ -47,7 +47,9 @@ wc test.txt
 more test.txt
 rm test.txt
 mkdir test_dir
+
 mv test_dir test
+
 rmdir test
 grep hello busybox_cmd.txt
 cp busybox_cmd.txt busybox_cmd.bak

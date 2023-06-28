@@ -127,6 +127,7 @@ if (S_ISCHR(mode) || S_ISBLK(mode) ) {   // 用类型判断，而非用设备号
 ```
 
 ## 系统调用
+### openat
 在测试 busybox 的 cat 程序时，我们发现其调用的 openat 系统调用总会返回不正确的值，经过  
 调试后发现时读取到的 `flags` 值有误。而其他参数均正确。  
 我们观察了几个寄存器的值，由于该系统调用是传递 4 个参数，所以对应于 a0~a3寄存器，结果确实  
@@ -173,11 +174,14 @@ int FAST_FUNC open3_or_warn(const char *pathname, int flags, int mode)
 这就解释了为什么用户传入的 0 在内核中读到了 0x8000。  
 于是我们可以对 openat 系统调用的参数读取时加入特殊处理，从而问题得以解决。
 
+### ppoll
+该系统调用返回正数才代表正确。最初实现为return 0, 这个错误导致无法正常执行shell脚本。
 
+### dup3
+在调用 generic_fileclose 前使用了自旋锁 tlock 对进程的 ofile 字段进行保护，但该函数可能会调用 iput，  
+从而进行磁盘的写回，会涉及磁盘I/O，进而产生 sched lock 的 panic。现在将 tlock 改为信号量，从而解决了这个问题。
 
-
-
-**lmbench 编译问题**
+## lmbench 编译问题 ##
 
 ![image-20230628191826196](debug记录.assets/image-20230628191826196.png)
 
@@ -195,7 +199,7 @@ CPPFLAGS:=$(CPPFLAGS) -I /usr/include/tirpc/
 
 
 
-**unix-bench 编译问题**
+## unix-bench 编译问题 ##
 
 ![image-20230628191516333](debug记录.assets/image-20230628191516333.png)
 

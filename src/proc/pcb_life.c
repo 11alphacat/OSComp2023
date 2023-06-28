@@ -226,7 +226,7 @@ void proc_init(void) {
         p = proc + i;
         sprintf(proc_lock_name[i], "proc_%d", i);
         initlock(&p->lock, proc_lock_name[i]);
-
+        sema_init(&p->tlock,1,"sem_ofile");
         p->state = PCB_UNUSED;
         Queue_push_back_atomic(&unused_p_q, p);
     }
