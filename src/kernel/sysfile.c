@@ -387,7 +387,7 @@ create:
 
     // mv /A/a.txt /A/B/a.txt => /A/B/a.txt
     dp->i_op->ilock(dp);
-    if (dp->i_op->ientrycopy(dp, name, ip) < 0) {
+    if (dp->i_op->ientrycopy(dp, ip) < 0) {
         dp->i_op->iunlock_put(dp);
         ip->i_op->iunlock_put(ip);
         return -1;
@@ -802,21 +802,21 @@ uint64 sys_unlinkat(void) {
     argint(0, &dirfd); // don't need to check, find_inode() will do this
 
     argint(2, &flags);
-    ASSERT(flags == 0);
-
+    // ASSERT(flags == 0);
     if (argstr(1, path, MAXPATH) < 0 || __namecmp(path, "/") == 0)
         return -1;
     // printf("unlinkat hit = %d name = %s\n",++hit,path);
 
-
     if ((dp = find_inode(path, dirfd, name)) == 0) {
-        return -1;
+        return ENOENT;
     }
     // printf("unlinkat: %d :find inode ok!\n",hit);
     if (__namecmp(name, ".") == 0 || __namecmp(name, "..") == 0) {
         //  error: cannot unlink "." or "..".
         return -1;
     }
+
+
 
     dp->i_op->ilock(dp);
     if ((ip = dp->i_op->idirlookup(dp, name, 0)) == 0) {
@@ -827,12 +827,12 @@ uint64 sys_unlinkat(void) {
     }
     // printf("goto here2.\n");
     ip->i_op->ilock(ip);
-    if ((flags == 0 && S_ISDIR(ip->i_mode))
-        || (flags == AT_REMOVEDIR && !S_ISDIR(ip->i_mode))) {
+    if ( (flags == 0 && S_ISDIR(ip->i_mode) ) 
+        || (flags == AT_REMOVEDIR && !S_ISDIR(ip->i_mode) )  ) {
         ip->i_op->iunlock_put(ip);
         dp->i_op->iunlock_put(dp);
         return -1;
-    }
+    } 
 
     if (ip->i_nlink < 1) {
         panic("unlink: nlink < 1");
@@ -840,8 +840,8 @@ uint64 sys_unlinkat(void) {
 
     if (S_ISDIR(ip->i_mode) && !ip->i_op->idempty(ip)) {
         // error: trying to unlink a non-empty directory
-        printf("ip type : 0x%x  name: %s\n", ip->i_mode, ip->fat32_i.fname);
-        printf("不会来到这里吧！\n");
+// printf("ip type : 0x%x  name: %s\n", ip->i_mode, ip->fat32_i.fname);
+// printf("不会来到这里吧！\n");
         ip->i_op->iunlock_put(ip); //     bug!!!
         dp->i_op->iunlock_put(dp); //     bug!!!
         return -1;

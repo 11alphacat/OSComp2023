@@ -443,25 +443,26 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
 // caller should hold dp->lock, ip->lock
 // 成功返回 0，失败返回 -1
 // similar to delete
-int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
-    //     int str_len = strlen(ip->fat32_i.fname);
-    //     int off = ip->fat32_i.parent_off;
-    //     ASSERT(off > 0);
-    //     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
-    //     char fcb_char[FCB_MAX_LENGTH];
-    //     // memset(fcb_char, 0, sizeof(fcb_char));
-    //     for (int i = 0; i < long_dir_len + 1; i++)
-    //         fcb_char[i * 32] = ;
+int fat32_fcb_copy(struct inode *dp, struct inode *ip) {
+    // get fcb_char
+    int str_len = strlen(ip->fat32_i.fname);
+    int off = ip->fat32_i.parent_off * 32;                   // unit of parent_off is 32 bytes
+    ASSERT(off > 0);
+    int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
+    int fcb_char_len = (long_dir_len + 1) * sizeof(dirent_l_t);
 
-    //     ASSERT(off - long_dir_len > 0);
-    // #ifdef __DEBUG_FS__
-    //     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
-    // #endif
-    //     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
-    //     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
+    uchar *fcb_char = kzalloc(fcb_char_len);
+    // read
+    int nread = fat32_inode_read(ip->parent, 0, (uint64)fcb_char, off, fcb_char_len);
+    ASSERT(nread == fcb_char_len);
 
-    //     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
-    panic("error\n");
+    // write
+    uint off_write = fat32_dir_fcb_insert_offset(dp, fcb_char_len) * 32; // unit of offset is 32 Bytes
+    uint nwrite = fat32_inode_write(dp, 0, (uint64)fcb_char, off_write, fcb_char_len);
+    ASSERT(nwrite == fcb_char_len);
+
+    kfree(fcb_char);
+
     return 0;
 }
 
