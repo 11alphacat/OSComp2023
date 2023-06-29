@@ -7,5 +7,8 @@ int sdcard_init() {
 }
 
 // read and write
+void sdcard_rw(struct bio_vec *b, int write) {
+    return ;
+}
 
 

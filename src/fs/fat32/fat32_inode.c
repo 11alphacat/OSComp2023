@@ -70,7 +70,7 @@ inline static uint16 __imode_from_fcb(dirent_s_t *pfcb) {
     if (pfcb->DIR_Dev) {
         mode = FATDEV_TO_ITYPE(pfcb->DIR_Dev);
     } else {
-        mode = DIR_BOOL(pfcb->DIR_Attr) ? S_IFDIR : S_IFREG; 
+        mode = DIR_BOOL(pfcb->DIR_Attr) ? S_IFDIR : S_IFREG;
     }
     mode |= 0777; // a sloppy handle : make it rwx able
     return mode;
@@ -189,6 +189,7 @@ uint fat32_cluster_alloc(uint dev) {
 
     // the first sector
     int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
+
     bp = bread(dev, first_sector);
 
     if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1) {
@@ -444,24 +445,25 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
 // 成功返回 0，失败返回 -1
 // similar to delete
 int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
-    //     int str_len = strlen(ip->fat32_i.fname);
-    //     int off = ip->fat32_i.parent_off;
-    //     ASSERT(off > 0);
-    //     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
-    //     char fcb_char[FCB_MAX_LENGTH];
-    //     // memset(fcb_char, 0, sizeof(fcb_char));
-    //     for (int i = 0; i < long_dir_len + 1; i++)
-    //         fcb_char[i * 32] = ;
+    // get fcb_char
+    int str_len = strlen(ip->fat32_i.fname);
+    int off = ip->fat32_i.parent_off * 32;                   // unit of parent_off is 32 bytes
+    ASSERT(off > 0);
+    int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
+    int fcb_char_len = (long_dir_len + 1) * sizeof(dirent_l_t);
 
-    //     ASSERT(off - long_dir_len > 0);
-    // #ifdef __DEBUG_FS__
-    //     printf("inode delete : pid %d, %s, off = %d, long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, long_dir_len);
-    // #endif
-    //     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
-    //     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
+    uchar *fcb_char = kzalloc(fcb_char_len);
+    // read
+    int nread = fat32_inode_read(ip->parent, 0, (uint64)fcb_char, off, fcb_char_len);
+    ASSERT(nread == fcb_char_len);
 
-    //     hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
-    panic("error\n");
+    // write
+    uint off_write = fat32_dir_fcb_insert_offset(dp, fcb_char_len) * 32; // unit of offset is 32 Bytes
+    uint nwrite = fat32_inode_write(dp, 0, (uint64)fcb_char, off_write, fcb_char_len);
+    ASSERT(nwrite == fcb_char_len);
+
+    kfree(fcb_char);
+
     return 0;
 }
 
@@ -621,7 +623,7 @@ void fat32_inode_trunc(struct inode *ip) {
     ip->i_size = 0;
     ip->fat32_i.parent_off = -1; // ???
 
-    ip->i_hash = NULL; // !!!
+    ip->i_hash = NULL;           // !!!
 
     // speed up dirlookup
     ip->off_hint = 0;
@@ -1285,7 +1287,7 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
 // similar to mpage_writepage
 void fat32_i_mapping_destroy(struct inode *ip) {
     struct address_space *mapping = ip->i_mapping;
-    acquire(&ip->tree_lock); // !!!
+    acquire(&ip->tree_lock);     // !!!
     if (mapping == NULL) {
         release(&ip->tree_lock); // !!!
         return;
@@ -1507,12 +1509,12 @@ void fat32_inode_getdents_handler(struct trav_control *tc) {
     struct __dirent *dirent_buf = (struct __dirent *)buf_tmp;
 
     dirent_buf->d_off = ++tc->file_idx; // start from 1
-    
+
     // handle i_mode
     uint16 mode = __imode_from_fcb(&(tc->fcb_s));
-    dirent_buf->d_type = (mode & S_IFMT) >> 8; 
+    dirent_buf->d_type = (mode & S_IFMT) >> 8;
     dirent_buf->d_type = __IMODE_TO_DTYPE(mode);
-    
+
     int fname_len = strlen(tc->name_buf);
     safestrcpy(dirent_buf->d_name, tc->name_buf, fname_len); // !!!!!
     dirent_buf->d_name[fname_len] = '\0';
