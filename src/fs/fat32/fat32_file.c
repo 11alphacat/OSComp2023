@@ -67,11 +67,7 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        // r = piperead(f->f_tp.f_pipe, 1, addr, n);
         r = pipe_read(f->f_tp.f_pipe, 1, addr, n);
-#ifdef __DEBUG_FS__
-        printfMAGENTA("read : read %d chars of pipe file (no name pipe) starting from %d \n", r, f->f_tp.f_pipe->buffer.r - r);
-#endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
             return -1;
@@ -79,7 +75,6 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
     } else if (f->f_type == FD_INODE) {
         n = MIN(n, f->f_tp.f_inode->i_size);
         fat32_inode_lock(f->f_tp.f_inode);
-        // fat32_inode_load_from_disk(f->f_tp.f_inode);
 
         if ((r = fat32_inode_read(f->f_tp.f_inode, 1, addr, f->f_pos, n)) > 0)
             f->f_pos += r;

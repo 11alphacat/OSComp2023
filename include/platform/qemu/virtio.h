@@ -2,13 +2,6 @@
 #define __VIRTIO_H__
 
 #include "common.h"
-struct buffer_head;
-struct bio;
-
-// #define BLOCK_SEL BLOCK_OLD
-#define BLOCK_SEL BLOCK_NEW
-#define BLOCK_OLD 0 // buffer header
-#define BLOCK_NEW 1 // bio
 
 void virtio_disk_rw(void *, int, int);
 void virtio_disk_intr(void);

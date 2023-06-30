@@ -8,6 +8,7 @@
 #include "common.h"
 #include "lib/riscv.h"
 #include "param.h"
+#include "driver/disk.h"
 #include "memory/memlayout.h"
 #include "atomic/spinlock.h"
 
@@ -210,6 +211,7 @@ alloc3_desc(int *idx) {
     return 0;
 }
 
+// b is a pointer to struct bio_vec
 void virtio_disk_rw(void *b, int write, int type) {
     uint64 sector;
     struct buffer_head *b_old = NULL;
@@ -372,4 +374,8 @@ void virtio_disk_intr() {
     }
 
     release(&disk.vdisk_lock);
+}
+
+inline void disk_rw(void *b, int write, int type) {
+    virtio_disk_rw(b,write,type);
 }

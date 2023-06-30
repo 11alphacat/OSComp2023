@@ -3,9 +3,9 @@
 #include "atomic/spinlock.h"
 #include "lib/riscv.h"
 #include "fs/bio.h"
-#include "driver/virtio.h"
 #include "lib/list.h"
 #include "memory/allocator.h"
+#include "driver/disk.h"
 #include "debug.h"
 
 struct {
@@ -134,7 +134,8 @@ void submit_bio(struct bio *bio, int free) {
     struct bio_vec *vec_cur = NULL;
     struct bio_vec *vec_tmp = NULL;
     list_for_each_entry_safe(vec_cur, vec_tmp, &bio->list_entry, list) {
-        virtio_disk_rw((void *)vec_cur, bio->bi_rw, BLOCK_SEL);
+        // virtio_disk_rw((void *)vec_cur, bio->bi_rw, BLOCK_SEL);
+        disk_rw((void *)vec_cur, bio->bi_rw, BLOCK_SEL);
         if (free) {
             kfree(vec_cur);
         }
