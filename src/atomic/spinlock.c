@@ -19,10 +19,27 @@ int atomic_read4(int *addr) {
 void _acquire(struct spinlock *lk);
 void _release(struct spinlock *lk);
 #define DEBUG_LOCK_NUM 1
+#define DEBUG_LOCK_BLACKLIST 10
 // cannot use to debug pr(printf's lock)!!!
 char *debug_lockname[DEBUG_LOCK_NUM] = {
     "inode_table",
 };
+
+char *blacklist[DEBUG_LOCK_BLACKLIST] = {
+    "buddy_phy_mem_pools_lock",
+    "TCB_RUNNABLE",
+    "buffer",
+    "uart",
+    "bcache",
+    "uart_tx_r_sem",
+    "proc_0",
+    "proc_1",
+    // "proc_2",
+    "timer_entry",
+    "cons",
+};
+
+int all = 1;
 
 void initlock(struct spinlock *lk, char *name) {
     lk->name = name;
@@ -30,6 +47,17 @@ void initlock(struct spinlock *lk, char *name) {
     lk->cpu = 0;
 #ifdef __LOCKTRACE__
     lk->debug = 0;
+    if (name == NULL) {
+        return;
+    }
+    for (int i = 0; i < DEBUG_LOCK_BLACKLIST; i++) {
+        if (strncmp(blacklist[i], name, sizeof(blacklist[i])) == 0) {
+            return;
+        }
+    }
+    if (all == 1) {
+        lk->debug = 1;
+    }
     for (int i = 0; i < DEBUG_LOCK_NUM; i++) {
         if (strncmp(debug_lockname[i], name, sizeof(debug_lockname[i])) == 0) {
             lk->debug = 1;
@@ -42,7 +70,7 @@ void initlock(struct spinlock *lk, char *name) {
 void wrap_acquire(char *file, int line, struct spinlock *lock) {
 #ifdef __LOCKTRACE__
     extern int debug_lock;
-    if (debug_lock == 1 && lock->debug == 1) {
+    if (debug_lock == 1 && (lock->debug == 1)) {
         DEBUG_ACQUIRE("%s:%d, acquire lock %s\t\n", file, line, lock->name);
     }
 #endif

@@ -8,8 +8,8 @@
 #include "test.h"
 #include "memory/vm.h"
 #include "proc/sched.h"
+#include "lib/sbi.h"
 
-volatile static int started = 0;
 void printfinit(void);
 void consoleinit(void);
 void timer_init();
@@ -22,11 +22,8 @@ void virtio_disk_init(void);
 void binit(void);
 void fileinit(void);
 void vmas_init();
-#ifdef KCSAN
-void kcsaninit();
-#endif
 void mm_init();
-void _user_init(void);
+void userinit(void);
 void proc_init();
 void inode_table_init(void);
 void hash_tables_init(void);
@@ -34,15 +31,33 @@ void hartinit();
 void pdflush_init();
 void page_writeback_timer_init(void);
 
+volatile static int started = 0;
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
+extern char _entry[];
 
+#define SIFIVE_U
 int debug_lock = 0;
+int first_core = 1;
+int first_hartid = 0;
+
 // start() jumps here in supervisor mode on all CPUs.
-void main() {
+void main(uint64 hartid) {
+#if defined(VIRT)
     if (cpuid() == 0) {
+#elif defined(SIFIVE_U)
+    if (first_core == 1) {
+        first_core = 0;
+        first_hartid = hartid;
+
+        // int status[10] = {0};
+        // for (int i = 0; i < NCPU; i++) {
+        //     status[i] = sbi_hart_get_status(i);
+        // }
+#endif
         // console and printf
         consoleinit();
         printfinit();
+        printf("\nkernel is booting\n\n");
 
         hartinit();
         debug_lock = 1;
@@ -65,7 +80,7 @@ void main() {
         // timer init
         timer_init();
 
-        // !!! bug attention : trapinithart must behind timer_init
+        // !!! Note: trapinithart can be called after timer_init
         // Trap
         trapinithart(); // install kernel trap vector
 
@@ -82,17 +97,19 @@ void main() {
         virtio_disk_init(); // emulated hard disk
 
         // First user process
-        _user_init(); // first user process
+        userinit(); // first user process
 
         // pdflush kernel thread
         pdflush_init();
-
-#ifdef KCSAN
-        kcsaninit();
-#endif
-        printf("\nLostWakeup OS kernel is booting\n\n");
         __sync_synchronize();
 
+        for (int i = 0; i < NCPU; i++) {
+            if (i != first_hartid) {
+                if (sbi_hart_start(i, (uint64)_entry, 0) != SBI_SUCCESS) {
+                    panic("hart start failed");
+                }
+            }
+        }
         printf("hart %d starting\n", cpuid());
         started = 1;
     } else {

@@ -27,17 +27,6 @@ TEST=user_test kalloctest mmaptest \
 	clock_gettime_test signal_test \
 	writev_test readv_test lseek_test \
 	sendfile_test renameat2_test
-
-# OSCOMP=chdir close dup2 dup \
-#     fstat getcwd mkdir_ write \
-#     openat open read test_echo \
-# 	getdents unlink pipe \
-#     brk clone execve exit fork \
-#     getpid getppid sleep times \
-#     gettimeofday mmap munmap \
-#     uname wait waitpid yield \
-#     mount umount text.txt run-all.sh mnt
-
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
 BOOT=init
 BUSYBOX=busybox busybox_cmd.txt busybox_testcode.sh busybox_d
@@ -146,14 +135,19 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 4
+CPUS := 5
 endif
 
-QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
-QEMUOPTS += -global virtio-mmio.force-legacy=false
-# QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
-QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
-QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+# QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
+# QEMUOPTS += -global virtio-mmio.force-legacy=false
+# # QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
+# QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
+# QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+OPTS 	= -machine sifive_u -bios bootloader/sbi-sifive -kernel ./kernel-qemu -m 1G -nographic
+OPTS 	+= -smp $(CPUS)
+# BOARDOPTS 	= $(OPTS) -drive file=sdcard.img,if=sd,format=raw 
+QEMUOPTS 	= $(OPTS) -drive file=fat32.img,if=sd,format=raw 
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
@@ -221,9 +215,8 @@ busybox:
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
 
-
 fat32.img: dep
-	@dd if=/dev/zero of=$@ bs=1K count=62768
+	@dd if=/dev/zero of=$@ bs=1K count=65536
 	@sudo mkfs.vfat -F 32 -s 2 -a $@ 
 	@sudo mount -t vfat $@ $(MNT_DIR)
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/

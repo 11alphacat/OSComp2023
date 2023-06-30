@@ -1,6 +1,6 @@
 .section .text
 .global _entry
-# sbi loads the martid in a0
+# sbi put the mhartid in a0
 _entry:
         # keep each CPU's hartid in its sscratch register, for cpuid().
         csrw sscratch, a0
@@ -13,6 +13,7 @@ _entry:
         addi t1, t1, 1
         mul t0, t0, t1
         add sp, sp, t0
+
         # jump to main
         call main
 

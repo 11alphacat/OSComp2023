@@ -4,10 +4,12 @@
 #include "common.h"
 
 #define EXTENSION_BASE 1
-#define FUNCTION_BASE_GET_SPEC_VERSION 1
 #define LEGACY_SET_TIMER 0x00L
 #define SHUTDOWN_EXT 0x08L
-#define TIMER_EXT 0x54494D45
+#define TIMER_EXT 0x54494D45L
+#define HSM_EXT 0x48534DL
+
+#define SBI_SUCCESS 0
 
 #define SBI_CALL(ext, funct, arg0, arg1, arg2, arg3) ({        \
     register uintptr_t a0 asm("a0") = (uintptr_t)(arg0);       \
@@ -45,6 +47,17 @@ static inline struct sbiret sbi_legacy_set_timer(uint64 stime_value) {
 
 static inline struct sbiret sbi_shutdown() {
     return SBI_CALL_0(SHUTDOWN_EXT, 0);
+}
+
+static inline int sbi_hart_get_status(uint64 hartid) {
+    struct sbiret ret;
+    ret = SBI_CALL_1(HSM_EXT, 2, hartid);
+    return (ret.error == 0 ? (int)ret.value : (int)ret.error);
+}
+
+// return the error code. On success, SBI_SUCCESS is returned
+static inline int sbi_hart_start(uint64 hartid, uint64 start, uint64 arg) {
+    return SBI_CALL_3(HSM_EXT, 0, hartid, start, arg).error;
 }
 
 #endif // __SBI_H__

@@ -4,44 +4,37 @@
 #include "proc/exec.h"
 #include "memory/vma.h"
 #include "lib/riscv.h"
-
 #include "memory/vm.h"
 #include "debug.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
-
 #include "memory/buddy.h"
 
 /*
  * the kernel's page table.
  */
 pagetable_t kernel_pagetable;
-
 extern char etext[]; // kernel.ld sets this to end of kernel code.
-
 extern char trampoline[]; // trampoline.S
 
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void) {
-    pagetable_t kpgtbl;
+    pagetable_t kpgtbl = (pagetable_t)kzalloc(PGSIZE);
 
-    kpgtbl = (pagetable_t)kzalloc(PGSIZE);
-
+#if defined(VIRT)
     // uart registers
     kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
-
     // virtio mmio disk interface
     kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
+#elif defined(SIFIVE_U)
+    
+#endif
 
     // PLIC
     kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W, SUPERPAGE);
-
-    // CLINT_MTIME
-    // map in kernel pagetable, so we can access it in s-mode
-    kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R, COMMONPAGE);
 
     // map kernel text executable and read-only.
     vaddr_t super_aligned_sz = SUPERPG_DOWN((uint64)etext - KERNBASE);
@@ -61,7 +54,9 @@ kvmmake(void) {
 
     // allocate and map a kernel stack for each process.
     tcb_mapstacks(kpgtbl);
-    kvmmap(kpgtbl, 0, START_MEM, PGSIZE * 100, PTE_R | PTE_W, 0);
+
+    // debug user program
+    kvmmap(kpgtbl, 0, 0, PGSIZE * 1000, PTE_R | PTE_W, 0);
 
     // vmprint(kpgtbl, 1, 0, 0, 0);
     return kpgtbl;

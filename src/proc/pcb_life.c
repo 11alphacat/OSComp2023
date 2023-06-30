@@ -182,7 +182,7 @@ void free_proc(struct proc *p) {
 }
 
 struct file console;
-void _user_init(void) {
+void userinit(void) {
     struct proc *p = NULL;
 
     p = create_proc();
@@ -193,10 +193,6 @@ void _user_init(void) {
     p->mm->brk = 0;
 
     initproc = p;
-
-    console.f_type = S_IFCHR;
-    console.f_mode = O_RDWR;
-    console.f_major = CONSOLE;
 
     TCB_Q_changeState(p->tg->group_leader, TCB_RUNNABLE);
     release(&p->lock);

@@ -19,23 +19,23 @@ libctest:
 	riscv64-linux-gnu-objdump -S ./libc-test/entry-dynamic.exe > ./libc-test/disk/entry-dynamic.asm
 
 libc-bench:
-	make -C libc-bench CC="riscv64-linux-gnu-gcc -static" -j4
+	make -C libc-bench CC="riscv64-musl-gcc -static" -j4
 	riscv64-linux-gnu-objdump -S ./libc-bench/libc-bench > ./libc-bench/libc-bench.asm	
 
 iozone:
-	make -C iozone linux CC="riscv64-linux-gnu-gcc -static" -j4
+	make -C iozone linux CC="riscv64-musl-gcc -static" -j4
 	riscv64-linux-gnu-objdump -S ./iozone/iozone > ./iozone/iozone.asm	
 
 time-test: 
-	make -C time-test CC="riscv64-linux-gnu-gcc"
+	make -C time-test CC="riscv64-musl-gcc" all
 	riscv64-linux-gnu-objdump -S ./time-test/time-test > ./time-test/time-test.asm	
 
 lua:
-	make -C lua CC="riscv64-linux-gnu-gcc -static" -j4
+	make -C lua CC="riscv64-musl-gcc -static" -j4
 	riscv64-linux-gnu-objdump -S ./lua/src/lua > ./lua/lua.asm
 
 lmbench:
-	make -C lmbench CC="riscv64-linux-gnu-gcc -static" OS=riscv64 -j4
+	make -C lmbench build CC="riscv64-linux-gnu-gcc -static" OS=riscv64 -j4
 
 unix-bench:
 	make -C UnixBench CC="riscv64-linux-gnu-gcc" -j4 all
