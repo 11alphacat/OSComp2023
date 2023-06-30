@@ -444,7 +444,7 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
 // caller should hold dp->lock, ip->lock
 // 成功返回 0，失败返回 -1
 // similar to delete
-int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip) {
+int fat32_fcb_copy(struct inode *dp, struct inode *ip) {
     // get fcb_char
     int str_len = strlen(ip->fat32_i.fname);
     int off = ip->fat32_i.parent_off * 32;                   // unit of parent_off is 32 bytes

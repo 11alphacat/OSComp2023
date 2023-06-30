@@ -152,7 +152,7 @@ int fat32_dir_fcb_insert_offset(struct inode *, uchar);
 void fat32_inode_update(struct inode *);
 
 // copy ip to dp(only add fcbs in dp)
-int fat32_fcb_copy(struct inode *dp, const char *name, struct inode *ip);
+int fat32_fcb_copy(struct inode *dp, struct inode *ip);
 
 // truncate the fat32 inode
 void fat32_inode_trunc(struct inode *ip);
