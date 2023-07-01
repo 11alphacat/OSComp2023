@@ -29,12 +29,6 @@
 // OFF Disable hardware control of the CS pin
 #define CSMODE_OFF 0x3
 
-// used for getchar and putchar
-#define TX_DATA_FULL (1<<31)
-#define RX_DATA_EMPTY (1<<31)
-#define TX_DATA_MASK 0xff
-#define RX_DATA_MASK 0xff
-
 
 
 #endif
