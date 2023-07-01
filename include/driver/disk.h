@@ -11,6 +11,7 @@ struct bio;
 
 // b is a pointer to struct bio_vec
 void disk_rw(void *b, int write, int type);
+void disk_intr();
 
 
 #endif // __DISK_H__

@@ -1,6 +1,6 @@
 ## 1. Basic
 .DEFAULT_GOAL=kernel
-PLATFORM ?= qemu
+PLATFORM ?= qemu_virt
 BUILD=build
 
 # debug options
@@ -138,16 +138,20 @@ ifndef CPUS
 CPUS := 5
 endif
 
-# QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
-# QEMUOPTS += -global virtio-mmio.force-legacy=false
-# # QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
-# QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
-# QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+ifeq ($(PLATFORM), qemu_virt)
+QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
+QEMUOPTS += -global virtio-mmio.force-legacy=false
+QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
+QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+CFLAGS += -DVIRT
+endif
 
-OPTS 	= -machine sifive_u -bios bootloader/sbi-sifive -kernel ./kernel-qemu -m 1G -nographic
-OPTS 	+= -smp $(CPUS)
-# BOARDOPTS 	= $(OPTS) -drive file=sdcard.img,if=sd,format=raw 
-QEMUOPTS 	= $(OPTS) -drive file=fat32.img,if=sd,format=raw 
+ifeq ($(PLATFORM), qemu_sifive_u)
+QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 1G -nographic
+QEMUOPTS += -smp $(CPUS)
+QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
+CFLAGS += -DSIFIVE_U
+endif
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)

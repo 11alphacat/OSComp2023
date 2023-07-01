@@ -9,7 +9,7 @@
 #include "lib/riscv.h"
 #include "lib/sbi.h"
 #include "driver/uart.h"
-#include "driver/virtio.h"
+#include "driver/disk.h"
 #include "atomic/spinlock.h"
 #include "atomic/cond.h"
 #include "atomic/semaphore.h"
@@ -204,7 +204,7 @@ int devintr() {
         if (irq == UART0_IRQ) {
             uartintr();
         } else if (irq == VIRTIO0_IRQ) {
-            virtio_disk_intr();
+            disk_intr();
         } else if (irq) {
             printf("unexpected interrupt irq=%d\n", irq);
         }

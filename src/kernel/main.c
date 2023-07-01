@@ -35,11 +35,22 @@ volatile static int started = 0;
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 extern char _entry[];
 
-#define SIFIVE_U
 int debug_lock = 0;
+
+#ifdef SIFIVE_U
 int first_core = 1;
 int first_hartid = 0;
-
+// multicore boot of sifive_u
+void hart_start() {
+    for (int i = 0; i < NCPU; i++) {
+        if (i != first_hartid) {
+            if (sbi_hart_start(i, (uint64)_entry, 0) != SBI_SUCCESS) {
+                panic("hart start failed");
+            }
+        }
+    }
+}
+#endif
 // start() jumps here in supervisor mode on all CPUs.
 void main(uint64 hartid) {
 #if defined(VIRT)
@@ -103,13 +114,9 @@ void main(uint64 hartid) {
         pdflush_init();
         __sync_synchronize();
 
-        for (int i = 0; i < NCPU; i++) {
-            if (i != first_hartid) {
-                if (sbi_hart_start(i, (uint64)_entry, 0) != SBI_SUCCESS) {
-                    panic("hart start failed");
-                }
-            }
-        }
+#ifdef SIFIVE_U
+        hart_start();
+#endif
         printf("hart %d starting\n", cpuid());
         started = 1;
     } else {

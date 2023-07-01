@@ -16,7 +16,7 @@
  * the kernel's page table.
  */
 pagetable_t kernel_pagetable;
-extern char etext[]; // kernel.ld sets this to end of kernel code.
+extern char etext[];      // kernel.ld sets this to end of kernel code.
 extern char trampoline[]; // trampoline.S
 
 // Make a direct-map page table for the kernel.
@@ -25,6 +25,9 @@ kvmmake(void) {
     pagetable_t kpgtbl = (pagetable_t)kzalloc(PGSIZE);
 
 #if defined(VIRT)
+    // CLINT_MTIME
+    // map in kernel pagetable, so we can access it in s-mode
+    kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R, COMMONPAGE);
     // uart registers
     kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
     // virtio mmio disk interface
