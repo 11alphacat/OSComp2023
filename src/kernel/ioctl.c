@@ -88,5 +88,5 @@ int vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd, unsigned lon
 }
 
 uint64 sys_ppoll(void) {
-    return 1;   // a positive value indicates success
+    return 1; // a positive value indicates success
 }

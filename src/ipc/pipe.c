@@ -64,6 +64,7 @@ void pipe_close(struct pipe *pi, int writable) {
 int pipe_write(struct pipe *pi, int user_dst, uint64 addr, int n) {
     struct proc *pr = proc_current();
     int i;
+
     for (i = 0; i < n; i++) {
         if (proc_killed(pr) || pi->readopen == 0) {
             return -1;

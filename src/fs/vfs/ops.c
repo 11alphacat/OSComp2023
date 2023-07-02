@@ -106,7 +106,8 @@ static char *skepelem(char *path, char *name) {
     char *s;
     int len;
 
-    while (*path == '/' || *path == '.')
+    // while (*path == '/' || *path == '.')
+    while (*path == '/')
         path++;
     if (*path == 0)
         return 0;

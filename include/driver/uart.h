@@ -1,6 +1,7 @@
 #ifndef __UART_H__
 #define __UART_H__
 
+void uartinit(void);
 void uartintr(void);
 void uartputc(int);
 void uartputc_sync(int);

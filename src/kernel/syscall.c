@@ -216,9 +216,9 @@ static struct syscall_info info[] = {
     // [SYS_uptime] { "uptime", 0 },
     // // int mknod(const char*, short, short);
     // [SYS_mknod] { "mknod", 3, "sdd" },
-    // // int unlink(const char*);
-    // [SYS_unlink] { "unlink", 1, "s" },
-    // // int link(const char*, const char*);
+    // // int unlink(const char*);,
+    [SYS_unlinkat] { "unlinkat", 3, "dsd" }
+    // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
     // [SYS_mkdir] { "mkdir", 1, "s" },

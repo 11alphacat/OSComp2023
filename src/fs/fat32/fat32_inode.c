@@ -391,6 +391,10 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
             release(&inode_table.lock);
             return ip;
         }
+        // bug !!!
+        if (!list_empty(&ip->dirty_list)) {
+            continue;
+        }
         if (empty == 0 && ip->ref == 0) // Remember empty slot.
             empty = ip;
     }
@@ -424,7 +428,10 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
     // speed up dirlookup using hint
     ip->off_hint = 0;
 
-    ASSERT(list_empty(&ip->dirty_list));
+    if (!list_empty(&ip->dirty_list)) {
+        panic("fat32_inode_get : get dirty inode\n");
+    }
+    // ASSERT(list_empty(&ip->dirty_list));
 
     // i_mapping set NULL (bug!!)
     ip->i_mapping = NULL;
@@ -447,7 +454,7 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
 int fat32_fcb_copy(struct inode *dp, struct inode *ip) {
     // get fcb_char
     int str_len = strlen(ip->fat32_i.fname);
-    int off = ip->fat32_i.parent_off * 32;                   // unit of parent_off is 32 bytes
+    int off = ip->fat32_i.parent_off * 32; // unit of parent_off is 32 bytes
     ASSERT(off > 0);
     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
     int fcb_char_len = (long_dir_len + 1) * sizeof(dirent_l_t);
@@ -474,6 +481,7 @@ void fat32_inode_lock(struct inode *ip) {
         printfRed("ip : %d, ref : %d\n", ip, ip->ref);
         panic("inode lock");
     }
+    // Hint ： 如果发现卡住了，很有可能是两次获取同一把锁
     // printf("lock: %d : try to lock %s sem.value = %d\n",++hit, ip->fat32_i.fname, ip->i_sem.value);
     sema_wait(&ip->i_sem);
     // printf("lock: %s locked !! sem.value = %d\n",ip->fat32_i.fname, ip->i_sem.value);
@@ -559,6 +567,7 @@ void fat32_inode_unlock(struct inode *ip) {
         panic("fat32 unlock");
     }
     sema_signal(&ip->i_sem);
+    // printf("unlock: %s release !! sem.value = %d\n",ip->fat32_i.fname, ip->i_sem.value);
 }
 
 // fat32 inode put : trunc and update
@@ -623,7 +632,7 @@ void fat32_inode_trunc(struct inode *ip) {
     ip->i_size = 0;
     ip->fat32_i.parent_off = -1; // ???
 
-    ip->i_hash = NULL;           // !!!
+    ip->i_hash = NULL; // !!!
 
     // speed up dirlookup
     ip->off_hint = 0;
@@ -1287,7 +1296,7 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
 // similar to mpage_writepage
 void fat32_i_mapping_destroy(struct inode *ip) {
     struct address_space *mapping = ip->i_mapping;
-    acquire(&ip->tree_lock);     // !!!
+    acquire(&ip->tree_lock); // !!!
     if (mapping == NULL) {
         release(&ip->tree_lock); // !!!
         return;

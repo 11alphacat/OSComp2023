@@ -530,17 +530,17 @@ static int load_program(struct binprm *bprm, Elf64_Phdr *elf_phdata) {
 
         uint64 tmp;
         /*
-        * Find the end of the file mapping for this phdr, and
-        * keep track of the largest address we see for this.
-        */
+         * Find the end of the file mapping for this phdr, and
+         * keep track of the largest address we see for this.
+         */
         tmp = elf_phpnt->p_vaddr + elf_phpnt->p_filesz;
         if (tmp > elf_bss)
             elf_bss = tmp;
 
         /*
-        * Do the same thing for the memory mapping - between
-        * elf_bss and last_bss is the bss section.
-        */
+         * Do the same thing for the memory mapping - between
+         * elf_bss and last_bss is the bss section.
+         */
         tmp = elf_phpnt->p_vaddr + elf_phpnt->p_memsz;
         if (tmp > last_bss) {
             last_bss = tmp;

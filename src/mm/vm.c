@@ -32,7 +32,7 @@ kvmmake(void) {
     // virtio mmio disk interface
     kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 #elif defined(SIFIVE_U)
-    
+
 #endif
 
     // PLIC

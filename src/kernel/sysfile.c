@@ -155,7 +155,7 @@ static int assist_openat(struct inode *ip, int flags, int omode) {
         f->f_pos = 0;
     }
     f->f_tp.f_inode = ip;
-    f->f_flags = flags;       // TODO(): &
+    f->f_flags = flags; // TODO(): &
     f->f_mode = omode & 0777;
     f->f_count = 1;
 
@@ -730,7 +730,7 @@ uint64 sys_write(void) {
 
     argaddr(1, &p);
     argint(2, &n);
-    if (argfd(0, &fd, &f) < 0)  // fd for debug
+    if (argfd(0, &fd, &f) < 0) // fd for debug
         return -1;
     if (!F_WRITEABLE(f))
         return -1;
@@ -815,8 +815,6 @@ uint64 sys_unlinkat(void) {
         return -1;
     }
 
-
-
     dp->i_op->ilock(dp);
     if ((ip = dp->i_op->idirlookup(dp, name, 0)) == 0) {
         // error: target file not found
@@ -826,12 +824,12 @@ uint64 sys_unlinkat(void) {
     }
     // printf("goto here2.\n");
     ip->i_op->ilock(ip);
-    if ( (flags == 0 && S_ISDIR(ip->i_mode) ) 
-        || (flags == AT_REMOVEDIR && !S_ISDIR(ip->i_mode) )  ) {
+    if ((flags == 0 && S_ISDIR(ip->i_mode))
+        || (flags == AT_REMOVEDIR && !S_ISDIR(ip->i_mode))) {
         ip->i_op->iunlock_put(ip);
         dp->i_op->iunlock_put(dp);
         return -1;
-    } 
+    }
 
     if (ip->i_nlink < 1) {
         panic("unlink: nlink < 1");
@@ -839,8 +837,8 @@ uint64 sys_unlinkat(void) {
 
     if (S_ISDIR(ip->i_mode) && !ip->i_op->idempty(ip)) {
         // error: trying to unlink a non-empty directory
-// printf("ip type : 0x%x  name: %s\n", ip->i_mode, ip->fat32_i.fname);
-// printf("不会来到这里吧！\n");
+        // printf("ip type : 0x%x  name: %s\n", ip->i_mode, ip->fat32_i.fname);
+        // printf("不会来到这里吧！\n");
         ip->i_op->iunlock_put(ip); //     bug!!!
         dp->i_op->iunlock_put(dp); //     bug!!!
         return -1;
@@ -959,7 +957,7 @@ uint64 sys_getdents64(void) {
             从 f->pos 的偏移开始，尽可能地读取目录项，以填充 kbuf。
             返回读取的字节数。
             会将 f->pos 后移，移动的大小等于目录项的个数
-            如果目录项读完，则将 f->pos 置为 END_DIR 
+            如果目录项读完，则将 f->pos 置为 END_DIR
         */
         kfree(kbuf);
         goto bad_ret;
@@ -971,7 +969,7 @@ uint64 sys_getdents64(void) {
     }
     kfree(kbuf);
 
-    f->f_pos = END_DIR;// !!!
+    f->f_pos = END_DIR; // !!!
     return nread;
 
 bad_ret:
@@ -1140,7 +1138,7 @@ uint64 sys_writev(void) {
     struct iovec *p;
 
     argaddr(1, &iov);
-    if (argint(2, &iovcnt) < 0) {   
+    if (argint(2, &iovcnt) < 0) {
         return -1;
     }
     if (iovcnt == 0) {
@@ -1159,6 +1157,7 @@ uint64 sys_writev(void) {
             ip->i_op->iunlock(ip);
             return -1;
         }
+        ip->i_op->iunlock(ip);
     }
 
     int totsz = sizeof(struct iovec) * iovcnt;
@@ -1348,7 +1347,7 @@ struct __ptcb {
 
 struct pthread {
     /* Part 1 -- these fields may be external or
-	 * internal (accessed via asm) ABI. Do not change. */
+     * internal (accessed via asm) ABI. Do not change. */
     struct pthread *self;
 
     uintptr_t *dtv;
@@ -1388,7 +1387,7 @@ struct pthread {
     void *stdio_locks;
 
     /* Part 3 -- the positions of these fields relative to
-	 * the end of the structure is external and internal ABI. */
+     * the end of the structure is external and internal ABI. */
 };
 
 // TODO(): to be finished

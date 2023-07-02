@@ -1010,7 +1010,7 @@ typedef struct
     Elf32_Word vd_hash;    /* Version name hash value */
     Elf32_Word vd_aux;     /* Offset in bytes to verdaux array */
     Elf32_Word vd_next;    /* Offset in bytes to next verdef
-					   entry */
+                       entry */
 } Elf32_Verdef;
 
 typedef struct
@@ -1022,7 +1022,7 @@ typedef struct
     Elf64_Word vd_hash;    /* Version name hash value */
     Elf64_Word vd_aux;     /* Offset in bytes to verdaux array */
     Elf64_Word vd_next;    /* Offset in bytes to next verdef
-					   entry */
+                       entry */
 } Elf64_Verdef;
 
 /* Legal values for vd_version (version revision).  */
@@ -1046,14 +1046,14 @@ typedef struct
 {
     Elf32_Word vda_name; /* Version or dependency names */
     Elf32_Word vda_next; /* Offset in bytes to next verdaux
-					   entry */
+                       entry */
 } Elf32_Verdaux;
 
 typedef struct
 {
     Elf64_Word vda_name; /* Version or dependency names */
     Elf64_Word vda_next; /* Offset in bytes to next verdaux
-					   entry */
+                       entry */
 } Elf64_Verdaux;
 
 /* Version dependency section.  */
@@ -1063,10 +1063,10 @@ typedef struct
     Elf32_Half vn_version; /* Version of structure */
     Elf32_Half vn_cnt;     /* Number of associated aux entries */
     Elf32_Word vn_file;    /* Offset of filename for this
-					   dependency */
+                       dependency */
     Elf32_Word vn_aux;     /* Offset in bytes to vernaux array */
     Elf32_Word vn_next;    /* Offset in bytes to next verneed
-					   entry */
+                       entry */
 } Elf32_Verneed;
 
 typedef struct
@@ -1074,10 +1074,10 @@ typedef struct
     Elf64_Half vn_version; /* Version of structure */
     Elf64_Half vn_cnt;     /* Number of associated aux entries */
     Elf64_Word vn_file;    /* Offset of filename for this
-					   dependency */
+                       dependency */
     Elf64_Word vn_aux;     /* Offset in bytes to vernaux array */
     Elf64_Word vn_next;    /* Offset in bytes to next verneed
-					   entry */
+                       entry */
 } Elf64_Verneed;
 
 /* Legal values for vn_version (version revision).  */
@@ -1094,7 +1094,7 @@ typedef struct
     Elf32_Half vna_other; /* Unused */
     Elf32_Word vna_name;  /* Dependency name string offset */
     Elf32_Word vna_next;  /* Offset in bytes to next vernaux
-					   entry */
+                       entry */
 } Elf32_Vernaux;
 
 typedef struct
@@ -1104,7 +1104,7 @@ typedef struct
     Elf64_Half vna_other; /* Unused */
     Elf64_Word vna_name;  /* Dependency name string offset */
     Elf64_Word vna_next;  /* Offset in bytes to next vernaux
-					   entry */
+                       entry */
 } Elf64_Vernaux;
 
 /* Legal values for vna_flags.  */
@@ -1125,8 +1125,8 @@ typedef struct
     union {
         uint32_t a_val; /* Integer value */
                         /* We use to have pointer elements added here.  We cannot do that,
-	 though, since it does not work when using 32-bit definitions
-	 on 64-bit platforms and vice versa.  */
+     though, since it does not work when using 32-bit definitions
+     on 64-bit platforms and vice versa.  */
     } a_un;
 } Elf32_auxv_t;
 
@@ -1136,8 +1136,8 @@ typedef struct
     union {
         uint64_t a_val; /* Integer value */
                         /* We use to have pointer elements added here.  We cannot do that,
-	 though, since it does not work when using 32-bit definitions
-	 on 64-bit platforms and vice versa.  */
+     though, since it does not work when using 32-bit definitions
+     on 64-bit platforms and vice versa.  */
     } a_un;
 } Elf64_auxv_t;
 
@@ -1678,10 +1678,10 @@ typedef struct
 typedef struct
 {
     unsigned char kind;    /* Determines interpretation of the
-				   variable part of descriptor.  */
+                   variable part of descriptor.  */
     unsigned char size;    /* Size of descriptor, including header.  */
     Elf32_Section section; /* Section header index of section affected,
-				   0 for global options.  */
+                   0 for global options.  */
     Elf32_Word info;       /* Kind-specific information.  */
 } Elf_Options;
 

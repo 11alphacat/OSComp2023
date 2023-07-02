@@ -194,7 +194,7 @@ void fat32_getcwd(char *buf) {
 // len 为 buf 的最大长度
 // 不用检查参数
 // 返回读取的字节数
-                                // 可用但不正确
+// 可用但不正确
 size_t fat32_getdents(struct inode *dp, char *buf, uint32 off, size_t len) {
     struct trav_control tc;
     tc.kbuf = buf;

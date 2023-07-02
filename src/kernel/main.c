@@ -67,7 +67,7 @@ void main(uint64 hartid) {
 #endif
         // console and printf
         consoleinit();
-        
+
         printfinit();
         printf("\nkernel is booting\n\n");
 

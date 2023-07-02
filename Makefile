@@ -1,6 +1,7 @@
 ## 1. Basic
 .DEFAULT_GOAL=kernel
 PLATFORM ?= qemu_virt
+# PLATFORM ?= qemu_sifive_u
 BUILD=build
 
 # debug options
@@ -8,7 +9,7 @@ LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 0
+STRACE ?= 1
 DEBUG_LDSO ?= 0
 
 FSIMG = fsimg
@@ -37,6 +38,9 @@ BINFILE = $(addprefix $(FSIMG)/, $(BIN))
 BOOTFILE = $(addprefix $(FSIMG)/, $(BOOT))
 BUSYBOXFILE = $(addprefix $(FSMIG)/, $(BUSYBOX))
 $(shell mkdir -p $(FSIMG)/TEST)
+# for libc-test
+$(shell mkdir -p $(FSIMG)/tmp)
+$(shell mkdir -p $(FSIMG)/test)
 $(shell mkdir -p $(FSIMG)/oscomp)
 $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
@@ -49,6 +53,8 @@ $(shell mkdir -p $(FSIMG)/libc-bench)
 $(shell mkdir -p $(FSIMG)/iozone)
 $(shell mkdir -p $(FSIMG)/lua)
 $(shell mkdir -p $(FSIMG)/proc/mounts)
+$(shell mkdir -p $(FSIMG)/iperf)
+$(shell mkdir -p $(FSIMG)/netperf)
 
 ## 2. Compilation Flags 
 
@@ -198,10 +204,14 @@ apps:
 	@cp apps/time-test/time-test fsimg/time-test
 	@cp apps/iozone/iozone fsimg/iozone
 	@cp apps/lua/src/lua fsimg/lua
+# @cp apps/iperf/src/iperf3 fsimg/iperf
+	@cp apps/netperf/src/netperf apps/netperf/src/netserver fsimg/netperf
 	@cp apps/scripts/iozone/* fsimg/iozone
 	@cp apps/scripts/lua/* fsimg/lua
+	@cp apps/scripts/iperf/* fsimg/iperf
+	@cp apps/scripts/netperf/* fsimg/netperf
 
-	
+
 # user: oscomp busybox
 user: busybox apps
 	@echo "$(YELLOW)build user:$(RESET)"

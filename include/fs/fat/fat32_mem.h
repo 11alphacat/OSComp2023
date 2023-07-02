@@ -94,7 +94,7 @@ struct trav_control {
     // getdents
     int file_idx;
     uint32 i_ino;
-    dirent_s_t fcb_s;  // can it be a pointer?
+    dirent_s_t fcb_s; // can it be a pointer?
 
     // insert_off
     int fcb_cnt_req;

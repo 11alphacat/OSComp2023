@@ -3,11 +3,11 @@
 
 // Memory map
 // Register offsets
-#define FMT         0x40 // Frame format
-#define TX_DATA     0x48 // Tx FIFO Data
-#define RX_DATA     0x4C // Rx FIFO data
-#define TX_MARK     0x50 // Tx FIFO watermark
-#define RX_MARK     0x54 // Rx FIFO watermark
+#define FMT 0x40     // Frame format
+#define TX_DATA 0x48 // Tx FIFO Data
+#define RX_DATA 0x4C // Rx FIFO data
+#define TX_MARK 0x50 // Tx FIFO watermark
+#define RX_MARK 0x54 // Rx FIFO watermark
 
 // Serial Clock Divisor Register (sckdiv)
 #define SCKDIV 0x00
@@ -20,7 +20,6 @@
 // Chip Select Mode Register (csmode)
 #define CSMODE 0x18
 
-
 // Chip Select Modes
 // AUTO Assert/deassert CS at the beginning/end of each frame
 #define CSMODE_AUTO 0x1
@@ -28,7 +27,5 @@
 #define CSMODE_HOLD 0x2
 // OFF Disable hardware control of the CS pin
 #define CSMODE_OFF 0x3
-
-
 
 #endif

@@ -12,3 +12,9 @@
 // }
 
 
+void disk_rw(void *b, int write, int type) {
+    return ;
+}
+void disk_intr() {
+    return ;
+}
