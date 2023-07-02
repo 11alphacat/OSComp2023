@@ -4,7 +4,6 @@
 #include "lib/riscv.h"
 #include "atomic/spinlock.h"
 #include "proc/pcb_life.h"
-#include "proc/exec.h"
 #include "debug.h"
 #include "memory/vm.h"
 #include "kernel/trap.h"
@@ -17,57 +16,19 @@
 #include "lib/ctype.h"
 #include "memory/vma.h"
 #include "lib/elf.h"
+#include "memory/binfmt.h"
 
-static uint64 START = 0;
-/*
- * This structure is used to hold the arguments that are used when loading binaries.
- */
-struct binprm {
-    // const char *path;
-    int argc, envpc;
-    struct inode *ip;
-    struct mm_struct *mm;
-    uint64 sp;
-    uint64 size; /* current top of program(program break) */
-
-    /* if define __DEBUG_LDSO__, the e_entry is different from elf_ex->e_entry
-     * so there is need to add this field
-     */
-    uint64 e_entry;
-
-    /* interpreter */
-    int interp;
-    Elf64_Ehdr *elf_ex;
-
-    // uint64 e_phnu
-    // uint64 e_phoff; /* AT_PHDR = e_entry + e_phoff; */
-    uint64 last_bss, elf_bss;
-
-    /* reserve for xv6_user program */
-    uint64 a1, a2;
-};
-
-struct interpreter {
-    struct mm_struct *mm;
-    uint64 size;
-    uint64 entry;
-
-    uint64 elf_bss, last_bss;
-    int valid;
-    // may need spinlock
-} ldso;
-
-uint64 load_dyn(char *path);
-void print_ustack(pagetable_t pagetable, uint64 stacktop);
 static int map_interpreter(struct mm_struct *mm);
 static int load_elf_interp(char *path);
 static Elf64_Ehdr *load_elf_ehdr(struct binprm *bprm);
 static Elf64_Phdr *load_elf_phdrs(const Elf64_Ehdr *elf_ex, struct inode *ip);
 static int load_program(struct binprm *bprm, Elf64_Phdr *elf_phdata);
+static uint64 START = 0;
+
+struct interpreter ldso;
+void print_ustack(pagetable_t pagetable, uint64 stacktop);
 
 #define AUX_CNT 38
-
-int do_execve(char *path, char *const argv[], char *const envp[]);
 
 int flags2perm(int flags) {
     int perm = 0;
@@ -90,8 +51,8 @@ int flags2vmaperm(int flags) {
         perm |= PERM_READ;
     return perm;
 }
-#define ELF_PAGEOFFSET(_v) ((_v) & (PGSIZE - 1))
 
+#define ELF_PAGEOFFSET(_v) ((_v) & (PGSIZE - 1))
 static int padzero(uint64 elf_bss) {
     uint64 nbyte;
 
@@ -284,18 +245,30 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
     paddr_t cp;
     /* Information block */
     if (argv != 0) {
-        for (; argv[argc]; argc++) {
-            if (argc >= MAXARG)
-                return -1;
-            if ((cp = getphyaddr(p->mm->pagetable, (vaddr_t)argv[argc])) == 0) {
-                return -1;
+        if (bprm->sh == 1) {
+            for (; argv[argc]; argc++) {
+                cp = (paddr_t)argv[argc];
+                spp -= strlen((const char *)cp) + 1;
+                spp -= spp % 8;
+                if (spp < stackbase)
+                    return -1;
+                memmove((void *)spp, (void *)cp, strlen((const char *)cp) + 1);
+                argv_addr[argc] = SPP2SP;
             }
-            spp -= strlen((const char *)cp) + 1;
-            spp -= spp % 8;
-            if (spp < stackbase)
-                return -1;
-            memmove((void *)spp, (void *)cp, strlen((const char *)cp) + 1);
-            argv_addr[argc] = SPP2SP;
+        } else {
+            for (; argv[argc]; argc++) {
+                if (argc >= MAXARG)
+                    return -1;
+                if ((cp = getphyaddr(p->mm->pagetable, (vaddr_t)argv[argc])) == 0) {
+                    return -1;
+                }
+                spp -= strlen((const char *)cp) + 1;
+                spp -= spp % 8;
+                if (spp < stackbase)
+                    return -1;
+                memmove((void *)spp, (void *)cp, strlen((const char *)cp) + 1);
+                argv_addr[argc] = SPP2SP;
+            }
         }
     }
     argv_addr[argc] = 0;
@@ -584,8 +557,8 @@ static int load_program(struct binprm *bprm, Elf64_Phdr *elf_phdata) {
 
 /* if load successfully, return 0, or return -1 to indicate an error */
 static int load_elf_binary(struct binprm *bprm) {
-    Elf64_Ehdr *elf_ex;
-    Elf64_Phdr *elf_phdata, *elf_phpnt; /* ph poiner */
+    Elf64_Ehdr *elf_ex = NULL;
+    Elf64_Phdr *elf_phdata = NULL, *elf_phpnt; /* ph poiner */
     struct inode *ip = bprm->ip;
 
     /* lock ip at the start of load_elf_binary, and free it at the end */
@@ -593,12 +566,13 @@ static int load_elf_binary(struct binprm *bprm) {
 
     if ((elf_ex = load_elf_ehdr(bprm)) == NULL) {
         Warn("load_elf_ehdr failed");
+        goto bad;
     }
     bprm->elf_ex = elf_ex;
 
     if ((elf_phdata = load_elf_phdrs(elf_ex, bprm->ip)) == NULL) {
         Warn("load_elf_phdr failed");
-        return -1;
+        goto bad;
     }
 
     if (load_program(bprm, elf_phdata) < 0) {
@@ -628,17 +602,17 @@ static int load_elf_binary(struct binprm *bprm) {
     return 0;
 
 bad:
-    kfree(elf_ex);
-    kfree(elf_phdata);
+    if (elf_ex != NULL)
+        kfree(elf_ex);
+    if (elf_phdata != NULL)
+        kfree(elf_phdata);
     bprm->ip->i_op->iunlock_put(bprm->ip);
     return -1;
 }
 
-int do_execve(char *path, char *const argv[], char *const envp[]) {
+int do_execve(char *path, struct binprm *bprm) {
     // struct commit commit;
     // memset(&commit, 0, sizeof(commit));
-    struct binprm bprm;
-    memset(&bprm, 0, sizeof(struct binprm));
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
     vaddr_t brk; /* program_break */
@@ -648,7 +622,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     if (mm == NULL) {
         return -1;
     }
-    bprm.mm = mm;
+    bprm->mm = mm;
 #ifdef __DEBUG_LDSO__
     if (strcmp(path, "/busybox/busybox_d") == 0) {
         START = 0x20000000;
@@ -657,18 +631,18 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         START = 0x20000000;
     }
 #endif
-    bprm.ip = namei(path);
-    if (bprm.ip == 0) {
+    bprm->ip = namei(path);
+    if (bprm->ip == 0) {
         return -1;
     }
 
     /* Loader */
-    if (load_elf_binary(&bprm) < 0) {
+    if (load_elf_binary(bprm) < 0) {
         goto bad;
     }
 
     /* Heap Initialization */
-    brk = PGROUNDUP(bprm.size);
+    brk = PGROUNDUP(bprm->size);
     mm->start_brk = mm->brk = brk;
     mm->heapvma = NULL;
 
@@ -681,7 +655,7 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
         goto bad;
     }
 
-    int argc = ustack_init(p, mm->pagetable, &bprm, argv, envp);
+    int argc = ustack_init(p, mm->pagetable, bprm, bprm->argv, bprm->envp);
     if (argc < 0) {
         goto bad;
     }
@@ -700,13 +674,13 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     safestrcpy(p->name, last, sizeof(p->name));
 
     /* Commit to the user image */
-    t->trapframe->sp = bprm.sp;
-    t->trapframe->a1 = bprm.a1;
-    t->trapframe->a2 = bprm.a2;
-    if (bprm.interp) {
+    t->trapframe->sp = bprm->sp;
+    t->trapframe->a1 = bprm->a1;
+    t->trapframe->a2 = bprm->a2;
+    if (bprm->interp) {
         t->trapframe->epc = ldso.entry + LDSO;
     } else {
-        t->trapframe->epc = bprm.e_entry;
+        t->trapframe->epc = bprm->e_entry;
     }
     // uvm_thread_trapframe(mm->pagetable, 0, (paddr_t)t->trapframe);
 
@@ -716,12 +690,12 @@ int do_execve(char *path, char *const argv[], char *const envp[]) {
     /* commit new mm */
     p->mm = mm;
 
-    kfree(bprm.elf_ex);
+    kfree(bprm->elf_ex);
 
     /* TODO */
     thread_trapframe(t, 1);
 
-    if (bprm.interp) {
+    if (bprm->interp) {
         Log("entry is %p", t->trapframe->epc);
     }
     /* for debug, print the pagetable and vmas after exec */

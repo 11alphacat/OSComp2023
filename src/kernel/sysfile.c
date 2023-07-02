@@ -18,7 +18,6 @@
 #include "memory/allocator.h"
 #include "ipc/pipe.h"
 #include "memory/vm.h"
-#include "proc/exec.h"
 #include "proc/tcb_life.h"
 // #include "fs/fat/fat32_mem.h"
 // #include "fs/fat/fat32_file.h"

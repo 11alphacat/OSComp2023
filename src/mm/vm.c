@@ -1,7 +1,6 @@
 #include "param.h"
 #include "common.h"
 #include "memory/memlayout.h"
-#include "proc/exec.h"
 #include "memory/vma.h"
 #include "lib/riscv.h"
 #include "memory/vm.h"
@@ -59,7 +58,7 @@ kvmmake(void) {
     tcb_mapstacks(kpgtbl);
 
     // debug user program
-    kvmmap(kpgtbl, 0, 0, PGSIZE * 1000, PTE_R | PTE_W, 0);
+    kvmmap(kpgtbl, 0, START_MEM, PGSIZE * 1000, PTE_R | PTE_W, 0);
 
     // vmprint(kpgtbl, 1, 0, 0, 0);
     return kpgtbl;

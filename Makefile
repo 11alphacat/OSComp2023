@@ -36,7 +36,7 @@ OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
 BINFILE = $(addprefix $(FSIMG)/, $(BIN))
 BOOTFILE = $(addprefix $(FSIMG)/, $(BOOT))
 BUSYBOXFILE = $(addprefix $(FSMIG)/, $(BUSYBOX))
-$(shell mkdir -p $(FSIMG)/test)
+$(shell mkdir -p $(FSIMG)/TEST)
 $(shell mkdir -p $(FSIMG)/oscomp)
 $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
@@ -48,6 +48,7 @@ $(shell mkdir -p $(FSIMG)/time-test)
 $(shell mkdir -p $(FSIMG)/libc-bench)
 $(shell mkdir -p $(FSIMG)/iozone)
 $(shell mkdir -p $(FSIMG)/lua)
+$(shell mkdir -p $(FSIMG)/proc/mounts)
 
 ## 2. Compilation Flags 
 
@@ -202,14 +203,14 @@ apps:
 
 	
 # user: oscomp busybox
-user: busybox
+user: busybox apps
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/	
 	@make -C $(User)
 #	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
 	@mv $(BINFILE) $(FSIMG)/bin/
 	@mv $(BOOTFILE) $(FSIMG)/boot/
-	@mv $(TESTFILE) $(FSIMG)/test/
+	@mv $(TESTFILE) $(FSIMG)/TEST/
 
 SRCSFILE = $(addprefix busybox/, $(BUSYBOX))
 

@@ -11,7 +11,6 @@
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
 #include "proc/pcb_mm.h"
-#include "proc/exec.h"
 #include "proc/pdflush.h"
 #include "ipc/signal.h"
 #include "proc/options.h"
@@ -26,6 +25,7 @@
 #include "param.h"
 #include "debug.h"
 #include "test.h"
+#include "memory/binfmt.h"
 
 extern Queue_t unused_p_q, used_p_q, zombie_p_q;
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
@@ -206,7 +206,9 @@ void init_ret(void) {
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     // proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
-    proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", NULL, NULL);
+    struct binprm bprm;
+    memset(&bprm, 0, sizeof(bprm));
+    proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", &bprm);
     // fat32_sb.root->i_op->iput(fat32_sb.root);// ??? maybe
 }
 

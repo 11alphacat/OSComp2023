@@ -11,12 +11,12 @@
 #include "proc/pcb_mm.h"
 #include "atomic/cond.h"
 #include "ipc/signal.h"
-#include "proc/exec.h"
 #include "proc/tcb_life.h"
 #include "atomic/futex.h"
 #include "common.h"
 #include "kernel/syscall.h"
 #include "atomic/ops.h"
+#include "memory/binfmt.h"
 
 #define ROOT_UID 0
 
@@ -108,6 +108,9 @@ sys_wait4(void) {
 * 返回值：成功不返回，失败返回-1；
 */
 uint64 sys_execve(void) {
+    struct binprm bprm;
+    memset(&bprm, 0, sizeof(struct binprm));
+
     char path[MAXPATH];
     vaddr_t uargv, uenvp;
     paddr_t argv, envp;
@@ -125,7 +128,8 @@ uint64 sys_execve(void) {
         argv = 0;
     } else {
         /* check if the argv parameters is legal */
-        for (int i = 0;; i++) {
+        int i;
+        for (i = 0;; i++) {
             if (i >= MAXARG) {
                 return -1;
             }
@@ -133,6 +137,7 @@ uint64 sys_execve(void) {
                 return -1;
             }
             if (temp == 0) {
+                bprm.argc = i;
                 break;
             }
             paddr_t cp;
@@ -143,6 +148,7 @@ uint64 sys_execve(void) {
 
         argv = getphyaddr(proc_current()->mm->pagetable, uargv);
     }
+    bprm.argv = (char **)argv;
 
     if (uenvp == 0) {
         envp = 0;
@@ -156,6 +162,7 @@ uint64 sys_execve(void) {
                 return -1;
             }
             if (temp == 0) {
+                bprm.envpc = i;
                 break;
             }
             vaddr_t cp;
@@ -166,8 +173,21 @@ uint64 sys_execve(void) {
 
         envp = getphyaddr(proc_current()->mm->pagetable, uenvp);
     }
+    bprm.envp = (char **)envp;
 
-    return do_execve(path, (char *const *)argv, (char *const *)envp);
+    if (strncmp(path, "./test.sh", 10) == 0) {
+        // a rough hanler for sh interpreter
+        char *sh_argv[10] = {"/busybox/busybox", "sh", "./test.sh"};
+        for (int i = 1; i < bprm.argc; i++) {
+            sh_argv[i + 2] = (char *)getphyaddr(proc_current()->mm->pagetable, (vaddr_t)((char **)argv)[i]);
+            // sh_argv[i + 2] = (char *)(argv + sizeof(vaddr_t) * i);
+            // fetchaddr(uargv + sizeof(vaddr_t) * i, (vaddr_t *)&sh_argv[i + 2]);
+        }
+        bprm.sh = 1;
+        bprm.argv = sh_argv;
+        return do_execve("/busybox/busybox", &bprm);
+    }
+    return do_execve(path, &bprm);
 }
 
 uint64 sys_sbrk(void) {
