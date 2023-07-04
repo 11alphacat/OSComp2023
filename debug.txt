@@ -1,0 +1,14 @@
+target extended-remote 127.0.0.1:26000
+add-inferior
+inferior 2
+attach 2
+set schedule-multiple on
+symbol-file kernel-qemu
+=====开始调试...
+break main
+
+有用的gdb命令：
+1. layout src           可以查看源代码
+2. layout asm           可以查看汇编
+3. info breakpoints     或简写的 i b 来打印所有的断点信息
+4. d                    删除所有断点

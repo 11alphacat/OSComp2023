@@ -142,7 +142,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 5
+CPUS := 2
 endif
 
 ifeq ($(PLATFORM), qemu_virt)
@@ -205,7 +205,7 @@ apps:
 	@cp apps/iozone/iozone fsimg/iozone
 	@cp apps/lua/src/lua fsimg/lua
 # @cp apps/iperf/src/iperf3 fsimg/iperf
-	@cp apps/netperf/src/netperf apps/netperf/src/netserver fsimg/netperf
+# @cp apps/netperf/src/netperf apps/netperf/src/netserver fsimg/netperf
 	@cp apps/scripts/iozone/* fsimg/iozone
 	@cp apps/scripts/lua/* fsimg/lua
 	@cp apps/scripts/iperf/* fsimg/iperf

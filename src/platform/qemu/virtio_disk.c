@@ -377,9 +377,13 @@ void virtio_disk_intr() {
 }
 
 inline void disk_rw(void *b, int write, int type) {
-    virtio_disk_rw(b, write, type);
+    virtio_disk_rw(b,write,type);
 }
 
 inline void disk_intr() {
     virtio_disk_intr();
+}
+
+inline void disk_init() {
+    virtio_disk_init();
 }

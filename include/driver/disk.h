@@ -1,8 +1,9 @@
-#ifndef __DISK_H__
-#define __DISK_H__
+#ifndef __DRIVER_DISK_H__
+#define __DRIVER_DISK_H__
 
 struct buffer_head;
 struct bio;
+struct bio_vec;
 
 // #define BLOCK_SEL BLOCK_OLD
 #define BLOCK_SEL BLOCK_NEW
@@ -12,5 +13,6 @@ struct bio;
 // b is a pointer to struct bio_vec
 void disk_rw(void *b, int write, int type);
 void disk_intr();
+void disk_init();
 
 #endif // __DISK_H__

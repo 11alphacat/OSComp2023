@@ -30,6 +30,7 @@ void hash_tables_init(void);
 void hartinit();
 void pdflush_init();
 void page_writeback_timer_init(void);
+void disk_init(void);
 
 volatile static int started = 0;
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
@@ -69,7 +70,7 @@ void main(uint64 hartid) {
         consoleinit();
 
         printfinit();
-        printf("\nkernel is booting\n\n");
+        // printf("\nkernel is booting\n\n");
 
         hartinit();
         debug_lock = 1;
@@ -106,7 +107,8 @@ void main(uint64 hartid) {
         inode_table_init();
 
         // virtual disk
-        virtio_disk_init(); // emulated hard disk
+        disk_init();
+        // virtio_disk_init(); // emulated hard disk
 
         // First user process
         userinit(); // first user process
