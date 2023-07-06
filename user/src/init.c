@@ -9,9 +9,18 @@ char *argv[] = {"/busybox/busybox", "sh", 0};
 char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox", 0};
 
 #define CONSOLE 1
+#define DEV_NULL 2
+#define DEV_ZERO 3
+
 int main(void) {
     int pid, wpid;
 
+    // for /dev/null
+    mknod("/dev/null", S_IFCHR, DEV_NULL << 8);
+    // for /dev/zero
+    mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8);
+    
+    // for /dev/tty
     if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {
         mknod("/dev/tty", S_IFCHR, CONSOLE << 8);
         openat(AT_FDCWD, "/dev/tty", O_RDWR);

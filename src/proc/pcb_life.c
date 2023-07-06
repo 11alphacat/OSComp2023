@@ -245,12 +245,12 @@ void thread_forkret(void) {
     if (thread_current() == initproc->tg->group_leader) {
         init_ret();
     }
-    // printfRed("tid : %d forkret\n", thread_current()->tid);// debug
+    // printfRed("tid : %d , name : %s forkret\n", thread_current()->tid, thread_current()->name);// debug
     // trapframe_print(thread_current()->trapframe);// debug
     thread_usertrapret();
 }
 
-int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
+int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
     int pid;
     struct proc *p = proc_current();
     struct proc *np = NULL;
@@ -260,10 +260,8 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
         if ((t = alloc_thread(thread_forkret)) == 0) {
             return -1;
         }
-
         proc_join_thread(p, t, NULL);
         p->tg->thread_idx++; //  !!!
-
         panic("do_clone : error\n");
     } else {
         // Allocate process.
@@ -307,12 +305,13 @@ int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid) {
 
     // store the parent pid
     if (flags & CLONE_PARENT_SETTID) {
-        if (either_copyin(&ptid, 1, p->pid, sizeof(pid_t)) == -1)
+        if (copyout(p->mm->pagetable, ptid, (char *)&t->tid, sizeof(ptid)) == -1)
             return -1;
     }
 
+    // for pthread create
     if (np == NULL) {
-        acquire(&t->lock);
+        // acquire(&t->lock);
         TCB_Q_changeState(t, TCB_RUNNABLE);
         release(&t->lock);
         return t->tid;

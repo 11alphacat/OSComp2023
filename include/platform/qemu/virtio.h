@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-void virtio_disk_rw(void*, int, int);
+void virtio_disk_rw(void *, int, int);
 void virtio_disk_intr(void);
 
 //

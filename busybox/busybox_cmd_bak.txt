@@ -5,27 +5,27 @@ busybox basename /aaa/bbb                       [ok]
 busybox cal                                     [ok]
 busybox clear                                   [ok]        
 busybox date                                    [ok]
-busybox df                      [fail]          df: /proc/mounts: Operation not permitted         
+busybox df                                      [ok]      
 busybox dirname /aaa/bbb                        [ok]
-busybox dmesg                              == no output ==
-busybox du                                      [error!]
+busybox dmesg                                   [ok]
+busybox du                                      [ok]
 busybox expr 1 + 1                              [ok]
 busybox false                                   [ok]
 busybox true                                    [ok]
 busybox which ls                                [ok]
 busybox uname                                   [ok]
-busybox uptime                                  time
+busybox uptime                                  [ok]
 busybox printf "abc\n"                          [ok]
-busybox ps                      [fail]             ps: can't open '/proc': Operation not permitted 
+busybox ps                                      [ok]
 busybox pwd                                     [ok]
 busybox free                    [fail]             free: applet not found      
 busybox hwclock                 [fail]             can't open '/dev/misc/rtc': Operation not permitted 
-busybox kill 10                         kill: can't kill pid 10: Operation not permitted
+busybox kill 10                                 [ok]
 busybox ls                                      [ok]    : rewrite sys_fcntl
 busybox sleep 1                                 [ok]
 busybox echo "#### file opration test"          [ok]
 busybox touch test.txt                          [ok]    : rewrite sys_utimensat
-busybox echo "hello world" > test.txt       == reboot shell?? == [fixed , but reason remains unknown]
+busybox echo "hello world" > test.txt           [ok]
 busybox cat test.txt                            [ok]
 busybox cut -c 3 test.txt                       [ok]
 busybox od test.txt                             [ok]

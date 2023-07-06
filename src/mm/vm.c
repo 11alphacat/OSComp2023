@@ -32,18 +32,18 @@ kvmmake(void) {
     // virtio mmio disk interface
     kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 #elif defined(SIFIVE_U)
-    // a temporary version <<== 
+    // a temporary version <<==
     kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R, COMMONPAGE);
     // // uart registers
     // kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 
     // a rough handler
-#define QSPI_2_BASE            ((unsigned int)0x10050000)
+#define QSPI_2_BASE ((unsigned int)0x10050000)
     kvmmap(kpgtbl, QSPI_2_BASE, QSPI_2_BASE, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 #endif
 
     // PLIC
-    kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W , SUPERPAGE);
+    kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W, SUPERPAGE);
 
     // map kernel text executable and read-only.
     vaddr_t super_aligned_sz = SUPERPG_DOWN((uint64)etext - KERNBASE);

@@ -93,8 +93,12 @@ void argulong(int n, unsigned long *ulip) {
     *ulip = argraw(n);
 }
 
-void arglong(int n, long *lip) {
+int arglong(int n, long *lip) {
     *lip = argraw(n);
+    if (*lip < 0)
+        return -1;
+    else
+        return 0;
 }
 
 // Retrieve an argument as a pointer.
@@ -198,6 +202,8 @@ static struct syscall_info info[] = {
     [SYS_dup] { "dup", 1, "d" },
     //          int dup3(int oldfd, int newfd, int flags);
     [SYS_dup3] { "dup3", 3, "ddd", 'd' },
+    [SYS_lseek] { "lseek", 3, "dld" },
+    [SYS_prlimit64] { "prlimit64", 4, "ddpp" },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -217,7 +223,10 @@ static struct syscall_info info[] = {
     // // int mknod(const char*, short, short);
     // [SYS_mknod] { "mknod", 3, "sdd" },
     // // int unlink(const char*);,
-    [SYS_unlinkat] { "unlinkat", 3, "dsd" }
+    [SYS_unlinkat] { "unlinkat", 3, "dsd" },
+    [SYS_clock_gettime] { "clock_gettime", 2, "dp" },
+    [SYS_fstat] { "fstat", 2, "dp" },
+    [SYS_chdir] { "chdir", 1, "s" }
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
@@ -288,6 +297,7 @@ void syscall(void) {
                 case 'd': STRACE("%d, ", argument); break;
                 case 'p': STRACE("%p, ", argument); break;
                 case 'u': STRACE("%u, ", argument); break;
+                case 'l': STRACE("%ld, ", argument); break;
                 case 'x': STRACE("%#x, ", argument); break;
                 default: STRACE("\\, "); break;
                 }

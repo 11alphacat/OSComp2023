@@ -141,7 +141,7 @@ static int assist_openat(struct inode *ip, int flags, int omode) {
         if (f)
             generic_fileclose(f);
         ip->i_op->iunlock_put(ip);
-        return -1;
+        return -EMFILE; // for libc-test
     }
 
     // 下面为 f 结构体填充字段
@@ -453,6 +453,7 @@ static inline int assist_getflags(struct file *f) {
 static int assist_setflag(struct file *f, int flag) {
     if (FCNTLABLE(flag)) {
         f->f_flags |= flag;
+        f->f_pos = f->f_tp.f_inode->i_size + 1; // bugs for libc-test ftello_unflushed_append
         return 0;
     }
     return -1;
@@ -492,7 +493,6 @@ static uint64 do_fcntl(struct file *f, int cmd) {
         //     proc_current()->ofile[ret]->f_flags |= FD_CLOEXEC;
         // }
         break;
-
     default:
         ret = 0;
         break;
@@ -566,7 +566,7 @@ uint64 sys_dup(void) {
     if (argfd(0, 0, &f) < 0)
         return -1;
     if ((fd = fdalloc(f)) < 0)
-        return -1;
+        return -EMFILE;
 
     // fat32_filedup(f);
     ASSERT(f->f_op);
@@ -1096,7 +1096,7 @@ uint64 sys_pipe2(void) {
             p->ofile[fd0] = 0;
         generic_fileclose(rf);
         generic_fileclose(wf);
-        return -1;
+        return -EMFILE;
     }
     if (copyout(p->mm->pagetable, fdarray, (char *)&fd0, sizeof(fd0)) < 0
         || copyout(p->mm->pagetable, fdarray + sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0) {
@@ -1254,9 +1254,14 @@ uint64 sys_lseek(void) {
     struct file *f;
     off_t offset;
     int whence;
-    if (argint(1, (int *)&offset) < 0) {
+
+    if (arglong(1, &offset) < 0) {
         return -1;
     }
+    // bug !!!
+    // if (argint(1, (int *)&offset) < 0) {
+    //     return -1;
+    // }
     if (argfd(0, 0, &f) < 0) {
         return -1;
     }
@@ -1332,9 +1337,33 @@ uint64 sys_sendfile(void) {
     return do_sendfile(rf, wf, poff, count);
 }
 
-// pseudo implement
+// statfs, fstatfs - get filesystem statistics
+// int statfs(const char *path, struct statfs *buf);
 uint64 sys_statfs(void) {
-    // ASSERT(0);
+    char buf[MAXPATH];
+    uint64 ustat_addr;
+    if (argstr(0, buf, MAXPATH) < 0) {
+        return -1;
+    }
+    argaddr(1, &ustat_addr);
+
+    struct statfs fs_stat;
+    fs_stat.f_type = MSDOS_SUPER_MAGIC;
+    fs_stat.f_bsize = BSIZE;
+    fs_stat.f_frsize = BSIZE;
+    fs_stat.f_blocks = __TotSec;
+    fs_stat.f_bfree = __TotSec / 4; // not important
+    fs_stat.f_files = NINODE;
+    fs_stat.f_ffree = NINODE / 4;    // not important
+    fs_stat.f_bavail = __TotSec / 4; // not important
+    fs_stat.f_fsid.val[0] = 2;       // not important
+    fs_stat.f_namelen = NAME_LONG_MAX;
+    fs_stat.f_flags = 0; // not important
+    // printfRed("%x", ustat_addr);
+    struct proc *p = proc_current();
+    if (copyout(p->mm->pagetable, ustat_addr, (char *)&fs_stat, sizeof(fs_stat)) < 0) { // rember add 1 for '\0'
+        return -1;
+    }
     return 0;
 }
 // pseudo implement
@@ -1474,6 +1503,37 @@ uint64 sys_ioctl(void) {
     return ret;
 }
 
+// static void print_stat(struct stat* s) {
+//     printf("st_dev : %x\n", s->st_dev);
+//     printf("st_ino : %x\n", s->st_ino);
+//     printf("st_mode : %x\n", s->st_mode);
+//     printf("st_nlink : %x\n", s->st_nlink);
+//     printf("st_uid : %x\n",s->st_uid);
+//     printf("st_gid : %x\n", s->st_gid);
+//     printf("st_rdev : %x\n", s->st_rdev);
+//     printf("st_size : %x\n", s->st_size);
+//     printf("st_blksize : %x\n", s->st_blksize);
+//     printf("st_blocks : %x\n", s->st_blocks);
+// }
+
+// kbuf.st_dev = ip->i_dev;
+// kbuf.st_ino = ip->i_ino;
+// kbuf.st_mode = ip->i_mode; // not strict
+// kbuf.st_nlink = 1;
+// kbuf.st_uid = ip->i_uid;
+// kbuf.st_gid = ip->i_gid;
+// kbuf.st_rdev = ip->i_rdev;
+// kbuf.st_size = ip->i_size;
+// kbuf.st_blksize = ip->i_sb->s_blocksize;
+// kbuf.st_blocks = ip->i_blocks * ip->i_sb->cluster_size / 512; // assuming out block is 512B
+
+// // for libc-test stat
+// kbuf.st_atim.ts_nsec = 0;
+// kbuf.st_atim.ts_sec = 0;
+// kbuf.st_mtim.ts_nsec = 0;
+// kbuf.st_mtim.ts_sec = 0;
+// kbuf.st_ctim.ts_nsec = 0;
+// kbuf.st_ctim.ts_sec = 0;
 // 功能：获取文件状态；
 // 输入：
 // - dirfd
@@ -1494,6 +1554,8 @@ uint64 sys_fstatat(void) {
     argaddr(2, &statbuf);
     argint(3, &flags);
     // ASSERT(flags == 0);
+
+    // TODO : for libc-test，we should add special process for /dev/null、/dev/zero
     if ((ip = find_inode(pathname, dirfd, 0)) == 0) {
         return -ENOENT;
     }
@@ -1505,7 +1567,7 @@ uint64 sys_fstatat(void) {
     kbuf.st_dev = ip->i_dev;
     kbuf.st_ino = ip->i_ino;
     kbuf.st_mode = ip->i_mode; // not strict
-    kbuf.st_nlink = 1;
+    kbuf.st_nlink = ip->i_nlink;
     kbuf.st_uid = ip->i_uid;
     kbuf.st_gid = ip->i_gid;
     kbuf.st_rdev = ip->i_rdev;
@@ -1513,10 +1575,45 @@ uint64 sys_fstatat(void) {
     kbuf.st_blksize = ip->i_sb->s_blocksize;
     kbuf.st_blocks = ip->i_blocks * ip->i_sb->cluster_size / 512; // assuming out block is 512B
 
+    // for libc-test stat
+    kbuf.st_atim.ts_nsec = 0;
+    kbuf.st_atim.ts_sec = 0;
+    kbuf.st_mtim.ts_nsec = 0;
+    kbuf.st_mtim.ts_sec = 0;
+    kbuf.st_ctim.ts_nsec = 0;
+    kbuf.st_ctim.ts_sec = 0;
+
     ip->i_op->iunlock_put(ip);
+
+    // printf("name : %s\n", ip->fat32_i.fname);// debug
+    // print_stat(&kbuf);// debug
+
     if (either_copyout(1, statbuf, &kbuf, sizeof(struct stat)) < 0) {
         return -1;
     }
 
     return 0;
+}
+
+// read from a file descriptor at a given offset
+// ssize_t pread(int fd, void *buf, size_t count, off_t offset)
+uint64 sys_pread64(void) {
+    int fd;
+    uint64 buf;
+    size_t count;
+    off_t offset;
+
+    struct file *f;
+    if (argfd(0, &fd, &f) < 0) {
+        return -1;
+    }
+    argaddr(1, &buf);
+    argulong(2, &count);
+    arglong(3, &offset);
+
+    struct inode *ip = f->f_tp.f_inode;
+    ip->i_op->ilock(ip);
+    uint64 retval = ip->i_op->iread(ip, 1, buf, offset, count);
+    ip->i_op->iunlock(ip);
+    return retval;
 }

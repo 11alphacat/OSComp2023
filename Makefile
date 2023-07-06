@@ -9,8 +9,9 @@ LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 1
+STRACE ?= 0
 DEBUG_LDSO ?= 0
+DEBUG_SIGNAL ?= 0
 
 FSIMG = fsimg
 ROOT=$(shell pwd)
@@ -111,6 +112,9 @@ CFLAGS += -D__DEBUG_FS__
 endif
 ifeq ($(DEBUG_PAGE_CACHE), 1)
 CFLAGS += -D__DEBUG_PAGE_CACHE__
+endif
+ifeq ($(DEBUG_SIGNAL), 1)
+CFLAGS += -D__DEBUG_SIGNAL__
 endif
 
 CFLAGS += -MD

@@ -113,6 +113,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
 
     root_ip->fat32_i.cluster_cnt = fat32_fat_travel(root_ip, 0);
     root_ip->i_size = DIRLENGTH(root_ip);
+    root_ip->i_blksize = __get_blocks(root_ip->i_size);
     root_ip->i_sb = sb;
     root_ip->fat32_i.DIR_FileSize = 0;
     root_ip->i_mode = S_IFDIR | 0666;
@@ -132,6 +133,10 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
 
     // is dirty in parent ?
     root_ip->dirty_in_parent = 0;
+
+    // for inode create
+    root_ip->create_cnt = 0;
+    root_ip->create_first = 0;
 
     initlock(&root_ip->tree_lock, "radix_tree_lock_root");
     ASSERT(root_ip->fat32_i.cluster_start == 2);
@@ -350,6 +355,7 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
             ip->i_size = off + tot;
         else
             ip->i_size = CEIL_DIVIDE(off + tot, ip->i_sb->cluster_size) * (ip->i_sb->cluster_size);
+        ip->i_blocks = __get_blocks(ip->i_size); // bug!!!
         // fat32_inode_update(ip);
         ip->dirty_in_parent = 1;
 #ifdef __DEBUG_PAGE_CACHE__
@@ -443,6 +449,10 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
     // full name of file
     safestrcpy(ip->fat32_i.fname, name, strlen(name));
 
+    // for inode create
+    ip->create_cnt = 0;
+    ip->create_first = 0;
+
     release(&inode_table.lock);
     return ip;
 }
@@ -495,9 +505,13 @@ void fat32_inode_lock(struct inode *ip) {
 int fat32_inode_load_from_disk(struct inode *ip) {
     uint16 mode;
     // =====using i_mapping_read=====
-    uchar bp[32];                                                   // pay attention to stack overflow!!!
-    memset(bp, 0, sizeof(bp));                                      // !!!
-    int off = ip->fat32_i.parent_off * 32;                          // the size of short entry or long entry is 32B
+    uchar bp[32];                          // pay attention to stack overflow!!!
+    memset(bp, 0, sizeof(bp));             // !!!
+    int off = ip->fat32_i.parent_off * 32; // the size of short entry or long entry is 32B
+
+    if (ip->parent->valid == 0) {
+        panic("error");
+    }
     int ret = fat32_inode_read(ip->parent, 0, (uint64)bp, off, 32); // read fcb using its parent, rather than itself!!!
     ASSERT(ret == 32);
     dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp;
@@ -520,8 +534,8 @@ int fat32_inode_load_from_disk(struct inode *ip) {
     if (ip->fat32_i.cluster_start != 0) {
         ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
     } else if (!S_ISCHR(ip->i_mode) && !S_ISBLK(ip->i_mode)) {
-        printfRed("i_mode = 0x%x\n", ip->i_mode);
-        printfRed("the cluster_start of the file %s is zero\n ", ip->fat32_i.fname);
+        // printfRed("i_mode = 0x%x\n", ip->i_mode);
+        // printfRed("the cluster_start of the file %s is zero\n", ip->fat32_i.fname);
     }
 
     ip->fat32_i.DIR_CrtTimeTenth = dirent_s_tmp->DIR_CrtTimeTenth;
@@ -573,7 +587,10 @@ void fat32_inode_unlock(struct inode *ip) {
 // fat32 inode put : trunc and update
 void fat32_inode_put(struct inode *ip) {
     acquire(&inode_table.lock);
-
+    // if (ip->fat32_i.fname[0] != '/') {
+    //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+    // }
+    int put_parent = 0;
     if (ip->ref == 1) {
         // destory hash table
         fat32_inode_hash_destroy(ip);
@@ -583,6 +600,19 @@ void fat32_inode_put(struct inode *ip) {
 
         // destory i_mapping
         fat32_i_mapping_destroy(ip);
+
+        // special for inode_create
+        if (ip->create_first) {
+            fat32_inode_lock(ip->parent);
+            ASSERT(ip->parent->valid);
+            ASSERT(ip->parent->create_cnt);
+            ip->parent->create_cnt--;
+            if (!ip->parent->create_cnt) {
+                put_parent = 1;
+            }
+        }
+
+        ip->valid = 0;
 
         // delete file, if it's nlink == 0
         if (ip->valid && ip->i_nlink == 0) {
@@ -600,6 +630,11 @@ void fat32_inode_put(struct inode *ip) {
 
     ip->ref--;
     release(&inode_table.lock);
+
+    // special for inode_create
+    if (put_parent) {
+        fat32_inode_unlock_put(ip->parent);
+    }
 }
 
 // unlock and put
@@ -626,10 +661,10 @@ void fat32_inode_trunc(struct inode *ip) {
     ip->fat32_i.cluster_cnt = 0;
     ip->fat32_i.DIR_FileSize = 0;
     ip->fat32_i.Attr = 0;
-    ip->valid = 0;
     ip->i_rdev = 0;
     ip->i_mode = IMODE_NONE;
     ip->i_size = 0;
+    ip->i_blocks = 0;
     ip->fat32_i.parent_off = -1; // ???
 
     ip->i_hash = NULL; // !!!
@@ -644,10 +679,15 @@ void fat32_inode_update(struct inode *ip) {
         return;
     }
 
-    uchar bp[32];                                                   // pay attention to stack overflow!!!
-    memset(bp, 0, sizeof(bp));                                      // !!!
-    int off = ip->fat32_i.parent_off * 32;                          // the size of short entry or long entry is 32B
+    uchar bp[32];                          // pay attention to stack overflow!!!
+    memset(bp, 0, sizeof(bp));             // !!!
+    int off = ip->fat32_i.parent_off * 32; // the size of short entry or long entry is 32B
+
+    if (ip->parent->valid == 0) {
+        panic("error");
+    }
     int ret = fat32_inode_read(ip->parent, 0, (uint64)bp, off, 32); // read fcb using its parent, rather than itself!!!
+
     ASSERT(ret == 32);
 
     dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp;
@@ -665,6 +705,10 @@ void fat32_inode_update(struct inode *ip) {
     }
 
     dirent_s_tmp->DIR_Dev = __inode_update_to_fatdev(ip);
+
+    if (ip->parent->valid == 0) {
+        panic("error");
+    }
     fat32_inode_write(ip->parent, 0, (uint64)bp, off, 32);
 }
 
@@ -788,10 +832,13 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type
     fat32_inode_lock(dp);
     // have existed?
     if ((ip = fat32_inode_dirlookup(dp, name, 0)) != 0) {
-        fat32_inode_unlock_put(dp);
+        // fat32_inode_unlock_put(dp);
+        fat32_inode_unlock(dp);
         fat32_inode_lock(ip);
 
         if (type == (ip->i_mode & S_IFMT)) {
+            dp->create_cnt++;
+            ip->create_first = 1;
             return ip;
         }
         fat32_inode_unlock_put(ip);
@@ -838,8 +885,10 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type
     }
 
     // fat32_inode_update(dp);
-
-    fat32_inode_unlock_put(dp);
+    // fat32_inode_unlock_put(dp);
+    fat32_inode_unlock(dp);
+    dp->create_cnt++;
+    ip->create_first = 1;
 
     return ip;
 }
@@ -1116,7 +1165,8 @@ int fat32_fcb_delete(struct inode *dp, struct inode *ip) {
     memset(fcb_char, 0, sizeof(fcb_char));
     for (int i = 0; i < long_dir_len + 1; i++)
         fcb_char[i * 32] = 0xE5;
-    ASSERT(off - long_dir_len > 0);
+    // ASSERT(off - long_dir_len > 0);
+    ASSERT(off - long_dir_len >= 0); // !!! bug , off-long_dir_len should >=0
 #ifdef __DEBUG_FS__
     printf("inode delete : pid %d, %s, off = %d (%x), long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, off, long_dir_len);
 #endif
@@ -1344,7 +1394,6 @@ void fat32_i_mapping_init(struct inode *ip) {
 
 void fat32_i_mapping_writeback(struct inode *ip) {
     // atomic !!!
-
     sema_wait(&ip->i_sem); // !!!! bug , must acquire this lock
     if (!list_empty_atomic(&ip->dirty_list, &ip->i_lock)) {
         release(&inode_table.lock);

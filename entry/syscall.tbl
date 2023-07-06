@@ -82,3 +82,5 @@
 
 137 rt_sigtimedwait sys_rt_sigtimedwait
 261 prlimit64 sys_prlimit64
+
+67 pread64 sys_pread64

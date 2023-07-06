@@ -34,24 +34,15 @@ lua:
 	make -C lua CC="riscv64-musl-gcc -static" -j4
 	riscv64-linux-gnu-objdump -S ./lua/src/lua > ./lua/lua.asm
 
-netperf:
-	cd netperf && ./autogen.sh
-	cd netperf && ac_cv_func_setpgrp_void=yes ./configure --host riscv64 CC=riscv64-musl-gcc CFLAGS="-static"
-	cd netperf && make -j4
-
-# something wrong
 lmbench:
 	make -C lmbench build CC="riscv64-linux-gnu-gcc -static" OS=riscv64 -j4
 
 unix-bench:
-	make -C UnixBench -j4 all
+	make -C UnixBench CC="riscv64-linux-gnu-gcc" -j4 all
 
 cyclictest:
 	make -C rt-tests cyclictest hackbench
-
-iperf:
-	cd iperf &&	./configure --host=riscv64-linux-musl CC=riscv64-musl-gcc --enable-static-bin --without-sctp && make
-
+	
 
 clean:
 	make -C musl-1.2.4 clean
@@ -64,10 +55,8 @@ clean:
 	make -C iozone clean
 	make -C cyclictest clean
 	make -C lua clean
-	make -C iperf clean
-	make -C netperf clean
 
 configure:	
 	echo TODO
 
-.PHONY: all musl busybox clean configure lmbench time-test libc-bench unix-bench iozone cyclictest lua iperf netperf
+.PHONY: all musl busybox clean configure lmbench time-test libc-bench unix-bench iozone cyclictest lua

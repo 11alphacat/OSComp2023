@@ -12,6 +12,7 @@
 #include "fs/vfs/ops.h"
 #include "lib/sbuf.h"
 #include "debug.h"
+#include "errno.h"
 
 int pipe_alloc(struct file **f0, struct file **f1) {
     struct pipe *pi = 0;
@@ -41,7 +42,7 @@ bad:
         generic_fileclose(*f0);
     if (*f1)
         generic_fileclose(*f1);
-    return -1;
+    return -EMFILE;
 }
 
 void pipe_close(struct pipe *pi, int writable) {
@@ -74,6 +75,7 @@ int pipe_write(struct pipe *pi, int user_dst, uint64 addr, int n) {
             return -1;
         }
     }
+
     return i;
 }
 
@@ -88,6 +90,7 @@ int pipe_read(struct pipe *pi, int user_dst, uint64 addr, int n) {
         if (pi->writeopen == 0 && pi->buffer.r == pi->buffer.w) { // !!! bug
             break;
         }
+
         int ret = sbuf_remove(&pi->buffer, user_dst, addr + i);
         if (ret == -1) {
             return -1;

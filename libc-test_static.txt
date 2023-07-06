@@ -1,3 +1,11 @@
+调试用户程序的技巧：
+比如调试测试文件stat.c
+vscode在gdb中输入：
+-exec file fsimg/libc-test/entry-static.exe
+-exec break stat_main
+即可跳转到这个用户程序进行debug
+
+
 ./runtest.exe -w entry-static.exe fdopen
 问题一：
 创建文件 /tmp/a 需要是合法的，即支持递归创建
@@ -5,17 +13,23 @@
 直接mkdir 一个 /tmp（可能评测机上的sdcard镜像没有/tmp目录，但是linux上有/tmp目录）
 解决2：
 在系统初始化的时候在 / 中创建一个 /tmp
+比如在init.c中创建一个目录即可。（或者在内核中创建一个目录）
+问题二：
+fat32_fcb_delete中的
+ASSERT(off-long_dir_len>=0) 少写了一个等号
 [ok]
 
+
 ./runtest.exe -w entry-static.exe fscanf 
+busybox sh busybox/busybox_testcode.sh
 问题一：
 管道 read 之后就卡住了，原因是管道仅仅写入了13个字符，但是read 需要读取1024个字符，管道中没有1024个字符，所以读者（消费者没有被唤醒）
 已经解决：
-sbuf_remove 中将sp->r == sp->w 放在sema_wait就对了
-if (sp->r == sp->w) {
-    return 1; // !!! bug
-}
-sema_wait(&sp->items);
+在sbuf_remove中添加
+if(sp->r == sp->w && sp->w!=0) {
+    return 1; 
+}// bug!!!
+
 问题二：
 writev 卡住，在获取inode 的锁的时候卡住，两次获取一个锁
 解决：
@@ -33,80 +47,144 @@ if (f->f_type == FD_INODE) {
 }
 问题三：
 [PAGEFAULT]: va is not in the vmas， 访问非法内存
+[ok]
 
 
 
-./runtest.exe -w entry-static.exe fwscanf 
-./runtest.exe -w entry-static.exe iconv_open 
-./runtest.exe -w entry-static.exe inet_pton 
-./runtest.exe -w entry-static.exe mbc 
-./runtest.exe -w entry-static.exe memstream 
+./runtest.exe -w entry-static.exe setjmp
+似乎是信号相关的测试（主要是sigprocmask），报错的原因是：
+src/functional/setjmp.c:62: sigismember(&set2, SIGUSR1)==1 failed: siglongjmp incorrectly restored mask
+没有保存正确的mask
+似乎是SIG_SETMASK没有设置正确
+应该是下面的这三个
+#define SIG_BLOCK          0	/* for blocking signals */
+#define SIG_UNBLOCK        1	/* for unblocking signals */
+#define SIG_SETMASK        2	/* for setting the signal mask */
+还有就是一些小bug，比如：
+copyout 写成了 copyin
+t->blocked.sig = set->sig; 写成了  t->blocked = *set;
+
+
+./runtest.exe -w entry-static.exe stat 
+问题一：
+似乎是获取文件信息的时间字段没有填充导致无法通过测试：
+TEST(st.st_ctime<=t, "%jd > %jd\n", (intmax_t)st.st_ctime, (intmax_t)t);
+TEST(st.st_mtime<=t, "%jd > %jd\n", (intmax_t)st.st_mtime, (intmax_t)t);
+TEST(st.st_atime<=t, "%jd > %jd\n", (intmax_t)st.st_atime, (intmax_t)t);
+加上st_ctime、st_mtime和st_atime的赋值即可
+
+问题二：
+TEST(stat("/dev/null",&st)==0, "errno = %s\n", strerror(errno))出错
+原因是系统中没有创建/dev/null 这个设备文件，我们在init.c中初始化的时候初始化一个即可
+
+在linux的 /dev中 ls -lh | less 搜索 null和 zero可以发现这两个问题是可读、可写、并且都是字符设备
+crw-rw-rw-   1 root       root      1,     3  7月  3 17:32 null
+crw-rw-rw-   1 root       root      1,     5  7月  3 17:32 zero
+下面是作为console的tty文件：
+crw--w----   1 root       tty       5,     1  7月  3 17:32 console
+需要注意的是，只需要mknod即可，不要用openat！
+// for /dev/null
+mknod("/dev/null", S_IFCHR, DEV_NULL << 8);
+// for /dev/zero
+mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8);
+
+问题三：
+报如下的错误：
+src/functional/stat.c:36: st.st_gid==getegid() failed: 0 vs 0
+这次似乎是sys_fstat的问题
+发现是sys_getgid、sys_getegid和i_gid、i_uid设置不匹配导致的，改过来就好了。
+
+问题四：
+运行第二遍出现错误
+开启strace就出现错误？？？关闭strace就没有错误？？
+src/functional/stat.c:20: st.st_nlink>0 failed: 0
+但是在内核中输出的n_link 是1，和用户态的结果不一致
+主要原因是内核中定义的结构体类型和用户程序定义的结构体类型不一致，这里需要注意i_ino 在非x86架构下是uint32，不能写成uint64
+最好将下面这些字段的类型统一
+typedef unsigned long int dev_t;
+typedef unsigned long int ino_t;
+typedef unsigned int nlink_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef long int blksize_t;
+typedef long int blkcnt_t;
+typedef unsigned int mode_t;
+
+
+
+./runtest.exe -w entry-static.exe daemon_failure
+问题：
+src/regression/daemon-failure.c:52: daemon should have failed with 24 [EMFILE] got 1
+内核中的函数没有正确返回EMFILE这个错误码
+在内核中凡是文件描述符用完了的地方改为 return -EMFILE即可
+
+
+
+./runtest.exe -w entry-static.exe ftello_unflushed_append
+似乎是sys_lseek的错误:
+src/regression/ftello-unflushed-append.c:34: ftello is broken before flush: got 3, want 7
+主要原因是
+f = fdopen(fd, "a") 这个语句没有在内核中生效，没有成功设置f_pos为文件的末尾
+这就需要弄清楚fdopen中调用了什么系统调用：
+if (*mode == 'a') {
+    int flags = __syscall(SYS_fcntl, fd, F_GETFL);
+    if (!(flags & O_APPEND))
+        __syscall(SYS_fcntl, fd, F_SETFL, flags | O_APPEND);
+    f->flags |= F_APP;
+}
+即先通过fcntl获取文件的属性，查看是否有O_APPEND属性，如果没有那么就再次调用fcntl设置文件的属性含有O_APPEND
+最后还发现了inode_create的一些bug，就是在create后不能用unlock_put(dp)，而是用unlock()即可，不然ip->parent就不在内存中，那么page cache就失效了
+
+最后的解决办法就是将inode_create 和 namex统一起来，加上create_cnt和create_first字段表示某个inode 调用了create多少次，某个inode是否是通过create获取，在返回的时候确保
+ip的parent是在内存中有效的。
+
+
+./runtest.exe -w entry-static.exe lseek_large
+报下面这个错误：
+src/regression/lseek-large.c:24: lseek(fd, 0x80000000, SEEK_SET) got 0xffffffffffffffff
+似乎是变量类型错误
+主要原因是 f_pos 写成了uint32 ，应该改为 off_t，即long
+还有就是sys_lseek 中获取的offset写成了这个：
+if (argint(1, (int *)&offset) < 0) {
+    return -1;
+}
+应该用arglong ：
+if (arglong(1, &offset) < 0) {
+    return -1;
+}
+
+
+./runtest.exe -w entry-static.exe statvfs
+需要注意的是statfs的结构体定义一定要正确，否则会发生copyout错误的情况：
+struct statfs {
+	unsigned long f_type, f_bsize;
+	fsblkcnt_t f_blocks, f_bfree, f_bavail;
+	fsfilcnt_t f_files, f_ffree;
+	fsid_t f_fsid;
+	unsigned long f_namelen, f_frsize, f_flags, f_spare[4];
+};
+
+
+./runtest.exe -w entry-static.exe syscall_sign_extend
+虽然我们在 init.c 中添加了/dev/null 和 /dev/zero，但是语义实现有问题
+
+/dev/null（空设备文件或黑洞文件）是一个特殊的设备文件，所有写入其中的数据，都会被丢弃的无影无踪，
+/dev/null通常被用于丢弃不需要的数据输出，或作为用于输入流的空文件。
+和/dev/null类似，/dev/zero也是一个特殊的字符设备文件，当我们使用或读取它的时候，它会提供无限连续不断的空的数据流（特殊的数据格式流）
+
+null： write n 个字符， 返回 n， 不需要任何操作，read n 个 字符，返回0，不需要任何操作
+类别为一个黑洞，写n个字符就吞n个字符，不会保存，但返回值为n（的确写了，但是消失了）；黑洞只写，不读（无法逃离黑洞）
+zero： write n 个字符， 返回 0， 不需要任何操作，read n 个 字符，返回n，返回n个zero
+类别为一个空字符生成自动机，读n个字符就返回n个空字符，返回n（的确读了，但是为空字符）；生成自动机只读，不写（没有保存的空间）
+
+
 ./runtest.exe -w entry-static.exe pthread_cancel_points 
+
+
+
 ./runtest.exe -w entry-static.exe pthread_cancel 
 ./runtest.exe -w entry-static.exe pthread_cond 
 ./runtest.exe -w entry-static.exe pthread_tsd 
-./runtest.exe -w entry-static.exe qsort 
-./runtest.exe -w entry-static.exe random 
-./runtest.exe -w entry-static.exe search_hsearch 
-./runtest.exe -w entry-static.exe search_insque 
-./runtest.exe -w entry-static.exe search_lsearch 
-./runtest.exe -w entry-static.exe search_tsearch 
-./runtest.exe -w entry-static.exe setjmp 
-./runtest.exe -w entry-static.exe snprintf 
-./runtest.exe -w entry-static.exe socket 
-./runtest.exe -w entry-static.exe sscanf 
-./runtest.exe -w entry-static.exe sscanf_long 
-./runtest.exe -w entry-static.exe stat 
-./runtest.exe -w entry-static.exe strftime 
-./runtest.exe -w entry-static.exe string 
-./runtest.exe -w entry-static.exe string_memcpy 
-./runtest.exe -w entry-static.exe string_memmem 
-./runtest.exe -w entry-static.exe string_memset 
-./runtest.exe -w entry-static.exe string_strchr 
-./runtest.exe -w entry-static.exe string_strcspn 
-./runtest.exe -w entry-static.exe string_strstr 
-./runtest.exe -w entry-static.exe strptime 
-./runtest.exe -w entry-static.exe strtod 
-./runtest.exe -w entry-static.exe strtod_simple 
-./runtest.exe -w entry-static.exe strtof 
-./runtest.exe -w entry-static.exe strtol 
-./runtest.exe -w entry-static.exe strtold 
-./runtest.exe -w entry-static.exe swprintf 
-./runtest.exe -w entry-static.exe tgmath
-./runtest.exe -w entry-static.exe time
-./runtest.exe -w entry-static.exe tls_align
-./runtest.exe -w entry-static.exe udiv
-./runtest.exe -w entry-static.exe ungetc
-./runtest.exe -w entry-static.exe utime
-./runtest.exe -w entry-static.exe wcsstr
-./runtest.exe -w entry-static.exe wcstol
-./runtest.exe -w entry-static.exe pleval
-./runtest.exe -w entry-static.exe daemon_failure
-./runtest.exe -w entry-static.exe dn_expand_empty
-./runtest.exe -w entry-static.exe dn_expand_ptr_0
-./runtest.exe -w entry-static.exe fflush_exit
-./runtest.exe -w entry-static.exe fgets_eof
-./runtest.exe -w entry-static.exe fgetwc_buffering
-./runtest.exe -w entry-static.exe fpclassify_invalid_ld80
-./runtest.exe -w entry-static.exe ftello_unflushed_append
-./runtest.exe -w entry-static.exe getpwnam_r_crash
-./runtest.exe -w entry-static.exe getpwnam_r_errno
-./runtest.exe -w entry-static.exe iconv_roundtrips
-./runtest.exe -w entry-static.exe inet_ntop_v4mapped
-./runtest.exe -w entry-static.exe inet_pton_empty_last_field
-./runtest.exe -w entry-static.exe iswspace_null
-./runtest.exe -w entry-static.exe lrand48_signextend
-./runtest.exe -w entry-static.exe lseek_large
-./runtest.exe -w entry-static.exe malloc_0
-./runtest.exe -w entry-static.exe mbsrtowcs_overflow
-./runtest.exe -w entry-static.exe memmem_oob_read
-./runtest.exe -w entry-static.exe memmem_oob
-./runtest.exe -w entry-static.exe mkdtemp_failure
-./runtest.exe -w entry-static.exe mkstemp_failure
-./runtest.exe -w entry-static.exe printf_1e9_oob
-./runtest.exe -w entry-static.exe printf_fmt_g_round
-./runtest.exe -w entry-static.exe printf_fmt_g_zeros
-./runtest.exe -w entry-static.exe printf_fmt_n
 ./runtest.exe -w entry-static.exe pthread_robust_detach
 ./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
 ./runtest.exe -w entry-static.exe pthread_cond_smasher
@@ -114,24 +192,20 @@ if (f->f_type == FD_INODE) {
 ./runtest.exe -w entry-static.exe pthread_exit_cancel
 ./runtest.exe -w entry-static.exe pthread_once_deadlock
 ./runtest.exe -w entry-static.exe pthread_rwlock_ebusy
-./runtest.exe -w entry-static.exe putenv_doublefree
-./runtest.exe -w entry-static.exe regex_backref_0
-./runtest.exe -w entry-static.exe regex_bracket_icase
-./runtest.exe -w entry-static.exe regex_ere_backref
-./runtest.exe -w entry-static.exe regex_escaped_high_byte
-./runtest.exe -w entry-static.exe regex_negated_range
-./runtest.exe -w entry-static.exe regexec_nosub
-./runtest.exe -w entry-static.exe rewind_clear_error
+
+
+
 ./runtest.exe -w entry-static.exe rlimit_open_files
-./runtest.exe -w entry-static.exe scanf_bytes_consumed
-./runtest.exe -w entry-static.exe scanf_match_literal_eof
-./runtest.exe -w entry-static.exe scanf_nullbyte_char
-./runtest.exe -w entry-static.exe setvbuf_unget
-./runtest.exe -w entry-static.exe sigprocmask_internal
-./runtest.exe -w entry-static.exe sscanf_eof
-./runtest.exe -w entry-static.exe statvfs
-./runtest.exe -w entry-static.exe strverscmp
-./runtest.exe -w entry-static.exe syscall_sign_extend
-./runtest.exe -w entry-static.exe uselocale_0
-./runtest.exe -w entry-static.exe wcsncpy_read_overflow
-./runtest.exe -w entry-static.exe wcsstr_false_negative
+出现下面的问题：
+src/regression/rlimit-open-files.c:30: more fds are open than rlimit allows: fd=127, limit=42
+TODO ： sys_prlimit64 需要实现
+
+./runtest.exe -w entry-static.exe utime
+TODO ： sys_utimensat 需要实现
+
+# ./runtest.exe -w entry-static.exe sscanf_long
+TODO : sys_prlimit64 需要实现
+
+
+./runtest.exe -w entry-static.exe socket 
+TODO: socket 系统调用需要实现
