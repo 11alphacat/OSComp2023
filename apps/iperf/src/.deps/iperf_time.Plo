@@ -1,0 +1,23 @@
+iperf_time.lo: iperf_time.c /usr/local/musl/include/stddef.h \
+ /usr/local/musl/include/bits/alltypes.h iperf_config.h iperf_time.h \
+ /usr/local/musl/include/stdint.h /usr/local/musl/include/bits/stdint.h \
+ /usr/local/musl/include/sys/time.h /usr/local/musl/include/features.h \
+ /usr/local/musl/include/sys/select.h
+
+/usr/local/musl/include/stddef.h:
+
+/usr/local/musl/include/bits/alltypes.h:
+
+iperf_config.h:
+
+iperf_time.h:
+
+/usr/local/musl/include/stdint.h:
+
+/usr/local/musl/include/bits/stdint.h:
+
+/usr/local/musl/include/sys/time.h:
+
+/usr/local/musl/include/features.h:
+
+/usr/local/musl/include/sys/select.h:

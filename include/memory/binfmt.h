@@ -50,6 +50,5 @@ struct interpreter {
     // may need spinlock
 };
 
-
 int do_execve(char *path, struct binprm *bprm);
 #endif // __BINFMT_H__

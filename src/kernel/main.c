@@ -78,6 +78,8 @@ void main(uint64 hartid) {
         // Memory management
         mm_init();
         vmas_init();
+        extern void init_socket_table();
+        init_socket_table();
 
         // KVM
         kvminit();     // create kernel page table

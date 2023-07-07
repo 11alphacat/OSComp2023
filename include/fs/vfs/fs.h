@@ -15,9 +15,11 @@
 struct kstat;
 extern struct ftable _ftable;
 
+struct socket;
 union file_type {
     struct pipe *f_pipe;   // FD_PIPE
     struct inode *f_inode; // FDINODE and FD_DEVICE
+    struct socket *f_sock; // FD_SOCKET
 };
 
 typedef enum {

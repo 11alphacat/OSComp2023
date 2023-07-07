@@ -117,6 +117,9 @@
 /* Define to 1 if you have the `memcpy' function. */
 #undef HAVE_MEMCPY
 
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
@@ -186,10 +189,6 @@
 
 /* Define to 1 if you have the <stdio.h> header file. */
 #undef HAVE_STDIO_H
-
-/* Define to 1 if you have the <stdlib.h> header file. */
-#undef HAVE_STDLIB_H
-
 /* Define to 1 if you have the `strcasecmp' function. */
 #undef HAVE_STRCASECMP
 
@@ -313,6 +312,7 @@
 /* Define to the type of arg 5 for `select'. */
 #undef SELECT_TYPE_ARG5
 
+<<<<<<< HEAD
 /* Define to 1 if the `setpgrp' function requires zero arguments. */
 #undef SETPGRP_VOID
 
@@ -323,6 +323,15 @@
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. This
    macro is obsolete. */
+=======
+/* Define to 1 if the `setpgrp' function takes no argument. */
+#undef SETPGRP_VOID
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+>>>>>>> halfway on socket ipc
 #undef TIME_WITH_SYS_TIME
 
 /* Use Solaris's kstat interface to measure CPU util. */
@@ -389,6 +398,14 @@
 /* Define to one to include XTI tests. */
 #undef WANT_XTI
 
+<<<<<<< HEAD
+=======
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
+>>>>>>> halfway on socket ipc
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
@@ -404,7 +421,11 @@
 /* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
 
+<<<<<<< HEAD
 /* Define as a signed integer type capable of holding a process identifier. */
+=======
+/* Define to `int' if <sys/types.h> does not define. */
+>>>>>>> halfway on socket ipc
 #undef pid_t
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */

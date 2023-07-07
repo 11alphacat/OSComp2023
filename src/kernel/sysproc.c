@@ -175,9 +175,10 @@ uint64 sys_execve(void) {
     }
     bprm.envp = (char **)envp;
 
-    if (strncmp(path, "./test.sh", 10) == 0) {
+    int len = strlen(path);
+    if (strncmp(path + len - 3, ".sh", 3) == 0) {
         // a rough hanler for sh interpreter
-        char *sh_argv[10] = {"/busybox/busybox", "sh", "./test.sh"};
+        char *sh_argv[10] = {"/busybox/busybox", "sh", path};
         for (int i = 1; i < bprm.argc; i++) {
             sh_argv[i + 2] = (char *)getphyaddr(proc_current()->mm->pagetable, (vaddr_t)((char **)argv)[i]);
             // sh_argv[i + 2] = (char *)(argv + sizeof(vaddr_t) * i);

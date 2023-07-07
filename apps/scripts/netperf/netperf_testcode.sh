@@ -3,6 +3,7 @@ port=12865
 
 run_netperf() {
     echo "====== netperf $1 begin ======"
+    # ./netperf -H 127.0.0.1 -p 12865 -t UDP_STREAM -l 1 -- "-s 16k -S 16k -m 1k -M 1k"
     ./netperf -H $ip -p $port -t $1 -l 1 -- $2
     if [ $? == 0 ]; then
 	    ans="success"
@@ -11,7 +12,7 @@ run_netperf() {
     fi
   echo "====== netperf $1 end: $ans ======"
 }
-
+#./netserver -D -L 127.0.0.1 -p 12865 
 ./netserver -D -L $ip -p $port &
 server_pid=$!
 

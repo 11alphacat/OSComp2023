@@ -52,6 +52,7 @@ $(shell mkdir -p $(FSIMG)/time-test)
 $(shell mkdir -p $(FSIMG)/libc-bench)
 $(shell mkdir -p $(FSIMG)/iozone)
 $(shell mkdir -p $(FSIMG)/lua)
+$(shell mkdir -p $(FSIMG)/netperf)
 $(shell mkdir -p $(FSIMG)/proc/mounts)
 $(shell mkdir -p $(FSIMG)/iperf)
 $(shell mkdir -p $(FSIMG)/netperf)
@@ -203,14 +204,13 @@ apps:
 	@cp apps/libc-bench/libc-bench fsimg/libc-bench
 	@cp apps/time-test/time-test fsimg/time-test
 	@cp apps/iozone/iozone fsimg/iozone
-	@cp apps/lua/src/lua fsimg/lua
-# @cp apps/iperf/src/iperf3 fsimg/iperf
-# @cp apps/netperf/src/netperf apps/netperf/src/netserver fsimg/netperf
 	@cp apps/scripts/iozone/* fsimg/iozone
+	@cp apps/lua/src/lua fsimg/lua
 	@cp apps/scripts/lua/* fsimg/lua
-	@cp apps/scripts/iperf/* fsimg/iperf
-	@cp apps/scripts/netperf/* fsimg/netperf
-
+	@cp apps/netperf/src/netperf apps/netperf/src/netserver fsimg/netperf/
+	@cp apps/scripts/netperf/* fsimg/netperf/
+	# @cp apps/UnixBench/pgms/* fsimg/UnixBench
+	# @cp apps/scripts/unixbench/*.sh fsimg/UnixBench
 
 # user: oscomp busybox
 user: busybox apps

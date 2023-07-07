@@ -7,6 +7,7 @@
 #include "fs/fat/fat32_file.h"
 #include "fs/fat/fat32_mem.h"
 #include "fs/ext2/ext2_file.h"
+#include "ipc/socket.h"
 
 struct devsw devsw[NDEV];
 struct ftable _ftable;
@@ -62,6 +63,8 @@ void generic_fileclose(struct file *f) {
         pipe_close(ff.f_tp.f_pipe, wrable);
     } else if (ff.f_type == FD_INODE || ff.f_type == FD_DEVICE) {
         ff.f_tp.f_inode->i_op->iput(ff.f_tp.f_inode);
+    } else if (ff.f_type == FD_SOCKET) {
+        free_socket(ff.f_tp.f_sock);
     }
 }
 

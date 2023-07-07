@@ -1,0 +1,5 @@
+iperf_locale.lo: iperf_locale.c iperf_config.h version.h
+
+iperf_config.h:
+
+version.h:

@@ -1,0 +1,61 @@
+units.lo: units.c /usr/local/musl/include/stdio.h \
+ /usr/local/musl/include/features.h \
+ /usr/local/musl/include/bits/alltypes.h /usr/local/musl/include/assert.h \
+ /usr/local/musl/include/ctype.h /usr/local/musl/include/sys/socket.h \
+ /usr/local/musl/include/bits/socket.h \
+ /usr/local/musl/include/sys/types.h /usr/local/musl/include/endian.h \
+ /usr/local/musl/include/sys/select.h /usr/local/musl/include/sys/time.h \
+ iperf.h iperf_config.h /usr/local/musl/include/stdint.h \
+ /usr/local/musl/include/bits/stdint.h \
+ /usr/local/musl/include/netinet/tcp.h /usr/local/musl/include/net/if.h \
+ /usr/local/musl/include/inttypes.h timer.h \
+ /usr/local/musl/include/time.h iperf_time.h queue.h cjson.h \
+ /usr/local/musl/include/stddef.h
+
+/usr/local/musl/include/stdio.h:
+
+/usr/local/musl/include/features.h:
+
+/usr/local/musl/include/bits/alltypes.h:
+
+/usr/local/musl/include/assert.h:
+
+/usr/local/musl/include/ctype.h:
+
+/usr/local/musl/include/sys/socket.h:
+
+/usr/local/musl/include/bits/socket.h:
+
+/usr/local/musl/include/sys/types.h:
+
+/usr/local/musl/include/endian.h:
+
+/usr/local/musl/include/sys/select.h:
+
+/usr/local/musl/include/sys/time.h:
+
+iperf.h:
+
+iperf_config.h:
+
+/usr/local/musl/include/stdint.h:
+
+/usr/local/musl/include/bits/stdint.h:
+
+/usr/local/musl/include/netinet/tcp.h:
+
+/usr/local/musl/include/net/if.h:
+
+/usr/local/musl/include/inttypes.h:
+
+timer.h:
+
+/usr/local/musl/include/time.h:
+
+iperf_time.h:
+
+queue.h:
+
+cjson.h:
+
+/usr/local/musl/include/stddef.h:

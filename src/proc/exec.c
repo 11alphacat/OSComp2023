@@ -302,9 +302,9 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
     /* auxiliary vectors */
     uint64 auxv[AUX_CNT * 2] = {0};
     for (int i = 0; i < AUX_CNT; i++) {
-        if (i + 1 > AT_ENTRY) {
-            break;
-        }
+        // if (i + 1 > AT_ENTRY) {
+        //     break;
+        // }
         auxv[i * 2] = i + 1;
     }
     auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
@@ -323,6 +323,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[AT_ENTRY * 2 - 1] = bprm->e_entry;
 #endif
     }
+    auxv[AT_RANDOM * 2 - 1] = SPP2SP;
     spp -= AUX_CNT * 16;
     if (spp < stackbase) {
         return -1;

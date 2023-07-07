@@ -82,3 +82,16 @@
 
 137 rt_sigtimedwait sys_rt_sigtimedwait
 261 prlimit64 sys_prlimit64
+
+# net
+198 socket sys_socket
+200 bind sys_bind
+201 listen sys_listen
+202 accept sys_accept
+203 connect sys_connect
+208 setsockopt sys_setsockopt
+72  pselect6 sys_pselect6
+204 getsockname sys_getsockname
+206 sendto sys_sendto
+207 recvfrom sys_recvfrom
+209 getsockopt sys_getsockopt

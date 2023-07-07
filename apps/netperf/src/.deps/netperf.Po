@@ -1,0 +1,53 @@
+netperf.o: netperf.c ../config.h /usr/local/musl/include/stdio.h \
+ /usr/local/musl/include/features.h \
+ /usr/local/musl/include/bits/alltypes.h /usr/local/musl/include/stdlib.h \
+ /usr/local/musl/include/alloca.h /usr/local/musl/include/string.h \
+ /usr/local/musl/include/strings.h netsh.h netlib.h \
+ /usr/local/musl/include/sys/socket.h \
+ /usr/local/musl/include/bits/socket.h /usr/local/musl/include/netdb.h \
+ /usr/local/musl/include/netinet/in.h /usr/local/musl/include/inttypes.h \
+ /usr/local/musl/include/stdint.h /usr/local/musl/include/bits/stdint.h \
+ /usr/local/musl/include/sys/sendfile.h /usr/local/musl/include/unistd.h \
+ /usr/local/musl/include/bits/posix.h nettest_bsd.h
+
+../config.h:
+
+/usr/local/musl/include/stdio.h:
+
+/usr/local/musl/include/features.h:
+
+/usr/local/musl/include/bits/alltypes.h:
+
+/usr/local/musl/include/stdlib.h:
+
+/usr/local/musl/include/alloca.h:
+
+/usr/local/musl/include/string.h:
+
+/usr/local/musl/include/strings.h:
+
+netsh.h:
+
+netlib.h:
+
+/usr/local/musl/include/sys/socket.h:
+
+/usr/local/musl/include/bits/socket.h:
+
+/usr/local/musl/include/netdb.h:
+
+/usr/local/musl/include/netinet/in.h:
+
+/usr/local/musl/include/inttypes.h:
+
+/usr/local/musl/include/stdint.h:
+
+/usr/local/musl/include/bits/stdint.h:
+
+/usr/local/musl/include/sys/sendfile.h:
+
+/usr/local/musl/include/unistd.h:
+
+/usr/local/musl/include/bits/posix.h:
+
+nettest_bsd.h:

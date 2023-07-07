@@ -2,6 +2,7 @@
 #define __SYSCALL_H__
 #include "common.h"
 
+struct file;
 // syscall.c
 uint64 argraw(int);
 int argint(int, int *);

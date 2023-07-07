@@ -19,7 +19,8 @@
 typedef enum { FD_NONE,
                FD_PIPE,
                FD_INODE,
-               FD_DEVICE } type_t;
+               FD_DEVICE,
+               FD_SOCKET } type_t;
 
 typedef unsigned int uint;
 typedef unsigned short ushort;

@@ -198,6 +198,35 @@ static struct syscall_info info[] = {
     [SYS_dup] { "dup", 1, "d" },
     //          int dup3(int oldfd, int newfd, int flags);
     [SYS_dup3] { "dup3", 3, "ddd", 'd' },
+    // pid_t gettid(void);
+    [SYS_gettid] { "gettid", 0, },
+    // int clock_gettime(clockid_t clk_id, struct timespec *tp);
+    [SYS_clock_gettime] { "clock_gettime", 2, "dp" },
+
+    // int socket(int domain, int type, int protocol);
+    [SYS_socket] { "socket", 3, "ddd", 'd' },
+    //        int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
+    [SYS_setsockopt] { "setsockopt", 5, "dddpu", 'd' },
+    // int listen(int sockfd, int backlog);
+    [SYS_listen] { "listen", 2, "dd", 'd' },
+    //       int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+    [SYS_bind] { "bind", 3, "dpu", 'd' },
+    // int pselect(int nfds, fd_set *readfds, fd_set *writefds,
+    // fd_set *exceptfds, const struct timespec *timeout, const sigset_t *sigmask);
+    [SYS_pselect6] { "pselect6", 6, "dppppp", 'd' },
+    // int getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+    [SYS_getsockname] { "getsockname", 3, "dpp", 'd' },
+    // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
+    [SYS_sendto] { "sendto", 6, "dpddpd", 'd' },
+    // ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+    [SYS_recvfrom] { "recvfrom", 6, "dpddpp" },
+    // int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+    [SYS_connect] { "connect", 3, "dpd", 'd' },
+    //  int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
+    [SYS_getsockopt] { "getsockopt", 5, "dddpp", 'd' },
+    // int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+    [SYS_accept] { "accept", 3, "dpp" },
+
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);

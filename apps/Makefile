@@ -1,4 +1,5 @@
 .DEFAULT_GOAL=all
+MUSL_GCC=riscv64-musl-gcc
 
 all: musl busybox libc-test
 
@@ -44,14 +45,22 @@ lmbench:
 	make -C lmbench build CC="riscv64-linux-gnu-gcc -static" OS=riscv64 -j4
 
 unix-bench:
-	make -C UnixBench -j4 all
+	make -C UnixBench -j 4 all
 
 cyclictest:
 	make -C rt-tests cyclictest hackbench
 
-iperf:
-	cd iperf &&	./configure --host=riscv64-linux-musl CC=riscv64-musl-gcc --enable-static-bin --without-sctp && make
+netperf:
+	cd netperf && ./autogen.sh
+	cd netperf && ac_cv_func_setpgrp_void=yes ./configure --host riscv64 CC=$(MUSL_GCC) CFLAGS="-static -g"
+	cd netperf && make -j $(NPROC)
+	# cp netperf/src/netperf netperf/src/netserver sdcard/
+	# cp scripts/netperf/* sdcard/
 
+iperf:
+	cd iperf &&	./configure --host=riscv64-linux-musl CC=$(MUSL_GCC) --enable-static-bin --without-sctp && make
+	# cp iperf/src/iperf3 sdcard/
+	# cp scripts/iperf/iperf_testcode.sh sdcard/
 
 clean:
 	make -C musl-1.2.4 clean

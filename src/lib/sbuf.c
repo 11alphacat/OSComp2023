@@ -39,7 +39,7 @@ int sbuf_insert(struct sbuf *sp, int user_dst, uint64 addr) {
 int sbuf_remove(struct sbuf *sp, int user_dst, uint64 addr) {
     char item;
 
-    if (sp->r == sp->w) {
+    if (sp->type == PIPE_SBUF && sp->r == sp->w) {
         return 1; // !!! bug
     }
     sema_wait(&sp->items);

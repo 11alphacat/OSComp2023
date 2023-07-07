@@ -5,8 +5,10 @@
 #include "atomic/semaphore.h"
 
 enum sbuf_type {
+    NONE,
     PIPE_SBUF,
-    CONSOLE_SBUF
+    CONSOLE_SBUF,
+    SOCKET_SBUF,
 };
 
 struct sbuf {

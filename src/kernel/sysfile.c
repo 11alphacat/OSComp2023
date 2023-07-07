@@ -62,7 +62,7 @@ static inline int __namecmp(const char *s, const char *t) {
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
 // 它是线程安全的
-static int fdalloc(struct file *f) {
+int fdalloc(struct file *f) {
     int fd;
     struct proc *p = proc_current();
 
@@ -413,12 +413,15 @@ static int assist_dupfd(struct file *f) {
     return newfd;
 }
 
-static int assist_getfd(struct file *f) {
-    int ret;
-    ret = FILE2FD(f, proc_current());
-    ASSERT(ret >= 0 && ret < NOFILE);
-    return ret;
-}
+// static int assist_getfd(struct file *f) {
+// int ret;
+// struct proc *p = proc_current();
+// Log("%p %p %d", (char *)f, (char *)(p)->ofile, sizeof(struct file));
+// ret = ((char *)(f) - (char *)((p)->ofile)) / sizeof(struct file);
+// ret = FILE2FD(f, p);
+// ASSERT(ret >= 0 && ret < NOFILE);
+// return ret;
+// }
 
 // 不做参数检查
 // 一定返回 newfd
@@ -466,7 +469,8 @@ static uint64 do_fcntl(struct file *f, int cmd) {
         break;
 
     case F_GETFD:
-        ret = assist_getfd(f);
+        // ret = assist_getfd(f);
+        ret = f->f_flags;
         break;
 
     case F_SETFD:
