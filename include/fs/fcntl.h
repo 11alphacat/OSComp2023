@@ -32,7 +32,8 @@
 #define O_CLOEXEC 02000000 /* set close_on_exec */
 
 #define FCNTLABLE(value) \
-    (value == O_NONBLOCK || value == O_APPEND)
+    (((value & O_NONBLOCK) == O_NONBLOCK) || ((value & O_APPEND) == O_APPEND))
+// (value == O_NONBLOCK || value == O_APPEND)
 
 #define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)
 #define F_READABLE(fp) (((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1)

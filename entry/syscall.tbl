@@ -95,3 +95,14 @@
 206 sendto sys_sendto
 207 recvfrom sys_recvfrom
 209 getsockopt sys_getsockopt
+
+67 pread64 sys_pread64
+
+46 ftruncate sys_ftruncate
+81 sync sys_sync
+82 fsync sys_fsync
+
+
+194 shmget sys_shmget
+195 shmctl sys_shmctl
+196 shmat sys_shmat

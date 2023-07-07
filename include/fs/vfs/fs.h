@@ -56,7 +56,9 @@ struct _superblock {
 struct file {
     type_t f_type;
     ushort f_mode;
-    uint32 f_pos;
+    // uint32 f_pos; // bug
+    off_t f_pos;
+
     ushort f_flags;
     ushort f_count;
     short f_major;
@@ -80,25 +82,27 @@ struct ftable {
 
 // abstract datas in disk
 struct inode {
-    uint8 i_dev;  // note: 未在磁盘中存储
-    uint32 i_ino; // 对任意给定的文件系统的唯一编号标识：由具体文件系统解释
+    dev_t i_dev; // note: 未在磁盘中存储
+    // uint32 i_ino; // 对任意给定的文件系统的唯一编号标识：由具体文件系统解释
+    ino_t i_ino; // bug for libc-test
     // uint16 i_mode; // 访问权限和所有权
-    uint16 i_mode; // 文件类型 + ..? + 访问权限  (4 + 3 + 9) : obey Linux
+    mode_t i_mode; // 文件类型 + ..? + 访问权限  (4 + 3 + 9) : obey Linux
     int ref;       // Reference count
     int valid;
     // Note: fat fs does not support hard link, reserve for vfs interface
-    uint16 i_nlink;
-    uint i_uid;
-    uint i_gid;
+    // uint16 i_nlink; // bug!!!
+    nlink_t i_nlink;
+    uid_t i_uid;
+    gid_t i_gid;
     uint16 i_rdev; // major、minor, 8 + 8
     uint32 i_size;
     // uint16 i_type;       // we do no use it anymore
 
-    long i_atime;     // access time
-    long i_mtime;     // modify time
-    long i_ctime;     // create time
-    uint64 i_blksize; // bytes of one block
-    uint64 i_blocks;  // numbers of blocks
+    long i_atime;        // access time
+    long i_mtime;        // modify time
+    long i_ctime;        // create time
+    blksize_t i_blksize; // bytes of one block
+    blkcnt_t i_blocks;   // numbers of blocks
 
     struct semaphore i_sem; /* binary semaphore */
 
@@ -125,6 +129,8 @@ struct inode {
     struct list_head list; // to speed up inode_get
 
     int dirty_in_parent; // need to update ??
+    int create_cnt;      // for inode parent
+    int create_first;    // for inode child
 
     union {
         struct fat32_inode_info fat32_i;
@@ -165,8 +171,8 @@ struct inode_operations {
     void (*iupdate)(struct inode *self);
     struct inode *(*idup)(struct inode *self);
     void (*ipathquery)(struct inode *self, char *kbuf);
-    ssize_t (*iread)(struct inode *self, int user_src, uint64 src, uint off, uint n);
-    ssize_t (*iwrite)(struct inode *self, int user_dst, uint64 dst, uint off, uint n);
+    ssize_t (*iread)(struct inode *self, int user_dst, uint64 dst, uint off, uint n);
+    ssize_t (*iwrite)(struct inode *self, int user_src, uint64 src, uint off, uint n);
 
     // for directory inode
     struct inode *(*idirlookup)(struct inode *dself, const char *name, uint *poff);

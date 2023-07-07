@@ -87,9 +87,9 @@ struct tcb {
     struct semaphore sem_wait_chan_self;
 
     /* CLONE_CHILD_SETTID: */
-    int *set_child_tid;
+    uint64 set_child_tid;
     /* CLONE_CHILD_CLEARTID: */
-    int *clear_child_tid;
+    uint64 clear_child_tid;
 
     uint64 time_out; // used for nanosleep and futex
 };

@@ -62,20 +62,22 @@ sys_getppid(void) {
   - ctid: 子线程ID；
 * 返回值：成功则返回子进程的线程ID，失败返回-1；
 */
-// int flags, void* stack , pid_t ptid, void*tls, pid_t* ctid
+// int flags, void* stack , pid_t* ptid, void*tls, pid_t* ctid
 uint64
 sys_clone(void) {
     int flags;
     uint64 stack;
-    pid_t ptid;
-    uint64 tls;
-    uint64 ctid;
+    // pid_t ptid;
+    uint64 ptid_addr;
+    uint64 tls_addr;
+    uint64 ctid_addr;
     argint(0, &flags);
     argaddr(1, &stack);
-    argint(2, &ptid);
-    argaddr(3, &tls);
-    argaddr(4, &ctid);
-    return do_clone(flags, stack, ptid, tls, (pid_t *)ctid);
+    // argint(2, &ptid);
+    argaddr(2, &ptid_addr);
+    argaddr(3, &tls_addr);
+    argaddr(4, &ctid_addr);
+    return do_clone(flags, stack, ptid_addr, tls_addr, ctid_addr);
 }
 
 /*
@@ -255,7 +257,7 @@ uint64 sys_set_tid_address(void) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
 
-    t->clear_child_tid = (int *)getphyaddr(p->mm->pagetable, tidptr);
+    t->clear_child_tid = getphyaddr(p->mm->pagetable, tidptr);
 
     return t->tid;
 }
@@ -324,7 +326,8 @@ uint64 sys_rt_sigprocmask(void) {
     // If set is NULL, then the signal mask is unchanged (i.e., how is ignored),
     // but the current value of the signal mask is nevertheless returned in oldset
     if (set_addr) {
-        if (copyin(proc_current()->mm->pagetable, (char *)&set, set_addr, sizeof(set)) < 0) {
+        // bug : (char*)&set
+        if (copyin(proc_current()->mm->pagetable, (char *)&set, set_addr, sizeof(set.sig)) < 0) {
             return -1;
         }
     }
@@ -333,7 +336,9 @@ uint64 sys_rt_sigprocmask(void) {
 
     // If oldset is non-NULL, the previous value of the signal mask is stored in oldset
     if (!ret && oldset_addr) {
-        if (copyin(proc_current()->mm->pagetable, (char *)&old_set, oldset_addr, sizeof(old_set)) < 0) {
+        // bug : (char*)&old_set
+        // bug : copyout 写成了 copyin
+        if (copyout(proc_current()->mm->pagetable, oldset_addr, (char *)&old_set, sizeof(old_set.sig)) < 0) {
             return -1;
         }
     }
@@ -474,10 +479,12 @@ uint64 sys_futex() {
 
 // the real group ID of the calling process
 uint64 sys_getgid() {
-    return proc_current()->pid;
+    // return proc_current()->pid;
+    return 0;
 }
 
 // the effective group ID of the calling process
 uint64 sys_getegid() {
-    return proc_current()->pid;
+    // return proc_current()->pid;
+    return 0;
 }

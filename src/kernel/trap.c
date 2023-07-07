@@ -21,6 +21,8 @@
 #include "lib/timer.h"
 #include "kernel/syscall.h"
 
+int print_tf_flag;
+
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 extern int devintr();
@@ -136,6 +138,11 @@ void thread_usertrapret() {
     t->trapframe->kernel_sp = t->kstack + PGSIZE; // process's kernel stack
     t->trapframe->kernel_trap = (uint64)thread_usertrap;
 
+    if(print_tf_flag) {
+        trapframe_print(t->trapframe);
+        print_tf_flag = 0;
+    }
+
     // set up the registers that trampoline.S's sret will use
     // to get to user space.
 
@@ -156,6 +163,7 @@ void thread_usertrapret() {
     // and switches to user mode with sret.
     uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
     ((void (*)(uint64))trampoline_userret)(satp);
+
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,

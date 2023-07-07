@@ -31,6 +31,7 @@ void hartinit();
 void pdflush_init();
 void page_writeback_timer_init(void);
 void disk_init(void);
+void null_zero_dev_init();
 
 volatile static int started = 0;
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
@@ -68,6 +69,7 @@ void main(uint64 hartid) {
 #endif
         // console and printf
         consoleinit();
+        null_zero_dev_init();
 
         printfinit();
         // printf("\nkernel is booting\n\n");

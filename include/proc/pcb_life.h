@@ -78,7 +78,7 @@ void proc_init(void);
 void proc_setkilled(struct proc *p);
 int proc_killed(struct proc *p);
 struct proc *find_get_pid(pid_t pid);
-int do_clone(int flags, uint64 stack, pid_t ptid, uint64 tls, pid_t *ctid);
+int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid);
 void do_exit(int status);
 int waitpid(pid_t pid, uint64 status, int options);
 void reparent(struct proc *p);

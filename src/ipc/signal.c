@@ -202,6 +202,12 @@ int do_sigaction(int sig, struct sigaction *act, struct sigaction *oact) {
     return 0;
 }
 
+// debug
+// static char *signal_how[] = {
+//     [SIG_BLOCK] "block",
+//     [SIG_UNBLOCK] "unblock",
+//     [SIG_SETMASK] "setmask"};
+
 int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset) {
     // struct proc* p = proc_current();
     struct tcb *t = thread_current();
@@ -209,6 +215,7 @@ int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset) {
     acquire(&t->sig->siglock);
     if (oldset)
         *oldset = t->blocked;
+
     int error = 0;
     switch (how) {
     case SIG_BLOCK:
@@ -218,11 +225,15 @@ int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset) {
         t->blocked.sig = sig_and(t->blocked.sig, set->sig);
         break;
     case SIG_SETMASK:
-        t->blocked = *set;
+        t->blocked.sig = set->sig;
+        // bug like this : t->blocked = *set;
         break;
     default:
         error = -1;
     }
+#ifdef __DEBUG_SIGNAL__
+    printfGreen("sigprocmask , how : %s, set : %x, oldset : %x, t->blocked : %x\n", signal_how[how], set->sig, oldset->sig, t->blocked.sig); // debug
+#endif
     // TODO(maybe) : sigpending
     release(&t->sig->siglock);
     return error;

@@ -79,6 +79,12 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
         if ((r = fat32_inode_read(f->f_tp.f_inode, 1, addr, f->f_pos, n)) > 0)
             f->f_pos += r;
         fat32_inode_unlock(f->f_tp.f_inode);
+        // debug!!!
+        if (r < 0)
+            printfMAGENTA("read : error, reading chars of inode file %s starting from %d \n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
+        else
+            printfMAGENTA("read : read %d chars of inode file %s starting from %d \n", r, f->f_tp.f_inode->fat32_i.fname, f->f_pos - r);
+
 #ifdef __DEBUG_FS__
         if (r < 0)
             printfMAGENTA("read : error, reading chars of inode file %s starting from %d \n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
@@ -140,6 +146,13 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
             i += r;
         }
         ret = (i == n ? n : -1);
+
+        // debug!!!
+        if (ret < 0)
+            printfBlue("write : error writing chars -> inode file %s starting from %d\n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
+        else
+            printfBlue("write : write %d chars -> inode file %s starting from %d\n", i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
+
 #ifdef __DEBUG_FS__
         if (ret < 0)
             printfYELLOW("write : error writing chars -> inode file %s starting from %d\n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);

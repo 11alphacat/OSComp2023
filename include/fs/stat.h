@@ -75,7 +75,8 @@
 
 typedef unsigned long int dev_t;
 typedef unsigned long int ino_t;
-typedef unsigned long int nlink_t;
+// typedef unsigned long int nlink_t;
+typedef unsigned int nlink_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;
 typedef long int off_t;
@@ -84,6 +85,7 @@ typedef long int blkcnt_t;
 typedef unsigned int mode_t;
 typedef long int off_t;
 
+// for oscomp
 struct kstat {
     uint64 st_dev;
     uint64 st_ino;
@@ -106,6 +108,7 @@ struct kstat {
     unsigned __unused[2];
 };
 
+// for inode
 struct stat {
     dev_t st_dev;         /* ID of device containing file */
     ino_t st_ino;         /* Inode number */
@@ -125,10 +128,40 @@ struct stat {
     struct timespec st_atim; /* Time of last access */
     struct timespec st_mtim; /* Time of last modification */
     struct timespec st_ctim; /* Time of last status change */
+    unsigned __unused[2];
 
 #define st_atime st_atim.tv_sec /* Backward compatibility */
 #define st_mtime st_mtim.tv_sec
 #define st_ctime st_ctim.tv_sec
 };
+
+// for file system
+typedef struct {
+    int val[2];
+} __kernel_fsid_t;
+typedef __kernel_fsid_t fsid_t;
+#define MSDOS_SUPER_MAGIC 0x4d44
+typedef uint64 fsblkcnt_t;
+typedef uint64 fsfilcnt_t;
+
+struct statfs {
+    unsigned long f_type, f_bsize;
+    fsblkcnt_t f_blocks, f_bfree, f_bavail;
+    fsfilcnt_t f_files, f_ffree;
+    fsid_t f_fsid;
+    unsigned long f_namelen, f_frsize, f_flags, f_spare[4];
+};
+// f_type;     /* Type of filesystem */
+// f_frsize;	/* Fragment size (since Linux 2.6) */
+// f_bsize;    /* Optimal transfer block size */
+// f_blocks;   /* Total data blocks in filesystem */
+// f_bfree;    /* Free blocks in filesystem */
+// f_files;    /* Total inodes in filesystem */
+// f_ffree;    /* Free inodes in filesystem */
+// f_bavail;    /* Free blocks available to unprivileged user */
+// f_fsid;      /* Filesystem ID */
+// f_namelen;   /* Maximum length of filenames */
+// f_flags;     /* Mount flags of filesystem (since Linux 2.6.36) */
+// f_spare[5];  /* Padding bytes reserved for future use */
 
 #endif // __FS_STAT_H__

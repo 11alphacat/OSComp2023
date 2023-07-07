@@ -161,9 +161,9 @@ struct rt_sigframe {
 struct proc;
 struct tcb;
 
-#define SIG_BLOCK 1   /* for blocking signals */
-#define SIG_UNBLOCK 2 /* for unblocking signals */
-#define SIG_SETMASK 3 /* for setting the signal mask */
+#define SIG_BLOCK 0   /* for blocking signals */
+#define SIG_UNBLOCK 1 /* for unblocking signals */
+#define SIG_SETMASK 2 /* for setting the signal mask */
 
 int signal_queue_pop(uint64 mask, struct sigpending *pending);
 int signal_queue_flush(struct sigpending *queue);

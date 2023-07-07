@@ -9,8 +9,9 @@ LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 1
+STRACE ?= 0
 DEBUG_LDSO ?= 0
+DEBUG_SIGNAL ?= 0
 
 FSIMG = fsimg
 ROOT=$(shell pwd)
@@ -113,6 +114,9 @@ endif
 ifeq ($(DEBUG_PAGE_CACHE), 1)
 CFLAGS += -D__DEBUG_PAGE_CACHE__
 endif
+ifeq ($(DEBUG_SIGNAL), 1)
+CFLAGS += -D__DEBUG_SIGNAL__
+endif
 
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany -march=rv64g -mabi=lp64f
@@ -143,7 +147,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 2
+CPUS := 5
 endif
 
 ifeq ($(PLATFORM), qemu_virt)
