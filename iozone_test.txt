@@ -1,0 +1,104 @@
+调试技巧：
+在iozone的Makefile中修改如下：
+CFLAGS	?= -g
+
+去除所有编译优化的选项，修改 -O 、-O2、-O3修改为-g
+记得进入apps/iozone 执行 make clean
+
+通过设置断点 break 
+
+
+读写文件的名称为 iozone.tmp
+
+
+（1）write_perf_test 测试
+Write and re-write
+每次写入1024个字节，写两遍！
+如果传入参数 为 4m，那么就是先从0开始写入4MB，然后再次从0开始写入4MB
+
+（2）read_perf_test 测试
+Read and re-fread test
+每次读取1024个字节，读两遍！
+如果传入参数 为 4m，那么就是先从0开始读取4MB，然后再次从0开始读取4MB
+
+（3）random_perf_test 测试
+Random read and write test
+每次将f_pos 随机移动，然后读取1024个字节。
+每次将f_pos 随机移动，然后写入1024个字节。
+
+（4）reverse_perf_test 测试
+Reverse read test
+通过lseek移动f_pos从文件的末端读取，每次读取1024个字节。
+注意这里的lseek 传入的offset 是一个负数，每次都需要减去-2048
+
+do_lseek 中需要进行修改：
+MAX(0, f->f_pos)
+返回值是新的文件偏移量，不能为负数
+
+（5）rewriterec_perf_test 测试
+Re-write the same record
+反复写一个地方，即每次写完1024个字节后，用lseek将pos移动到写入前的状态
+
+（6）read_stride_perf_test 测试
+Read with a constant stride test
+每次读取1024字节，只不过不是顺序读取，而是以 17KB 为一个stride进行移动
+即f_pos : 0 -> 17408 -> 34816 -> ...
+
+需要注意的是每次写入的前8个字节都是 
+70 70 70 70 70 70 70 70
+即每次写入的1024个字节的前8个字节都是 0x70 70 70 70 70 70 70 70
+
+iozone.tmp 的起始地址为：
+2113000
+
+
+（7）fwrite_perf_test
+fWrite and fre-write test
+使用writev 进行写操作，每次1024个字节
+
+
+（8）fread_perf_test 测试
+fRead and fre-read test
+使用readv 进行读操作，每次1024个字节
+
+
+
+问题一：
+在iozone目录下直接 iozone 会查找环境变量，需要在init中的环境变量中加入iozone
+char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone", 0};
+
+问题二：
+iozone -a -r 1k -s 4m 
+运行这个语句出现了
+lseek : Operation not permitted
+Strace 的lseek的返回值也是-1,显然是不正确的
+需要将    arglong(1, &offset) 判断返回值小于0去掉，offset可以为负数
+
+openat iozone.tmp 的epc为：5a2d8 （去掉所有编译选项后的地址）
+
+问题三：
+read_stride_perf_test 测试过不了：
+出现的bug主要是do_generic_file_write存在一定的问题，修改如下：
+if(WRITE_FULL_PAGE(retval)||OUT_FILE(offset, isize_offset)){
+    // need read page in disk
+    read_from_disk = 0;
+} else {
+    // panic("not tested\n");
+    read_from_disk = 1;
+}
+
+
+iozone -t 4 -i 0 -i 1 -r 1k -s 1m
+
+（1）multi_throughput_test
+
+
+
+问题一：
+[PAGEFAULT]: va is not in the vmas
+usertrap(): process name: iozone pid: 3
+scause 000000000000000f STORE/AMO PAGEFAULT
+sepc=0000000000058922
+stval=0000000000000008
+
+

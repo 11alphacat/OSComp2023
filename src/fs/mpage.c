@@ -165,7 +165,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 
             start_idx = end_idx + 1;
         } else {
-            panic("mpage_readpages : not tested\n");
+            // panic("mpage_readpages : not tested\n");
             if (start_idx == 0) {
                 panic("mpage_readpages : error\n");
             }

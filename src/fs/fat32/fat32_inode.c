@@ -116,7 +116,8 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_blksize = __get_blocks(root_ip->i_size);
     root_ip->i_sb = sb;
     root_ip->fat32_i.DIR_FileSize = 0;
-    root_ip->i_mode = S_IFDIR | 0666;
+    // root_ip->i_mode = S_IFDIR | 0666;
+    root_ip->i_mode = S_IFDIR | 0777;    
     DIR_SET(root_ip->fat32_i.Attr);
 
     // inode hash table
@@ -1336,6 +1337,7 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
             iter_c_n = fat32_next_cluster(iter_c_n);
         }
     }
+    // bio_print(bio_p); // debug
 #ifdef __DEBUG_PAGE_CACHE__
     bio_print(bio_p); // debug
 #endif

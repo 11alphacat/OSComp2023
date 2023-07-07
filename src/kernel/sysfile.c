@@ -246,10 +246,16 @@ static uint64 do_lseek(struct file *f, off_t offset, int whence) {
         f->f_pos = f->f_tp.f_inode->i_size + offset;
         break;
     default:
-        f->f_pos = offset;
-        break;
+        panic("error type\n");
+        // f->f_pos = offset;
+        // break;
     }
-    return f->f_pos;
+    // if(f->f_pos==-1) {
+    //     printf("ready\n");
+    // }
+
+    printfRed("lseek : lseek inode file %s to %d \n", f->f_tp.f_inode->fat32_i.fname, MAX(0, f->f_pos)); // debug
+    return MAX(0, f->f_pos);
 }
 
 // incomplete implement
@@ -632,6 +638,12 @@ uint64 sys_openat(void) {
     flags = flags & (~O_LARGEFILE); // bugs!!
 
     argint(3, &omode);
+
+    // if(!strncmp(path, "iozone.tmp", 10)) {
+    //     extern int print_tf_flag;
+    //     print_tf_flag = 1;
+    //     printf("ready\n");
+    // }
 
     // 如果是要求创建文件，则调用 create
     if ((flags & O_CREAT) == O_CREAT) {
@@ -1255,9 +1267,9 @@ uint64 sys_lseek(void) {
     off_t offset;
     int whence;
 
-    if (arglong(1, &offset) < 0) {
-        return -1;
-    }
+    arglong(1, &offset);
+    //     return -1;
+    // }
     // bug !!!
     // if (argint(1, (int *)&offset) < 0) {
     //     return -1;
@@ -1616,4 +1628,22 @@ uint64 sys_pread64(void) {
     uint64 retval = ip->i_op->iread(ip, 1, buf, offset, count);
     ip->i_op->iunlock(ip);
     return retval;
+}
+
+// synchronize cached writes to persistent storage
+// void sync(void);
+uint64 sys_sync(void) {
+    return 0;
+}
+
+// synchronize a file's in-core state with storage device
+// int fsync(int fd);
+uint64 sys_fsync(void) {
+    return 0;
+}
+
+// truncate a file to a specified length
+// int ftruncate(int fd, off_t length);
+uint64 sys_ftruncate(void) {
+    return 0;
 }

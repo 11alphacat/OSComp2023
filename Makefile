@@ -146,7 +146,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 2
+CPUS := 5
 endif
 
 ifeq ($(PLATFORM), qemu_virt)

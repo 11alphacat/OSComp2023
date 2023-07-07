@@ -84,3 +84,12 @@
 261 prlimit64 sys_prlimit64
 
 67 pread64 sys_pread64
+
+46 ftruncate sys_ftruncate
+81 sync sys_sync
+82 fsync sys_fsync
+
+
+194 shmget sys_shmget
+195 shmctl sys_shmctl
+196 shmat sys_shmat

@@ -204,6 +204,7 @@ static struct syscall_info info[] = {
     [SYS_dup3] { "dup3", 3, "ddd", 'd' },
     [SYS_lseek] { "lseek", 3, "dld" },
     [SYS_prlimit64] { "prlimit64", 4, "ddpp" },
+    [SYS_readv] {"readv", 3, "dpd"},
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -226,12 +227,24 @@ static struct syscall_info info[] = {
     [SYS_unlinkat] { "unlinkat", 3, "dsd" },
     [SYS_clock_gettime] { "clock_gettime", 2, "dp" },
     [SYS_fstat] { "fstat", 2, "dp" },
-    [SYS_chdir] { "chdir", 1, "s" }
+    [SYS_chdir] { "chdir", 1, "s" },
+    [SYS_shmget] {"shmget", 3, "dld"},
+    [SYS_shmctl] {"shmctl", 3 , "ddp"},
+    [SYS_shmat] {"shmat", 3, "dpd"},
+    [SYS_sync] {"sync", 0},
+    [SYS_fsync] {"fsync", 1, "d"},
+    [SYS_ftruncate] {"ftruncate", 2, "dl"}
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
     // [SYS_mkdir] { "mkdir", 1, "s" },
 };
+
+// static int syscall_filter[] = {
+//     [SYS_read] 1,
+//     [SYS_write] 1,
+//     [1050] 0
+// };
 
 #define STRACE_TARGET_NUM 1
 // cannot use to debug pr(printf's lock)!!!
@@ -239,12 +252,21 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
     "ls",
 };
 
-int is_strace_target() {
+int is_strace_target(int num) {
     /* trace all proc except sh and init */
     if (proc_current()->pid > 2) {
+        // if(num == SYS_read || num == SYS_write || num == SYS_lseek) {
+        //     return 0;
+        // }
         return 1;
     } else {
         return 0;
+        // if(syscall_filter[num]) {
+        //     return 0;
+        // }
+        // else {
+        //     return 1;
+        // }
     }
     // for (int i = 0; i < STRACE_TARGET_NUM; i++) {
     //     if (strncmp(proc_current()->name, strace_proc_name[i], sizeof(strace_proc_name[i])) == 0) {
@@ -273,7 +295,7 @@ void syscall(void) {
         // and store its return value in p->trapframe->a0
 #ifdef __STRACE__
         a0 = t->trapframe->a0;
-        if (is_strace_target()) {
+        if (is_strace_target(num)) {
             STRACE("%d: syscall %s(", p->pid, info[num].name);
             for (int i = 0; i < info[num].num; i++) {
                 uint64 argument;
@@ -306,7 +328,7 @@ void syscall(void) {
 #endif
         t->trapframe->a0 = syscalls[num]();
 #ifdef __STRACE__
-        if (is_strace_target()) {
+        if (is_strace_target(num)) {
             switch (info[num].return_type) {
             case 'p': STRACE(") -> %#x\n", t->trapframe->a0); break;
             case 'u': STRACE(") -> %u\n", t->trapframe->a0); break;

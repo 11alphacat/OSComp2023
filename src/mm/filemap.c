@@ -73,6 +73,15 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
     uint64 nr, len;
 
     ssize_t retval = 0;
+
+    // // debug
+    // char* buf_debug;
+    // buf_debug = kzalloc(n);
+    // char* buf_debug_init =  buf_debug;
+
+    // printfRed("read content : ");
+
+    // int first_char = 0;
     while (1) {
         struct page *page;
 
@@ -134,6 +143,22 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
             return -1;
         }
 
+        // if(first_char==0){
+        //     // printf("read content : %c\n", *(char*)(pa+offset));
+        //     first_char=1;
+            
+        //     if(*(char*)(pa+offset)!='p') {
+        //         printf("ready\n");
+        //     }
+        // }
+        // printf("%d", *(char*)(pa+offset));
+
+        // debug
+        // memmove((void*)buf_debug, (void*)(pa+offset), len);
+        // buf_debug+=len;
+
+
+
         // off、retval、src
         // unit is byte
         off += len;
@@ -153,6 +178,10 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
     }
 
 out:
+    // debug
+    // printfRed("read content: %s\n", buf_debug_init);
+    // kfree(buf_debug_init);
+    // printf("\n");
     return retval;
 }
 
@@ -165,9 +194,21 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
     uint64 pa;
     uint64 nr, len;
 
-    uint64 isize = PGROUNDUP(ip->i_size);
+    // uint64 isize = PGROUNDUP(ip->i_size);
+    uint64 isize_offset = ip->i_size%PGSIZE;
+
+    // // debug
+    // char* buf_debug;
+    // buf_debug =  (char*)kzalloc(n);
+    // char* buf_debug_init =  buf_debug;
+
+    // printfGreen("write content : ");
+
+    // int first_char = 0;
 
     ssize_t retval = 0;
+
+    // printf("write begin : \n");
     while (1) {
         struct page *page;
 
@@ -177,13 +218,15 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
         if (page == NULL) {
             int read_from_disk = -1;
-            // if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset, n - retval)) {
-            if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset)) {
+
+            // bug!!!(in iozone)
+            // if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset)) {
+            if(WRITE_FULL_PAGE(retval)||OUT_FILE(offset, isize_offset)){
                 // need read page in disk
-                read_from_disk = 1;
+                read_from_disk = 0;
             } else {
                 // panic("not tested\n");
-                read_from_disk = 0;
+                read_from_disk = 1;
             }
             pa = mpage_readpages(ip, index, 1, read_from_disk, 1); // just read one page, allocate clusters if necessary
             page = pa_to_page(pa);
@@ -200,12 +243,29 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
             pa = page_to_pa(page);
         }
 
+        // printf("write : %x\n", pa);
+
+
         // similar to fat32_inode_read
         len = MIN(n - retval, nr);
         if (either_copyin((void *)(pa + offset), user_src, src, len) == -1) {
             // panic("do_generic_file_write : copyin error\n");
             return -1;
         }
+        
+        // if(first_char==0){
+        //     // printf("read content : %c\n", *(char*)(pa+offset));
+        //     first_char=1;
+        //     if(*(char*)(pa+offset)!='p') {
+        //         printf("ready\n");
+        //     }
+        // }
+        // printf("%x", *(char*)(pa+offset));
+
+        // // debug
+        // memmove((void*)buf_debug, (void*)(pa+offset), len);
+        // buf_debug+=len;
+
 
         // set page dirty
         set_page_flags(page, PG_dirty);
@@ -231,5 +291,11 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
         offset = PGMASK(off);
     }
 
+    // printf("write end : \n");
+
+    // // debug
+    // printfGreen("write content: %s\n", buf_debug_init);
+    // kfree(buf_debug_init);
+    // printf("\n");
     return retval;
 }

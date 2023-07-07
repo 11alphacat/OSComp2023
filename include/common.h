@@ -49,6 +49,8 @@ typedef long int off_t;
 typedef long int blksize_t;
 typedef long int blkcnt_t;
 
+typedef int key_t;
+
 typedef unsigned short WORD;
 typedef unsigned int DWORD;
 
