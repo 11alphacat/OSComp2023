@@ -300,3 +300,21 @@ int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf) {
     t->sig_ing = uc.sig_ing;
     return 0;
 }
+
+// debug
+void print_signal_mask(sigset_t sigmask) {
+    uint64 mask = 1ULL << 63;
+    int leadingZeros = 1;
+
+    for (int i = 0; i < 64; ++i) {
+        if (sigmask.sig & mask) {
+            printf("%d ", i + 1);
+            leadingZeros = 0;
+        }
+        mask >>= 1;
+    }
+
+    if (leadingZeros) {
+        printf("None");
+    }
+}

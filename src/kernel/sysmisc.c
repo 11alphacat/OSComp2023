@@ -11,6 +11,8 @@
 #include "fs/bio.h"
 #include "kernel/syscall.h"
 #include "lib/ctype.h"
+#include "lib/resource.h"
+
 extern atomic_t ticks;
 
 struct tms {
@@ -150,6 +152,8 @@ uint64 sys_clock_gettime(void) {
     if (copyout(proc_current()->mm->pagetable, tp, (char *)&ts_buf, sizeof(ts_buf)) < 0) {
         return -1;
     }
+    // extern int print_tf_flag;
+    // print_tf_flag = 1;
 
     return 0;
 }
@@ -297,4 +301,217 @@ void print_rawfile(struct file *f, int fd, int printdir) {
     printfGreen("file size is %d(%#p)\n", f->f_tp.f_inode->i_size, f->f_tp.f_inode->i_size);
     printfGreen("==============\n");
     return;
+}
+
+// RLIMIT_NOFILE and RLIMIT_STACK
+int do_prlimit(struct proc *p, uint32 resource, struct rlimit *new_rlim, struct rlimit *old_rlim) {
+    // 	struct rlimit *rlim;
+    int retval = 0;
+
+    if (resource >= RLIM_NLIMITS)
+        return -EINVAL;
+
+    // if (new_rlim) {
+    // 	if (new_rlim->rlim_cur > new_rlim->rlim_max)
+    // 		return -EINVAL;
+    // 	if (resource == RLIMIT_NOFILE && new_rlim->rlim_max > sysctl_nr_open)
+    // 		return -EPERM;
+    // }
+    struct rlimit* rlim = p->rlim + resource;
+	if (!retval) {
+		if (old_rlim)
+			*old_rlim = *rlim;
+		if (new_rlim) {
+            *rlim = *new_rlim;
+            switch (resource) {
+            case RLIMIT_NOFILE:
+                p->max_ofile = new_rlim->rlim_max;
+                p->cur_ofile = new_rlim->rlim_cur;
+                break;
+            case RLIMIT_STACK:
+                panic("stack not tested\n");
+                break;
+            default:
+                panic("RLIMIT : not tested\n");
+                break;
+            }
+        }
+	}
+    // if (res == RLIMIT_STACK) {
+    //     if (oldrl) {
+    //         rl.rlim_cur = p->mm->ustack->len;
+    //         rl.rlim_max = 30 * PGSIZE;
+    //         if (copyout(oldrl, (char*)&rl, sizeof(struct rlimit)) < 0) {
+    //             return -1;
+    //         }
+    //     }
+
+    //     if (newrl) {
+    //         if (copy_from_user(&rl, newrl, sizeof(struct rlimit)) < 0)
+    //             return -1;
+    //         if (mmap_ext_stack(p->mm, rl.rlim_cur) < 0)
+    //             return -1;
+    //     }
+    // } else if (res == RLIMIT_NOFILE) {
+    //     if (oldrl) {
+    //         rl.rlim_cur = p->fdtable->max_nfd;
+    //         rl.rlim_max = p->fdtable->max_nfd;
+    //         if (copyout(oldrl, (char*)&rl, sizeof(struct rlimit)) < 0) {
+    //             return -1;
+    //         }
+    //     }
+
+    //     if (newrl) {
+    //         if (copy_from_user(&rl, newrl, sizeof(struct rlimit)) < 0)
+    //             return -1;
+
+    //         return fdtbl_setmaxnfd(p->fdtable, rl.rlim_cur);
+    //     }
+    // } else {
+    //     debug("ukres %d", res);
+    //     return -1;
+    // }
+
+    // 	if (new_rlim) {
+    // 		if (new_rlim->rlim_cur > new_rlim->rlim_max)
+    // 			return -EINVAL;
+    // 		if (resource == RLIMIT_NOFILE &&
+    // 				new_rlim->rlim_max > sysctl_nr_open)
+    // 			return -EPERM;
+    // 	}
+
+    // 	/* protect tsk->signal and tsk->sighand from disappearing */
+    // 	read_lock(&tasklist_lock);
+    // 	if (!tsk->sighand) {
+    // 		retval = -ESRCH;
+    // 		goto out;
+    // 	}
+
+    // 	rlim = tsk->signal->rlim + resource;
+    // 	task_lock(tsk->group_leader);
+    // 	if (new_rlim) {
+    // 		/* Keep the capable check against init_user_ns until
+    // 		   cgroups can contain all limits */
+    // 		if (new_rlim->rlim_max > rlim->rlim_max &&
+    // 				!capable(CAP_SYS_RESOURCE))
+    // 			retval = -EPERM;
+    // 		if (!retval)
+    // 			retval = security_task_setrlimit(tsk, resource, new_rlim);
+    // 	}
+    // 	if (!retval) {
+    // 		if (old_rlim)
+    // 			*old_rlim = *rlim;
+    // 		if (new_rlim)
+    // 			*rlim = *new_rlim;
+    // 	}
+    // 	task_unlock(tsk->group_leader);
+
+    // 	/*
+    // 	 * RLIMIT_CPU handling. Arm the posix CPU timer if the limit is not
+    // 	 * infite. In case of RLIM_INFINITY the posix CPU timer code
+    // 	 * ignores the rlimit.
+    // 	 */
+    // 	 if (!retval && new_rlim && resource == RLIMIT_CPU &&
+    // 	     new_rlim->rlim_cur != RLIM_INFINITY &&
+    // 	     IS_ENABLED(CONFIG_POSIX_TIMERS))
+    // 		update_rlimit_cpu(tsk, new_rlim->rlim_cur);
+    // out:
+    // read_unlock(&tasklist_lock);
+    return retval;
+}
+
+static inline int rlim64_is_infinity(__u64 rlim64)
+{
+	return rlim64 == RLIM64_INFINITY;
+}
+
+static void rlim_to_rlim64(const struct rlimit *rlim, struct rlimit64 *rlim64)
+{
+	if (rlim->rlim_cur == RLIM_INFINITY)
+		rlim64->rlim_cur = RLIM64_INFINITY;
+	else
+		rlim64->rlim_cur = rlim->rlim_cur;
+	if (rlim->rlim_max == RLIM_INFINITY)
+		rlim64->rlim_max = RLIM64_INFINITY;
+	else
+		rlim64->rlim_max = rlim->rlim_max;
+}
+
+static void rlim64_to_rlim(const struct rlimit64 *rlim64, struct rlimit *rlim)
+{
+	if (rlim64_is_infinity(rlim64->rlim_cur))
+		rlim->rlim_cur = RLIM_INFINITY;
+	else
+		rlim->rlim_cur = (unsigned long)rlim64->rlim_cur;
+	if (rlim64_is_infinity(rlim64->rlim_max))
+		rlim->rlim_max = RLIM_INFINITY;
+	else
+		rlim->rlim_max = (unsigned long)rlim64->rlim_max;
+}
+
+// int prlimit(pid_t pid, int resource, const struct rlimit *new_limit, struct rlimit *old_limit);
+uint64 sys_prlimit64(void) {
+    pid_t pid;
+    int resource;
+    uint64 new_limit_addr;
+    uint64 old_limit_addr;
+    struct rlimit new_limit, old_limit;
+    struct rlimit64 new64_limit, old64_limit;
+
+    argint(0, &pid);
+    argint(1, &resource);
+    argaddr(2, &new_limit_addr);
+    argaddr(3, &old_limit_addr);
+
+    // struct task_struct *tsk;
+    struct proc *p;
+    // unsigned int checkflags = 0;
+    int ret;
+
+    // if (old_rlim)
+    // 	checkflags |= LSM_PRLIMIT_READ;
+
+    // if (new_rlim) {
+    // 	if (copy_from_user(&new64, new_rlim, sizeof(new64)))
+    // 		return -EFAULT;
+    // 	rlim64_to_rlim(&new64, &new);
+    // 	checkflags |= LSM_PRLIMIT_WRITE;
+    // }
+    if (new_limit_addr) {
+        if (copyin(proc_current()->mm->pagetable, (char *)&new64_limit, new_limit_addr, sizeof(new64_limit)) < 0) {
+            return -EFAULT;
+        }
+        rlim64_to_rlim(&new64_limit, &new_limit);
+    }
+    // rcu_read_lock();
+    p = pid ? find_get_pid(pid) : proc_current();
+    if (!p) {
+        panic("proc get error\n");
+    }
+    // tsk = pid ? find_task_by_vpid(pid) : current;
+    // if (!tsk) {
+    // 	rcu_read_unlock();
+    // 	return -ESRCH;
+    // }
+    acquire(&p->lock);
+    // ret = check_prlimit_permission(tsk, checkflags);
+    // if (ret) {
+    // 	rcu_read_unlock();
+    // 	return ret;
+    // }
+    // get_task_struct(tsk);
+    // rcu_read_unlock();
+
+    ret = do_prlimit(p, resource, new_limit_addr ? &new_limit : NULL, old_limit_addr ? &old_limit : NULL);
+
+    if (!ret && old_limit_addr) {
+        rlim_to_rlim64(&old_limit, &old64_limit);
+        if (copyout(proc_current()->mm->pagetable, old_limit_addr, (char *)&old64_limit, sizeof(old64_limit)) < 0) {
+            ret = -EFAULT;
+        }
+    }
+
+    release(&p->lock);
+    // put_task_struct(tsk);
+    return ret;
 }

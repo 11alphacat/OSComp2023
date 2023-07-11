@@ -97,6 +97,7 @@
 209 getsockopt sys_getsockopt
 
 67 pread64 sys_pread64
+68 pwrite64 sys_pwrite64
 
 46 ftruncate sys_ftruncate
 81 sync sys_sync

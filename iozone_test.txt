@@ -87,11 +87,24 @@ if(WRITE_FULL_PAGE(retval)||OUT_FILE(offset, isize_offset)){
     read_from_disk = 1;
 }
 
-
+write/read
 iozone -t 4 -i 0 -i 1 -r 1k -s 1m
+顺序写+顺序读
+
+random-read
+iozone -t 4 -i 0 -i 2 -r 1k -s 1m
+顺序写+随机读
+
+read-backwards
+iozone -t 4 -i 0 -i 3 -r 1k -s 1m
+顺序写+反向读
+
+stride-read
+iozone -t 4 -i 0 -i 5 -r 1k -s 1m
+顺序写+跳跃读
+
 
 （1）multi_throughput_test
-
 
 
 问题一：
@@ -100,5 +113,180 @@ usertrap(): process name: iozone pid: 3
 scause 000000000000000f STORE/AMO PAGEFAULT
 sepc=0000000000058922
 stval=0000000000000008
+
+原因是：
+sys_shmget、sys_shmat 和 sys_mctl 没有实现
+
+shmget 的用户地址： 0x5086a
+
+第一步：
+shmid=(int)shmget((key_t)(IPC_PRIVATE), (size_t)size1 , (int)(IPC_CREAT|0666));
+
+可以看出是创建一个private 的ipc
+size1 为 0x2000， 两个页的大小
+
+第二步：
+addr = (char *)shmat((int)shmid, 0, 0);
+
+addr 和 flag 都是0
+
+第三步：
+shmctl(shmid, IPC_RMID, 0);
+删除共享存储段
+
+
+问题二：
+测试调用了pselect6 ，所以需要先写好pselect6
+用户态地址： 0x5a2d8
+
+while(child_stat->flag!=CHILD_STATE_BEGIN)   /* Wait for signal from parent */
+    Poll((long long)1);
+
+#ifdef HAVE_ANSIC_C
+void Poll(long long time1)
+#else
+void Poll(time1)
+long  long time1;
+#endif
+{
+	struct timeval howlong;
+	howlong.tv_sec=(int)(time1/100000);
+	howlong.tv_usec=(int)(time1%100000); /* Get into u.s. */
+	select(0, 0, 0, 0, &howlong);
+}
+
+
+问题三：
+父子进程之间共用一个共享内存？？
+clone的用户态地址：
+56070
+
+
+for(xyz=0;xyz<num_child;xyz++){ /* all children to state 0 (HOLD) */
+    child_stat = (struct child_stats *)&shmaddr[xyz];
+    child_stat->flag=CHILD_STATE_HOLD;
+    child_stat->actual=0;
+    child_stat->throughput=0;
+    child_stat->cputime=0;
+    child_stat->walltime=0;
+}
+
+问题四：
+子进程无法停止？？
+子：
+while(child_stat->flag!=CHILD_STATE_BEGIN)   /* Wait for signal from parent */
+    Poll((long long)1);
+
+父：
+while(child_stat->flag==CHILD_STATE_HOLD)
+    Poll((long long)1);
+
+
+父进程一直没有给子进程发送信号？？？
+
+父进程clone的用户地址：
+0x5b61c
+
+
+#ifdef HAVE_ANSIC_C
+long long
+start_child_proc(int testnum,long long numrecs64, long long reclen)
+#else
+long long
+start_child_proc(testnum, numrecs64, reclen)
+int testnum;
+long long numrecs64, reclen;
+#endif
+{
+	long long x;
+	if(distributed && master_iozone)
+	{
+		x=(long long)pick_client(testnum,numrecs64, reclen);
+	}
+	else
+	{
+		x=(long long)fork();
+	}
+	if(mdebug)
+		printf("Starting proc %d\n",(int)x);	
+	return(x);
+}
+
+原因：共享内存没有写正确，子进程已经对共享内存的内容进行了操作，
+但是父进程没有正确反应？？
+
+
+解决：
+如果不是VMA_FILE类型或者是不是PERM_SHARED不能copy-on-write
+if (pos->type != VMA_FILE || !(pos->perm & PERM_SHARED)) {
+    if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
+        *pte = *pte | PTE_READONLY;
+    }
+    /* shared page */
+    if ((*pte & PTE_W) == 0 && (*pte & PTE_READONLY) != 0) {
+        *pte = *pte | PTE_READONLY;
+    }
+    *pte = *pte | PTE_SHARE;
+    *pte = *pte & ~PTE_W;
+}
+
+
+问题五：
+并发写
+出现了 panic("sched locks"); 这个错误，又是什么锁没有释放？？
+
+调用write 的用户态地址：
+0x5a478
+
+测试创建了4个进程，并发向4个文件写入内容，文件名称为:
+iozone.DUMMY.0 ~ iozone.DUMMY.3
+每次写入1024个字节？
+
+总共写入1048576个字节？？
+即1MB
+
+然后，测试再次创建4个进程，同时写
+即进行了两次并发写的操作。
+
+然后，测试再次创建4个进程，同时读
+还是一次读取1024个字节，总共读取1MB。
+
+最后，测试再次创建4个进程，同时读
+
+
+问题六：
+程序卡住???
+4个子进程分别向4个文件中写入内容，然后close，只有一个进程成功地close了，其他的进程似乎都没有正常进行close？？
+
+在fat32_inode_put 中没有正确地释放parent的锁
+
+
+问题七：
+发生了 panic： filewrite
+主要原因是通过共享内存创建的文件没有设置正确的文件类型？？
+主要原因是共享内存创建的文件提前进行了close，将类型设置为了FD_NONE？？
+所以进行uvmfree 的时候不需要进行写回！
+
+
+问题八：
+发送了 panic: generic_fileclose
+主要原因是 进程在进行exit 的时候已经释放了所有的ofile，共享内存对应的文件也被close了？？
+在vmspace_unmap 又对这个文件进行close就发生了错误。
+
+
+
+busybox echo iozone throughput fwrite/fread measurements
+iozone -t 4 -i 6 -i 7 -r 1k -s 1m
+随机读取和随机写入
+
+
+
+busybox echo iozone throughput pwrite/pread measurements
+iozone -t 4 -i 9 -i 10 -r 1k -s 1m
+测试出现问题，需要编写pwrite64这个系统调用
+
+
+busybox echo iozone throughtput pwritev/preadv measurements
+iozone -t 4 -i 11 -i 12 -r 1k -s 1m
 
 

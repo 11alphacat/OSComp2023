@@ -42,12 +42,14 @@ void uart_hifive_intr(void) {
 // for asynchronous
 void uart_hifve_submit() {
     while (1) {
-        if (BUF_IS_EMPETY(uart) || UART_TX_FULL(uarths)) {
+        // if (BUF_IS_EMPETY(uart) || UART_TX_FULL(uarths)) {
+        if (BUF_IS_EMPETY(uart) || UART_TX_FULL) {
             return;
         }
         char ch = UART_BUF_GETCHAR(uart);
         sema_signal(&uart.uart_tx_r_sem);
-        UART_TX_PUTCHAR(uarths, ch);
+        // UART_TX_PUTCHAR(uarths, ch);
+        UART_TX_PUTCHAR(ch);
     }
 }
 
@@ -72,18 +74,41 @@ void uart_hifive_putc_syn(char ch) {
         for (;;)
             ;
     }
-    while (UART_TX_FULL(uarths))
-        ;
-    UART_TX_PUTCHAR(uarths, ch);
+    // uint32 txdata = ReadReg_hifive(TXDATA);
+    while (ReadReg_hifive(TXDATA) & TX_FULL_MASK);
+    // int* uartRegTXFIFO = (int*)(UART0_BASE + TXDATA);
+    // if(readl(uartRegTXFIFO)&TX_FULL_MASK) {
+    //     int b = 2;
+    //     b++;
+    // } else {
+    //     int a =1;
+    //     a++;
+    // }
+	// while (readl(uartRegTXFIFO) & UART_TXFIFO_FULL);
+    // writel(ch, uartRegTXFIFO);
+    // if(UART_TX_FULL(uarths)) {
+    // if(uarths->txdata.full & TX_FULL_MASK) {
+    //     int a = 1;
+    //     a ++;
+    // } else {
+    //     int b = 2;
+    //     b ++;
+    // }
+    // while (UART_TX_FULL(uarths))
+    //     ;
+    // UART_TX_PUTCHAR(uarths, ch);
+    WriteReg_hifive(TXDATA, ch);
 
     pop_off();
 }
 
 int uart_hifive_getc() {
-    if (UART_RX_EMPTY(uarths))
+    // if (UART_RX_EMPTY(uarths))
+    if(UART_RX_EMPTY)
         return -1;
     else
-        return UART_RX_GETCHAR(uarths);
+        return UART_RX_GETCHAR;
+        // return UART_RX_GETCHAR(uarths);
 }
 
 // interfaces for upper layer

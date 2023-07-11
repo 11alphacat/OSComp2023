@@ -195,17 +195,46 @@ zero： write n 个字符， 返回 0， 不需要任何操作，read n 个 字�
 
 
 
-./runtest.exe -w entry-static.exe rlimit_open_files
-出现下面的问题：
-src/regression/rlimit-open-files.c:30: more fds are open than rlimit allows: fd=127, limit=42
-TODO ： sys_prlimit64 需要实现
+
 
 ./runtest.exe -w entry-static.exe utime
 TODO ： sys_utimensat 需要实现
 
-# ./runtest.exe -w entry-static.exe sscanf_long
+时间戳可以按下列4种方式之一进行指定。
+（1）如果times参数是一个空指针，则访问时间和修改时间两者都设置为当前时间。
+（2）如果times参数指向两个timespec结构的数组，任一数组元素的tv_nsec字段的值为UTIME NOW，相应的时间戳就设置为当前时间，忽略相应的tv_sec字段。
+（3）如果times参数指向两个timespec结构的数组，任一数组元素的tv_nsec字段的值为UTIME_OMIT，相应的时间戳保持不变，忽略相应的tv_sec字段。
+（4）如果times参数指向两个timespec结构的数组，且tv_nsec 字段的值为既不是UTIME_NOW 也不是 UTIME_OMIT，在这种情况下，相应的时间戳设置为相应的 tv_sec 和tv_nsec字段的值。
+
+需要注意的是，如果fd是特殊值，比如 AT_FDCWD，则需要强制相对于当前目录计算pathname
+
+第一次调用utimensat的用户态地址：
+0x3ef1c
+
+记得atime 和 mtime的单位是秒！
+
+
+./runtest.exe -w entry-static.exe sscanf_long
 TODO : sys_prlimit64 需要实现
+出现下面这个usertrap？？？
+usertrap(): process name: entry-static.exe pid: 4
+scause 0000000000000002 ILLEGAL INSTRUCTION
+sepc=00000000000336a2
+stval=0000000000000000
+主要是使用下面这个宏对用户栈的大小进行限制：
+RLIMIT_STACK
+
+
+./runtest.exe -w entry-static.exe rlimit_open_files
+出现下面的问题：
+src/regression/rlimit-open-files.c:30: more fds are open than rlimit allows: fd=127, limit=42
+TODO ： sys_prlimit64 需要实现
+主要是使用下面这个宏对文件打开表进行限制：
+RLIMIT_NOFILE
+那么进程的文件打开表的表项需要进行动态改变
+
 
 
 ./runtest.exe -w entry-static.exe socket 
 TODO: socket 系统调用需要实现
+

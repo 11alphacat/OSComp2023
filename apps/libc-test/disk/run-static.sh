@@ -49,7 +49,7 @@
 ./runtest.exe -w entry-static.exe tls_align
 ./runtest.exe -w entry-static.exe udiv
 ./runtest.exe -w entry-static.exe ungetc
-# ./runtest.exe -w entry-static.exe utime
+./runtest.exe -w entry-static.exe utime
 ./runtest.exe -w entry-static.exe wcsstr
 ./runtest.exe -w entry-static.exe wcstol
 ./runtest.exe -w entry-static.exe pleval
@@ -94,7 +94,7 @@
 ./runtest.exe -w entry-static.exe regex_negated_range
 ./runtest.exe -w entry-static.exe regexec_nosub
 ./runtest.exe -w entry-static.exe rewind_clear_error
-# ./runtest.exe -w entry-static.exe rlimit_open_files
+./runtest.exe -w entry-static.exe rlimit_open_files
 ./runtest.exe -w entry-static.exe scanf_bytes_consumed
 ./runtest.exe -w entry-static.exe scanf_match_literal_eof
 ./runtest.exe -w entry-static.exe scanf_nullbyte_char

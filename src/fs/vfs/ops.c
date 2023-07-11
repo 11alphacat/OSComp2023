@@ -12,7 +12,7 @@
 struct devsw devsw[NDEV];
 struct ftable _ftable;
 
-// == file layrer ==
+// == file layer ==
 struct file *filealloc(fs_t type) {
     // Allocate a file structure.
     // 语义：从内存中的 _ftable 中寻找一个空闲的 file 项，并返回指向该 file 的指针

@@ -146,7 +146,7 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         // if(first_char==0){
         //     // printf("read content : %c\n", *(char*)(pa+offset));
         //     first_char=1;
-            
+
         //     if(*(char*)(pa+offset)!='p') {
         //         printf("ready\n");
         //     }
@@ -156,8 +156,6 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         // debug
         // memmove((void*)buf_debug, (void*)(pa+offset), len);
         // buf_debug+=len;
-
-
 
         // off、retval、src
         // unit is byte
@@ -195,7 +193,7 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
     uint64 nr, len;
 
     // uint64 isize = PGROUNDUP(ip->i_size);
-    uint64 isize_offset = ip->i_size%PGSIZE;
+    uint64 isize_offset = ip->i_size % PGSIZE;
 
     // // debug
     // char* buf_debug;
@@ -221,7 +219,7 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
             // bug!!!(in iozone)
             // if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset)) {
-            if(WRITE_FULL_PAGE(retval)||OUT_FILE(offset, isize_offset)){
+            if (WRITE_FULL_PAGE(retval) || OUT_FILE(offset, isize_offset)) {
                 // need read page in disk
                 read_from_disk = 0;
             } else {
@@ -245,14 +243,13 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
         // printf("write : %x\n", pa);
 
-
         // similar to fat32_inode_read
         len = MIN(n - retval, nr);
         if (either_copyin((void *)(pa + offset), user_src, src, len) == -1) {
             // panic("do_generic_file_write : copyin error\n");
             return -1;
         }
-        
+
         // if(first_char==0){
         //     // printf("read content : %c\n", *(char*)(pa+offset));
         //     first_char=1;
@@ -265,7 +262,6 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
         // // debug
         // memmove((void*)buf_debug, (void*)(pa+offset), len);
         // buf_debug+=len;
-
 
         // set page dirty
         set_page_flags(page, PG_dirty);

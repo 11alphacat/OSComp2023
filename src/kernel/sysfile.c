@@ -67,7 +67,8 @@ int fdalloc(struct file *f) {
     struct proc *p = proc_current();
 
     sema_wait(&p->tlock);
-    for (fd = 0; fd < NOFILE; fd++) {
+    // for (fd = 0; fd < NOFILE; fd++) {
+    for (fd = 0; fd < p->max_ofile; fd++) {
         if (p->ofile[fd] == 0) {
             p->ofile[fd] = f;
             sema_signal(&p->tlock);
@@ -131,7 +132,7 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
 }
 
 // 下面为inode文件分配一个打开文件表项，为进程分配一个文件描述符
-static int assist_openat(struct inode *ip, int flags, int omode) {
+int assist_openat(struct inode *ip, int flags, int omode, struct file **fp) {
     ASSERT(ip);
     ASSERT(ip->fs_type == FAT32);
     struct file *f;
@@ -169,6 +170,9 @@ static int assist_openat(struct inode *ip, int flags, int omode) {
     }
 
     ip->i_op->iunlock(ip);
+
+    if (fp)
+        *fp = f; // get struct file pointer
 
     return fd;
 }
@@ -253,8 +257,8 @@ static uint64 do_lseek(struct file *f, off_t offset, int whence) {
     // if(f->f_pos==-1) {
     //     printf("ready\n");
     // }
-
-    printfRed("lseek : lseek inode file %s to %d \n", f->f_tp.f_inode->fat32_i.fname, MAX(0, f->f_pos)); // debug
+    // debug!!!
+    // printfRed("lseek : pid : %d, lseek inode file %s to %d \n", proc_current()->pid, f->f_tp.f_inode->fat32_i.fname, MAX(0, f->f_pos)); // debug
     return MAX(0, f->f_pos);
 }
 
@@ -645,7 +649,7 @@ uint64 sys_openat(void) {
 
     // if(!strncmp(path, "iozone.tmp", 10)) {
     //     extern int print_tf_flag;
-    //     print_tf_flag = 1;
+    //     flag = 1;
     //     printf("ready\n");
     // }
 
@@ -678,7 +682,7 @@ uint64 sys_openat(void) {
         return -1;
     }
 
-    fd = assist_openat(ip, flags, omode);
+    fd = assist_openat(ip, flags, omode, 0);
 
     return fd;
 }
@@ -695,11 +699,18 @@ uint64 sys_close(void) {
         return -1;
     }
     proc_current()->ofile[fd] = 0;
+
 #ifdef __DEBUG_FS__
-    printfCYAN("close : pid %d, fd = %d\n", proc_current()->pid, fd);
+    printfCYAN("close : filename : %s, pid %d, fd = %d\n", f->f_tp.f_inode->fat32_i.fname, proc_current()->pid, fd);
 #endif
+
+    // debug ！！！
+    // printfCYAN("close begin: filename : %s, pid %d, fd = %d\n", f->f_tp.f_inode->fat32_i.fname, proc_current()->pid, fd);
+
     generic_fileclose(f);
 
+    // debug ！！！
+    // printfCYAN("close end: filename : %s, pid %d, fd = %d\n", f->f_tp.f_inode->fat32_i.fname, proc_current()->pid, fd);
     return 0;
 }
 
@@ -751,6 +762,13 @@ uint64 sys_write(void) {
     if (!F_WRITEABLE(f))
         return -1;
 
+    // if(n == 1024) {
+    //     extern int print_tf_flag;
+    //     print_tf_flag = 1;
+    // }
+    if (f->f_tp.f_inode->fat32_i.fname[0] == 'S') {
+        printfBlue("ready\n");
+    }
     return f->f_op->write(f, p, n);
 }
 
@@ -1368,13 +1386,13 @@ uint64 sys_statfs(void) {
     fs_stat.f_bsize = BSIZE;
     fs_stat.f_frsize = BSIZE;
     fs_stat.f_blocks = __TotSec;
-    fs_stat.f_bfree = __TotSec / 4; // not important
+    fs_stat.f_bfree = __TotSec / 4;  // not important
     fs_stat.f_files = NINODE;
     fs_stat.f_ffree = NINODE / 4;    // not important
     fs_stat.f_bavail = __TotSec / 4; // not important
     fs_stat.f_fsid.val[0] = 2;       // not important
     fs_stat.f_namelen = NAME_LONG_MAX;
-    fs_stat.f_flags = 0; // not important
+    fs_stat.f_flags = 0;             // not important
     // printfRed("%x", ustat_addr);
     struct proc *p = proc_current();
     if (copyout(p->mm->pagetable, ustat_addr, (char *)&fs_stat, sizeof(fs_stat)) < 0) { // rember add 1 for '\0'
@@ -1435,22 +1453,181 @@ struct pthread {
      * the end of the structure is external and internal ABI. */
 };
 
-// TODO(): to be finished
-uint64 sys_utimensat(void) {
-    return -ENOENT;
-    // ASSERT(0);
-    printf("welcome to SYS_utimensat\n\n");
-    struct tcb *t = thread_current();
-    printf("tp = 0x%x\n", t->trapframe->tp);
+// static int nsec_valid(long nsec)
+// {
+// 	if (nsec == UTIME_OMIT || nsec == UTIME_NOW)
+// 		return 1;
 
-    // set_errno(ERRORCODE);
-    struct pthread pt;
-    either_copyin(&pt, 1, t->trapframe->tp, sizeof(pt));
-    pt.errno_val = 2;
-    pt.h_errno_val = 2;
-    either_copyout(1, t->trapframe->tp, &pt, sizeof(pt));
-    // *(int*)(t->trapframe->tp) = 2;
-    return 1;
+// 	return nsec >= 0 && nsec <= 999999999;
+// }
+
+static int utimes_common(struct inode *ip, struct timespec *times) {
+    // 	int error;
+    // 	struct iattr newattrs;
+    // 	struct inode *inode = path->dentry->d_inode;
+
+    // 	error = mnt_want_write(path->mnt);
+    // 	if (error)
+    // 		goto out;
+    // if (times && times[0].ts_nsec == UTIME_NOW && times[1].ts_nsec == UTIME_NOW)
+    // 	times = NULL;
+
+    // 	newattrs.ia_valid = ATTR_CTIME | ATTR_MTIME | ATTR_ATIME;
+    if (times) {
+        // ignore it
+        if (times[0].ts_nsec == UTIME_OMIT) {
+            // 			newattrs.ia_valid &= ~ATTR_ATIME;
+        } else if (times[0].ts_nsec == UTIME_NOW) {
+            ip->i_atime = NS_to_S(TIME2NS(rdtime()));
+            // 			newattrs.ia_atime.tv_sec = times[0].tv_sec;
+            // 			newattrs.ia_atime.tv_nsec = times[0].tv_nsec;
+            // 			newattrs.ia_valid |= ATTR_ATIME_SET;
+        } else {
+            ip->i_atime = NS_to_S(TIMESEPC2NS(times[0]));
+        }
+
+        // ignore it
+        if (times[1].ts_nsec == UTIME_OMIT) {
+            // 			newattrs.ia_valid &= ~ATTR_MTIME;
+        } else if (times[1].ts_nsec == UTIME_NOW) {
+            ip->i_mtime = NS_to_S(TIME2NS(rdtime()));
+            // 			newattrs.ia_mtime.tv_sec = times[1].tv_sec;
+            // 			newattrs.ia_mtime.tv_nsec = times[1].tv_nsec;
+            // 			newattrs.ia_valid |= ATTR_MTIME_SET;
+        } else {
+            ip->i_mtime = NS_to_S(TIMESEPC2NS(times[1]));
+        }
+        // 		/*
+        // 		 * Tell inode_change_ok(), that this is an explicit time
+        // 		 * update, even if neither ATTR_ATIME_SET nor ATTR_MTIME_SET
+        // 		 * were used.
+        // 		 */
+        // 		newattrs.ia_valid |= ATTR_TIMES_SET;
+    } else {
+        ip->i_atime = NS_to_S(TIME2NS(rdtime()));
+        ip->i_mtime = NS_to_S(TIME2NS(rdtime()));
+        // 		/*
+        // 		 * If times is NULL (or both times are UTIME_NOW),
+        // 		 * then we need to check permissions, because
+        // 		 * inode_change_ok() won't do it.
+        // 		 */
+        // 		error = -EACCES;
+        //                 if (IS_IMMUTABLE(inode))
+        // 			goto mnt_drop_write_and_out;
+
+        // 		if (!is_owner_or_cap(inode)) {
+        // 			error = inode_permission(inode, MAY_WRITE);
+        // 			if (error)
+        // 				goto mnt_drop_write_and_out;
+        // 		}
+    }
+    return 0;
+    // 	mutex_lock(&inode->i_mutex);
+    // 	error = notify_change(path->dentry, &newattrs);
+    // 	mutex_unlock(&inode->i_mutex);
+
+    // mnt_drop_write_and_out:
+    // 	mnt_drop_write(path->mnt);
+    // out:
+    // 	return error;
+}
+
+long do_utimes(int dfd, char *filename, struct timespec *times, int flags) {
+    int error = -EINVAL;
+    // if (times && (!nsec_valid(times[0].ts_nsec) || !nsec_valid(times[1].ts_sec))) {
+    // 	goto out;
+    // }
+
+    if (flags & ~AT_SYMLINK_NOFOLLOW)
+        goto out;
+
+    if (filename == NULL && dfd != AT_FDCWD) {
+        struct file *file = NULL;
+
+        if (flags & AT_SYMLINK_NOFOLLOW)
+            goto out;
+
+        argfd(0, &dfd, &file);
+
+        error = -EBADF;
+        if (!file)
+            goto out;
+        error = utimes_common(file->f_tp.f_inode, times);
+    } else {
+        // error = utimes_common(&file->f_path, times);
+        struct inode *ip;
+        if ((ip = find_inode(filename, dfd, 0)) == 0) {
+            return -ENOTDIR;
+        }
+        error = utimes_common(ip, times);
+    }
+    // error = utimes_common(file->f_tp.f_inode, times);
+    // 		fput(file);
+    // } else {
+
+    // struct path path;
+    // int lookup_flags = 0;
+
+    // if (!(flags & AT_SYMLINK_NOFOLLOW))
+    // 	lookup_flags |= LOOKUP_FOLLOW;
+
+// 		error = user_path_at(dfd, filename, lookup_flags, &path);
+// 		if (error)
+// 			goto out;
+
+// 		error = utimes_common(&path, times);
+// 		path_put(&path);
+// }
+out:
+    return error;
+}
+
+// change file timestamps with nanosecond precision
+// int utimensat(int dirfd, const char *pathname, const struct timespec times[2], int flags);
+// times[0] specifies the new "last access time" (atime);
+// times[1] specifies the new "last modification time" (mtime).
+uint64 sys_utimensat(void) {
+    int dirfd;
+    char pathname[MAXPATH];
+    uint64 times_addr;
+    int flags;
+    argint(0, &dirfd);
+    if (argstr(1, pathname, MAXPATH) < 0) {
+        pathname[0] = '\0';
+        // return -1;
+    }
+    argaddr(2, &times_addr);
+    argint(3, &flags);
+
+    struct timespec tstimes[2];
+
+    // extern int print_tf_flag;
+    // print_tf_flag = 1;
+
+    if (times_addr) {
+        if (copyin(proc_current()->mm->pagetable, (char *)&tstimes, times_addr, 2 * sizeof(struct timespec)) < 0) {
+            return -EFAULT;
+        }
+        if (tstimes[0].ts_sec == UTIME_OMIT && tstimes[1].ts_nsec == UTIME_OMIT)
+            return 0;
+    }
+
+    return do_utimes(dirfd, pathname[0] ? pathname : NULL, times_addr ? tstimes : NULL, flags);
+
+    // return -ENOENT;
+    // // ASSERT(0);
+    // printf("welcome to SYS_utimensat\n\n");
+    // struct tcb *t = thread_current();
+    // printf("tp = 0x%x\n", t->trapframe->tp);
+
+    // // set_errno(ERRORCODE);
+    // struct pthread pt;
+    // either_copyin(&pt, 1, t->trapframe->tp, sizeof(pt));
+    // pt.errno_val = 2;
+    // pt.h_errno_val = 2;
+    // either_copyout(1, t->trapframe->tp, &pt, sizeof(pt));
+    // // *(int*)(t->trapframe->tp) = 2;
+    // return 1;
 }
 
 // 功能：change the name or location of a file
@@ -1613,6 +1790,8 @@ uint64 sys_fstatat(void) {
 
 // read from a file descriptor at a given offset
 // ssize_t pread(int fd, void *buf, size_t count, off_t offset)
+// reads up to count bytes from file descriptor fd at offset offset (from the start of the file) into the buffer starting at buf.
+// The file off‐set is not changed.
 uint64 sys_pread64(void) {
     int fd;
     uint64 buf;
@@ -1630,6 +1809,31 @@ uint64 sys_pread64(void) {
     struct inode *ip = f->f_tp.f_inode;
     ip->i_op->ilock(ip);
     uint64 retval = ip->i_op->iread(ip, 1, buf, offset, count);
+    ip->i_op->iunlock(ip);
+    return retval;
+}
+
+// write to a file descriptor at a given offset
+// ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);
+// pwrite() writes up to count bytes from the buffer starting at buf to the file descriptor fd at offset offset.
+// The file offset is not changed.
+uint64 sys_pwrite64(void) {
+    int fd;
+    uint64 buf;
+    size_t count;
+    off_t offset;
+
+    struct file *f;
+    if (argfd(0, &fd, &f) < 0) {
+        return -1;
+    }
+    argaddr(1, &buf);
+    argulong(2, &count);
+    arglong(3, &offset);
+
+    struct inode *ip = f->f_tp.f_inode;
+    ip->i_op->ilock(ip);
+    uint64 retval = ip->i_op->iwrite(ip, 1, buf, offset, count);
     ip->i_op->iunlock(ip);
     return retval;
 }

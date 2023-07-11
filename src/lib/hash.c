@@ -21,11 +21,12 @@ struct hash_entry *hash_get_entry(struct hash_table *table, void *key) {
 
     switch (table->type) {
     case PID_MAP:
-        hash_val = *(int *)key % table->size;
-        break;
     case TID_MAP:
+    case IPC_IDX_MAP:
         hash_val = *(int *)key % table->size;
         break;
+        // hash_val = *(int *)key % table->size;
+        // break;
     case FUTEX_MAP:
         hash_val = (uint64)key % table->size;
         break;
@@ -137,6 +138,7 @@ uint64 hash_val(struct hash_node *node, enum hash_type type) {
     switch (type) {
     case PID_MAP:
     case TID_MAP:
+    case IPC_IDX_MAP:
         hash_val = node->key_id;
         break;
     case FUTEX_MAP:
@@ -156,6 +158,7 @@ uint64 hash_bool(struct hash_node *node, void *key, enum hash_type type) {
     switch (type) {
     case PID_MAP:
     case TID_MAP:
+    case IPC_IDX_MAP:
         ret = (node->key_id == *(int *)key);
         break;
     case FUTEX_MAP:
@@ -175,6 +178,7 @@ void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
     switch (type) {
     case PID_MAP:
     case TID_MAP:
+    case IPC_IDX_MAP:
         node->key_id = *(int *)key;
         break;
     case FUTEX_MAP:

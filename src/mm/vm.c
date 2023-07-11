@@ -10,6 +10,7 @@
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
 #include "memory/buddy.h"
+#include "platform/hifive/uart_hifive.h"
 
 /*
  * the kernel's page table.
@@ -35,7 +36,7 @@ kvmmake(void) {
     // a temporary version <<==
     kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R, COMMONPAGE);
     // // uart registers
-    // kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
+    kvmmap(kpgtbl, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 
     // a rough handler
 #define QSPI_2_BASE ((unsigned int)0x10050000)
@@ -431,7 +432,10 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
             ASSERT(pos->size == USTACK_PAGE * PGSIZE);
             for (uint64 offset = 0; offset < pos->size; offset += PGSIZE) {
                 level = walk(srcmm->pagetable, pos->startva + offset, 0, 0, &pte);
-                ASSERT(level <= 1 && level >= 0);
+                // ASSERT(level <= 1 && level >= 0);
+                if (!(level <= 1 && level >= 0)) {
+                    panic("uvmcopy : level error\n");
+                }
                 pa = PTE2PA(*pte);
 
                 paddr_t new = (paddr_t)kzalloc(PGSIZE);
@@ -455,20 +459,26 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
         ASSERT(startva % PGSIZE == 0 && endva % PGSIZE == 0);
         for (vaddr_t i = startva; i < endva; i += PGSIZE) {
             level = walk(srcmm->pagetable, i, 0, 0, &pte);
-            ASSERT(level <= 1 && level >= 0);
             if (pte == NULL || *pte == 0) {
                 continue;
             }
+            if (!(level <= 1 && level >= 0)) {
+                panic("uvmcopy : level error\n");
+            }
 
-            if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
-                *pte = *pte | PTE_READONLY;
+            if (pos->type != VMA_FILE || !(pos->perm & PERM_SHARED)) {
+                // if (pos->type != VMA_FILE) {
+                if ((*pte & PTE_W) == 0 && (*pte & PTE_SHARE) == 0) {
+                    *pte = *pte | PTE_READONLY;
+                }
+                /* shared page */
+                if ((*pte & PTE_W) == 0 && (*pte & PTE_READONLY) != 0) {
+                    *pte = *pte | PTE_READONLY;
+                }
+                *pte = *pte | PTE_SHARE;
+                *pte = *pte & ~PTE_W;
             }
-            /* shared page */
-            if ((*pte & PTE_W) == 0 && (*pte & PTE_READONLY) != 0) {
-                *pte = *pte | PTE_READONLY;
-            }
-            *pte = *pte | PTE_SHARE;
-            *pte = *pte & ~PTE_W;
+
             pa = PTE2PA(*pte);
             flags = PTE_FLAGS(*pte);
 

@@ -9,18 +9,27 @@
 #include "ipc/signal.h"
 #include "atomic/semaphore.h"
 #include "memory/mm.h"
+#include "ipc/shm.h"
+#include "lib/resource.h"
+
 // #include "fs/fat/fat32_disk.h"
 
 // #define INIT_PID 1
 // #define SHELL_PID 2
 
+
 struct file;
 struct inode;
+struct rlimit;
 
 enum procstate { PCB_UNUSED,
                  PCB_USED,
                  PCB_ZOMBIE,
                  PCB_STATEMAX };
+
+struct sysv_shm {
+    struct list_head shm_clist;
+};
 
 // Per-process state
 struct proc {
@@ -37,6 +46,8 @@ struct proc {
 
     // these are private to the process, so p->lock need not be held.
     struct file *ofile[NOFILE]; // Open files
+    int max_ofile;
+    int cur_ofile;
     struct inode *cwd;          // Current directory
     char name[20];              // Process name (debugging)
 
@@ -53,6 +64,12 @@ struct proc {
     pid_t ctid;
 
     struct semaphore tlock;
+
+    struct ipc_namespace *ipc_ns;
+    struct sysv_shm sysvshm;
+
+    // for prlimit 
+	struct rlimit rlim[RLIM_NLIMITS];
     // // signal
     // int sig_pending_cnt;                   // have signal?
     // struct sighand *sig;        // signal
@@ -84,5 +101,6 @@ int waitpid(pid_t pid, uint64 status, int options);
 void reparent(struct proc *p);
 void proc_thread_print(void);
 uint8 get_current_procs();
+void proc_prlimit_init(struct proc* p);
 
 #endif

@@ -17,6 +17,9 @@ struct mm_struct *alloc_mm() {
 
     INIT_LIST_HEAD(&mm->head_vma);
 
+    // semaphore
+    sema_init(&mm->mmap_sem, 1, "mm_semaphore");
+
     // an empty user page table.
     mm->pagetable = proc_pagetable();
     if (mm->pagetable == 0) {

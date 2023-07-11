@@ -51,6 +51,7 @@ typedef long int blksize_t;
 typedef long int blkcnt_t;
 
 typedef int key_t;
+typedef unsigned int fmode_t;
 
 typedef unsigned short WORD;
 typedef unsigned int DWORD;
@@ -169,7 +170,17 @@ void printf_bin(uchar *, int);
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, int size, const char *fmt, ...);
 
+typedef long long __kernel_loff_t;
+typedef __kernel_loff_t loff_t;
+
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
+#define ULONG_MAX (~0UL)
+
+#define MAX_ERRNO 4095
+#define IS_ERR_VALUE(x) unlikely((x) >= (uint64)-MAX_ERRNO)
+
+
+
 
 #endif
 

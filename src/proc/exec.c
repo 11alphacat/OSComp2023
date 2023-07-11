@@ -324,7 +324,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
 #endif
     }
     auxv[AT_RANDOM * 2 - 1] = SPP2SP;
-    spp -= AUX_CNT * 16;
+    spp -= AUX_CNT * 16 + 8;
     if (spp < stackbase) {
         return -1;
     }

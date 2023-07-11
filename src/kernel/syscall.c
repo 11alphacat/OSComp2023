@@ -233,7 +233,7 @@ static struct syscall_info info[] = {
 
     [SYS_lseek] { "lseek", 3, "dld" },
     [SYS_prlimit64] { "prlimit64", 4, "ddpp" },
-    [SYS_readv] {"readv", 3, "dpd"},
+    [SYS_readv] { "readv", 3, "dpd" },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -257,12 +257,13 @@ static struct syscall_info info[] = {
     [SYS_clock_gettime] { "clock_gettime", 2, "dp" },
     [SYS_fstat] { "fstat", 2, "dp" },
     [SYS_chdir] { "chdir", 1, "s" },
-    [SYS_shmget] {"shmget", 3, "dld"},
-    [SYS_shmctl] {"shmctl", 3 , "ddp"},
-    [SYS_shmat] {"shmat", 3, "dpd"},
-    [SYS_sync] {"sync", 0},
-    [SYS_fsync] {"fsync", 1, "d"},
-    [SYS_ftruncate] {"ftruncate", 2, "dl"}
+    [SYS_shmget] { "shmget", 3, "dld" },
+    [SYS_shmctl] { "shmctl", 3, "ddp" },
+    [SYS_shmat] { "shmat", 3, "dpd" },
+    [SYS_sync] { "sync", 0 },
+    [SYS_fsync] { "fsync", 1, "d" },
+    [SYS_ftruncate] { "ftruncate", 2, "dl" },
+    [SYS_utimensat] { "utimensat", 4, "dspd" }
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
@@ -287,6 +288,10 @@ int is_strace_target(int num) {
         // if(num == SYS_read || num == SYS_write || num == SYS_lseek) {
         //     return 0;
         // }
+        // if(num==SYS_prlimit64)
+        //     return 1;
+        // else 
+        //     return 0;
         return 1;
     } else {
         return 0;

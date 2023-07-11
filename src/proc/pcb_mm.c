@@ -112,8 +112,9 @@ void proc_freepagetable(struct mm_struct *mm, int thread_cnt) {
 // Return 0 on success, -1 on failure.
 int growheap(int n) {
     uint64 oldsz, newsz, sz;
-    struct mm_struct *mm = proc_current()->mm;
-
+    struct proc* p = proc_current();
+    struct mm_struct *mm = p->mm;
+    // struct mm_struct *mm = proc_current()->mm;
     sz = mm->brk;
     oldsz = mm->brk;
     newsz = mm->brk + n;
@@ -158,6 +159,7 @@ int growheap(int n) {
     }
     mm->brk = sz;
     mm->heapvma->size = PGROUNDUP(sz) - mm->start_brk;
+    // p->rlim[RLIMIT_STACK].rlim_cur = mm->heapvma->size;
     return 0;
 }
 

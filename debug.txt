@@ -6,9 +6,22 @@ set schedule-multiple on
 symbol-file kernel-qemu
 =====开始调试...
 break main
+c   
 
 有用的gdb命令：
 1. layout src           可以查看源代码
 2. layout asm           可以查看汇编
 3. info breakpoints     或简写的 i b 来打印所有的断点信息
 4. d                    删除所有断点
+5. n                    单步执行
+6. s                    跳入函数
+7. frame                查看调用栈
+8. f                    结束函数的执行
+9. break                直接函数名/文件名:行号
+10. c                   跳到下一个断点
+11. shell clear         清空屏幕
+
+
+先在一个窗口执行 make gdb
+再在一个窗口执行 gdb-multiarch
+

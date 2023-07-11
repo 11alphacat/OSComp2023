@@ -98,8 +98,7 @@ void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma) {
 }
 
 void print_rawfile(struct file *f, int fd, int printdir);
-int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type,
-                 int fd, off_t offset, struct file *fp) {
+int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type, off_t offset, struct file *fp) {
     struct vma *vma;
     /* the file isn't writable and perm has PERM_WRITE is illegal
        but if the PERM_SHARED is not set(means PERM_PRIVATE), then it's ok */
@@ -109,7 +108,8 @@ int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint6
     if ((vma = vma_map_range(mm, va, len, perm, type)) == NULL) {
         return -1;
     }
-    vma->fd = fd;
+    // print_vma(&mm->head_vma);
+    // vma->fd = fd;
     vma->offset = offset;
     vma->vm_file = fp;
     fat32_filedup(vma->vm_file);
@@ -216,7 +216,7 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
         return 0;
     } else {
         if (vma->type == VMA_FILE) {
-            generic_fileclose(vma->vm_file);
+            // generic_fileclose(vma->vm_file); ???
         }
     }
 
@@ -323,7 +323,7 @@ int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
             // int vma_map_file(struct proc *p, uint64 va, size_t len, uint64 perm, uint64 type,
             //                  int fd, off_t offset, struct file *fp) {
             if (vma_map_file(dstmm, pos->startva, pos->size, pos->perm, pos->type,
-                             pos->fd, pos->offset, pos->vm_file)
+                             pos->offset, pos->vm_file)
                 < 0) {
                 return -1;
             }

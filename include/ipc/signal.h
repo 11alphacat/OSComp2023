@@ -179,4 +179,7 @@ int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct tra
 int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf);
 int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf);
 
+// debug
+void print_signal_mask(sigset_t sigmask);
+
 #endif

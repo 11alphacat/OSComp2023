@@ -9,16 +9,6 @@
 #include "fs/vfs/fs.h"
 #include "kernel/syscall.h"
 
-// mmap
-#define MAP_FILE 0
-#define MAP_SHARED 0x01
-#define MAP_PRIVATE 0x02
-#define MAP_FIXED 0x10     /* Interpret addr exactly.  */
-#define MAP_ANONYMOUS 0x20 /* Don't use a file.  */
-
-// return (void *)0xfffff...ff to indicate fail
-#define MAP_FAILED ((void *)-1)
-
 /* int munmap(void *addr, size_t length); */
 uint64 sys_munmap(void) {
     vaddr_t addr;
@@ -40,35 +30,7 @@ static uint64 mkperm(int prot, int flags) {
     return (perm | prot);
 }
 
-extern void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma);
-// return type!!!
-// 与声明不兼容不会出错
-/* void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset); */
-void *sys_mmap(void) {
-    vaddr_t addr;
-    size_t length;
-    int prot;
-    int flags;
-    int fd;
-    off_t offset;
-    struct file *fp;
-
-    argaddr(0, &addr);
-    argulong(1, &length);
-    argint(2, &prot);
-    argint(3, &flags);
-    if (argfd(4, &fd, &fp) < 0) {
-        if ((flags & MAP_ANONYMOUS) == 0) {
-            return MAP_FAILED;
-        }
-    }
-    arglong(5, &offset);
-
-    if (offset != 0) {
-        Warn("mmap: not support");
-        return MAP_FAILED;
-    }
-
+void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp, off_t offset) {
     struct mm_struct *mm = proc_current()->mm;
     vaddr_t mapva;
     if (addr == 0) {
@@ -115,7 +77,7 @@ void *sys_mmap(void) {
             return MAP_FAILED;
         }
     } else {
-        if (vma_map_file(mm, mapva, length, mkperm(prot, flags), VMA_FILE, fd, offset, fp) < 0) {
+        if (vma_map_file(mm, mapva, length, mkperm(prot, flags), VMA_FILE, offset, fp) < 0) {
             return MAP_FAILED;
         }
     }
@@ -123,6 +85,36 @@ void *sys_mmap(void) {
 
     // print_vma(&mm->head_vma);
     return (void *)mapva;
+}
+
+// return type!!!
+// 与声明不兼容不会出错
+/* void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset); */
+void *sys_mmap(void) {
+    vaddr_t addr;
+    size_t length;
+    int prot;
+    int flags;
+    int fd;
+    off_t offset;
+    struct file *fp;
+
+    argaddr(0, &addr);
+    argulong(1, &length);
+    argint(2, &prot);
+    argint(3, &flags);
+    if (argfd(4, &fd, &fp) < 0) {
+        if ((flags & MAP_ANONYMOUS) == 0) {
+            return MAP_FAILED;
+        }
+    }
+    arglong(5, &offset);
+
+    if (offset != 0) {
+        Warn("mmap: not support");
+        return MAP_FAILED;
+    }
+    return do_mmap(addr, length, prot, flags, fp, offset);
 }
 
 /* int mprotect(void *addr, size_t len, int prot); */

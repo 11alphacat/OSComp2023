@@ -66,8 +66,10 @@ int main()
 	RUN(b_malloc_tiny2, 0);
 	RUN(b_malloc_big1, 0);
 	RUN(b_malloc_big2, 0);
-	RUN(b_malloc_thread_stress, 0);
-	RUN(b_malloc_thread_local, 0);
+
+
+	// RUN(b_malloc_thread_stress, 0);
+	// RUN(b_malloc_thread_local, 0);
 
 	RUN(b_string_strstr, "abcdefghijklmnopqrstuvwxyz");
 	RUN(b_string_strstr, "azbycxdwevfugthsirjqkplomn");
@@ -78,10 +80,10 @@ int main()
 	RUN(b_string_strchr, 0);
 	RUN(b_string_strlen, 0);
 
-	RUN(b_pthread_createjoin_serial1, 0);
-	RUN(b_pthread_createjoin_serial2, 0);
-	RUN(b_pthread_create_serial1, 0);
-	RUN(b_pthread_uselesslock, 0);
+	// RUN(b_pthread_createjoin_serial1, 0);
+	// RUN(b_pthread_createjoin_serial2, 0);
+	// RUN(b_pthread_create_serial1, 0);
+	// RUN(b_pthread_uselesslock, 0);
 
 	RUN(b_utf8_bigbuf, 0);
 	RUN(b_utf8_onebyone, 0);

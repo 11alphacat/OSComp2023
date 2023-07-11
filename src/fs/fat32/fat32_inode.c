@@ -19,6 +19,7 @@
 #include "lib/radix-tree.h"
 #include "memory/writeback.h"
 #include "lib/list.h"
+#include "atomic/semaphore.h"
 
 // debug
 // int cache_cnt;
@@ -32,6 +33,7 @@ struct _superblock fat32_sb;
 
 struct inode_table_t {
     spinlock_t lock;
+    // struct semaphore lock;
     struct list_head entry;           // list
     struct inode inode_entry[NINODE]; // array
 } inode_table;
@@ -41,6 +43,7 @@ void inode_table_init() {
     INIT_LIST_HEAD(&inode_table.entry);
     struct inode *entry;
     initlock(&inode_table.lock, "inode_table"); // !!!!
+    // sema_init(&inode_table.lock, 1, "inode_table_lock");
     for (entry = inode_table.inode_entry; entry < &inode_table.inode_entry[NINODE]; entry++) {
         memset(entry, 0, sizeof(struct inode));
         sema_init(&entry->i_sem, 1, "inode_entry_sem");
@@ -117,7 +120,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     root_ip->i_sb = sb;
     root_ip->fat32_i.DIR_FileSize = 0;
     // root_ip->i_mode = S_IFDIR | 0666;
-    root_ip->i_mode = S_IFDIR | 0777;    
+    root_ip->i_mode = S_IFDIR | 0777;
     DIR_SET(root_ip->fat32_i.Attr);
 
     // inode hash table
@@ -369,8 +372,10 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
 
 // duplicate
 struct inode *fat32_inode_dup(struct inode *ip) {
+    // sema_wait(&inode_table.lock);
     acquire(&inode_table.lock);
     ip->ref++;
+    // sema_signal(&inode_table.lock);
     release(&inode_table.lock);
     return ip;
 }
@@ -379,6 +384,7 @@ struct inode *fat32_inode_dup(struct inode *ip) {
 struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint parentoff) {
     struct inode *ip = NULL, *empty = NULL;
     acquire(&inode_table.lock);
+    // sema_wait(&inode_table.lock);
 
     // Is the fat32 inode already in the table?
     empty = 0;
@@ -387,6 +393,7 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
         if (ip->ref > 0 && ip->i_nlink == 0) {
             fat32_inode_lock(ip);
             release(&inode_table.lock);
+            // sema_signal(&inode_table.lock);
             fat32_inode_trunc(ip);
             fat32_inode_unlock(ip);
             acquire(&inode_table.lock);
@@ -396,6 +403,7 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
             // bug : i_nlink!!
             ip->ref++;
             release(&inode_table.lock);
+            // sema_signal(&inode_table.lock);
             return ip;
         }
         // bug !!!
@@ -455,6 +463,7 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
     ip->create_first = 0;
 
     release(&inode_table.lock);
+    // sema_signal(&inode_table.lock);
     return ip;
 }
 
@@ -591,7 +600,10 @@ void fat32_inode_put(struct inode *ip) {
     // if (ip->fat32_i.fname[0] != '/') {
     //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
     // }
+    // acquire();
+    // sema_wait(&inode_table.lock);
     int put_parent = 0;
+    int unlock_parent = 0;
     if (ip->ref == 1) {
         // destory hash table
         fat32_inode_hash_destroy(ip);
@@ -604,14 +616,22 @@ void fat32_inode_put(struct inode *ip) {
 
         // special for inode_create
         if (ip->create_first) {
+            release(&inode_table.lock); // !!! bug for iozone
             fat32_inode_lock(ip->parent);
+            acquire(&inode_table.lock); // !!! bug for iozone
+
             ASSERT(ip->parent->valid);
             ASSERT(ip->parent->create_cnt);
             ip->parent->create_cnt--;
             if (!ip->parent->create_cnt) {
                 put_parent = 1;
             }
+            unlock_parent = 1;
         }
+
+        // if (ip->fat32_i.fname[0] == 'S') {
+        //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+        // }
 
         ip->valid = 0;
 
@@ -632,9 +652,13 @@ void fat32_inode_put(struct inode *ip) {
     ip->ref--;
     release(&inode_table.lock);
 
+    // sema_signal(&inode_table.lock);
     // special for inode_create
+    if (unlock_parent) {
+        fat32_inode_unlock(ip->parent);
+    }
     if (put_parent) {
-        fat32_inode_unlock_put(ip->parent);
+        fat32_inode_put(ip->parent);
     }
 }
 
@@ -825,7 +849,7 @@ struct inode *fat32_inode_dirlookup_with_hint(struct inode *dp, const char *name
 }
 
 // return a pointer to a new inode with lock on
-// no need to  lock dp before call this func
+// no need to lock dp before call this func
 struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type, short major, short minor) {
     struct inode *ip = NULL;
 
@@ -837,7 +861,7 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type
         fat32_inode_unlock(dp);
         fat32_inode_lock(ip);
 
-        if (type == (ip->i_mode & S_IFMT)) {
+        if ((type == (ip->i_mode & S_IFMT)) || (ip->shm_flg)) {
             dp->create_cnt++;
             ip->create_first = 1;
             return ip;

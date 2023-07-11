@@ -22,6 +22,7 @@ struct hash_entry {
 
 enum hash_type { PID_MAP,
                  TID_MAP,
+                 IPC_IDX_MAP,
                  FUTEX_MAP,
                  INODE_MAP
 };

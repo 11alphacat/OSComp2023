@@ -27,4 +27,5 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 void mpage_writepage(struct inode *ip, int alloc);
 void page_list_add(void *entry, void *item, uint64 index, void *node);
 void page_list_free(struct Page_entry *p_entry);
+
 #endif

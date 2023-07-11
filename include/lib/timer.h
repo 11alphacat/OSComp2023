@@ -9,6 +9,8 @@
 
 // #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 #define SET_TIMER() sbi_legacy_set_timer(rdtime() + CLINT_INTERVAL)
+#define TIME_OUT(timer_cur) (TIME2NS(rdtime()) > ((timer_cur)->expires_end))
+
 typedef void (*timer_expire)(void *); // uint64
 
 struct timer_entry {
@@ -22,7 +24,9 @@ struct timer_list {
     uint64 expires_end;
     void (*function)(void *); // uint64
     void *data;               // uint64
-    int count;                //
+    int count;                // for pdflush
+    int cycle;                // for every clock interrupt
+    int over;                 // for pselect
 };
 
 void timer_entry_init(struct timer_entry *t_entry, char *name);

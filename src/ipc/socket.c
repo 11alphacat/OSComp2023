@@ -440,54 +440,41 @@ uint64 sys_setsockopt(void) {
     return 0;
 }
 
-#define FD_ZERO(s)                                                        \
-    do {                                                                  \
-        int __i;                                                          \
-        unsigned long *__b = (s)->fds_bits;                               \
-        for (__i = sizeof(fd_set) / sizeof(long); __i; __i--) *__b++ = 0; \
-    } while (0)
-
-#define FD_SET(d, s) ((s)->fds_bits[(d) / (8 * sizeof(long))] |= (1UL << ((d) % (8 * sizeof(long)))))
-#define FD_CLR(d, s) ((s)->fds_bits[(d) / (8 * sizeof(long))] &= ~(1UL << ((d) % (8 * sizeof(long)))))
-#define FD_ISSET(d, s) !!((s)->fds_bits[(d) / (8 * sizeof(long))] & (1UL << ((d) % (8 * sizeof(long)))))
-
-#define FD_SETSIZE 1024
-typedef struct {
-    uint64 fds_bits[FD_SETSIZE / 8 / sizeof(long)];
-} fd_set;
-
 // //        int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 // //                      const struct timespec *timeout, const sigset_t *sigmask);
-uint64 sys_pselect6(void) {
-    int nfds;
-    paddr_t readfds;
-    // , *writefds, *exceptfds;
-    // const struct timespec *timeout;
-    // void *sigmask;
-    argint(0, &nfds);
-    argaddr(1, &readfds);
-    readfds = getphyaddr(proc_current()->mm->pagetable, readfds);
-    // argaddr(2, writefds);
-    // argaddr(3, exceptfds);
+// uint64 sys_pselect6(void) {
+//     int nfds;
+//     paddr_t readfds;
+//     // , *writefds, *exceptfds;
+//     // const struct timespec *timeout;
+//     // void *sigmask;
+//     argint(0, &nfds);
+//     argaddr(1, &readfds);
+//     readfds = getphyaddr(proc_current()->mm->pagetable, readfds);
+//     // argaddr(2, writefds);
+//     // argaddr(3, exceptfds);
 
-    for (int i = 0; i <= nfds; i++) {
-        if (FD_ISSET(i, (fd_set *)readfds)) {
-            Log("num %d fd is set", i);
-        }
-    }
+//     extern int print_tf_flag;
+//     print_tf_flag = 1;
 
-    struct socket *sock;
-    while (1) {
-        sock = proc_current()->ofile[3]->f_tp.f_sock;
-        acquire(&sock->do_accept.sem_lock);
-        if (sock->do_accept.value > 0) {
-            release(&sock->do_accept.sem_lock);
-            break;
-        }
-        release(&sock->do_accept.sem_lock);
-    }
-    return 1;
-}
+//     for (int i = 0; i <= nfds; i++) {
+//         if (FD_ISSET(i, (fd_set *)readfds)) {
+//             Log("num %d fd is set", i);
+//         }
+//     }
+
+//     struct socket *sock;
+//     while (1) {
+//         sock = proc_current()->ofile[3]->f_tp.f_sock;
+//         acquire(&sock->do_accept.sem_lock);
+//         if (sock->do_accept.value > 0) {
+//             release(&sock->do_accept.sem_lock);
+//             break;
+//         }
+//         release(&sock->do_accept.sem_lock);
+//     }
+//     return 1;
+// }
 
 uint64 sys_getsockopt(void) {
     return 0;

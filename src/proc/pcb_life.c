@@ -128,6 +128,17 @@ struct proc *alloc_proc(void) {
 
     tginit(p->tg);
 
+    // ipc namespace
+    if ((p->ipc_ns = (struct ipc_namespace *)kalloc()) == 0) {
+        free_proc(p);
+        release(&p->lock);
+        return 0;
+    }
+    shm_init_ns(p->ipc_ns);
+
+    // for prlimit
+    proc_prlimit_init(p);
+
     // state
     PCB_Q_changeState(p, PCB_USED);
 
@@ -164,10 +175,17 @@ struct proc *create_proc() {
 
 // free a existed proc
 void free_proc(struct proc *p) {
+    // free_mm will write back, must release the lock of p?
+    release(&p->lock); // bug for iozone
     free_mm(p->mm, p->tg->thread_idx);
+    acquire(&p->lock); // bug for iozone
+
     if (p->tg)
         kfree((void *)p->tg);
     p->tg = 0;
+    if (p->ipc_ns)
+        kfree((void *)p->ipc_ns);
+    p->ipc_ns = 0;
 
     // delete <pid, t>
     hash_delete(&pid_map, (void *)&p->pid);
@@ -250,18 +268,70 @@ void thread_forkret(void) {
     thread_usertrapret();
 }
 
+// debug
+// void print_clone_flags(int flags) {
+//     if (flags & CSIGNAL)
+//         printfRed("CSIGNAL is set.\n");
+//     if (flags & CLONE_VM)
+//         printfRed("CLONE_VM is set.\n");
+//     if (flags & CLONE_FS)
+//         printfRed("CLONE_FS is set.\n");
+//     if (flags & CLONE_FILES)
+//         printfRed("CLONE_FILES is set.\n");
+//     if (flags & CLONE_SIGHAND)
+//         printfRed("CLONE_SIGHAND is set.\n");
+//     if (flags & CLONE_PTRACE)
+//         printfRed("CLONE_PTRACE is set.\n");
+//     if (flags & CLONE_VFORK)
+//         printfRed("CLONE_VFORK is set.\n");
+//     if (flags & CLONE_PARENT)
+//         printfRed("CLONE_PARENT is set.\n");
+//     if (flags & CLONE_THREAD)
+//         printfRed("CLONE_THREAD is set.\n");
+//     if (flags & CLONE_NEWNS)
+//         printfRed("CLONE_NEWNS is set.\n");
+//     if (flags & CLONE_SYSVSEM)
+//         printfRed("CLONE_SYSVSEM is set.\n");
+//     if (flags & CLONE_SETTLS)
+//         printfRed("CLONE_SETTLS is set.\n");
+//     if (flags & CLONE_PARENT_SETTID)
+//         printfRed("CLONE_PARENT_SETTID is set.\n");
+//     if (flags & CLONE_CHILD_CLEARTID)
+//         printfRed("CLONE_CHILD_CLEARTID is set.\n");
+//     if (flags & CLONE_DETACHED)
+//         printfRed("CLONE_DETACHED is set.\n");
+//     if (flags & CLONE_UNTRACED)
+//         printfRed("CLONE_UNTRACED is set.\n");
+//     if (flags & CLONE_CHILD_SETTID)
+//         printfRed("CLONE_CHILD_SETTID is set.\n");
+//     if (flags & CLONE_STOPPED)
+//         printfRed("CLONE_STOPPED is set.\n");
+//     if (flags & CLONE_NEWUTS)
+//         printfRed("CLONE_NEWUTS is set.\n");
+//     if (flags & CLONE_NEWIPC)
+//         printfRed("CLONE_NEWIPC is set.\n");
+// }
+
 int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
     int pid;
     struct proc *p = proc_current();
     struct proc *np = NULL;
     struct tcb *t = NULL;
 
+    // trapframe_print(thread_current()->trapframe);
+    // 5b61c
+    // extern int print_tf_flag;
+    // print_tf_flag = 1;
+    // print_clone_flags(flags);
     if (flags & CLONE_THREAD) {
         if ((t = alloc_thread(thread_forkret)) == 0) {
             return -1;
         }
         proc_join_thread(p, t, NULL);
         p->tg->thread_idx++; //  !!!
+
+        extern int print_tf_flag;
+        print_tf_flag = 1;
         panic("do_clone : error\n");
     } else {
         // Allocate process.
@@ -352,6 +422,11 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
         // TODO : clone a completely same fdtable   >> not necessary
     }
 
+    // if (flags & CLONE_NEWIPC) {
+    // } else {
+    //     np->ipc_ns = p->ipc_ns;
+    // }
+
     // TODO : vfs inode cmd  >> Done
     // np->cwd = fat32_inode_dup(p->cwd);
     np->cwd = p->cwd->i_op->idup(p->cwd);
@@ -436,6 +511,8 @@ int waitpid(pid_t pid, uint64 status, int options) {
 #ifdef __DEBUG_PROC__
         printf("wait : %d hasn't children\n", p->pid); // debug
 #endif
+        // extern int print_tf_flag;
+        // print_tf_flag = 1;
         return -1;
     }
 
@@ -476,7 +553,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
 
                 ASSERT(list_empty(&p_child->tg->threads)); // !!!
                 ASSERT(p_child->tg->group_leader->state == TCB_ZOMBIE);
-                free_thread(p_child->tg->group_leader); // group leader should be free with proc
+                free_thread(p_child->tg->group_leader);    // group leader should be free with proc
 
                 free_proc(p_child);
 
@@ -528,7 +605,7 @@ void reparent(struct proc *p) {
 
             p_child->parent = initproc;
             if (p_child->state == PCB_ZOMBIE) {
-                sema_signal(&initproc->tg->group_leader->sem_wait_chan_parent); // !!!!!
+                sema_signal(&initproc->tg->group_leader->sem_wait_chan_parent);  // !!!!!
 #ifdef __DEBUG_PROC__
                 printfBWhite("reparent : zombie %d has exited\n", p_child->pid); // debug
                 printfBWhite("reparent : zombie %d wakeup 1\n", p_child->pid);   // debug
@@ -635,4 +712,19 @@ void printProcessTree(struct proc *p, int indent) {
 void proc_thread_print(void) {
     printf("\n");
     printProcessTree(initproc, 0);
+}
+
+void proc_prlimit_init(struct proc* p) {
+    struct rlimit *rlim = p->rlim;
+    struct rlimit *rlim_tmp = NULL;
+    // RLIMIT_NPROC
+    rlim_tmp = rlim + RLIMIT_NOFILE;
+    rlim_tmp->rlim_max = NOFILE;
+    rlim_tmp->rlim_cur = NOFILE;
+    p->max_ofile = NOFILE;
+    
+    // PLIMIT_STACK
+    rlim_tmp = rlim + RLIMIT_STACK;
+    rlim_tmp->rlim_max = USTACK_PAGE;
+    rlim_tmp->rlim_cur = 0;
 }

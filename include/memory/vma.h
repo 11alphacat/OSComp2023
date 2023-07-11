@@ -8,6 +8,16 @@
 
 #define NVMA 1000
 
+// mmap
+#define MAP_FILE 0
+#define MAP_SHARED 0x01
+#define MAP_PRIVATE 0x02
+#define MAP_FIXED 0x10     /* Interpret addr exactly.  */
+#define MAP_ANONYMOUS 0x20 /* Don't use a file.  */
+
+// return (void *)0xfffff...ff to indicate fail
+#define MAP_FAILED ((void *)-1)
+
 struct proc;
 
 /* permission */
@@ -38,14 +48,13 @@ struct vma {
     int used;
 
     /* for VMA_FILE */
-    int fd;
+    // int fd;
     uint64 offset;
     struct file *vm_file;
 };
 
 extern struct vma vmas[NVMA];
-int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type,
-                 int fd, off_t offset, struct file *fp);
+int vma_map_file(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type, off_t offset, struct file *fp);
 int vma_map(struct mm_struct *mm, uint64 va, size_t len, uint64 perm, uint64 type);
 int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len);
 
@@ -53,8 +62,11 @@ struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr);
 vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size);
 int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new_below);
 int vmacopy(struct mm_struct *srcmm, struct mm_struct *dstmm);
-int uvmcopy(struct mm_struct *old, struct mm_struct *new);
 void free_all_vmas(struct mm_struct *mm);
 void print_vma(struct list_head *head_vma);
+
+// for mmap
+void del_vma_from_vmspace(struct list_head *vma_head, struct vma *vma);
+void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp, off_t offset);
 
 #endif // __VMA_H__

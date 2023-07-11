@@ -27,14 +27,14 @@
 #define DIV 0x18               // Baud rate divisor
 
 // read and write registers
-#define Reg(reg) ((volatile unsigned char *)(UART_BASE + reg))
-#define ReadReg(reg) (*(Reg(reg)))
-#define WriteReg(reg, v) (*(Reg(reg)) = (v))
+#define Reg_hifive(reg) ((volatile unsigned int *)(UART0_BASE + reg))
+#define ReadReg_hifive(reg) (*(Reg_hifive(reg)))
+#define WriteReg_hifive(reg, v) (*(Reg_hifive(reg)) = (v))
 
 // used for getchar and putchar
 #define TX_RX_DATA_MASK 0xff
-#define TX_FULL_MASK 0x8
-#define RX_EMPTY_MASK 0x8
+#define TX_FULL_MASK 0x80000000
+#define RX_EMPTY_MASK 0x80000000
 
 typedef struct uarths_txdata {
     /* Bits [7:0] is data */
@@ -136,6 +136,21 @@ static inline void __raw_writeb(uchar val, volatile void *addr) {
                  :
                  : "r"(val), "r"(addr));
 }
+static inline uint32 __raw_readl(const volatile void *addr) {
+    uint32 val;
+
+    asm volatile("lw %0, 0(%1)"
+                 : "=r"(val)
+                 : "r"(addr));
+    return val;
+}
+
+static inline void __raw_writel(uint32 val, volatile void *addr) {
+    asm volatile("sw %0, 0(%1)"
+                 :
+                 : "r"(val), "r"(addr));
+}
+
 #define writeb_cpu(v, c) ((void)__raw_writeb((v), (c)))
 #define readb_cpu(c) ({ uchar  __r = __raw_readb(c); __r; })
 #define io_br() \
@@ -152,6 +167,9 @@ static inline void __raw_writeb(uchar val, volatile void *addr) {
 #define readb(c) ({ uchar  __v; io_br(); __v = readb_cpu(c); rmb(); __v; })
 #define writeb(v, c) ({ wmb(); writeb_cpu((v), (c)); io_br(); })
 
+#define readl(c) ({ uint32 __v; __io_br(); __v = __raw_readl(c); __io_ar(); __v; })
+#define writel(v, c) ({ __io_bw(); __raw_writel((v),(c)); __io_aw(); })
+
 // buf is full or emptry???
 #define BUF_IS_FULL(uart) (uart.uart_tx_w == uart.uart_tx_r + UART_HIFIVE_TX_BUF_SIZE)
 #define BUF_IS_EMPETY(uart) (uart.uart_tx_w == uart.uart_tx_r)
@@ -160,12 +178,16 @@ static inline void __raw_writeb(uchar val, volatile void *addr) {
 // get char from buffer
 #define UART_BUF_GETCHAR(uart) (uart.uart_tx_buf[(uart.uart_tx_r++) % UART_HIFIVE_TX_BUF_SIZE])
 // uart txdata is full ? uart rxdata is emptry ? with memory barrier
-#define UART_TX_FULL(uarths) (readb(&(uarths->txdata.full)) & TX_FULL_MASK)
-#define UART_RX_EMPTY(uarths) (readb(&(uarths->rxdata.empty)) & RX_EMPTY_MASK)
+// #define UART_TX_FULL(uarths) (readb(&(uarths->txdata.full)) & TX_FULL_MASK)
+#define UART_TX_FULL (ReadReg_hifive(TXDATA) & TX_FULL_MASK)
+#define UART_RX_EMPTY (ReadReg_hifive(RXDATA) & RX_EMPTY_MASK)
+// #define UART_RX_EMPTY(uarths) (readb(&(uarths->rxdata.empty)) & RX_EMPTY_MASK)
 // uart txdata put char
-#define UART_TX_PUTCHAR(uarths, ch) (writeb(((uchar)ch), &(uarths->txdata.data)))
+// #define UART_TX_PUTCHAR(uarths, ch) (writeb(((uchar)ch), &(uarths->txdata.data)))
+#define UART_TX_PUTCHAR(ch) (WriteReg_hifive(TXDATA, ch))
 // uart rxdata get char
-#define UART_RX_GETCHAR(uarths) (readb(&(uarths->txdata.data)) & TX_RX_DATA_MASK)
+// #define UART_RX_GETCHAR(uarths) (readb(&(uarths->txdata.data)) & TX_RX_DATA_MASK)
+#define UART_RX_GETCHAR (ReadReg_hifive(RXDATA))
 
 struct uart_hifve {
     struct spinlock uart_tx_lock;

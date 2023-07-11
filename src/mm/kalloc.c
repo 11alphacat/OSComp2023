@@ -127,7 +127,11 @@ void kfree(void *pa) {
     struct page *page = pa_to_page((uint64)pa);
     acquire(&page->lock);
     // ASSERT(page->count >= 1);
-    ASSERT(atomic_read(&page->refcnt) >= 1);
+    // ASSERT(atomic_read(&page->refcnt) >= 1);
+    if (atomic_read(&page->refcnt) < 1) {
+        panic("kfree : page ref error\n");
+    }
+
     // page->count--;
     atomic_dec_return(&page->refcnt);
     if (atomic_read(&page->refcnt) >= 1) {

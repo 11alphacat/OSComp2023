@@ -3,6 +3,10 @@
 
 #include "common.h"
 #include "lib/list.h"
+#include "atomic/semaphore.h"
+
+typedef unsigned long vm_flags_t;
+#define VM_NORESERVE 0x00200000 /* should the VM suppress accounting */
 
 struct vma;
 struct mm_struct {
@@ -11,6 +15,8 @@ struct mm_struct {
 
     paddr_t start_brk, brk; /* program break */
     struct vma *heapvma;
+
+    struct semaphore mmap_sem;
 };
 
 struct mm_struct *alloc_mm();

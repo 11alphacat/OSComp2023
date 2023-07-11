@@ -49,9 +49,13 @@
 
 #define AT_FDCWD -100
 #define AT_REMOVEDIR 0x200
+#define AT_SYMLINK_NOFOLLOW 0x100 /* Do not follow symbolic links.  */
 
 #define F_WRITEABLE(fp) ((fp)->f_flags > 0 ? 1 : 0)
 #define F_READABLE(fp) (((fp)->f_flags & O_WRONLY) == O_WRONLY ? 0 : 1)
+
+#define FMODE_READ 0x1
+#define FMODE_WRITE 0x2
 
 // lseek
 #define SEEK_SET 0 /* seek relative to beginning of file */
