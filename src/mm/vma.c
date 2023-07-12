@@ -345,9 +345,9 @@ void free_all_vmas(struct mm_struct *mm) {
     list_for_each_entry_safe(pos_cur, pos_tmp, &mm->head_vma, node) {
         // Warn("%p~%p", pos->startva, pos->size);
         // print_vma(&mm->head_vma);
-        if (pos_cur->type == VMA_INTERP) {
-            continue;
-        }
+        // if (pos_cur->type == VMA_INTERP) {
+        //     continue;
+        // }
         if (pos_cur->type == VMA_HEAP && pos_cur->size == 0) {
             del_vma_from_vmspace(&mm->head_vma, pos_cur);
             continue;

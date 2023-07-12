@@ -18,6 +18,7 @@ libctest:
 	make -C libc-test disk -j4
 	riscv64-linux-gnu-objdump -S ./libc-test/disk/dlopen_dso.so > ./libc-test/disk/dlopen_dso_so.asm
 	riscv64-linux-gnu-objdump -S ./libc-test/entry-dynamic.exe > ./libc-test/disk/entry-dynamic.asm
+	riscv64-linux-gnu-objdump -S ./libc-test/entry-static.exe > ./libc-test/disk/entry-static.asm
 
 libc-bench:
 	make -C libc-bench CC="riscv64-musl-gcc -static" -j4

@@ -488,3 +488,13 @@ uint64 sys_getegid() {
     // return proc_current()->pid;
     return 0;
 }
+
+uint64 sys_exit_group(void) {
+    struct proc *p = proc_current();
+    exit_group(p); 
+    return 0;
+}
+
+uint64 sys_gettid(void) {
+    return proc_current()->pid;
+}

@@ -2,8 +2,8 @@
 .global _entry
 # sbi put the mhartid in a0
 _entry:
-        # keep each CPU's hartid in its sscratch register, for cpuid().
-        csrw sscratch, a0
+        # keep each CPU's hartid in its tp register, for cpuid().
+        mv tp, a0
 
         # set up a stack for C.
         la sp, stack0

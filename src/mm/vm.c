@@ -382,10 +382,10 @@ uint64 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
 void freewalk(pagetable_t pagetable, int level) {
     // there are 2^9 = 512 PTEs in a page table.
     for (int i = 0; i < 512; i++) {
-        if (level == 0 && i == 1) {
-            /* used for libc.so */
-            continue;
-        }
+        // if (level == 0 && i == 1) {
+        //     /* used for libc.so */
+        //     continue;
+        // }
         pte_t pte = pagetable[i];
         if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
             // this PTE points to a lower-level page table.
@@ -643,7 +643,7 @@ void vmprint_indent(int level, int vpn) {
     }
 }
 
-void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 vabase) {
+void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 vabase) {
     pte_t pte;
     if (isroot) {
         printf("page table %p\n", pagetable);
@@ -660,20 +660,35 @@ void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 va
     for (int i = 0; i < 512; i++) {
         pte = pagetable[i];
         if (pte & PTE_V) {
-            vmprint_indent(level, i);
-            if (!single && (pte & (PTE_W | PTE_X | PTE_R)) == 0) {
+            if (vabase + i * vagap >= start) {
+                vmprint_indent(level, i);
+            }
+            if ((pte & (PTE_W | PTE_X | PTE_R)) == 0) {
                 // not a leaf-pte
-                printf("pte %p pa %p\n", pte, PTE2PA(pte));
-                vmprint((pagetable_t)PTE2PA(pte), 0, level + 1, 0, vabase + i * vagap);
+                if (vabase + i * vagap >= start) {
+                    printf("pte %p pa %p\n", pte, PTE2PA(pte));
+                }
+                vmprint((pagetable_t)PTE2PA(pte), 0, level + 1, start, vabase + i * vagap);
             } else {
                 // a leaf-pte
-                printf("leaf pte %p pa %p ", pte, PTE2PA(pte));
-                PTE("RSW %d%d D %d U %d X %d W %d R %d  va is %p\n",
-                    (pte & PTE_READONLY) > 0, (pte & PTE_SHARE) > 0,
-                    (pte & PTE_D) > 0,
-                    (pte & PTE_U) > 0, (pte & PTE_X) > 0,
-                    (pte & PTE_W) > 0, (pte & PTE_R) > 0,
-                    vabase + i * vagap);
+                vaddr_t curva = vabase + i * vagap;
+                if (curva >= start) {
+                    printf("leaf pte %p pa %p ", pte, PTE2PA(pte));
+                    PTE("RSW %d%d D %d U %d X %d W %d R %d  va is %p  ",
+                        (pte & PTE_READONLY) > 0, (pte & PTE_SHARE) > 0,
+                        (pte & PTE_D) > 0,
+                        (pte & PTE_U) > 0, (pte & PTE_X) > 0,
+                        (pte & PTE_W) > 0, (pte & PTE_R) > 0,
+                        curva);
+                    if (curva == SIGRETURN) {
+                        PTE("SIGRETURN");
+                    } else if (curva == TRAMPOLINE) {
+                        PTE("TRAMPOLINE");
+                    } else if (curva == TRAPFRAME) {
+                        PTE("TRAPFRAME0");
+                    }
+                    printf("\n");
+                }
             }
         }
     }
@@ -700,9 +715,14 @@ int uvm_thread_stack(pagetable_t pagetable, int thread_idx) {
     return 0;
 }
 
-int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa) {
+// return pa when success, else return NULL
+struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx) {
+    paddr_t pa = (paddr_t)kzalloc(PGSIZE);
+
     if (mappages(pagetable, TRAPFRAME - thread_idx * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, 0) < 0) {
-        return -1;
+        kfree((void *)pa);
+        return NULL;
     }
-    return 0;
+
+    return (struct trapframe *)pa;
 }

@@ -195,7 +195,8 @@ static struct syscall_info info[] = {
     //        int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags);
     [SYS_fstatat] { "fstatat", 4, "dspx", 'd' },
     //            long clone(unsigned long flags, void *stack, int *parent_tid, unsigned long tls, int *child_tid);
-    [SYS_clone] { "clone", 5, "xppup", 'd' },
+    // int flags, void* stack , pid_t* ptid, void*tls, pid_t* ctid
+    [SYS_clone] { "clone", 5, "xpppp", 'd' },
     //          int pipe2(int pipefd[2], int flags);
     [SYS_pipe2] { "pipe2", 2, "pd", 'd' },
     //          int dup(int);
@@ -263,7 +264,11 @@ static struct syscall_info info[] = {
     [SYS_sync] { "sync", 0 },
     [SYS_fsync] { "fsync", 1, "d" },
     [SYS_ftruncate] { "ftruncate", 2, "dl" },
-    [SYS_utimensat] { "utimensat", 4, "dspd" }
+    [SYS_utimensat] { "utimensat", 4, "dspd" },
+    //    int futex(int *uaddr, int futex_op, int val,
+    //          const struct timespec *timeout,   /* or: uint32_t val2 */
+    //          int *uaddr2, int val3);
+    [SYS_futex] { "futex", 6, "pddppd", 'd'},
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
@@ -330,7 +335,7 @@ void syscall(void) {
 #ifdef __STRACE__
         a0 = t->trapframe->a0;
         if (is_strace_target(num)) {
-            STRACE("%d: syscall %s(", p->pid, info[num].name);
+            STRACE("%d.%d : syscall %s(", p->pid, t->tidx,  info[num].name);
             for (int i = 0; i < info[num].num; i++) {
                 uint64 argument;
                 switch (i) {

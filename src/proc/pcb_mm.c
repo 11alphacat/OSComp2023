@@ -61,33 +61,6 @@ pagetable_t proc_pagetable() {
     return pagetable;
 }
 
-/* still: if still == 1, keep the idx unchanged */
-int thread_trapframe(struct tcb *t, int still) {
-    struct proc *p = t->p;
-    int offset;
-
-    // starts from 0
-    if (still)
-        offset = t->tidx;
-    else
-        offset = p->tg->thread_idx++;
-
-    if (p == NULL)
-        return -1;
-    pagetable_t pagetable = p->mm->pagetable;
-
-    if (mappages(pagetable, TRAPFRAME - offset * PGSIZE, PGSIZE,
-                 (uint64)(t->trapframe), PTE_R | PTE_W, 0)
-        < 0) {
-        if (offset == 0) {
-            proc_freepagetable(p->mm, offset);
-            // uvmunmap(pagetable, TRAMPOLINE, 1, 0, 0);
-            // uvmfree(pagetable, 0);
-        }
-        return 0;
-    }
-    return 1;
-}
 
 // Free a process's page table, and free the
 // physical memory it refers to.

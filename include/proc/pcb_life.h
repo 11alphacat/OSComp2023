@@ -70,6 +70,9 @@ struct proc {
 
     // for prlimit 
 	struct rlimit rlim[RLIM_NLIMITS];
+    // for wait
+    struct semaphore sem_wait_chan_parent;
+    struct semaphore sem_wait_chan_self;
     // // signal
     // int sig_pending_cnt;                   // have signal?
     // struct sighand *sig;        // signal
@@ -95,12 +98,13 @@ void proc_init(void);
 void proc_setkilled(struct proc *p);
 int proc_killed(struct proc *p);
 struct proc *find_get_pid(pid_t pid);
-int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid);
+int do_clone(uint64 flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid);
 void do_exit(int status);
 int waitpid(pid_t pid, uint64 status, int options);
 void reparent(struct proc *p);
 void proc_thread_print(void);
 uint8 get_current_procs();
 void proc_prlimit_init(struct proc* p);
+void exit_group(struct proc *p);
 
 #endif

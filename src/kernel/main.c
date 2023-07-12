@@ -118,7 +118,7 @@ void main(uint64 hartid) {
         userinit(); // first user process
 
         // pdflush kernel thread
-        pdflush_init();
+        // pdflush_init();
         __sync_synchronize();
 
 #ifdef SIFIVE_U

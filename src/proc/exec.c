@@ -65,7 +65,7 @@ static int padzero(uint64 elf_bss) {
     return 0;
 }
 
-static int clear_bss(uint64 elf_bss, uint64 last_bss) {
+int clear_bss(uint64 elf_bss, uint64 last_bss) {
     if (padzero(elf_bss)) {
         return -1;
     }
@@ -88,10 +88,10 @@ static int clear_bss(uint64 elf_bss, uint64 last_bss) {
 }
 
 static int load_elf_interp(char *path) {
-    if (ldso.valid == 1) {
-        clear_bss(ldso.elf_bss, ldso.last_bss);
-        return 0;
-    }
+    // if (ldso.valid == 1) {
+    //     clear_bss(ldso.elf_bss, ldso.last_bss);
+    //     return 0;
+    // }
 
     struct binprm bprm;
     Elf64_Ehdr *elf_ex;
@@ -324,7 +324,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
 #endif
     }
     auxv[AT_RANDOM * 2 - 1] = SPP2SP;
-    spp -= AUX_CNT * 16 + 8;
+    spp -= AUX_CNT * 16 + 8; /* reserved 8bits for null auxv entry */
     if (spp < stackbase) {
         return -1;
     }
@@ -356,7 +356,7 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
 
     bprm->sp = SPP2SP; // initial stack pointer
     // Log("sp is %p", sp);
-    // print_ustack(pagetable, sp);
+    // print_ustack(pagetable, USTACK + USTACK_PAGE * PGSIZE);
     return argc;
 }
 
@@ -683,7 +683,15 @@ int do_execve(char *path, struct binprm *bprm) {
     } else {
         t->trapframe->epc = bprm->e_entry;
     }
-    // uvm_thread_trapframe(mm->pagetable, 0, (paddr_t)t->trapframe);
+
+    // If  any  of the threads in a thread group performs an execve(2), then all threads other than the thread
+    // group leader are terminated, and the new program is executed in the thread group leader.
+    // TODO
+    if (mappages(mm->pagetable, TRAPFRAME - 0 * PGSIZE, PGSIZE, (uint64)(t->trapframe), PTE_R | PTE_W, 0) < 0) {
+        Warn("map failed!");
+        // error handler TODO
+    }
+    // uvm_thread_trapframe(mm->pagetable, 0);
 
     /* free the old pagetable */
     free_mm(oldmm, p->tg->thread_cnt);
@@ -693,15 +701,12 @@ int do_execve(char *path, struct binprm *bprm) {
 
     kfree(bprm->elf_ex);
 
-    /* TODO */
-    thread_trapframe(t, 1);
-
     if (bprm->interp) {
         Log("entry is %p", t->trapframe->epc);
     }
     /* for debug, print the pagetable and vmas after exec */
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    // print_vma(&mm->head_vma);
+    print_vma(&mm->head_vma);
     // panic(0);
 
     return argc; // this ends up in a0, the first argument to main(argc, argv)

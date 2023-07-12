@@ -8,6 +8,7 @@
 #include "lib/queue.h"
 #include "lib/timer.h"
 #include "proc/options.h"
+#include "memory/vm.h"
 
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q, zombie_t_q;
 extern Queue_t *STATES[TCB_STATEMAX];
@@ -36,7 +37,6 @@ void tcb_init(void) {
     for (int i = 0; i < NTCB; i++) {
         t = thread + i;
         initlock(&t->lock, tcb_lock_name[i]); // init its spinlock
-        sema_init(&t->sem_wait_chan_self, 0, "proc_sema_chan_self");
 
         t->state = TCB_UNUSED;
         t->kstack = KSTACK((int)(t - thread));
@@ -69,14 +69,6 @@ struct tcb *alloc_thread(thread_callback callback) {
     t->tid = alloc_tid;
     cnt_tid_inc;
 
-    // Allocate a trapframe page.
-    if ((t->trapframe = (struct trapframe *)kzalloc(sizeof(struct trapframe))) == 0) {
-        free_thread(t);
-        release(&t->lock);
-        panic("no space for trapframe\n");
-        return 0;
-    }
-
     // signal
     t->sig_pending_cnt = 0;
     if ((t->sig = (struct sighand *)kzalloc(sizeof(struct sighand))) == 0) {
@@ -104,8 +96,11 @@ struct tcb *alloc_thread(thread_callback callback) {
 
 // free a thread
 void free_thread(struct tcb *t) {
+    // free & unmap tramframe
     if (t->trapframe)
-        kfree((void *)t->trapframe);
+        uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 1, 1);
+    else
+        uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0, 1);
 
     if (t->sig) // bug!
         kfree((void *)t->sig);
@@ -116,15 +111,13 @@ void free_thread(struct tcb *t) {
     cnt_tid_dec;
 
     t->tid = 0;
-
     t->trapframe = 0;
-
     t->name[0] = 0;
-    t->exit_status = 0;
+    // t->exit_status = 0;
     t->p = 0;
-
     t->sig_pending_cnt = 0;
     t->sig_ing = 0;
+    memset(&t->context, 0, sizeof(t->context));
 
     signal_queue_flush(&t->pending); // !!!
     t->killed = 0;                   // !!! bug qwq
@@ -132,15 +125,26 @@ void free_thread(struct tcb *t) {
     TCB_Q_changeState(t, TCB_UNUSED);
 }
 
-void proc_join_thread(struct proc *p, struct tcb *t, char *name) {
-    acquire(&p->tg->lock);
-    if (p->tg->group_leader == NULL) {
-        p->tg->group_leader = t;
+// if map trapframe failed, return -1
+int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
+    struct thread_group *tg = p->tg;
+    acquire(&tg->lock);
+
+    if (tg->group_leader == NULL) {
+        tg->group_leader = t;
     }
     list_add_tail(&t->threads, &p->tg->threads);
-    p->tg->thread_cnt++;
-    t->tidx = p->tg->thread_idx;
+    tg->tgid = p->pid;
+    tg->thread_cnt++;
+    t->tidx = tg->thread_idx++;
     t->p = p;
+    
+    Log("thread idx is %d, within group %d", t->tidx, p->pid);
+
+    if ((t->trapframe = uvm_thread_trapframe(p->mm->pagetable, t->tidx)) == 0) {
+        return -1;
+    }
+    // vmprint(p->mm->pagetable, 0, 0, MAXVA - 512 * PGSIZE, 0);
 
     if (name == NULL) {
         char name_tmp[20];
@@ -151,6 +155,7 @@ void proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     }
 
     release(&p->tg->lock);
+    return 0;
 }
 
 int proc_release_thread(struct proc *p, struct tcb *t) {
@@ -168,23 +173,6 @@ int proc_release_thread(struct proc *p, struct tcb *t) {
     return 0;
 }
 
-void proc_release_all_thread(struct proc *p) {
-    struct tcb *t_cur = NULL;
-    struct tcb *t_tmp = NULL;
-    acquire(&p->tg->lock);
-    list_for_each_entry_safe(t_cur, t_tmp, &p->tg->threads, threads) {
-        acquire(&t_cur->lock);
-        list_del_reinit(&t_cur->threads);
-        if (t_cur == p->tg->group_leader) { // !!!
-            TCB_Q_changeState(t_cur, TCB_ZOMBIE);
-        } else {
-            free_thread(t_cur);
-        }
-        release(&t_cur->lock);
-    }
-    p->tg->thread_cnt = 0;
-    release(&p->tg->lock);
-}
 
 // send signal to all threads of proc p
 void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
@@ -302,26 +290,6 @@ int do_sleep_ns(struct tcb *t, struct timespec ts) {
     return wait_ret;
 }
 
-// thread exit
-// similar to exit of proc
-void exit_thread(int status) {
-    struct tcb *t = thread_current();
-    struct proc *p = proc_current();
-
-    t->exit_status = status;
-    memset(&t->context, 0, sizeof(t->context));
-    int last = proc_release_thread(p, t);
-
-    free_thread(t);
-
-    if (last == 0) {
-        do_exit(0);
-    } else {
-        thread_sched();
-        panic("existed thread is scheduled");
-    }
-    return;
-}
 
 // create thread valid inkernel space
 void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback callback) {
@@ -332,8 +300,6 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
     }
 
     proc_join_thread(p, t, name);
-
-    p->tg->thread_idx++; // !!!
 
     TCB_Q_changeState(t, TCB_RUNNABLE);
     release(&t->lock);

@@ -5,18 +5,12 @@
 // oscomp syscalls that haven't been implemented
 
 // proc
-uint64 sys_exit_group(void) {
-    return 0;
-}
 
 // uid_t geteuid(void);
 uint64 sys_geteuid(void) {
     return 0;
 }
 
-uint64 sys_gettid(void) {
-    return 0;
-}
 
 uint64 sys_rt_sigtimedwait(void) {
     return 0;

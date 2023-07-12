@@ -7,7 +7,7 @@ struct thread_cpu t_cpus[NCPU];
 // to prevent race with process being moved
 // to a different CPU.
 int cpuid() {
-    int id = r_sscratch();
+    int id = r_tp();
     return id;
 }
 

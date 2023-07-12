@@ -173,8 +173,8 @@ uint64 sys_bind(void) {
         sock->src_port = atomic_inc_return(&PORT);
     } else {
         sock->src_port = sa->sin_port;
-        add_mapping(sa->sin_port, sock);
     }
+    add_mapping(sock->src_port, sock);
 
     info_socket(SYS_bind, sockfd, sock);
 
@@ -408,12 +408,12 @@ uint64 sys_sendto(void) {
     struct socket *dstsock = port2sock(sock->dst_port);
 
     if (dstsock->sbuf.type == NONE) {
-        sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
+        sbuf_init(&dstsock->sbuf, PGSIZE / sizeof(char));
         dstsock->sbuf.type = SOCKET_SBUF;
     }
 
     for (int i = 0; i < len; i++) {
-        if (sbuf_insert(&sock->sbuf, 0, buf) < 0) {
+        if (sbuf_insert(&dstsock->sbuf, 0, buf) < 0) {
             Warn("sendto failed");
             return -1;
         }
@@ -429,10 +429,27 @@ uint64 sys_recvfrom(void) {
     // int sockfd = tp->a0;
     paddr_t buf = getphyaddr(proc_current()->mm->pagetable, tp->a1);
     // size_t len = tp->a2;
+    const struct sockaddr_in *sa = (const struct sockaddr_in *)getphyaddr(proc_current()->mm->pagetable, tp->a4);
+    // size_t len = tp->a2;
 
-    struct file *fp = proc_current()->ofile[3];
-    struct socket *sock = fp->f_tp.f_sock;
-    sbuf_remove(&sock->sbuf, 0, buf);
+    struct socket *sock = port2sock(sa->sin_port);
+
+    // if (dstsock->sbuf.type == NONE) {
+    //     sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
+    //     dstsock->sbuf.type = SOCKET_SBUF;
+    // }
+
+    // TODO: len
+    for (int i = 0; i < 1; i++) {
+        if (sbuf_remove(&sock->sbuf, 0, buf) < 0) {
+            Warn("sendto failed");
+            return -1;
+        }
+    }
+
+    // struct file *fp = proc_current()->ofile[3];
+    // struct socket *sock = fp->f_tp.f_sock;
+    // sbuf_remove(&sock->sbuf, 0, buf);
 
     return 1;
 }
@@ -479,14 +496,3 @@ uint64 sys_setsockopt(void) {
 uint64 sys_getsockopt(void) {
     return 0;
 }
-// uint64 socket_read() {
-// }
-
-// uint64 socket_write() {
-// }
-// // uint64 sys_listen(void) {
-
-// // }
-// // uint64 sys_listen(void) {
-
-// // }

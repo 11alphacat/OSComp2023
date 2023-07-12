@@ -29,6 +29,7 @@
 struct futex {
     struct spinlock lock;
     struct Queue waiting_queue;
+    int valid;
 };
 
 struct futex *get_futex(uint64 uaddr, int assert);

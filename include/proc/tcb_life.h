@@ -26,12 +26,12 @@ enum thread_state { TCB_UNUSED,
 typedef enum thread_state thread_state_t;
 
 struct thread_group {
-    spinlock_t lock; // spinlock
-    tid_t tgid;      // thread group id
-    int thread_idx;
-    int thread_cnt;           // the count of threads
+    spinlock_t lock;          // spinlock
+    tid_t tgid;               // thread group id, equals to pid
+    int thread_idx;           // thread index within the group
+    int thread_cnt;           // count of threads
     struct list_head threads; // thread group
-    struct tcb *group_leader; // its proc thread group leader
+    struct tcb *group_leader; // group leader
 };
 
 typedef void (*thread_callback)(void);
@@ -48,9 +48,6 @@ struct tcb {
 
     // offset
     int tidx;
-
-    // exit status
-    int exit_status; // Exit status to be returned to parent's wait
 
     // thread : killed ?
     int killed; // If non-zero, have been killed
@@ -76,15 +73,12 @@ struct tcb {
     // thread list
     struct list_head threads; // thread list
 
-    // is detached ?
-    uint is_detached;
+    // thread group
+    struct thread_group *tg;
 
     struct list_head wait_list;    // waiting queue list
     struct Queue *wait_chan_entry; //  waiting queue entry
 
-    // only valid for group leader
-    struct semaphore sem_wait_chan_parent;
-    struct semaphore sem_wait_chan_self;
 
     /* CLONE_CHILD_SETTID: */
     uint64 set_child_tid;
@@ -98,10 +92,10 @@ void tcb_init(void);
 struct tcb *thread_current(void);
 struct tcb *alloc_thread(thread_callback callback);
 void free_thread(struct tcb *t);
-void exit_thread(int status);
+void exit_thread(struct tcb *t);
 int thread_killed(struct tcb *t);
 void thread_setkilled(struct tcb *t);
-void proc_join_thread(struct proc *p, struct tcb *t, char *name);
+int proc_join_thread(struct proc *p, struct tcb *t, char *name);
 int proc_release_thread(struct proc *p, struct tcb *t);
 void proc_release_all_thread(struct proc *p);
 void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt);

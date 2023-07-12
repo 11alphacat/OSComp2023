@@ -32,13 +32,13 @@ int signal_queue_pop(uint64 mask, struct sigpending *pending) {
 // delete all pending signals of queue
 int signal_queue_flush(struct sigpending *pending) {
     ASSERT(pending != NULL);
-    struct sigqueue *sig_cur;
-    struct sigqueue *sig_tmp;
+    // struct sigqueue *sig_cur;
+    // struct sigqueue *sig_tmp;
     sig_empty_set(&pending->signal);
-    list_for_each_entry_safe(sig_cur, sig_tmp, &pending->list, list) {
-        list_del_reinit(&sig_cur->list);
-        kfree(sig_cur);
-    }
+    // list_for_each_entry_safe(sig_cur, sig_tmp, &pending->list, list) {
+        // list_del_reinit(&sig_cur->list);
+        // kfree(sig_cur);
+    // }
     return 1;
 }
 

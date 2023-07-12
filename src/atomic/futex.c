@@ -13,6 +13,7 @@ extern struct hash_table futex_map;
 void futex_init(struct futex *fp, char *name) {
     initlock(&fp->lock, name);
     Queue_init(&fp->waiting_queue, name, TCB_WAIT_QUEUE);
+    fp->valid = 1;
 }
 
 struct futex *get_futex(uint64 uaddr, int assert) {
@@ -77,7 +78,7 @@ int futex_wakeup(uint64 uaddr, int nr_wake) {
     int ret = 0;
 
     acquire(&fp->lock);
-    while (!Queue_isempty(&fp->waiting_queue) && ret < nr_wake) {
+    while (fp->valid == 1 && !Queue_isempty(&fp->waiting_queue) && ret < nr_wake) {
         t = (struct tcb *)Queue_provide_atomic(&fp->waiting_queue, 1); // remove it
 
         if (t == NULL)

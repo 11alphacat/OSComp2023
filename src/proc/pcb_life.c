@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "test.h"
 #include "memory/binfmt.h"
+#include "lib/list.h"
 
 extern Queue_t unused_p_q, used_p_q, zombie_p_q;
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
@@ -142,6 +143,10 @@ struct proc *alloc_proc(void) {
     // state
     PCB_Q_changeState(p, PCB_USED);
 
+    // wait semaphore
+    sema_init(&p->sem_wait_chan_parent, 0, "wait_parent");
+    sema_init(&p->sem_wait_chan_self, 0, "wait_self");
+
     // map <pid, p>
     hash_insert(&pid_map, (void *)&(p->pid), (void *)p);
     return p;
@@ -162,11 +167,6 @@ struct proc *create_proc() {
     }
 
     proc_join_thread(p, t, NULL);
-
-    // wait semaphore
-    sema_init(&t->sem_wait_chan_parent, 0, "thread_sema_chan");
-
-    thread_trapframe(t, 0);
 
     release(&t->lock);
 
@@ -312,7 +312,41 @@ void thread_forkret(void) {
 //         printfRed("CLONE_NEWIPC is set.\n");
 // }
 
-int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
+void clone_flags(int flags) {
+    printfGreen("\n");
+    if (flags & CLONE_VM) {
+        printfGreen("CLONE_VM  ");
+    }
+    if (flags & CLONE_FILES) {
+        printfGreen("CLONE_FILES  ");
+    }
+    if (flags & CLONE_FS) {
+        printfGreen("CLONE_FS  ");
+    }
+    if (flags & CLONE_THREAD) {
+        printfGreen("CLONE_THREAD  ");
+    }
+    if (flags & CLONE_SIGHAND) {
+        printfGreen("CLONE_SIGHAND  ");
+    }
+    if (flags & CLONE_PARENT_SETTID) {
+        printfGreen("CLONE_PARENT_SETTID  ");
+    }
+    if (flags & CLONE_SETTLS) {
+        printfGreen("CLONE_SETTLS  ");
+    }
+    if (flags & CLONE_CHILD_CLEARTID) {
+        printfGreen("CLONE_CHILD_CLEARTID  ");
+    }
+    if (flags & CLONE_CHILD_SETTID) {
+        printfGreen("CLONE_CHILD_SETTID  ");
+    }
+}
+
+//    long clone(unsigned long flags, void *stack,
+//              int *parent_tid, unsigned long tls,
+//              int *child_tid);
+int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) {
     int pid;
     struct proc *p = proc_current();
     struct proc *np = NULL;
@@ -323,16 +357,18 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
     // extern int print_tf_flag;
     // print_tf_flag = 1;
     // print_clone_flags(flags);
+#ifdef __STRACE__
+    clone_flags(flags);
+#endif
     if (flags & CLONE_THREAD) {
         if ((t = alloc_thread(thread_forkret)) == 0) {
             return -1;
         }
-        proc_join_thread(p, t, NULL);
-        p->tg->thread_idx++; //  !!!
-
-        extern int print_tf_flag;
-        print_tf_flag = 1;
-        panic("do_clone : error\n");
+        // extern int print_tf_flag;
+        // print_tf_flag = 1;
+        if (proc_join_thread(p, t, NULL) < 0) {
+            free_thread(t);
+        }
     } else {
         // Allocate process.
         if ((np = create_proc()) == 0) {
@@ -354,12 +390,13 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
         t->trapframe->tp = tls;
     }
 
-    // 子线程中存储子线程 ID 的变量指针
     if (flags & CLONE_CHILD_SETTID) {
-        t->set_child_tid = ctid;
+        if (copyout(p->mm->pagetable, ctid, (char *)&t->tid, sizeof(tid_t)) < 0)
+            return -1;
     }
 
     if (flags & CLONE_CHILD_CLEARTID) {
+        // when the child exits,  Clear (zero)
         t->clear_child_tid = ctid;
     }
 
@@ -375,7 +412,7 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
 
     // store the parent pid
     if (flags & CLONE_PARENT_SETTID) {
-        if (copyout(p->mm->pagetable, ptid, (char *)&t->tid, sizeof(ptid)) == -1)
+        if (copyout(p->mm->pagetable, ptid, (char *)&t->tid, sizeof(tid_t)) == -1)
             return -1;
     }
 
@@ -452,15 +489,16 @@ int do_clone(int flags, uint64 stack, uint64 ptid, uint64 tls, uint64 ctid) {
     return pid;
 }
 
-// Exit the current process.
-void do_exit(int status) {
+int exit_process(int status) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
+
+    free_thread(t);
 
     if (p == initproc)
         panic("init exiting");
 
-    // Close all open files.
+    // private to proc, no need to acquire
     for (int fd = 0; fd < NOFILE; fd++) {
         if (p->ofile[fd]) {
             struct file *f = p->ofile[fd];
@@ -471,32 +509,46 @@ void do_exit(int status) {
     fat32_inode_put(p->cwd);
     p->cwd = 0;
 
-    // release all threads (group leader should be ZOMBIE, and be free with proc)
-    proc_release_all_thread(p);
-
     // Give any children to init.
     reparent(p);
 
     acquire(&p->lock);
-
-    p->exit_state = status << 8;
-
     PCB_Q_changeState(p, PCB_ZOMBIE);
-
-    //  only valid for the group leader of proc
-    sema_signal(&p->parent->tg->group_leader->sem_wait_chan_parent);
-    sema_signal(&p->tg->group_leader->sem_wait_chan_self);
-
-#ifdef __DEBUG_PROC__
-    printfGreen("exit : %d has exited\n", p->pid);                // debug
-    printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug
-#endif
+    p->exit_state = status << 8;
     release(&p->lock);
 
-    acquire(&t->lock);
+    sema_signal(&p->parent->sem_wait_chan_parent);
+    sema_signal(&p->sem_wait_chan_self);
 
+    return 0;
+}
+
+void exit_thread(struct tcb *t) {
+    free_thread(t);
+}
+
+void do_exit(int status) {
+    struct proc *p = proc_current();
+    struct tcb *t = thread_current();
+    struct thread_group *tg = p->tg;
+
+    acquire(&tg->lock);
+    if (!--tg->thread_cnt) {
+        exit_process(status);
+    } else {
+        exit_thread(t);
+    }
+    list_del(&t->threads);
+    release(&tg->lock);
+
+    // #ifdef __DEBUG_PROC__
+    //     printfGreen("exit : %d has exited\n", p->pid);                // debug
+    //     printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug
+    // #endif
+
+    acquire(&t->lock);
     thread_sched();
-    panic("existed thread is scheduled");
+    panic("do_exit should never return");
     return;
 }
 
@@ -523,7 +575,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
         return -1;
     }
     while (1) {
-        sema_wait(&p->tg->group_leader->sem_wait_chan_parent);
+        sema_wait(&p->sem_wait_chan_parent);
 #ifdef __DEBUG_PROC__
         printfBlue("wait : %d wakeup\n", p->pid); // debug
 #endif
@@ -534,7 +586,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
         list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
             // shell won't exit !!!
             if (pid > 0 && p_child->pid == pid) {
-                sema_wait(&p_child->tg->group_leader->sem_wait_chan_self);
+                sema_wait(&p_child->sem_wait_chan_self);
 #ifdef __DEBUG_PROC__
                 printfBlue("wait : %d wakeup self\n", p->pid); // debug
 #endif
@@ -551,10 +603,10 @@ int waitpid(pid_t pid, uint64 status, int options) {
                     return -1;
                 }
 
+                if (!list_empty(&p_child->tg->threads)) {
+                    Log("hit");
+                }
                 ASSERT(list_empty(&p_child->tg->threads)); // !!!
-                ASSERT(p_child->tg->group_leader->state == TCB_ZOMBIE);
-                free_thread(p_child->tg->group_leader);    // group leader should be free with proc
-
                 free_proc(p_child);
 
                 acquire(&p->lock);
@@ -605,7 +657,7 @@ void reparent(struct proc *p) {
 
             p_child->parent = initproc;
             if (p_child->state == PCB_ZOMBIE) {
-                sema_signal(&initproc->tg->group_leader->sem_wait_chan_parent);  // !!!!!
+                sema_signal(&initproc->sem_wait_chan_parent); // !!!!!
 #ifdef __DEBUG_PROC__
                 printfBWhite("reparent : zombie %d has exited\n", p_child->pid); // debug
                 printfBWhite("reparent : zombie %d wakeup 1\n", p_child->pid);   // debug
@@ -669,7 +721,8 @@ static char *TCB_states[] = {
     [TCB_RUNNABLE] "tcb_runnable",
     [TCB_RUNNING] "tcb_running",
     [TCB_SLEEPING] "tcb_sleeping",
-    [TCB_ZOMBIE] "tcb_zombie"};
+    [TCB_ZOMBIE] "tcb_zombie",
+};
 
 void printProcessTree(struct proc *p, int indent) {
     if (p->state == PCB_UNUSED) {
@@ -727,4 +780,21 @@ void proc_prlimit_init(struct proc* p) {
     rlim_tmp = rlim + RLIMIT_STACK;
     rlim_tmp->rlim_max = USTACK_PAGE;
     rlim_tmp->rlim_cur = 0;
+}
+// This  system  call  is equivalent to _exit(2) except that it terminates not only the calling thread, but
+// all threads in the calling process's thread group.
+void exit_group(struct proc *p) {
+    struct tcb *caller = thread_current();
+    struct thread_group *tg = p->tg;
+    struct tcb *t_cur = NULL;
+    struct tcb *t_tmp = NULL;
+    acquire(&p->tg->lock);
+    list_for_each_entry_safe(t_cur, t_tmp, &tg->threads, threads) {
+        if (t_cur == caller)
+            continue;
+        list_del_reinit(&t_cur->threads);
+        tg->thread_cnt--;
+        free_thread(t_cur);
+    }
+    release(&p->tg->lock);
 }

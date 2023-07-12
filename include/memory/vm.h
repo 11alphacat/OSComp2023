@@ -21,9 +21,9 @@ void uvmclear(pagetable_t pagetable, uint64 va);
 void freewalk(pagetable_t pagetable, int level);
 
 int uvm_thread_stack(pagetable_t pagetable, int thread_idx);
-int uvm_thread_trapframe(pagetable_t pagetable, int thread_idx, paddr_t pa);
+struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx);
 
 /* print the pagetable */
-void vmprint(pagetable_t pagetable, int isroot, int level, int single, uint64 vabase);
+void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 vabase);
 
 #endif // __VM_H__

@@ -1,7 +1,7 @@
 ## 1. Basic
 .DEFAULT_GOAL=kernel
-# PLATFORM ?= qemu_virt
-PLATFORM ?= qemu_sifive_u
+PLATFORM ?= qemu_virt
+# PLATFORM ?= qemu_sifive_u
 BUILD=build
 
 # debug options
@@ -9,7 +9,7 @@ LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 1
+STRACE ?= 0
 DEBUG_LDSO ?= 0
 DEBUG_SIGNAL ?= 0
 

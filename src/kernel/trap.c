@@ -137,12 +137,12 @@ void thread_usertrapret() {
     t->trapframe->kernel_satp = r_satp();         // kernel page table
     t->trapframe->kernel_sp = t->kstack + PGSIZE; // process's kernel stack
     t->trapframe->kernel_trap = (uint64)thread_usertrap;
+    t->trapframe->hartid = r_tp(); // hartid for cpuid()
 
-    // trapframe_print(t->trapframe);// debug
-    if (print_tf_flag) {
-        trapframe_print(t->trapframe);
-        print_tf_flag = 0;
-    }
+    // if (print_tf_flag) {
+    // trapframe_print(t->trapframe);
+    //     print_tf_flag = 0;
+    // }
 
     // set up the registers that trampoline.S's sret will use
     // to get to user space.
@@ -158,6 +158,9 @@ void thread_usertrapret() {
 
     // tell trampoline.S the user page table to switch to.
     uint64 satp = MAKE_SATP(p->mm->pagetable);
+
+    // write thread idx into sscratch
+    w_sscratch(t->tidx);
 
     // jump to userret in trampoline.S at the top of memory, which
     // switches to the user page table, restores user registers,

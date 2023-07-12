@@ -22,13 +22,21 @@ uservec:
         # trap.c sets stvec to point here, so traps from user space start here,
         # in supervisor mode, but with a user page table.
 
-save_context:
         # save user a0 in stack
         # a0 can be used to get at TRAPFRAME.
-        addi sp, sp, -16
+        addi sp, sp, -32
         sd a0, 0(sp)
+        sd a1, 8(sp)
+        sd a2, 16(sp)
+
+get_trapframe:
         li a0, TRAPFRAME
+        li a1, 1024*4
+        csrr a2, sscratch
+        mul a1, a2, a1
+        sub a0, a0, a1
         
+save_context:
         # save the user registers in TRAPFRAME except sp and a0
         sd ra, 40(a0)
         sd gp, 56(a0)
@@ -63,9 +71,15 @@ save_context:
         # save a0
         ld t0, 0(sp)
         sd t0, 112(a0)
+        # save a1
+        ld t0, 8(sp)
+        sd t0, 120(a0)
+        # save a2
+        ld t0, 16(sp)
+        sd t0, 128(a0)
 
         # restore and save sp
-        addi sp, sp, 16 
+        addi sp, sp, 32
         sd sp, 48(a0)
 
 prepare:
@@ -79,6 +93,9 @@ prepare:
 
         # fetch the kernel page table address, from p->trapframe->kernel_satp.
         ld t1, 0(a0)
+
+        # make tp hold the current hartid, from p->trapframe->kernel_hartid
+        ld tp, 32(a0)
 
         # wait for any previous memory operations to complete, so that
         # they use the user page table.
@@ -105,8 +122,14 @@ userret:
         csrw satp, a0
         sfence.vma zero, zero
 
+        # gettrapframe
         li a0, TRAPFRAME
+        li a1, 1024*4
+        csrr a2, sscratch
+        mul a1, a2, a1
+        sub a0, a0, a1
 
+restore_context:
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)
         ld sp, 48(a0)
