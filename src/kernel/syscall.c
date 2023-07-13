@@ -289,7 +289,7 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
 
 int is_strace_target(int num) {
     /* trace all proc except sh and init */
-    if (proc_current()->pid > 2) {
+    if (proc_current()->pid > 0) {
         // if(num == SYS_read || num == SYS_write || num == SYS_lseek) {
         //     return 0;
         // }

@@ -4,7 +4,12 @@ inferior 2
 attach 2
 set schedule-multiple on
 symbol-file kernel-qemu
-=====开始调试...
+
+b __sd_init
+b sdcard_disk_read
+c
+layout src
+`=====开始调试...
 break main
 c   
 
@@ -25,3 +30,6 @@ c
 先在一个窗口执行 make gdb
 再在一个窗口执行 gdb-multiarch
 
+
+p/x *(unsigned int*)(0x10050000 + 0x40)
+x (unsigned int*)(0x10050000 + 0x40)
