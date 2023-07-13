@@ -257,7 +257,7 @@ void vprintf(const char *fmt, va_list args) {
 
 // Print to the console. only understands %d, %x, %p, %s.
 void printf(char *fmt, ...) {
-return;
+    return;
 
     va_list ap;
     // int i, c, locking;

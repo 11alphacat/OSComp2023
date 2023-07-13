@@ -146,7 +146,7 @@ CPUS := 2
 endif
 
 ifeq ($(PLATFORM), qemu_virt)
-QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 130M -smp $(CPUS) -nographic
+QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 1G -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
@@ -154,7 +154,7 @@ CFLAGS += -DVIRT
 endif
 
 ifeq ($(PLATFORM), qemu_sifive_u)
-QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 1G -nographic
+QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 130M -nographic
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
 CFLAGS += -DSIFIVE_U

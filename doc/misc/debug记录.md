@@ -126,6 +126,9 @@ if (S_ISCHR(mode) || S_ISBLK(mode) ) {   // 用类型判断，而非用设备号
 ...
 ```
 
+## SD卡驱动
+利用 SPI 模式编写驱动最最重要的一个函数便是 __spi_xfer(), 它保证了读写的同步。先前遇到的诸多bug， 大多是因为之前编写的 spi_read() 与 spi_write() 底层没有很好地做到 SPI 模式数据传输的同步。
+
 ## 系统调用
 ### openat
 在测试 busybox 的 cat 程序时，我们发现其调用的 openat 系统调用总会返回不正确的值，经过  
