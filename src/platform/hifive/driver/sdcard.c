@@ -1,4 +1,4 @@
-#include "platform/hifive/sdcard.h"
+#include "platform/hifive/sdcard_hifive.h"
 #include "platform/hifive/spi_hifive.h"
 #include "driver/disk.h"
 #include "atomic/semaphore.h"

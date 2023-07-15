@@ -203,6 +203,7 @@ void kerneltrap() {
 // returns 2 if timer interrupt,
 // 1 if other device,
 // 0 if not recognized.
+
 int devintr() {
     uint64 scause = r_scause();
 
@@ -214,9 +215,19 @@ int devintr() {
 
         if (irq == UART0_IRQ) {
             uartintr();
-        } else if (irq == VIRTIO0_IRQ) {
+        } 
+    #ifdef SIFIVE_U
+        // TODO()
+        
+        // else if (irq == VIRTIO0_IRQ) {
+        //     disk_intr();
+        // }
+    #else
+        else if (irq == VIRTIO0_IRQ) {
             disk_intr();
-        } else if (irq) {
+        }
+    #endif
+        else if (irq) {
             printf("unexpected interrupt irq=%d\n", irq);
         }
 
