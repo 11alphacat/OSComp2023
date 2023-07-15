@@ -254,11 +254,13 @@ static uint64 do_lseek(struct file *f, off_t offset, int whence) {
         // f->f_pos = offset;
         // break;
     }
-    // if(f->f_pos==-1) {
-    //     printf("ready\n");
-    // }
-    // debug!!!
-    // printfRed("lseek : pid : %d, lseek inode file %s to %d \n", proc_current()->pid, f->f_tp.f_inode->fat32_i.fname, MAX(0, f->f_pos)); // debug
+// if(f->f_pos==-1) {
+//     printf("ready\n");
+// }
+// debug!!!
+#ifdef __DEBUG_RW__
+    printfRed("lseek : pid : %d, lseek inode file %s to %d \n", proc_current()->pid, f->f_tp.f_inode->fat32_i.fname, MAX(0, f->f_pos)); // debug
+#endif
     return MAX(0, f->f_pos);
 }
 
@@ -762,13 +764,6 @@ uint64 sys_write(void) {
     if (!F_WRITEABLE(f))
         return -1;
 
-    // if(n == 1024) {
-    //     extern int print_tf_flag;
-    //     print_tf_flag = 1;
-    // }
-    if (f->f_tp.f_inode->fat32_i.fname[0] == 'S') {
-        printfBlue("ready\n");
-    }
     return f->f_op->write(f, p, n);
 }
 
@@ -1386,13 +1381,13 @@ uint64 sys_statfs(void) {
     fs_stat.f_bsize = BSIZE;
     fs_stat.f_frsize = BSIZE;
     fs_stat.f_blocks = __TotSec;
-    fs_stat.f_bfree = __TotSec / 4;  // not important
+    fs_stat.f_bfree = __TotSec / 4; // not important
     fs_stat.f_files = NINODE;
     fs_stat.f_ffree = NINODE / 4;    // not important
     fs_stat.f_bavail = __TotSec / 4; // not important
     fs_stat.f_fsid.val[0] = 2;       // not important
     fs_stat.f_namelen = NAME_LONG_MAX;
-    fs_stat.f_flags = 0;             // not important
+    fs_stat.f_flags = 0; // not important
     // printfRed("%x", ustat_addr);
     struct proc *p = proc_current();
     if (copyout(p->mm->pagetable, ustat_addr, (char *)&fs_stat, sizeof(fs_stat)) < 0) { // rember add 1 for '\0'
@@ -1853,5 +1848,9 @@ uint64 sys_fsync(void) {
 // truncate a file to a specified length
 // int ftruncate(int fd, off_t length);
 uint64 sys_ftruncate(void) {
+    return 0;
+}
+
+uint64 sys_umask(void) {
     return 0;
 }

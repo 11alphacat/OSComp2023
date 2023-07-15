@@ -16,6 +16,9 @@
 #include "fs/fat/fat32_file.h"
 #include "memory/allocator.h"
 
+int pid_debug_1 = 9;
+int pid_debug_2 = 11;
+
 // #define _O_READ              (~O_WRONLY)
 // #define _O_WRITE             (O_WRONLY | O_RDWR | O_CREATE |)
 void fileinit(void) {
@@ -68,6 +71,10 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
 
     if (f->f_type == FD_PIPE) {
         r = pipe_read(f->f_tp.f_pipe, 1, addr, n);
+#ifdef __DEBUG_PIPE__
+        // if(proc_current()->pid == pid_debug_1 || proc_current()->pid == pid_debug_2)
+        printfGreen("read pipe : pid : %d, read %d chars -> pipe file (%d) starting from %d\n", proc_current()->pid, r, f->f_tp.f_pipe, f->f_tp.f_pipe->buffer.r - r);
+#endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
             return -1;
@@ -86,11 +93,13 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
         // else
         //     printfMAGENTA("read : read %d chars of inode file %s starting from %d \n", r, f->f_tp.f_inode->fat32_i.fname, f->f_pos - r);
 
-#ifdef __DEBUG_FS__
+#ifdef __DEBUG_RW__
+        // if(proc_current()->pid == pid_debug_1 || proc_current()->pid == pid_debug_2) {
         if (r < 0)
-            printfMAGENTA("read : error, reading chars of inode file %s starting from %d \n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
+            printfMAGENTA("read inode : pid : %d, error, reading chars of inode file %s starting from %d \n", proc_current()->pid, f->f_tp.f_inode->fat32_i.fname, f->f_pos);
         else
-            printfMAGENTA("read : read %d chars of inode file %s starting from %d \n", r, f->f_tp.f_inode->fat32_i.fname, f->f_pos - r);
+            printfMAGENTA("read inode : pid : %d, read %d chars of inode file %s starting from %d \n", proc_current()->pid, r, f->f_tp.f_inode->fat32_i.fname, f->f_pos - r);
+            // }
 #endif
     } else {
         panic("fileread");
@@ -111,10 +120,16 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
     if (f->f_type == FD_PIPE) {
         // ret = pipewrite(f->f_tp.f_pipe, 1, addr, n);
         ret = pipe_write(f->f_tp.f_pipe, 1, addr, n);
-#ifdef __DEBUG_FS__
-        printfYELLOW("write : write %d chars -> pipe file (no name pipe) starting from %d\n", ret, f->f_tp.f_pipe->buffer.w - ret);
+        // debug!!
+#ifdef __DEBUG_PIPE__
+        // if(proc_current()->pid == pid_debug_1 || proc_current()->pid == pid_debug_2)
+        printfYELLOW("write pipe: pid : %d, write %d chars -> pipe file (%d) starting from %d\n", proc_current()->pid, ret, f->f_tp.f_pipe, f->f_tp.f_pipe->buffer.w - ret);
 #endif
     } else if (f->f_type == FD_DEVICE) {
+        // special for dev_cpu_dma_latency?
+        if (f->f_major == DEV_CPU_DMA_LATENCY) {
+            return n;
+        }
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].write)
             return -1;
         ret = devsw[f->f_major].write(1, addr, n);
@@ -152,13 +167,19 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
         // if (ret < 0)
         //     printfBlue("write : error writing chars -> inode file %s starting from %d\n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
         // else
-        //     printfBlue("write : write %d chars -> inode file %s starting from %d\n", i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
+        //     printfBlue("write : pid : %d, write %d chars -> inode file %s starting from %d\n", proc_current()->pid, i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
+        // }
+        // if (i != n) {
+        //     printf("ready\n");
+        // }
 
-#ifdef __DEBUG_FS__
+#ifdef __DEBUG_RW__
+        // if(proc_current()->pid == pid_debug_1 || proc_current()->pid == pid_debug_2) {
         if (ret < 0)
-            printfYELLOW("write : error writing chars -> inode file %s starting from %d\n", f->f_tp.f_inode->fat32_i.fname, f->f_pos);
+            printfBlue("write inode: pid : %d,  error writing chars -> inode file %s starting from %d\n", proc_current()->pid, f->f_tp.f_inode->fat32_i.fname, f->f_pos);
         else
-            printfYELLOW("write : write %d chars -> inode file %s starting from %d\n", i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
+            printfBlue("write inode: pid : %d, write %d chars -> inode file %s starting from %d\n", proc_current()->pid, i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
+            // }
 #endif
     } else {
         // panic("filewrite");

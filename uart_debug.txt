@@ -1,3 +1,6 @@
 第一步：
 完成映射
 kvmmap(kpgtbl, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
+
+第二步：
+修改同步写uart txdata 寄存器

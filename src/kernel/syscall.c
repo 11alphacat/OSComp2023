@@ -265,10 +265,19 @@ static struct syscall_info info[] = {
     [SYS_fsync] { "fsync", 1, "d" },
     [SYS_ftruncate] { "ftruncate", 2, "dl" },
     [SYS_utimensat] { "utimensat", 4, "dspd" },
-    //    int futex(int *uaddr, int futex_op, int val,
-    //          const struct timespec *timeout,   /* or: uint32_t val2 */
-    //          int *uaddr2, int val3);
-    [SYS_futex] { "futex", 6, "pddppd", 'd'},
+    [SYS_setitimer] { "setitimer", 3, "dpp" },
+    [SYS_umask] { "umask", 1, "d" },
+    [SYS_sched_getaffinity] { "sched_getaffinity", 3, "ddp" },
+    [SYS_sched_setaffinity] { "shced_setaffinity", 3, "ddp" },
+    [SYS_sched_getscheduler] { "sched_getscheduler", 3, "ddp" },
+    [SYS_sched_getparam] { "sched_getparam", 2, "dp" },
+    [SYS_sched_setscheduler] { "sched_setscheduler", 3, "ddp" },
+    [SYS_clock_getres] { "clock_getres", 2, "dp" },
+    [SYS_nanosleep] { "nanosleep", 2, "pp" },
+    [SYS_futex] { "futex", 6, "pddppd" },
+    [SYS_tkill] { "tkill", 2, "dd" },
+    [SYS_membarrier] { "membarrier", 3, "ddd" },
+    [SYS_clock_nanosleep] { "clock_nanosleep", 4, "ddpp" }
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
@@ -289,13 +298,13 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
 
 int is_strace_target(int num) {
     /* trace all proc except sh and init */
-    if (proc_current()->pid > 0) {
-        // if(num == SYS_read || num == SYS_write || num == SYS_lseek) {
+    if (proc_current()->pid > 2) {
+        // if(num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime) {
         //     return 0;
         // }
-        // if(num==SYS_prlimit64)
+        // if(num==)
         //     return 1;
-        // else 
+        // else
         //     return 0;
         return 1;
     } else {
@@ -335,7 +344,7 @@ void syscall(void) {
 #ifdef __STRACE__
         a0 = t->trapframe->a0;
         if (is_strace_target(num)) {
-            STRACE("%d.%d : syscall %s(", p->pid, t->tidx,  info[num].name);
+            STRACE("%d.%d : syscall %s(", p->pid, t->tidx, info[num].name);
             for (int i = 0; i < info[num].num; i++) {
                 uint64 argument;
                 switch (i) {

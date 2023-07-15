@@ -32,13 +32,13 @@ int signal_queue_pop(uint64 mask, struct sigpending *pending) {
 // delete all pending signals of queue
 int signal_queue_flush(struct sigpending *pending) {
     ASSERT(pending != NULL);
-    // struct sigqueue *sig_cur;
-    // struct sigqueue *sig_tmp;
+    struct sigqueue *sig_cur;
+    struct sigqueue *sig_tmp;
     sig_empty_set(&pending->signal);
-    // list_for_each_entry_safe(sig_cur, sig_tmp, &pending->list, list) {
-        // list_del_reinit(&sig_cur->list);
-        // kfree(sig_cur);
-    // }
+    list_for_each_entry_safe(sig_cur, sig_tmp, &pending->list, list) {
+        list_del_reinit(&sig_cur->list);
+        kfree(sig_cur);
+    }
     return 1;
 }
 
@@ -47,12 +47,17 @@ void signal_info_init(sig_t sig, siginfo_t *info, int opt) {
     // USER
     if (opt == 0) {
         info->si_signo = sig;
-        info->si_pid = proc_current()->pid;
+        // struct proc* p = proc_current();
+        // if(p == NULL) {
+        //     struct tcb * t = thread_current();
+        //     printf("tid : %d ready\n",t->tid);
+        // }
+        // info->si_pid = p->pid;// bug!!!可能是一个空cpu，即没有进程的cpu发生时钟中断，然后发送信号
         info->si_code = SI_USER;
         // KERNEL
     } else if (opt == 1) {
         info->si_signo = sig;
-        info->si_pid = 0;
+        // info->si_pid = 0;
         info->si_code = SI_KERNEL;
     } else {
         panic("signal info : error\n");
@@ -81,8 +86,9 @@ int signal_send(siginfo_t *info, struct tcb *t) {
         return 0;
     }
     q->info = *info; // !!!
-
     t->sig_pending_cnt++;
+    INIT_LIST_HEAD(&q->list); // bug!!!
+
     list_add_tail(&q->list, &t->pending.list);
     sig_add_set(t->pending.signal, sig);
 
@@ -99,7 +105,9 @@ int signal_handle(struct tcb *t) {
     if (t->sig_pending_cnt == 0)
         return 0;
     if (t->sig_ing != 0) {
-        printfRed("tid : %d is handing the signal %d\n", t->tid, t->sig_ing);
+#ifdef __DEBUG_SIGNALL__
+        printfRed("tid : %d is handing the signal %d\n", t->tid, t->sig_ing); // debug
+#endif
     }
 
     struct sigqueue *sig_cur = NULL;
@@ -197,19 +205,23 @@ int do_sigaction(int sig, struct sigaction *act, struct sigaction *oact) {
         // 		t = next_thread(t);
         // 	} while (t != current);
         // }
+#ifdef __DEBUG_SIGNAL__
+        printfRed("sigaction , tid : %d, signo : %d, address : %x\n", t->tid, sig, k->sa_handler); // debug
+#endif
     }
     release(&t->sig->siglock);
     return 0;
 }
 
 // debug
+// #ifdef __DEBUG_SIGNAL__
 // static char *signal_how[] = {
 //     [SIG_BLOCK] "block",
 //     [SIG_UNBLOCK] "unblock",
 //     [SIG_SETMASK] "setmask"};
+// #endif
 
 int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset) {
-    // struct proc* p = proc_current();
     struct tcb *t = thread_current();
 
     acquire(&t->sig->siglock);
@@ -231,10 +243,14 @@ int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset) {
     default:
         error = -1;
     }
-#ifdef __DEBUG_SIGNAL__
-    printfGreen("sigprocmask , how : %s, set : %x, oldset : %x, t->blocked : %x\n", signal_how[how], set->sig, oldset->sig, t->blocked.sig); // debug
-#endif
-    // TODO(maybe) : sigpending
+
+    // #ifdef __DEBUG_SIGNAL__
+    // printfGreen("sigprocmask , tid : %d, how : %s\n", t->tid, signal_how[how]); // debug
+    // if(how == SIG_SETMASK || how == SIG_UNBLOCK) {
+    //     print_signal_mask(*set);
+    //     print_signal_mask(t->blocked);
+    // }
+    // #endif
     release(&t->sig->siglock);
     return error;
 }
@@ -271,7 +287,7 @@ int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct tra
     tf->sp = (uint64)frame;
     tf->a0 = (uint64)signo; /* a0: signal number */
     tf->a1 = 0;             // tf->a1  = (uint64)(&frame->info); /* a1: siginfo pointer */
-    tf->a2 = 0;             // tf->a2 = (uint64)(&frame->uc); /* a2: ucontext pointer */
+    tf->a2 = tf->tp;        // tf->a2 = (uint64)(&frame->uc); /* a2: ucontext pointer */
     return 0;
 }
 
@@ -298,6 +314,9 @@ int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf) {
     t->blocked = uc.uc_sigmask;
     *(t->trapframe) = uc.uc_mcontext.tf;
     t->sig_ing = uc.sig_ing;
+#ifdef __DEBUG_SIGNAL__
+    printfRed("sigreturn , tid : %d\n", t->tid);
+#endif
     return 0;
 }
 
@@ -308,13 +327,13 @@ void print_signal_mask(sigset_t sigmask) {
 
     for (int i = 0; i < 64; ++i) {
         if (sigmask.sig & mask) {
-            printf("%d ", i + 1);
+            printfGreen("%d ", i + 1);
             leadingZeros = 0;
         }
         mask >>= 1;
     }
-
+    printfGreen("\n");
     if (leadingZeros) {
-        printf("None");
+        // printf("None");
     }
 }

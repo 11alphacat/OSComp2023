@@ -1,19 +1,21 @@
 #include "atomic/ops.h"
 #include "atomic/spinlock.h"
+#include "atomic/cond.h"
+#include "atomic/futex.h"
 #include "memory/memlayout.h"
 #include "memory/allocator.h"
 #include "memory/vm.h"
 #include "memory/vma.h"
+#include "memory/binfmt.h"
 #include "kernel/trap.h"
 #include "kernel/cpu.h"
 #include "proc/pcb_life.h"
-#include "atomic/cond.h"
 #include "proc/sched.h"
 #include "proc/pcb_life.h"
 #include "proc/pcb_mm.h"
 #include "proc/pdflush.h"
-#include "ipc/signal.h"
 #include "proc/options.h"
+#include "ipc/signal.h"
 #include "fs/stat.h"
 #include "fs/vfs/fs.h"
 #include "fs/vfs/ops.h"
@@ -21,12 +23,11 @@
 #include "lib/hash.h"
 #include "lib/queue.h"
 #include "lib/riscv.h"
+#include "lib/list.h"
 #include "common.h"
 #include "param.h"
 #include "debug.h"
 #include "test.h"
-#include "memory/binfmt.h"
-#include "lib/list.h"
 
 extern Queue_t unused_p_q, used_p_q, zombie_p_q;
 extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q;
@@ -40,14 +41,29 @@ char proc_lock_name[NPROC][10];
 atomic_t next_pid;
 atomic_t count_pid;
 
-#define alloc_pid (atomic_inc_return(&next_pid))
-#define cnt_pid_inc (atomic_inc_return(&count_pid))
-#define cnt_pid_dec (atomic_dec_return(&count_pid))
+// initialize the proc table.
+void proc_init(void) {
+    struct proc *p;
+    atomic_set(&next_pid, 1);
+    atomic_set(&count_pid, 0);
 
-#define nochildren(p) (p->first_child == NULL)
-#define nosibling(p) (list_empty(&p->sibling_list))
-#define firstchild(p) (p->first_child)
-#define nextsibling(p) (list_first_entry(&(p->sibling_list), struct proc, sibling_list))
+    PCB_Q_ALL_INIT();
+
+    for (int i = 0; i < NPROC; i++) {
+        p = proc + i;
+        sprintf(proc_lock_name[i], "proc_%d", i);
+        initlock(&p->lock, proc_lock_name[i]);
+        sema_init(&p->tlock, 1, "sem_ofile");
+        p->state = PCB_UNUSED;
+        Queue_push_back_atomic(&unused_p_q, p);
+    }
+    return;
+}
+
+// Return the current struct tcb *, or zero if none.
+struct proc *proc_current(void) {
+    return thread_current()->p;
+}
 
 void deleteChild(struct proc *parent, struct proc *child) {
     if (nosibling(child)) {
@@ -69,41 +85,19 @@ void appendChild(struct proc *parent, struct proc *child) {
     }
 }
 
-// print children of proc p
-void procChildrenChain(struct proc *p) {
-    char tmp_str[1000];
-    int len = 0;
-    len += sprintf(tmp_str, "=======debug======\n");
-    len += sprintf(tmp_str + len, "proc : %d\n", p->pid, p->name);
-    struct proc *p_pos = NULL;
-    struct proc *p_first = firstchild(p);
-    if (p_first == NULL) {
-        len += sprintf(tmp_str + len, "no children!!!\n");
-    } else {
-        len += sprintf(tmp_str + len, "%d", p_first->pid, p_first->name);
-        list_for_each_entry(p_pos, &p_first->sibling_list, sibling_list) {
-            len += sprintf(tmp_str + len, "->%d", p_pos->pid, p_pos->name);
-        }
-    }
-    printf("%s\n", tmp_str);
-}
-
-// Return the current struct tcb *, or zero if none.
-struct proc *proc_current(void) {
-    return thread_current()->p;
-}
-
 // allocate a new proc (return with lock)
 struct proc *alloc_proc(void) {
     struct proc *p;
+
     // fetch a unused proc from unused queue
     p = (struct proc *)Queue_provide_atomic(&unused_p_q, 1);
-
     if (p == NULL)
         return 0;
 
-    acquire(&p->lock); // return with lock
+    // return with lock
+    acquire(&p->lock);
 
+    // allocate pid
     p->pid = alloc_pid;
     cnt_pid_inc;
 
@@ -111,7 +105,8 @@ struct proc *alloc_proc(void) {
     p->first_child = NULL;
     INIT_LIST_HEAD(&p->sibling_list);
 
-    // slob!!!
+    // allocate memory
+    // slob TODO
     p->mm = alloc_mm();
     if (p->mm == NULL) {
         Warn("fix error handler!");
@@ -126,7 +121,6 @@ struct proc *alloc_proc(void) {
         release(&p->lock);
         return 0;
     }
-
     tginit(p->tg);
 
     // ipc namespace
@@ -135,15 +129,24 @@ struct proc *alloc_proc(void) {
         release(&p->lock);
         return 0;
     }
+
+    // shared memory
     shm_init_ns(p->ipc_ns);
 
     // for prlimit
     proc_prlimit_init(p);
 
+    // setitimer
+    p->real_timer.expires = 0;
+    p->real_timer.interval = 0;
+
+    // bug!!!
+    INIT_LIST_HEAD(&p->real_timer.list);
+
     // state
     PCB_Q_changeState(p, PCB_USED);
 
-    // wait semaphore
+    // semaphore for waitpid
     sema_init(&p->sem_wait_chan_parent, 0, "wait_parent");
     sema_init(&p->sem_wait_chan_self, 0, "wait_self");
 
@@ -190,6 +193,7 @@ void free_proc(struct proc *p) {
     // delete <pid, t>
     hash_delete(&pid_map, (void *)&p->pid);
 
+    cnt_pid_dec;
     p->pid = 0;
     p->parent = 0;
     p->name[0] = 0;
@@ -222,31 +226,10 @@ void userinit(void) {
 void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
-    // proc_current()->cwd = fat32_inode_dup(fat32_sb.root);
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
     struct binprm bprm;
     memset(&bprm, 0, sizeof(bprm));
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", &bprm);
-    // fat32_sb.root->i_op->iput(fat32_sb.root);// ??? maybe
-}
-
-// initialize the proc table.
-void proc_init(void) {
-    struct proc *p;
-    atomic_set(&next_pid, 1);
-    atomic_set(&count_pid, 0);
-
-    PCB_Q_ALL_INIT();
-
-    for (int i = 0; i < NPROC; i++) {
-        p = proc + i;
-        sprintf(proc_lock_name[i], "proc_%d", i);
-        initlock(&p->lock, proc_lock_name[i]);
-        sema_init(&p->tlock, 1, "sem_ofile");
-        p->state = PCB_UNUSED;
-        Queue_push_back_atomic(&unused_p_q, p);
-    }
-    return;
 }
 
 // find the proc we search using hash map
@@ -268,98 +251,18 @@ void thread_forkret(void) {
     thread_usertrapret();
 }
 
-// debug
-// void print_clone_flags(int flags) {
-//     if (flags & CSIGNAL)
-//         printfRed("CSIGNAL is set.\n");
-//     if (flags & CLONE_VM)
-//         printfRed("CLONE_VM is set.\n");
-//     if (flags & CLONE_FS)
-//         printfRed("CLONE_FS is set.\n");
-//     if (flags & CLONE_FILES)
-//         printfRed("CLONE_FILES is set.\n");
-//     if (flags & CLONE_SIGHAND)
-//         printfRed("CLONE_SIGHAND is set.\n");
-//     if (flags & CLONE_PTRACE)
-//         printfRed("CLONE_PTRACE is set.\n");
-//     if (flags & CLONE_VFORK)
-//         printfRed("CLONE_VFORK is set.\n");
-//     if (flags & CLONE_PARENT)
-//         printfRed("CLONE_PARENT is set.\n");
-//     if (flags & CLONE_THREAD)
-//         printfRed("CLONE_THREAD is set.\n");
-//     if (flags & CLONE_NEWNS)
-//         printfRed("CLONE_NEWNS is set.\n");
-//     if (flags & CLONE_SYSVSEM)
-//         printfRed("CLONE_SYSVSEM is set.\n");
-//     if (flags & CLONE_SETTLS)
-//         printfRed("CLONE_SETTLS is set.\n");
-//     if (flags & CLONE_PARENT_SETTID)
-//         printfRed("CLONE_PARENT_SETTID is set.\n");
-//     if (flags & CLONE_CHILD_CLEARTID)
-//         printfRed("CLONE_CHILD_CLEARTID is set.\n");
-//     if (flags & CLONE_DETACHED)
-//         printfRed("CLONE_DETACHED is set.\n");
-//     if (flags & CLONE_UNTRACED)
-//         printfRed("CLONE_UNTRACED is set.\n");
-//     if (flags & CLONE_CHILD_SETTID)
-//         printfRed("CLONE_CHILD_SETTID is set.\n");
-//     if (flags & CLONE_STOPPED)
-//         printfRed("CLONE_STOPPED is set.\n");
-//     if (flags & CLONE_NEWUTS)
-//         printfRed("CLONE_NEWUTS is set.\n");
-//     if (flags & CLONE_NEWIPC)
-//         printfRed("CLONE_NEWIPC is set.\n");
-// }
-
-void clone_flags(int flags) {
-    printfGreen("\n");
-    if (flags & CLONE_VM) {
-        printfGreen("CLONE_VM  ");
-    }
-    if (flags & CLONE_FILES) {
-        printfGreen("CLONE_FILES  ");
-    }
-    if (flags & CLONE_FS) {
-        printfGreen("CLONE_FS  ");
-    }
-    if (flags & CLONE_THREAD) {
-        printfGreen("CLONE_THREAD  ");
-    }
-    if (flags & CLONE_SIGHAND) {
-        printfGreen("CLONE_SIGHAND  ");
-    }
-    if (flags & CLONE_PARENT_SETTID) {
-        printfGreen("CLONE_PARENT_SETTID  ");
-    }
-    if (flags & CLONE_SETTLS) {
-        printfGreen("CLONE_SETTLS  ");
-    }
-    if (flags & CLONE_CHILD_CLEARTID) {
-        printfGreen("CLONE_CHILD_CLEARTID  ");
-    }
-    if (flags & CLONE_CHILD_SETTID) {
-        printfGreen("CLONE_CHILD_SETTID  ");
-    }
-}
-
-//    long clone(unsigned long flags, void *stack,
-//              int *parent_tid, unsigned long tls,
-//              int *child_tid);
 int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) {
     int pid;
     struct proc *p = proc_current();
     struct proc *np = NULL;
     struct tcb *t = NULL;
 
-    // trapframe_print(thread_current()->trapframe);
-    // 5b61c
     // extern int print_tf_flag;
     // print_tf_flag = 1;
     // print_clone_flags(flags);
-#ifdef __STRACE__
-    clone_flags(flags);
-#endif
+    // #ifdef __STRACE__
+    //     print_clone_flags(flags);
+    // #endif
     if (flags & CLONE_THREAD) {
         if ((t = alloc_thread(thread_forkret)) == 0) {
             return -1;
@@ -369,14 +272,19 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
         if (proc_join_thread(p, t, NULL) < 0) {
             free_thread(t);
         }
+#ifdef __DEBUG_THREAD__
+        printfRed("clone a thread, pid : %d, tid : %d\n", p->pid, t->tid);
+#endif
     } else {
         // Allocate process.
         if ((np = create_proc()) == 0) {
+            proc_thread_print();
             return -1;
         }
         t = np->tg->group_leader; // !!!
     }
 
+    // print_clone_flags(flags);
     // ==============create thread for proc=======================
     // copy saved user registers.
     *(t->trapframe) = *(p->tg->group_leader->trapframe);
@@ -405,9 +313,11 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
     }
 
     if (flags & CLONE_SIGHAND) {
-        t->pending = p->tg->group_leader->pending;
+        t->sig = p->tg->group_leader->sig;
+        atomic_inc_return(&t->sig->ref); // !!! bug
+        // TODO : sigmask??
     } else {
-        // TODO : create a new signal
+        sighandinit(t);
     }
 
     // store the parent pid
@@ -465,7 +375,6 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
     // }
 
     // TODO : vfs inode cmd  >> Done
-    // np->cwd = fat32_inode_dup(p->cwd);
     np->cwd = p->cwd->i_op->idup(p->cwd);
 
     safestrcpy(np->name, p->name, sizeof(p->name));
@@ -491,10 +400,6 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
 
 int exit_process(int status) {
     struct proc *p = proc_current();
-    struct tcb *t = thread_current();
-
-    free_thread(t);
-
     if (p == initproc)
         panic("init exiting");
 
@@ -509,22 +414,33 @@ int exit_process(int status) {
     fat32_inode_put(p->cwd);
     p->cwd = 0;
 
+    // !!! bug
+    delete_timer_atomic(&p->real_timer);
+
     // Give any children to init.
     reparent(p);
 
     acquire(&p->lock);
     PCB_Q_changeState(p, PCB_ZOMBIE);
     p->exit_state = status << 8;
-    release(&p->lock);
-
     sema_signal(&p->parent->sem_wait_chan_parent);
     sema_signal(&p->sem_wait_chan_self);
 
+#ifdef __DEBUG_PROC__
+    printfGreen("exit : %d has exited\n", p->pid);                // debug
+    printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug
+#endif
     return 0;
 }
 
-void exit_thread(struct tcb *t) {
-    free_thread(t);
+void exit_wakeup(struct proc *p, struct tcb *t) {
+    // bug !!!
+    if (t->clear_child_tid) {
+        int val = 0;
+        if (copyout(p->mm->pagetable, t->clear_child_tid, (char *)&val, sizeof(val)))
+            panic("exit error\n");
+        futex_wakeup(t->clear_child_tid, 1);
+    }
 }
 
 void do_exit(int status) {
@@ -532,22 +448,30 @@ void do_exit(int status) {
     struct tcb *t = thread_current();
     struct thread_group *tg = p->tg;
 
-    acquire(&tg->lock);
-    if (!--tg->thread_cnt) {
+    exit_wakeup(p, t);
+    // !!!! =======atomic=======
+    int last_thread = 0;
+    if (!(atomic_dec_return(&tg->thread_cnt) - 1)) {
         exit_process(status);
+        last_thread = 1;
     } else {
-        exit_thread(t);
     }
-    list_del(&t->threads);
+    acquire(&tg->lock);
+    list_del_reinit(&t->threads);
     release(&tg->lock);
+    if (last_thread) {
+        release(&p->lock);
+    }
+    // !!!! =======atomic=======
 
-    // #ifdef __DEBUG_PROC__
-    //     printfGreen("exit : %d has exited\n", p->pid);                // debug
-    //     printfGreen("exit : %d wakeup %d\n", p->pid, p->parent->pid); // debug
-    // #endif
+#ifdef __DEBUG_THREAD__
+    printfRed("exit a thread, pid : %d, tid : %d\n", t->p->pid, t->tid);
+#endif
 
     acquire(&t->lock);
+    free_thread(t);
     thread_sched();
+
     panic("do_exit should never return");
     return;
 }
@@ -563,8 +487,6 @@ int waitpid(pid_t pid, uint64 status, int options) {
 #ifdef __DEBUG_PROC__
         printf("wait : %d hasn't children\n", p->pid); // debug
 #endif
-        // extern int print_tf_flag;
-        // print_tf_flag = 1;
         return -1;
     }
 
@@ -588,23 +510,18 @@ int waitpid(pid_t pid, uint64 status, int options) {
             if (pid > 0 && p_child->pid == pid) {
                 sema_wait(&p_child->sem_wait_chan_self);
 #ifdef __DEBUG_PROC__
-                printfBlue("wait : %d wakeup self\n", p->pid); // debug
+                printfBlue("wait : %d wakeup self %d\n", p->pid, p_child->pid); // debug
 #endif
             }
             acquire(&p_child->lock);
             if (p_child->state == PCB_ZOMBIE) {
                 // if(p==initproc)
                 //     printfRed("唤醒,pid : %d, %d\n",p_child->pid, ++cnt_wakeup); // debug
-
                 // ASSERT(p_child->pid!=SHELL_PID);
                 pid = p_child->pid;
                 if (status != 0 && copyout(p->mm->pagetable, status, (char *)&(p_child->exit_state), sizeof(p_child->exit_state)) < 0) {
                     release(&p_child->lock);
                     return -1;
-                }
-
-                if (!list_empty(&p_child->tg->threads)) {
-                    Log("hit");
                 }
                 ASSERT(list_empty(&p_child->tg->threads)); // !!!
                 free_proc(p_child);
@@ -720,9 +637,7 @@ static char *TCB_states[] = {
     [TCB_USED] "tcb_used",
     [TCB_RUNNABLE] "tcb_runnable",
     [TCB_RUNNING] "tcb_running",
-    [TCB_SLEEPING] "tcb_sleeping",
-    [TCB_ZOMBIE] "tcb_zombie",
-};
+    [TCB_SLEEPING] "tcb_sleeping"};
 
 void printProcessTree(struct proc *p, int indent) {
     if (p->state == PCB_UNUSED) {
@@ -762,12 +677,7 @@ void printProcessTree(struct proc *p, int indent) {
     }
 }
 
-void proc_thread_print(void) {
-    printf("\n");
-    printProcessTree(initproc, 0);
-}
-
-void proc_prlimit_init(struct proc* p) {
+void proc_prlimit_init(struct proc *p) {
     struct rlimit *rlim = p->rlim;
     struct rlimit *rlim_tmp = NULL;
     // RLIMIT_NPROC
@@ -775,15 +685,16 @@ void proc_prlimit_init(struct proc* p) {
     rlim_tmp->rlim_max = NOFILE;
     rlim_tmp->rlim_cur = NOFILE;
     p->max_ofile = NOFILE;
-    
+
     // PLIMIT_STACK
     rlim_tmp = rlim + RLIMIT_STACK;
     rlim_tmp->rlim_max = USTACK_PAGE;
     rlim_tmp->rlim_cur = 0;
 }
+
 // This  system  call  is equivalent to _exit(2) except that it terminates not only the calling thread, but
 // all threads in the calling process's thread group.
-void exit_group(struct proc *p) {
+void do_exit_group(struct proc *p) {
     struct tcb *caller = thread_current();
     struct thread_group *tg = p->tg;
     struct tcb *t_cur = NULL;
@@ -792,9 +703,81 @@ void exit_group(struct proc *p) {
     list_for_each_entry_safe(t_cur, t_tmp, &tg->threads, threads) {
         if (t_cur == caller)
             continue;
+        acquire(&t_cur->lock); // maybe necessary?
         list_del_reinit(&t_cur->threads);
-        tg->thread_cnt--;
+        atomic_dec_return(&tg->thread_cnt);
+
+        exit_wakeup(p, t_cur); // !!! bug
         free_thread(t_cur);
+        release(&t_cur->lock);
     }
     release(&p->tg->lock);
+}
+
+// debug
+void proc_thread_print(void) {
+    printf("\n");
+    printProcessTree(initproc, 0);
+}
+
+void print_clone_flags(int flags) {
+    if (flags & CSIGNAL)
+        printfRed("CSIGNAL is set.\n");
+    if (flags & CLONE_VM)
+        printfRed("CLONE_VM is set.\n");
+    if (flags & CLONE_FS)
+        printfRed("CLONE_FS is set.\n");
+    if (flags & CLONE_FILES)
+        printfRed("CLONE_FILES is set.\n");
+    if (flags & CLONE_SIGHAND)
+        printfRed("CLONE_SIGHAND is set.\n");
+    if (flags & CLONE_PTRACE)
+        printfRed("CLONE_PTRACE is set.\n");
+    if (flags & CLONE_VFORK)
+        printfRed("CLONE_VFORK is set.\n");
+    if (flags & CLONE_PARENT)
+        printfRed("CLONE_PARENT is set.\n");
+    if (flags & CLONE_THREAD)
+        printfRed("CLONE_THREAD is set.\n");
+    if (flags & CLONE_NEWNS)
+        printfRed("CLONE_NEWNS is set.\n");
+    if (flags & CLONE_SYSVSEM)
+        printfRed("CLONE_SYSVSEM is set.\n");
+    if (flags & CLONE_SETTLS)
+        printfRed("CLONE_SETTLS is set.\n");
+    if (flags & CLONE_PARENT_SETTID)
+        printfRed("CLONE_PARENT_SETTID is set.\n");
+    if (flags & CLONE_CHILD_CLEARTID)
+        printfRed("CLONE_CHILD_CLEARTID is set.\n");
+    if (flags & CLONE_DETACHED)
+        printfRed("CLONE_DETACHED is set.\n");
+    if (flags & CLONE_UNTRACED)
+        printfRed("CLONE_UNTRACED is set.\n");
+    if (flags & CLONE_CHILD_SETTID)
+        printfRed("CLONE_CHILD_SETTID is set.\n");
+    if (flags & CLONE_STOPPED)
+        printfRed("CLONE_STOPPED is set.\n");
+    if (flags & CLONE_NEWUTS)
+        printfRed("CLONE_NEWUTS is set.\n");
+    if (flags & CLONE_NEWIPC)
+        printfRed("CLONE_NEWIPC is set.\n");
+}
+
+// print children of proc p
+void procChildrenChain(struct proc *p) {
+    char tmp_str[1000];
+    int len = 0;
+    len += sprintf(tmp_str, "=======debug======\n");
+    len += sprintf(tmp_str + len, "proc : %d\n", p->pid, p->name);
+    struct proc *p_pos = NULL;
+    struct proc *p_first = firstchild(p);
+    if (p_first == NULL) {
+        len += sprintf(tmp_str + len, "no children!!!\n");
+    } else {
+        len += sprintf(tmp_str + len, "%d", p_first->pid, p_first->name);
+        list_for_each_entry(p_pos, &p_first->sibling_list, sibling_list) {
+            len += sprintf(tmp_str + len, "->%d", p_pos->pid, p_pos->name);
+        }
+    }
+    printf("%s\n", tmp_str);
 }

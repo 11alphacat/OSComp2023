@@ -25,7 +25,7 @@
 ./runtest.exe -w entry-static.exe search_tsearch
 ./runtest.exe -w entry-static.exe setjmp
 ./runtest.exe -w entry-static.exe snprintf
-# ./runtest.exe -w entry-static.exe socket
+./runtest.exe -w entry-static.exe socket
 ./runtest.exe -w entry-static.exe sscanf
 # ./runtest.exe -w entry-static.exe sscanf_long
 ./runtest.exe -w entry-static.exe stat
@@ -82,7 +82,7 @@
 # ./runtest.exe -w entry-static.exe pthread_robust_detach
 # ./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
 # ./runtest.exe -w entry-static.exe pthread_cond_smasher
-# ./runtest.exe -w entry-static.exe pthread_condattr_setclock
+./runtest.exe -w entry-static.exe pthread_condattr_setclock
 # ./runtest.exe -w entry-static.exe pthread_exit_cancel
 # ./runtest.exe -w entry-static.exe pthread_once_deadlock
 # ./runtest.exe -w entry-static.exe pthread_rwlock_ebusy

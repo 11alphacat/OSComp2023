@@ -1,12 +1,12 @@
 #ifndef __PARAM_H__
 #define __PARAM_H__
 
-#define NPROC 32 // maximum number of processes
-#define NTCB_PER_PROC 10
+#define NPROC 100 // maximum number of processes
+#define NTCB_PER_PROC 5
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
 #define NCPU 5     // maximum number of CPUs
-#define NOFILE 128 // open files per process
-#define NFILE 100  // open files per system
+#define NOFILE 200 // open files per process
+#define NFILE 400  // open files per system
 
 #define NIPCIDX 40
 #define NINODE 100                // maximum number of active i-nodes

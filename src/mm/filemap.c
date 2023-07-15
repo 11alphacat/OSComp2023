@@ -104,7 +104,11 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         if (page == NULL) {
             read_sane_cnt = max_sane_readahead(n - retval, mapping->read_ahead_cnt, isize - (off + retval));
             mapping->read_ahead_end = index + read_sane_cnt - 1; // !!!
-            ASSERT(read_sane_cnt > 0);
+            // ASSERT(read_sane_cnt > 0);
+            if (read_sane_cnt <= 0) {
+                goto out;
+                // panic("read_sane_cnt : error\n");
+            }
 #ifdef __DEBUG_PAGE_CACHE__
             printfRed("read miss : fname : %s, off : %d, n : %d, index : %d, offset : %d, read_sane_cnt : %d, read_ahead_cnt : %d, read_ahead_end : %d\n",
                       ip->fat32_i.fname, off, n, index, offset, read_sane_cnt, mapping->read_ahead_cnt, mapping->read_ahead_end);
@@ -219,7 +223,8 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
             // bug!!!(in iozone)
             // if (!OUTFILE(index, isize) && NOT_FULL_PAGE(offset)) {
-            if (WRITE_FULL_PAGE(retval) || OUT_FILE(offset, isize_offset)) {
+            if (WRITE_FULL_PAGE(n - retval) || OUT_FILE(offset, isize_offset)) {
+                // if (WRITE_FULL_PAGE(retval) || OUT_FILE(offset, isize_offset)) {
                 // need read page in disk
                 read_from_disk = 0;
             } else {

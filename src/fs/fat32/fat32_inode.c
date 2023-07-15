@@ -173,10 +173,7 @@ uint32 fat32_fat_travel(struct inode *ip, uint num) {
 
 // find the next cluster of current cluster
 uint fat32_next_cluster(uint cluster_cur) {
-    // ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
-    if (!(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX)) {
-        printfBlue("cluster_cur = %d\n", cluster_cur);
-    }
+    ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
     struct buffer_head *bp;
     uint sector_num = ThisFATEntSecNum(cluster_cur);
     bp = bread(fat32_sb.s_dev, sector_num);
@@ -195,6 +192,9 @@ uint fat32_cluster_alloc(uint dev) {
     }
     uint free_num = fat32_sb.fat32_sb_info.nxt_free;
     fat32_sb.fat32_sb_info.free_count--;
+    // if(fat32_sb.fat32_sb_info.free_count%1000==0) {
+    // printfRed("free num --: %d\n", fat32_sb.fat32_sb_info.free_count);
+    // }
 
     // the first sector
     int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
@@ -204,22 +204,25 @@ uint fat32_cluster_alloc(uint dev) {
     if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1) {
         // next free hit
         brelse(bp); // !!!!
-
         fat32_fat_set(fat32_sb.fat32_sb_info.nxt_free, EOC);
+        // printfRed("hint : fat cluster : %x, value : %x\n", fat32_sb.fat32_sb_info.nxt_free, fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free)); // debug!
         fat32_sb.fat32_sb_info.nxt_free++;
     } else {
         // start from the begin of fat
         brelse(bp); // !!!!
-
-        uint fat_next = fat32_fat_alloc();
+        int hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
+        uint fat_next = fat32_fat_alloc(hint);
         if (fat_next == 0)
             panic("no more space");
-        fat32_sb.fat32_sb_info.nxt_free = fat_next + 1;
+        fat32_sb.fat32_sb_info.nxt_free = (fat_next + 1) % (FAT_CLUSTER_MAX); // !!!
+        if (fat32_sb.fat32_sb_info.nxt_free == 0) {
+            fat32_sb.fat32_sb_info.nxt_free = 3;
+        }
+        fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
+        free_num = fat_next;                   // bug !!!
     }
+    fat32_sb.fat32_sb_info.dirty = 1; // sync in put
     sema_signal(&fat32_sb.sem);
-
-    // update fsinfo in disk
-    fat32_update_fsinfo(dev);
 
     // zero cluster (maybe unnecessary)
     // fat32_zero_cluster(free_num);
@@ -227,6 +230,11 @@ uint fat32_cluster_alloc(uint dev) {
 }
 
 void fat32_update_fsinfo(uint dev) {
+    sema_wait(&fat32_sb.sem);
+    if (!fat32_sb.fat32_sb_info.dirty) {
+        sema_signal(&fat32_sb.sem);
+        return;
+    }
     // update fsinfo
     struct buffer_head *bp;
     fsinfo_t *fsinfo_tmp;
@@ -244,21 +252,25 @@ void fat32_update_fsinfo(uint dev) {
     fsinfo_tmp->Nxt_Free = fat32_sb.fat32_sb_info.nxt_free;
     bwrite(bp);
     brelse(bp);
+    sema_signal(&fat32_sb.sem);
 }
 
 // allocate a new fat entry
-uint fat32_fat_alloc() {
+uint fat32_fat_alloc(FAT_entry_t hint) {
+    // TODO : using hint speed up
     struct buffer_head *bp;
-    int c = 3;
+    int c = hint;
     // cluster 0 and cluster 1 is reserved, cluster 2 is for root
-    int sec = FAT_BASE;
+    int s_init = c % FAT_PER_SECTOR;
+    int sec = FAT_BASE + c / FAT_PER_SECTOR;
     while (c < FAT_CLUSTER_MAX) {
         bp = bread(fat32_sb.s_dev, sec);
         FAT_entry_t *fats = (FAT_entry_t *)(bp->data);
-        for (int s = 0; s < FAT_PER_SECTOR; s++) {
+        for (int s = s_init; s < FAT_PER_SECTOR; s++) {
             if (fats[s] == FREE_MASK) {
                 brelse(bp); // !!!!
                 fat32_fat_set(c, EOC);
+                // printfRed("not hint : fat cluster : %x, value : %x\n", c, fat32_next_cluster(c)); // debug!
                 return c;
             }
             c++;
@@ -267,6 +279,7 @@ uint fat32_fat_alloc() {
                 return 0;
             }
         }
+        s_init = 0;
         sec++;
         brelse(bp);
     }
@@ -543,6 +556,7 @@ int fat32_inode_load_from_disk(struct inode *ip) {
     // !!!
     if (ip->fat32_i.cluster_start != 0) {
         ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
+        // printfRed("start , filename : %s, cluster cnt : %d \n",ip->fat32_i.fname, ip->fat32_i.cluster_cnt);// debug
     } else if (!S_ISCHR(ip->i_mode) && !S_ISBLK(ip->i_mode)) {
         // printfRed("i_mode = 0x%x\n", ip->i_mode);
         // printfRed("the cluster_start of the file %s is zero\n", ip->fat32_i.fname);
@@ -604,7 +618,10 @@ void fat32_inode_put(struct inode *ip) {
     // sema_wait(&inode_table.lock);
     int put_parent = 0;
     int unlock_parent = 0;
+    int put_self = 0;
     if (ip->ref == 1) {
+        put_self = 1;
+        // printfGreen("end , filename : %s, cluster cnt : %d \n",ip->fat32_i.fname, ip->fat32_i.cluster_cnt);// debug
         // destory hash table
         fat32_inode_hash_destroy(ip);
 
@@ -633,8 +650,7 @@ void fat32_inode_put(struct inode *ip) {
         //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
         // }
 
-        ip->valid = 0;
-
+        // ip->valid = 0;
         // delete file, if it's nlink == 0
         if (ip->valid && ip->i_nlink == 0) {
             fat32_inode_lock(ip);
@@ -660,6 +676,10 @@ void fat32_inode_put(struct inode *ip) {
     if (put_parent) {
         fat32_inode_put(ip->parent);
     }
+    if (put_self) {
+        // update fsinfo (in fact, it is uncessary for comp)
+        fat32_update_fsinfo(ROOTDEV);
+    }
 }
 
 // unlock and put
@@ -673,13 +693,21 @@ void fat32_inode_unlock_put(struct inode *ip) {
 void fat32_inode_trunc(struct inode *ip) {
     FAT_entry_t iter_c_n = ip->fat32_i.cluster_start;
 
-    // truncate the data block
     // truncate the fat chain
+    // printfRed("cluster : \n");
     while (!ISEOF(iter_c_n)) {
         FAT_entry_t fat_next = fat32_next_cluster(iter_c_n);
         fat32_fat_set(iter_c_n, FREE_MASK); // bug
         iter_c_n = fat_next;
     }
+    // printfRed("\n");
+
+    // necessary!!!
+    sema_wait(&fat32_sb.sem);
+    fat32_sb.fat32_sb_info.free_count += ip->fat32_i.cluster_cnt;
+    // fat32_sb.fat32_sb_info.nxt_free = ip->fat32_i.cluster_start;// !!!???
+    // printfGreen("free num ++ : %d\n", fat32_sb.fat32_sb_info.free_count);// debug
+    sema_signal(&fat32_sb.sem);
 
     ip->fat32_i.cluster_start = 0;
     ip->fat32_i.cluster_end = 0;
@@ -1307,7 +1335,6 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
     // move cursor
     fat32_cursor_to_offset(ip, off, &iter_c_n, &init_s_n, &init_s_offset);
     ASSERT(init_s_offset == 0);
-
     // The unit of cur_s_n and tot_s_n is sector(512 B, if the size of block is 512B)
     uint cur_s_n = 0;
     uint tot_s_n = CEIL_DIVIDE(n, __BPB_BytsPerSec);
@@ -1346,10 +1373,11 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
 
         if (alloc) {
             // write it, we need to append new cluster if necessary
-            uint next = fat32_next_cluster(iter_c_n);
+            FAT_entry_t next = fat32_next_cluster(iter_c_n);
             if (ISEOF(next)) {
                 FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
                 fat32_fat_set(iter_c_n, fat_new);
+                // printfRed("fat cluster : %x, value : %x\n",iter_c_n, fat32_next_cluster(iter_c_n));// debug!!
                 iter_c_n = fat_new;
                 ip->fat32_i.cluster_cnt++;
                 ip->fat32_i.cluster_end = fat_new;
@@ -1357,6 +1385,8 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
                 iter_c_n = next;
             }
         } else {
+            // FAT_entry_t tmp = iter_c_n;// debug
+            // iter_c_n = fat32_next_cluster(tmp);// debug
             // read it, we don't need to append new cluster
             iter_c_n = fat32_next_cluster(iter_c_n);
         }

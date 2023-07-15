@@ -80,6 +80,14 @@ void bwrite(struct buffer_head *b) {
     b->dirty = 1;
 }
 
+// // buffer write back
+// void bwback(struct buffer_head *b) {
+//     if (b->dirty == 1) {
+//         disk_rw_bio(b, DISK_WRITE);
+//         b->dirty = 0;
+//     }
+// }
+
 // Release a locked buffer.
 // Move to the head of the most-recently-used list.
 void brelse(struct buffer_head *b) {

@@ -107,3 +107,17 @@
 194 shmget sys_shmget
 195 shmctl sys_shmctl
 196 shmat sys_shmat
+
+
+103 setitimer sys_setitimer
+166 umask sys_umask
+
+123 sched_getaffinity sys_sched_getaffinity
+120 sched_getscheduler sys_sched_getscheduler
+121 sched_getparam sys_sched_getparam
+119 sched_setscheduler sys_sched_setscheduler
+114 clock_getres sys_clock_getres
+
+283 membarrier sys_membarrier
+115 clock_nanosleep sys_clock_nanosleep
+122 sched_setaffinity sys_sched_setaffinity

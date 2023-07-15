@@ -112,10 +112,6 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
 struct page *buddy_get_pages(struct phys_mem_pool *pool, uint64 order) {
     // kalloc() will call push_off, so use pop_off here to prevent long time interrupt off
     pop_off();
-
-    // if(get_free_mem()/4096 < 30200) {
-    //     printf("decrease , memory : %d , ready\n", get_free_mem()/4096);
-    // }
     // printf("memory %d PAGES, %d Bytes\n", get_free_mem()/4096, get_free_mem());
     ASSERT(order <= BUDDY_MAX_ORDER);
     struct page *page = NULL;

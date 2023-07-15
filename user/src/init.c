@@ -11,6 +11,7 @@ char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone", 0};
 #define CONSOLE 1
 #define DEV_NULL 2
 #define DEV_ZERO 3
+#define DEV_CPU_DMA_LATENCY 0
 
 int main(void) {
     int pid, wpid;
@@ -19,6 +20,8 @@ int main(void) {
     mknod("/dev/null", S_IFCHR, DEV_NULL << 8);
     // for /dev/zero
     mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8);
+    // for /dev/cpu_dma_latency
+    mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
     
     // for /dev/tty
     if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {

@@ -27,17 +27,15 @@
 
 #define SD_ACMD41 41 // 发送卡的支持信息(HCS)，并要求卡通过命令线返回OCR 寄存器内容。
 
-
 // 响应 command index
-#define RES_IX_BUSY 0x00        // busy信号
-#define RES_IX_IDLE 0x01        // 空闲状态
-#define RES_IX_EERASE 0x02      // 擦除错误
-#define RES_IX_ECMD 0x04        // 命令错误
-#define RES_IX_ECRC 0x08        // CRC通信错误
-#define RES_IX_EERASE2 0x10     // 擦除次序错误
-#define RES_IX_EADDRESS 0x20    // 地址错误
-#define RES_IX_EARG 0x40        // 参数错误
-
+#define RES_IX_BUSY 0x00     // busy信号
+#define RES_IX_IDLE 0x01     // 空闲状态
+#define RES_IX_EERASE 0x02   // 擦除错误
+#define RES_IX_ECMD 0x04     // 命令错误
+#define RES_IX_ECRC 0x08     // CRC通信错误
+#define RES_IX_EERASE2 0x10  // 擦除次序错误
+#define RES_IX_EADDRESS 0x20 // 地址错误
+#define RES_IX_EARG 0x40     // 参数错误
 
 // #endif
 

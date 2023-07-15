@@ -91,6 +91,7 @@ int pagefault(uint64 cause, pagetable_t pagetable, vaddr_t stval) {
         }
 
     } else {
+        print_vma(&proc_current()->mm->head_vma);
         PAGEFAULT("va is not in the vmas");
         return -1;
     }

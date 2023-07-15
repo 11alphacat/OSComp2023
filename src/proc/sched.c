@@ -21,8 +21,7 @@ Queue_t *T_STATES[TCB_STATEMAX] = {
     [TCB_UNUSED] & unused_t_q,
     [TCB_USED] & used_t_q,
     [TCB_RUNNABLE] & runnable_t_q,
-    [TCB_SLEEPING] & sleeping_t_q,
-    [TCB_ZOMBIE] & zombie_t_q};
+    [TCB_SLEEPING] & sleeping_t_q};
 
 extern struct proc proc[NPROC];
 extern struct tcb thread[NTCB];
@@ -38,7 +37,6 @@ void TCB_Q_ALL_INIT() {
     Queue_init(&used_t_q, "TCB_USED", TCB_STATE_QUEUE);
     Queue_init(&runnable_t_q, "TCB_RUNNABLE", TCB_STATE_QUEUE);
     Queue_init(&sleeping_t_q, "TCB_SLEEPING", TCB_STATE_QUEUE);
-    Queue_init(&zombie_t_q, "TCB_ZOMBIE", TCB_STATE_QUEUE); // only valid for group leader
 }
 
 void PCB_Q_changeState(struct proc *p, enum procstate state_new) {
@@ -80,10 +78,13 @@ void thread_yield(void) {
 // it is essential !!!
 void thread_wakeup(void *t) {
     struct tcb *thread = (struct tcb *)t;
-    ASSERT(thread->wait_chan_entry != NULL);
-    Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
+#ifdef __DEBUG_FUTEX__
+    printfCYAN("timer : thread_wakeup tid : %d\n", thread->tid);
+#endif
 
     acquire(&thread->lock);
+    ASSERT(thread->wait_chan_entry != NULL);
+    Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
     ASSERT(thread->state == TCB_SLEEPING);
     thread->wait_chan_entry = NULL;
     TCB_Q_changeState(t, TCB_RUNNABLE);
@@ -112,6 +113,7 @@ int thread_sched(void) {
     timer.expires = 0;
     timer.count = 1; // only once
     if (set_timer != 0) {
+        INIT_LIST_HEAD(&timer.list); // bug!!!
         add_timer_atomic(&timer, thread->time_out, thread_wakeup, (void *)thread);
     }
 

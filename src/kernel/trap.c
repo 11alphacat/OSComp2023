@@ -139,10 +139,13 @@ void thread_usertrapret() {
     t->trapframe->kernel_trap = (uint64)thread_usertrap;
     t->trapframe->hartid = r_tp(); // hartid for cpuid()
 
-    // if (print_tf_flag) {
-    // trapframe_print(t->trapframe);
-    //     print_tf_flag = 0;
-    // }
+    // trapframe_print(t->trapframe);// debug
+
+    if (print_tf_flag) {
+        printf("%d\n", p->pid);
+        trapframe_print(t->trapframe);
+        print_tf_flag = 0;
+    }
 
     // set up the registers that trampoline.S's sret will use
     // to get to user space.
@@ -215,18 +218,18 @@ int devintr() {
 
         if (irq == UART0_IRQ) {
             uartintr();
-        } 
-    #ifdef SIFIVE_U
+        }
+#ifdef SIFIVE_U
         // TODO()
-        
+
         // else if (irq == VIRTIO0_IRQ) {
         //     disk_intr();
         // }
-    #else
+#else
         else if (irq == VIRTIO0_IRQ) {
             disk_intr();
         }
-    #endif
+#endif
         else if (irq) {
             printf("unexpected interrupt irq=%d\n", irq);
         }

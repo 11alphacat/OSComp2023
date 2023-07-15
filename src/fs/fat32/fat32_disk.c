@@ -46,6 +46,9 @@ int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
     sb->fat32_sb_info.free_count = fsinfo->Free_Count;
     sb->fat32_sb_info.nxt_free = fsinfo->Nxt_Free;
 
+    // help fsinfo
+    sb->fat32_sb_info.hint_valid = 0;
+
     ////////////////////////////////////////////////////////////////////////////////
     Info("=============FSINFO==========\n");
     // Info("LeadSig : ");
@@ -137,6 +140,8 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
 
     Info("FilSysType : ");
     printf("%.5s\n", fat_bpb->FilSysType);
+
+    Info("FAT_CLUSTER_MAX : %d\n", FAT_CLUSTER_MAX);
 
     // Info("BootCode : ");
     // Show_bytes((byte_pointer)&fat_bpb->BootCode, sizeof(fat_bpb->BootCode));

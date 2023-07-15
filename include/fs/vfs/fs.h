@@ -63,7 +63,7 @@ struct file {
     ushort f_count;
     short f_major;
 
-    void *private_data;
+    void *private_data; // for shared memory
 
     int f_owner; /* pid or -pgrp where SIGIO should be sent */
     union file_type f_tp;
@@ -136,6 +136,9 @@ struct inode {
     int create_cnt;      // for inode parent
     int create_first;    // for inode child
     int shm_flg;         // for shared memory
+
+    // speed up fat dirlookup
+    // TODO
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6inode_info xv6_i;

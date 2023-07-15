@@ -27,7 +27,10 @@ void add_timer_atomic(struct timer_list *timer, uint64 expires, timer_expire fun
     timer->expires_end = expires + TIME2NS(rdtime());
     timer->expires = expires;
     timer->function = function;
-    INIT_LIST_HEAD(&timer->list);
+    // bug!!!
+    if (!list_empty(&timer->list)) {
+        return;
+    }
 
     acquire(&timer_head.lock);
     list_add_tail(&timer->list, &timer_head.entry);
@@ -46,20 +49,26 @@ void timer_list_decrease_atomic(struct timer_entry *head) {
 
     acquire(&head->lock);
     list_for_each_entry_safe(timer_cur, timer_tmp, &head->entry, list) {
-        if (timer_cur->cycle == -1) {
-            // wakeup every clock interrupt, don't care expire
-            timer_cur->over = TIME_OUT(timer_cur);
-            timer_cur->function(timer_cur->data);
-            list_del_reinit(&timer_cur->list);
-            continue;
-        }
+        // special for pselect6
+        // if (timer_cur->cycle == -1) {
+        //     // wakeup every clock interrupt, don't care expire
+        //     timer_cur->over = TIME_OUT(timer_cur);
+        //     timer_cur->function(timer_cur->data);
+        //     list_del_reinit(&timer_cur->list);
+        //     continue;
+        // }
         // uint64 time_now_ns = TIME2NS(rdtime());
         // if (time_now_ns > timer_cur->expires_end) {
         if (TIME_OUT(timer_cur)) {
             timer_cur->function(timer_cur->data);
             if (timer_cur->count == -1) {
-                // special for pdflush
-                timer_cur->expires_end = timer_cur->expires + TIME2NS(rdtime());
+                // if(timer_cur->interval)
+                if (timer_cur->interval == -1)
+                    // special for pdflush
+                    timer_cur->expires_end = timer_cur->expires + TIME2NS(rdtime());
+                else
+                    // special for setitimer
+                    timer_cur->expires_end = timer_cur->interval + TIME2NS(rdtime());
             } else {
                 list_del_reinit(&timer_cur->list);
                 timer_cur->expires_end = 0;

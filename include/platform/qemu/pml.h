@@ -33,7 +33,6 @@
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
 #define CLINT_INTERVAL 1000000       // cycles; about 1/10th second in qemu.
 
-
 // qemu puts platform-level interrupt controller (PLIC) here.
 #define PLIC 0x0c000000L
 #define PLIC_PRIORITY (PLIC + 0x0)
@@ -44,7 +43,5 @@
 #define PLIC_SPRIORITY(hart) (PLIC + 0x201000 + (hart)*0x2000)
 #define PLIC_MCLAIM(hart) (PLIC + 0x200004 + (hart)*0x2000)
 #define PLIC_SCLAIM(hart) (PLIC + 0x201004 + (hart)*0x2000)
-
-
 
 #endif // __QEMU_PML_H__

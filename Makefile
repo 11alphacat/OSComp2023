@@ -8,10 +8,14 @@ BUILD=build
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
+DEBUG_RW ?= 0
+DEBUG_PIPE ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 0
+STRACE ?=0
 DEBUG_LDSO ?= 0
 DEBUG_SIGNAL ?= 0
+DEBUG_FUTEX ?= 0
+DEBUG_THREAD ?= 0
 
 FSIMG = fsimg
 ROOT=$(shell pwd)
@@ -29,7 +33,7 @@ TEST=user_test kalloctest mmaptest \
 	clock_gettime_test signal_test \
 	writev_test readv_test lseek_test \
 	sendfile_test renameat2_test
-BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo
+BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo true
 BOOT=init
 BUSYBOX=busybox busybox_cmd.txt busybox_testcode.sh busybox_d
 
@@ -57,6 +61,11 @@ $(shell mkdir -p $(FSIMG)/netperf)
 $(shell mkdir -p $(FSIMG)/proc/mounts)
 $(shell mkdir -p $(FSIMG)/iperf)
 $(shell mkdir -p $(FSIMG)/netperf)
+$(shell mkdir -p $(FSIMG)/cyclictest)
+$(shell mkdir -p $(FSIMG)/unixbench)
+$(shell mkdir -p $(FSIMG)/lmbench_test)
+# $(shell mkdir -p $(FSIMG)/cyclictest)
+
 
 ## 2. Compilation Flags 
 
@@ -116,6 +125,18 @@ CFLAGS += -D__DEBUG_PAGE_CACHE__
 endif
 ifeq ($(DEBUG_SIGNAL), 1)
 CFLAGS += -D__DEBUG_SIGNAL__
+endif
+ifeq ($(DEBUG_PIPE), 1)
+CFLAGS += -D__DEBUG_PIPE__
+endif
+ifeq ($(DEBUG_RW), 1)
+CFLAGS += -D__DEBUG_RW__
+endif
+ifeq ($(DEBUG_FUTEX), 1)
+CFLAGS += -D__DEBUG_FUTEX__
+endif
+ifeq ($(DEBUG_THREAD), 1)
+CFLAGS += -D__DEBUG_THREAD__
 endif
 
 CFLAGS += -MD
@@ -213,8 +234,20 @@ apps:
 	@cp apps/scripts/lua/* fsimg/lua
 	@cp apps/netperf/src/netperf apps/netperf/src/netserver fsimg/netperf/
 	@cp apps/scripts/netperf/* fsimg/netperf/
-	# @cp apps/UnixBench/pgms/* fsimg/UnixBench
-	# @cp apps/scripts/unixbench/*.sh fsimg/UnixBench
+	@cp sdcard/cyclictest sdcard/hackbench fsimg/cyclictest
+	@cp sdcard/cyclictest_testcode.sh fsimg/cyclictest
+	@cp sdcard/lmbench_all fsimg/lmbench_test
+	@cp sdcard/hello fsimg/lmbench_test
+	@cp sdcard/lmbench_testcode.sh fsimg/lmbench_test
+	@cp sdcard/unixbench/* fsimg/unixbench
+
+# @cp lmbench/bin/riscv64/lmbench_all sdcard/
+# @cp lmbench/bin/riscv64/hello sdcard/
+# @cp scripts/lmbench/* sdcard/
+
+# @cp apps/UnixBench/pgms/* fsimg/UnixBench
+# @cp apps/scripts/unixbench/*.sh fsimg/UnixBench
+# @cp sdcard/
 
 # user: oscomp busybox
 user: busybox apps
@@ -236,6 +269,7 @@ oscomp:
 
 fat32.img: dep
 	@dd if=/dev/zero of=$@ bs=1K count=65536
+# @sudo mkfs.vfat -F 32 -a $@
 	@sudo mkfs.vfat -F 32 -s 2 -a $@ 
 	@sudo mount -t vfat $@ $(MNT_DIR)
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/

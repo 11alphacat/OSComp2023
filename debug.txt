@@ -25,7 +25,7 @@ c
 9. break                直接函数名/文件名:行号
 10. c                   跳到下一个断点
 11. shell clear         清空屏幕
-
+12 info thread          查看每个CPU的线程
 
 先在一个窗口执行 make gdb
 再在一个窗口执行 gdb-multiarch

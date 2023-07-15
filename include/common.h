@@ -39,6 +39,7 @@ typedef uint64 vaddr_t;
 typedef long ssize_t;
 typedef unsigned int mode_t;
 
+typedef int clockid_t;
 // used in struct kstat
 typedef unsigned long int dev_t;
 typedef unsigned long int ino_t;
@@ -86,6 +87,19 @@ extern struct devsw devsw[];
 #define IsDigit(c) ((c) >= '0' && (c) <= '9')
 
 // time
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
+#define CLOCK_PROCESS_CPUTIME_ID 2
+#define CLOCK_THREAD_CPUTIME_ID 3
+#define CLOCK_MONOTONIC_RAW 4
+#define CLOCK_REALTIME_COARSE 5
+#define CLOCK_MONOTONIC_COARSE 6
+#define CLOCK_BOOTTIME 7
+#define CLOCK_REALTIME_ALARM 8
+#define CLOCK_BOOTTIME_ALARM 9
+#define CLOCK_SGI_CYCLE 10
+#define CLOCK_TAI 11
+
 #define FREQUENCY 12500000 // qemu时钟频率12500000
 #define TIME2SEC(time) (time / FREQUENCY)
 #define TIME2MS(time) (time * 1000 / FREQUENCY)
@@ -93,6 +107,7 @@ extern struct devsw devsw[];
 #define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
 
 #define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
+#define TIMEVAL2NS(val) (val.tv_usec * 1000 + val.tv_sec * 1000 * 1000 * 1000)
 #define NS_to_S(ns) (ns / (1000 * 1000 * 1000))
 #define S_to_NS(s) (s * 1UL * 1000 * 1000 * 1000)
 
@@ -114,6 +129,17 @@ struct timeval {
     uint64 tv_sec;  /* Seconds */
     uint64 tv_usec; /* Microseconds */
 };
+
+struct itimerval {
+    struct timeval it_interval; /* timer interval */
+    struct timeval it_value;    /* current value */
+};
+
+#define ITIMER_REAL 0
+#define ITIMER_VIRTUAL 1
+#define ITIMER_PROF 2
+
+#define TIMER_ABSTIME 1
 typedef int64 s64;
 typedef uint64 u64;
 typedef s64 ktime_t;
@@ -178,9 +204,6 @@ typedef __kernel_loff_t loff_t;
 
 #define MAX_ERRNO 4095
 #define IS_ERR_VALUE(x) unlikely((x) >= (uint64)-MAX_ERRNO)
-
-
-
 
 #endif
 

@@ -10,13 +10,12 @@
 */
 
 #ifdef SIFIVE_U
-    #include "platform/hifive/pml_hifive.h"
+#include "platform/hifive/pml_hifive.h"
 #else
-    #include "platform/qemu/pml.h"
+#include "platform/qemu/pml.h"
 #endif
 
-
-/* 
+/*
     The following codes are platform independent.
 */
 
@@ -55,7 +54,7 @@
 #define SIGRETURN (TRAMPOLINE - PGSIZE)
 
 #define TRAPFRAME (SIGRETURN - PGSIZE)
-#define THREAD_TRAPFRAME(id) (TRAPFRAME - (id) * PGSIZE)
+#define THREAD_TRAPFRAME(id) (TRAPFRAME - (id)*PGSIZE)
 
 #define USTACK_PAGE 80
 #define USTACK (MAXVA - 512 * PGSIZE - USTACK_PAGE * PGSIZE)

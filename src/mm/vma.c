@@ -3,6 +3,7 @@
 #include "atomic/spinlock.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
+#include "proc/tcb_life.h"
 #include "lib/riscv.h"
 #include "lib/list.h"
 #include "debug.h"
@@ -198,7 +199,12 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
     // ASSERT(len % PGSIZE == 0);
     size_t origin_len = len;
     len = PGROUNDUP(len);
-    ASSERT(size >= len);
+    // ASSERT(size >= len);
+    if (size < len) {
+        struct tcb *t = thread_current();
+        printf("tid : %d, size error\n", t->tid);
+        panic("size error\n");
+    }
     // len = PGROUNDUP(len);
 
     if (vma->type == VMA_FILE) {
