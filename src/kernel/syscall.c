@@ -165,7 +165,7 @@ static struct syscall_info info[] = {
     //         int fd, off_t offset);
     [SYS_mmap] { "mmap", 6, "puxxdu", 'p' },
     //    int munmap(void *addr, size_t length);
-    [SYS_munmap] { "munmap", 2, "pu", 'd' },
+    [SYS_munmap] { "munmap", 2, "px", 'd' },
     // long set_tid_address(int *tidptr);
     [SYS_set_tid_address] { "set_tid_address", 1, "p", 'd' },
     // int mprotect(void *addr, size_t len, int prot);
