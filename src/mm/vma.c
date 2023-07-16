@@ -203,7 +203,12 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
     if (vma->type == VMA_FILE) {
         /* if the perm has PERM_SHREAD, call writeback */
         if ((vma->perm & PERM_SHARED) && (vma->perm & PERM_WRITE)) {
+            
+            // if(start == 0x32407000) {
+                // vmprint(mm->pagetable, 1, 0, 0x32406000, 0);
+                // print_vma(&mm->head_vma);
             writeback(mm->pagetable, vma->vm_file, start, origin_len);
+            // }
         }
     }
 

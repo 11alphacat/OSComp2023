@@ -20,7 +20,6 @@ int main(int argc, char *argv[])
     //     perror("无法打开源文件");
     //     return 1;
     // }
-    printf("here\n");
     if ( renameat2(AT_FDCWD, oldpath, AT_FDCWD, newpath, 0) < 0) {
         perror("renameat2 失败！");
         return 1;
@@ -29,7 +28,6 @@ int main(int argc, char *argv[])
         printf("old path: %s\n", oldpath);
         printf("new path: %s\n", newpath);
     }
-    printf("here\n");
 
     int fd;
     if ( (fd = open(newpath, O_RDONLY)) < 0) {

@@ -29,7 +29,6 @@
 struct futex {
     struct spinlock lock;
     struct Queue waiting_queue;
-    int valid;
 };
 
 struct futex *get_futex(uint64 uaddr, int assert);
@@ -38,7 +37,6 @@ int futex_wait(uint64 uaddr, uint val, struct timespec *ts);
 int futex_wakeup(uint64 uaddr, int nr_wake);
 int futex_requeue(uint64 uaddr1, int nr_wake, uint64 uaddr2, int nr_requeue);
 
-int do_futex(uint64 uaddr, int op, uint32 val, struct timespec *ts,
-             uint64 uaddr2, uint32 val2, uint32 val3);
+int do_futex(uint64 uaddr, int op, uint32 val, struct timespec *ts, uint64 uaddr2, uint32 val2, uint32 val3);
 
 #endif

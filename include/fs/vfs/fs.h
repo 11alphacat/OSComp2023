@@ -11,6 +11,7 @@
 #include "lib/hash.h"
 #include "lib/radix-tree.h"
 #include "lib/list.h"
+#include "fs/mpage.h"
 
 struct kstat;
 extern struct ftable _ftable;
@@ -28,8 +29,8 @@ typedef enum {
 } fs_t;
 
 struct _superblock {
-    struct semaphore sem; /* binary semaphore */
-    uint8 s_dev;          // device number
+    struct semaphore sem;     /* binary semaphore */
+    uint8 s_dev;              // device number
 
     uint32 s_blocksize;       // 逻辑块的数量
     uint32 sectors_per_block; // 每个逻辑块的扇区个数
@@ -63,9 +64,9 @@ struct file {
     ushort f_count;
     short f_major;
 
-    void *private_data; // for shared memory
+    void *private_data;                 // for shared memory
 
-    int f_owner; /* pid or -pgrp where SIGIO should be sent */
+    int f_owner;                        /* pid or -pgrp where SIGIO should be sent */
     union file_type f_tp;
     const struct file_operations *f_op; // don't use pointer (bug maybe)!!!!
     // unsigned long f_version;
@@ -83,6 +84,33 @@ struct ftable {
 //     long d_ino;
 //     char d_name[NAME_MAX + 1];
 // };
+
+// for index table of inode
+// levl0 : level1 : level2 : level 3 = 12 : 1 : 1 : 1 is recommended
+#define N_DIRECT 12                          // direct
+#define N_LEVEL_ONE 10                        // level 1
+#define N_LEVEL_TWO 1                        // level 2
+#define N_LEVEL_THREE 1                      // level 3
+#define N_INDIRECT (PGSIZE / sizeof(uint32)) // 4096/4 = 1024
+#define MAX_INDEX_0 (N_DIRECT)
+#define OFFSET_LEVEL_1 (N_INDIRECT)
+#define OFFSET_LEVEL_2 (N_INDIRECT * N_INDIRECT)
+#define OFFSET_LEVEL_3 (N_INDIRECT * N_INDIRECT * N_INDIRECT)
+#define MAX_INDEX_1 (MAX_INDEX_0 + N_LEVEL_ONE * OFFSET_LEVEL_1)
+#define MAX_INDEX_2 (MAX_INDEX_1 + N_LEVEL_TWO * OFFSET_LEVEL_2)
+#define MAX_INDEX_3 (MAX_INDEX_2 + N_LEVEL_THREE * OFFSET_LEVEL_3)
+#define IDX_SHIFT (N_INDIRECT)
+#define IDX_N_SHIFT(level) (N_INDIRECT + (N_INDIRECT * (level - 1)))
+#define IDX_MASK (N_INDIRECT - 1) // 10 bits : 11_1111_1111
+#define IDX_N(idx, level) ((((uint64)(idx)) >> IDX_N_SHIFT(level)) & IDX_MASK)
+#define IDX_OFFSET(idx) (idx & IDX_MASK)
+
+struct index_table {
+    uint32 direct[N_DIRECT];
+    uint64 indirect_one[N_LEVEL_ONE];
+    uint64 indirect_two[N_LEVEL_TWO];
+    uint64 indirect_three[N_LEVEL_THREE];
+};
 
 // abstract datas in disk
 struct inode {
@@ -102,13 +130,14 @@ struct inode {
     uint32 i_size;
     // uint16 i_type;       // we do no use it anymore
 
-    long i_atime;        // access time
-    long i_mtime;        // modify time
-    long i_ctime;        // create time
-    blksize_t i_blksize; // bytes of one block
-    blkcnt_t i_blocks;   // numbers of blocks
+    long i_atime;           // access time
+    long i_mtime;           // modify time
+    long i_ctime;           // create time
+    blksize_t i_blksize;    // bytes of one block
+    blkcnt_t i_blocks;      // numbers of blocks
 
     struct semaphore i_sem; /* binary semaphore */
+    struct semaphore i_read_lock;// special for mpage_read
 
     const struct inode_operations *i_op;
     struct _superblock *i_sb;
@@ -130,15 +159,15 @@ struct inode {
     struct address_space *i_mapping; // used for page cache
     spinlock_t tree_lock;            /* and lock protecting radix tree */
 
-    struct list_head list; // to speed up inode_get
+    struct list_head list;           // to speed up inode_get
 
-    int dirty_in_parent; // need to update ??
-    int create_cnt;      // for inode parent
-    int create_first;    // for inode child
-    int shm_flg;         // for shared memory
+    int dirty_in_parent;             // need to update ??
+    int create_cnt;                  // for inode parent
+    int create_first;                // for inode child
+    int shm_flg;                     // for shared memory
 
     // speed up fat dirlookup
-    // TODO
+    struct index_table i_table;
     union {
         struct fat32_inode_info fat32_i;
         // struct xv6inode_info xv6_i;
@@ -147,6 +176,7 @@ struct inode {
     };
 };
 
+// for page cache
 #define PAGECACHE_TAG_DIRTY 0
 #define PAGECACHE_TAG_WRITEBACK 1
 struct address_space {
@@ -195,7 +225,7 @@ struct linux_dirent {
     int64 d_off;             // 到下一个dirent的偏移
     unsigned short d_reclen; // 当前dirent的长度
     unsigned char d_type;    // 文件类型
-    char d_name[];           //文件名
+    char d_name[];           // 文件名
 };
 
 #endif // __VFS_FS_H__

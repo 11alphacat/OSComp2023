@@ -277,7 +277,12 @@ The effect of this operation is to wake a single thread that is performing a fut
 ./runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 
 共性的问题：munmap的时候size < len？？？
-
+在vmspace_unmap的最后加上：
+if (size < len) {
+	// print_vma(&mm->head_vma);
+	// size < len: in case the vma has split before
+	vmspace_unmap(mm, va + size, len - size);
+}
 
 
 

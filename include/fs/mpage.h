@@ -4,7 +4,6 @@
 #include "lib/list.h"
 #include "lib/radix-tree.h"
 #include "memory/buddy.h"
-
 // we use page list to replace page array
 struct Page_entry {
     struct list_head entry;

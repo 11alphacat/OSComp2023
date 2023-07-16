@@ -16,6 +16,8 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
     acquire(&mapping->host->tree_lock);
     int error = radix_tree_insert(&mapping->page_tree, index, page);
     if (likely(!error)) {
+        // if(mapping->host->fat32_i.fname[0]=='b')    
+        // printfRed("index : %x\n", index);   
         mapping->nrpages++;
     } else {
         panic("add_to_page_cache : error\n");
@@ -82,6 +84,7 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
     // printfRed("read content : ");
 
     // int first_char = 0;
+    sema_wait(&ip->i_read_lock);
     while (1) {
         struct page *page;
 
@@ -144,7 +147,8 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
 
         if (either_copyout(user_dst, dst, (void *)(pa + offset), len) == -1) {
             // panic("do_generic_file_read : copyout error\n");
-            return -1;
+            retval = -1;
+            goto out;
         }
 
         // if(first_char==0){
@@ -184,6 +188,7 @@ out:
     // printfRed("read content: %s\n", buf_debug_init);
     // kfree(buf_debug_init);
     // printf("\n");
+    sema_signal(&ip->i_read_lock);
     return retval;
 }
 
@@ -207,10 +212,10 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
     // printfGreen("write content : ");
 
     // int first_char = 0;
-
     ssize_t retval = 0;
 
     // printf("write begin : \n");
+    sema_wait(&ip->i_read_lock);
     while (1) {
         struct page *page;
 
@@ -252,7 +257,8 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
         len = MIN(n - retval, nr);
         if (either_copyin((void *)(pa + offset), user_src, src, len) == -1) {
             // panic("do_generic_file_write : copyin error\n");
-            return -1;
+            retval = -1;
+            goto out;
         }
 
         // if(first_char==0){
@@ -270,7 +276,10 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
         // set page dirty
         set_page_flags(page, PG_dirty);
+
+        // acquire(&mapping->host->tree_lock);
         radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+        // release(&mapping->host->tree_lock);
 
         // put and release (don't need it, maybe?)
         // page_cache_put(page);
@@ -294,9 +303,11 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
 
     // printf("write end : \n");
 
+out:
     // // debug
     // printfGreen("write content: %s\n", buf_debug_init);
     // kfree(buf_debug_init);
     // printf("\n");
+    sema_signal(&ip->i_read_lock);
     return retval;
 }

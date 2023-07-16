@@ -4,6 +4,6 @@ inferior 2
 attach 2
 set schedule-multiple on
 symbol-file kernel-qemu
-break uart_hifive_putc_syn
+break main.c:106
 c
 layout src

@@ -149,7 +149,6 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
             // begin_op();
             fat32_inode_lock(f->f_tp.f_inode);
             // fat32_inode_load_from_disk(f->f_tp.f_inode);
-
             if ((r = fat32_inode_write(f->f_tp.f_inode, 1, addr + i, f->f_pos, n1)) > 0)
                 f->f_pos += r;
             fat32_inode_unlock(f->f_tp.f_inode);

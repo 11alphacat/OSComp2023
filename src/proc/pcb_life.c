@@ -506,6 +506,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
         struct proc *p_first = firstchild(p);
         int flag = 1;
         list_for_each_entry_safe_given_first(p_child, p_tmp, p_first, sibling_list, flag) {
+
             // shell won't exit !!!
             if (pid > 0 && p_child->pid == pid) {
                 sema_wait(&p_child->sem_wait_chan_self);

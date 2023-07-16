@@ -1,4 +1,5 @@
 #include "platform/hifive/uart_hifive.h"
+#include "driver/console.h"
 #include "common.h"
 
 volatile uarts_t *uarths = (volatile uarts_t *)UART0_BASE;
@@ -45,7 +46,8 @@ void uart_hifve_submit() {
         if (BUF_IS_EMPETY(uart) || UART_TX_FULL) {
             return;
         }
-        char ch = UART_BUF_GETCHAR(uart);
+        int ch = uart.uart_tx_buf[uart.uart_tx_r % UART_HIFIVE_TX_BUF_SIZE];
+        uart.uart_tx_r++;
         sema_signal(&uart.uart_tx_r_sem);
         UART_TX_PUTCHAR(ch);
     }
@@ -61,6 +63,8 @@ void uart_hifive_putc_asyn(char ch) {
         sema_wait(&uart.uart_tx_r_sem);
     }
     acquire(&uart.uart_tx_lock);
+    uart.uart_tx_buf[uart.uart_tx_w % UART_HIFIVE_TX_BUF_SIZE] = ch;
+    uart.uart_tx_w += 1;
     uart_hifve_submit();
     release(&uart.uart_tx_lock);
 }
@@ -72,13 +76,14 @@ void uart_hifive_putc_syn(char ch) {
         for (;;)
             ;
     }
-    while (ReadReg_hifive(TXDATA) & TX_FULL_MASK);
+    while (ReadReg_hifive(TXDATA) & TX_FULL_MASK)
+        ;
     WriteReg_hifive(TXDATA, ch);
     pop_off();
 }
 
 int uart_hifive_getc() {
-    if(UART_RX_EMPTY)
+    if (UART_RX_EMPTY)
         return -1;
     else
         return UART_RX_GETCHAR;

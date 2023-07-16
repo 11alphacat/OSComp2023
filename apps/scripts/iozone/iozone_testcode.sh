@@ -1,6 +1,6 @@
 #!/bin/bash
-# busybox echo iozone automatic measurements
-# iozone -a -r 1k -s 4m
+busybox echo iozone automatic measurements
+iozone -a -r 1k -s 4m
 busybox echo iozone throughput write/read measurements
 iozone -t 4 -i 0 -i 1 -r 1k -s 1m
 busybox echo iozone throughput random-read measurements
