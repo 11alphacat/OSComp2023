@@ -29,8 +29,8 @@ typedef enum {
 } fs_t;
 
 struct _superblock {
-    struct semaphore sem;     /* binary semaphore */
-    uint8 s_dev;              // device number
+    struct semaphore sem; /* binary semaphore */
+    uint8 s_dev;          // device number
 
     uint32 s_blocksize;       // 逻辑块的数量
     uint32 sectors_per_block; // 每个逻辑块的扇区个数
@@ -64,9 +64,9 @@ struct file {
     ushort f_count;
     short f_major;
 
-    void *private_data;                 // for shared memory
+    void *private_data; // for shared memory
 
-    int f_owner;                        /* pid or -pgrp where SIGIO should be sent */
+    int f_owner; /* pid or -pgrp where SIGIO should be sent */
     union file_type f_tp;
     const struct file_operations *f_op; // don't use pointer (bug maybe)!!!!
     // unsigned long f_version;
@@ -88,7 +88,7 @@ struct ftable {
 // for index table of inode
 // levl0 : level1 : level2 : level 3 = 12 : 1 : 1 : 1 is recommended
 #define N_DIRECT 12                          // direct
-#define N_LEVEL_ONE 10                        // level 1
+#define N_LEVEL_ONE 10                       // level 1
 #define N_LEVEL_TWO 1                        // level 2
 #define N_LEVEL_THREE 1                      // level 3
 #define N_INDIRECT (PGSIZE / sizeof(uint32)) // 4096/4 = 1024
@@ -130,14 +130,14 @@ struct inode {
     uint32 i_size;
     // uint16 i_type;       // we do no use it anymore
 
-    long i_atime;           // access time
-    long i_mtime;           // modify time
-    long i_ctime;           // create time
-    blksize_t i_blksize;    // bytes of one block
-    blkcnt_t i_blocks;      // numbers of blocks
+    long i_atime;        // access time
+    long i_mtime;        // modify time
+    long i_ctime;        // create time
+    blksize_t i_blksize; // bytes of one block
+    blkcnt_t i_blocks;   // numbers of blocks
 
-    struct semaphore i_sem; /* binary semaphore */
-    struct semaphore i_read_lock;// special for mpage_read
+    struct semaphore i_sem;       /* binary semaphore */
+    struct semaphore i_read_lock; // special for mpage_read
 
     const struct inode_operations *i_op;
     struct _superblock *i_sb;
@@ -159,12 +159,12 @@ struct inode {
     struct address_space *i_mapping; // used for page cache
     spinlock_t tree_lock;            /* and lock protecting radix tree */
 
-    struct list_head list;           // to speed up inode_get
+    struct list_head list; // to speed up inode_get
 
-    int dirty_in_parent;             // need to update ??
-    int create_cnt;                  // for inode parent
-    int create_first;                // for inode child
-    int shm_flg;                     // for shared memory
+    int dirty_in_parent; // need to update ??
+    int create_cnt;      // for inode parent
+    int create_first;    // for inode child
+    int shm_flg;         // for shared memory
 
     // speed up fat dirlookup
     struct index_table i_table;

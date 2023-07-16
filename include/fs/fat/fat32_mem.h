@@ -189,10 +189,10 @@ void fat32_update_fsinfo(uint dev);
 uint64 fat32_index_page_alloc(void);
 
 // lookup or create index table to find the cluster_num of logistic_num
-uint32 fat32_ctl_index_table(struct inode* ip, uint32 l_num, uint32 cluster_num);
+uint32 fat32_ctl_index_table(struct inode *ip, uint32 l_num, uint32 cluster_num);
 
 // free index table
-void fat32_free_index_table(struct inode* ip);
+void fat32_free_index_table(struct inode *ip);
 
 // ==================== part III : special for long entry and short entry ====================
 // reverse the dirent_l to get the long name

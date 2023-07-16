@@ -224,7 +224,7 @@ uint fat32_cluster_alloc(uint dev) {
         fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
         free_num = fat_next;                   // bug !!!
     }
-    fat32_sb.fat32_sb_info.dirty = 1;          // sync in put
+    fat32_sb.fat32_sb_info.dirty = 1; // sync in put
     sema_signal(&fat32_sb.sem);
 
     // zero cluster (maybe unnecessary)
@@ -407,7 +407,7 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
     // if (ip->locked == 0) {
     //     need_lock = 1;
     //     sema_wait(&ip->i_sem);
-        // printfRed("read %s not using lock???\n",ip->fat32_i.fname);
+    // printfRed("read %s not using lock???\n",ip->fat32_i.fname);
     // }
     int fileSize = ip->i_size;
 
@@ -432,7 +432,7 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
 
     // if(need_lock) {
     //     sema_signal(&ip->i_sem);
-        // sema_signal();
+    // sema_signal();
     // }
     return ret;
 }
@@ -594,7 +594,7 @@ struct inode *fat32_inode_get(uint dev, struct inode *dp, const char *name, uint
 int fat32_fcb_copy(struct inode *dp, struct inode *ip) {
     // get fcb_char
     int str_len = strlen(ip->fat32_i.fname);
-    int off = ip->fat32_i.parent_off * 32;                   // unit of parent_off is 32 bytes
+    int off = ip->fat32_i.parent_off * 32; // unit of parent_off is 32 bytes
     ASSERT(off > 0);
     int long_dir_len = CEIL_DIVIDE(str_len, FAT_LFN_LENGTH); // 上取整
     int fcb_char_len = (long_dir_len + 1) * sizeof(dirent_l_t);
@@ -840,7 +840,7 @@ void fat32_inode_trunc(struct inode *ip) {
     ip->i_blocks = 0;
     ip->fat32_i.parent_off = -1; // ???
 
-    ip->i_hash = NULL;           // !!!
+    ip->i_hash = NULL; // !!!
 
     // speed up dirlookup
     ip->off_hint = 0;
@@ -1517,7 +1517,7 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
             // iter_c_n = fat32_next_cluster(iter_c_n);
             iter_c_n = fat32_ctl_index_table(ip, l_num + 1, 0); // lookup
         }
-        l_num++;                                                // !!!
+        l_num++; // !!!
     }
     // bio_print(bio_p); // debug
 #ifdef __DEBUG_PAGE_CACHE__
@@ -1530,7 +1530,7 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
 // similar to mpage_writepage
 void fat32_i_mapping_destroy(struct inode *ip) {
     struct address_space *mapping = ip->i_mapping;
-    acquire(&ip->tree_lock);     // !!!
+    acquire(&ip->tree_lock); // !!!
     if (mapping == NULL) {
         release(&ip->tree_lock); // !!!
         return;

@@ -180,7 +180,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
     if (read_from_disk)
         // read pages using page list
         fat32_rw_pages_batch(ip, &p_entry, DISK_READ, alloc);
-    
+
     return first_pa;
 }
 
