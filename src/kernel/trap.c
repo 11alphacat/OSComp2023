@@ -218,7 +218,9 @@ int devintr() {
         } 
     #ifdef SIFIVE_U
         // TODO()
-        
+        if ( irq >= DMA_IRQ_START && irq <= DMA_IRQ_END ) {
+            dma_intr(irq);
+        }
         // else if (irq == VIRTIO0_IRQ) {
         //     disk_intr();
         // }

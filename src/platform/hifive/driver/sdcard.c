@@ -810,11 +810,29 @@ static void __sd_multiple_write(void *addr, uint sec, uint nr_sec) {
 }
 
 // extern int __sd_single_read(void * , uint );
-
+extern void dma_req(uint64 pa_des, uint64 pa_src, uint32 nr_bytes );
 void sdcard_disk_read(void *addr, uint sec, uint nr_sec) {
     sema_wait(&sdcard_disk.mutex_disk);
     if (nr_sec == 1) {
         __sd_single_read(addr, sec);
+
+// /*
+        // DMA 测试
+    {
+//         char *data_tmp = (char*)kzalloc(nr_sec * BSIZE);
+//         uint64 pa_des, pa_src;
+//         pa_des = (uint64)data_tmp;
+    
+// #ifndef SIFIVE_U
+//         sec *= BSIZE; 
+// #endif
+//         pa_src = sec;
+//         dma_req(pa_des,pa_src,nr_sec * BSIZE);
+
+//         ASSERT(!memcmp(addr, data_tmp,BSIZE));
+//         kfree(data_tmp);
+    }
+// */   // end DMA 测试
 
         // just for test
         // __sdRead(addr, sec, 2);
@@ -842,6 +860,8 @@ void sdcard_disk_read(void *addr, uint sec, uint nr_sec) {
             kfree(data_tmp);
         }
 */
+
+        
 
     } else {
         __sd_multiple_read(addr, sec, nr_sec);
@@ -882,14 +902,10 @@ void sdcard_disk_rw(struct bio_vec *bio_vec, int write) {
     return;
 }
 
-
 inline void disk_rw(void *bio_vec, int write, int type) {
     sdcard_disk_rw((struct bio_vec *)bio_vec, write);
 }
 
-void disk_intr() {
-    return;
-}
 void disk_init() {
     sdcard_disk_init();
 }

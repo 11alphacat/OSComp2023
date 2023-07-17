@@ -165,6 +165,14 @@ QEMUOPTS += -drive file=fat32.img,if=sd,format=raw
 CFLAGS += -DSIFIVE_U
 endif
 
+ifeq ($(PLATFORM), board_sifive_u)
+QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 130M -nographic
+QEMUOPTS += -smp $(CPUS)
+QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
+CFLAGS += -DSIFIVE_B
+endif
+
+
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
 # QEMU's gdb stub command line changed in 0.11

@@ -1,3 +1,4 @@
+// for SPI
 target extended-remote 127.0.0.1:26000
 add-inferior
 inferior 2
@@ -9,6 +10,20 @@ b __sd_init
 b sdcard_disk_read
 c
 layout src
+
+// for PLIC
+target extended-remote 127.0.0.1:26000
+add-inferior
+inferior 2
+attach 2
+set schedule-multiple on
+symbol-file kernel-qemu
+b __sd_init
+b uart_hifive_intr
+layout src
+c
+
+
 `=====开始调试...
 break main
 c   

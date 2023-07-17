@@ -32,6 +32,7 @@ void pdflush_init();
 void page_writeback_timer_init(void);
 void disk_init(void);
 void null_zero_dev_init();
+void dma_init(void);
 
 volatile static int started = 0;
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
@@ -57,7 +58,7 @@ void hart_start() {
 void main(uint64 hartid) {
 #if defined(VIRT)
     if (cpuid() == 0) {
-#elif defined(SIFIVE_U)
+#elif defined(SIFIVE_U) || defined(SIFIVE_B)
     if (first_core == 1) {
         first_core = 0;
         first_hartid = hartid;
@@ -114,6 +115,10 @@ void main(uint64 hartid) {
         disk_init();
         // virtio_disk_init(); // emulated hard disk
 
+#if defined(SIFIVE_U) || defined(SIFIVE_B)
+        // DMA
+        dma_init();
+#endif    
         // First user process
         userinit(); // first user process
 
@@ -121,7 +126,7 @@ void main(uint64 hartid) {
         // pdflush_init();
         __sync_synchronize();
 
-#ifdef SIFIVE_U
+#if defined(SIFIVE_U) || defined(SIFIVE_B)
         hart_start();
 #endif
         printf("hart %d starting\n", cpuid());
@@ -135,6 +140,11 @@ void main(uint64 hartid) {
         kvminithart();  // turn on paging
         trapinithart(); // install kernel trap vector
         plicinithart(); // ask PLIC for device interrupts
+
+#if defined(SIFIVE_U) || defined(SIFIVE_B)
+        // DMA
+        dma_init();
+#endif    
     }
 
     thread_scheduler();

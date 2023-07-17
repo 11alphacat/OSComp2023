@@ -11,6 +11,8 @@
 
 #ifdef SIFIVE_U
     #include "platform/hifive/pml_hifive.h"
+#elif SIFIVE_B
+    #include "platform/hifive/pml_hifive.h"
 #else
     #include "platform/qemu/pml.h"
 #endif

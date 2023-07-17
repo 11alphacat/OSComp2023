@@ -11,6 +11,7 @@
 #include "lib/list.h"
 #include "memory/buddy.h"
 #include "platform/hifive/uart_hifive.h"
+#include "platform/hifive/dma_hifive.h"
 
 /*
  * the kernel's page table.
@@ -32,19 +33,22 @@ kvmmake(void) {
     kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
     // virtio mmio disk interface
     kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
-#elif defined(SIFIVE_U)
+    // PLIC
+    kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W, SUPERPAGE);
+#elif defined(SIFIVE_U) || defined(SIFIVE_B)
     // a temporary version <<==
     kvmmap(kpgtbl, CLINT_MTIME, CLINT_MTIME, PGSIZE, PTE_R, COMMONPAGE);
     // // uart registers
     kvmmap(kpgtbl, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
-
+    // dma
+    kvmmap(kpgtbl, DMA_BASE, DMA_BASE, 0x100000, PTE_R | PTE_W, COMMONPAGE);
+    // plic
+    kvmmap(kpgtbl, PLIC_BASE, PLIC_BASE, 0x400000, PTE_R | PTE_W, SUPERPAGE);
     // a rough handler
 #define QSPI_2_BASE ((unsigned int)0x10050000)
     kvmmap(kpgtbl, QSPI_2_BASE, QSPI_2_BASE, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 #endif
 
-    // PLIC
-    kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W, SUPERPAGE);
 
     // map kernel text executable and read-only.
     vaddr_t super_aligned_sz = SUPERPG_DOWN((uint64)etext - KERNBASE);

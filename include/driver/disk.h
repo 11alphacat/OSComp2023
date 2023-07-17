@@ -14,5 +14,6 @@ struct bio_vec;
 void disk_rw(void *b, int write, int type);
 void disk_intr();
 void disk_init();
+void dma_intr(int irq);
 
 #endif // __DISK_H__

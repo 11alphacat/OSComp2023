@@ -104,10 +104,13 @@ void uart_hifive_putc_syn(char ch) {
 
 int uart_hifive_getc() {
     // if (UART_RX_EMPTY(uarths))
-    if(UART_RX_EMPTY)
+    char ch = UART_RX_GETCHAR;
+    if(ch & RX_EMPTY_MASK)
         return -1;
-    else
-        return UART_RX_GETCHAR;
+    else {
+        return ch; 
+    }
+        // return UART_RX_GETCHAR;
         // return UART_RX_GETCHAR(uarths);
 }
 
