@@ -3,13 +3,14 @@
 
 #define EPERM 1   /* Operation not permitted */
 #define ESRCH 3   /* No such process */
+#define EINTR 4   /* Interrupted system call */
 #define EINVAL 22 /* Invalid argument */
 #define ENOSPC 28 /* No space left on device */
 #define EACCES 13 /* Permission denied */
 #define ENOENT 2  /* No such file or directory */
 #define EEXIST 17 /* File exists */
 #define EBADF 9   /* Bad file number */
-#define EFAULT 14  /* Bad address */
+#define EFAULT 14 /* Bad address */
 #endif
 
 #define EINTR 4   /* Interrupted system call */
@@ -21,7 +22,6 @@
 #define ECHILD 10 /* No child processes */
 #define EAGAIN 11 /* Try again */
 #define ENOMEM 12 /* Out of memory */
-
 
 #define ENOTBLK 15 /* Block device required */
 #define EBUSY 16   /* Device or resource busy */

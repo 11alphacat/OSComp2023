@@ -15,8 +15,9 @@ uint64 sys_munmap(void) {
     size_t length;
     argaddr(0, &addr);
     argulong(1, &length);
+    struct proc *p = proc_current();
 
-    if (vmspace_unmap(proc_current()->mm, addr, length) != 0) {
+    if (vmspace_unmap(p->mm, addr, length) != 0) {
         return -1;
     }
     return 0;

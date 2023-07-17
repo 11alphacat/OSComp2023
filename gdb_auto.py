@@ -17,4 +17,5 @@ def read_and_write_text(file_path, seconds):
         # time.sleep(seconds)
 
 file_path = './sifive_gdb_cmd.txt'
+# file_path = './qemu_gdb_cmd.txt'
 read_and_write_text(file_path, 2)

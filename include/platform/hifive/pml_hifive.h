@@ -17,9 +17,9 @@
 
 // hifive u740 puts SPI registers here in physical memory.
     // #define QSPI_2_BASE ((unsigned int)0x10050000)  
-// #define SPI0_IRQ 41
-// #define SPI1_IRQ 42
-// #define SPI2_IRQ 43
+#define SPI0_IRQ 41
+#define SPI1_IRQ 42
+#define SPI2_IRQ 43
 
 // PDMA
 #ifdef SIFIVE_B
@@ -63,9 +63,9 @@
     } while (0);                                                                                                                              \
     // ASSERT((hart) > 0);                                             
 
-#define PLIC_MPRIORITY(hart)    *(unsigned int*)( (hart) > 0 ? PLIC_BASE + 0x201000 + ((hart)-1)*0x2000 : PLIC_BASE + 0x200000)
-#define PLIC_SPRIORITY(hart)    *(unsigned int*)(PLIC_BASE + 0x202000 + ((hart)-1)*0x2000)  // hart starts from 1, ends to 4
-#define PLIC_MCLAIM(hart)       *(unsigned int*)((hart) > 0 ? PLIC_BASE + 0x201004 + ((hart)-1)*0x2000 : PLIC_BASE + 0x200004)   // M-Mode claim/complete
-#define PLIC_SCLAIM(hart)       *(unsigned int*)(PLIC_BASE + 0x202004 + ((hart)-1)*0x2000)  // S-Mode claim/complete
+#define PLIC_MPRIORITY(hart) *(unsigned int*)( (hart) > 0 ? PLIC_BASE + 0x201000 + (hart)*0x2000 : PLIC_BASE + 0x200000)
+#define PLIC_MCLAIM(hart) *(unsigned int*)((hart) > 0 ? PLIC_BASE + 0x201004 + (hart)*0x2000 : PLC + 0X200004)   // M-Mode claim/complete
+#define PLIC_SPRIORITY(hart) *(unsigned int*)(PLIC_BASE + 0x202000 + ((hart)-1)*0x2000)  // hart starts from 1, ends to 4
+#define PLIC_SCLAIM(hart) *(unsigned int*)(PLIC_BASE + 0x202004 + ((hart)-1)*0x2000)  // S-Mode claim/complete
 
 #endif // __PML_HIFIVE_H__

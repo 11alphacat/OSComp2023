@@ -20,7 +20,9 @@ void wakeup_bdflush(void *nr_pages) {
 
 // set timer to write back regularly
 void page_writeback_timer_init(void) {
-    wb_timer.count = -1; // not stop it
+    wb_timer.count = -1;    // not stop it
+    wb_timer.interval = -1; // continue forever
+    INIT_LIST_HEAD(&wb_timer.list);
     uint64 time_out = S_to_NS(dirty_writeback_cycle);
     add_timer_atomic(&wb_timer, time_out, wakeup_bdflush, 0);
 }

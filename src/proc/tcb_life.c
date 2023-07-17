@@ -14,7 +14,6 @@ extern Queue_t unused_t_q, runnable_t_q, sleeping_t_q, zombie_t_q;
 extern Queue_t *STATES[TCB_STATEMAX];
 extern struct hash_table tid_map;
 extern struct proc *initproc;
-
 extern struct cond cond_ticks;
 
 struct tcb thread[NTCB];
@@ -22,10 +21,6 @@ char tcb_lock_name[NTCB][10];
 
 atomic_t next_tid;
 atomic_t count_tid;
-
-#define alloc_tid (atomic_inc_return(&next_tid))
-#define cnt_tid_inc (atomic_inc_return(&count_tid))
-#define cnt_tid_dec (atomic_dec_return(&count_tid))
 
 // tcb init
 void tcb_init(void) {
@@ -71,11 +66,7 @@ struct tcb *alloc_thread(thread_callback callback) {
 
     // signal
     t->sig_pending_cnt = 0;
-    if ((t->sig = (struct sighand *)kzalloc(sizeof(struct sighand))) == 0) {
-        panic("no space for sighand\n");
-    }
     sig_empty_set(&t->blocked);
-    sighandinit(t->sig);
     sigpending_init(&(t->pending));
 
     // Set up new context to start executing at forkret, which returns to user space.
@@ -91,6 +82,10 @@ struct tcb *alloc_thread(thread_callback callback) {
 
     // timeout for timer
     t->time_out = 0;
+
+    // for clone
+    t->set_child_tid = 0;
+    t->clear_child_tid = 0;
     return t;
 }
 
@@ -102,8 +97,21 @@ void free_thread(struct tcb *t) {
     else
         uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0, 1);
 
-    if (t->sig) // bug!
-        kfree((void *)t->sig);
+    // bug!
+    if (t->wait_chan_entry != NULL) {
+        Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
+        ASSERT(thread->state == TCB_SLEEPING);
+        thread->wait_chan_entry = NULL;
+    }
+    // bug!
+    if (t->sig) {
+        // !!! for shared
+        int ref = atomic_dec_return(&t->sig->ref) - 1;
+        if (ref == 0) {
+            kfree((void *)t->sig);
+        }
+        t->sig = NULL;
+    }
 
     // delete <tid, t>
     hash_delete(&tid_map, (void *)&t->tid);
@@ -111,6 +119,7 @@ void free_thread(struct tcb *t) {
     cnt_tid_dec;
 
     t->tid = 0;
+    t->tidx = 0;
     t->trapframe = 0;
     t->name[0] = 0;
     // t->exit_status = 0;
@@ -128,24 +137,22 @@ void free_thread(struct tcb *t) {
 // if map trapframe failed, return -1
 int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     struct thread_group *tg = p->tg;
-    acquire(&tg->lock);
 
+    acquire(&tg->lock);
     if (tg->group_leader == NULL) {
         tg->group_leader = t;
     }
     list_add_tail(&t->threads, &p->tg->threads);
     tg->tgid = p->pid;
-    tg->thread_cnt++;
+    atomic_inc_return(&tg->thread_cnt);
     t->tidx = tg->thread_idx++;
     t->p = p;
-    
-    Log("thread idx is %d, within group %d", t->tidx, p->pid);
 
+    // Log("thread idx is %d, within group %d", t->tidx, p->pid);
     if ((t->trapframe = uvm_thread_trapframe(p->mm->pagetable, t->tidx)) == 0) {
         return -1;
     }
     // vmprint(p->mm->pagetable, 0, 0, MAXVA - 512 * PGSIZE, 0);
-
     if (name == NULL) {
         char name_tmp[20];
         snprintf(name_tmp, 20, "%s-%d", p->name, t->tidx);
@@ -153,26 +160,10 @@ int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     } else {
         strncpy(t->name, name, 20);
     }
-
     release(&p->tg->lock);
+
     return 0;
 }
-
-int proc_release_thread(struct proc *p, struct tcb *t) {
-    acquire(&p->tg->lock);
-    p->tg->thread_cnt--;
-    list_del_reinit(&t->threads);
-    if (p->tg->thread_cnt == 0) {
-        if (p->tg->group_leader != t) {
-            panic("main thread exited early");
-        }
-        release(&p->tg->lock);
-        return 1;
-    }
-    release(&p->tg->lock);
-    return 0;
-}
-
 
 // send signal to all threads of proc p
 void proc_sendsignal_all_thread(struct proc *p, sig_t signo, int opt) {
@@ -213,14 +204,17 @@ int thread_killed(struct tcb *t) {
 void tginit(struct thread_group *tg) {
     initlock(&tg->lock, "thread group lock");
     tg->group_leader = NULL;
-    tg->thread_cnt = 0;
+    atomic_set(&tg->thread_cnt, 0);
     tg->thread_idx = 0;
     INIT_LIST_HEAD(&tg->threads);
 }
 
-void sighandinit(struct sighand *sig) {
-    initlock(&sig->siglock, "signal handler lock");
-    atomic_set(&(sig->count), 0);
+void sighandinit(struct tcb *t) {
+    if ((t->sig = (struct sighand *)kzalloc(sizeof(struct sighand))) == 0) {
+        panic("no space for sighand\n");
+    }
+    initlock(&t->sig->siglock, "signal handler lock");
+    atomic_set(&(t->sig->ref), 1);
     // memset the signal handler???
 }
 
@@ -278,6 +272,9 @@ void do_tkill(struct tcb *t, sig_t signo) {
     acquire(&t->lock);
     thread_send_signal(t, &info);
     release(&t->lock);
+#ifdef __DEBUG_SIGNAL__
+    printfCYAN("tkill , tid : %d, signo : %d\n", t->tid, signo);
+#endif
 }
 
 int do_sleep_ns(struct tcb *t, struct timespec ts) {
@@ -289,7 +286,6 @@ int do_sleep_ns(struct tcb *t, struct timespec ts) {
     release(&cond_ticks.waiting_queue.lock);
     return wait_ret;
 }
-
 
 // create thread valid inkernel space
 void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback callback) {
@@ -304,13 +300,3 @@ void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback ca
     TCB_Q_changeState(t, TCB_RUNNABLE);
     release(&t->lock);
 }
-
-// // thread join
-// // similar to wait
-// int join_thread(struct tcb* thread, int* status) {
-//     while(thread->state!=TCB_ZOMBIE) {
-//         thread_yield();
-//     }
-//     *status = thread->exit_status;
-//     free_thread(thread);
-// }

@@ -19,7 +19,7 @@
 #define RLIMIT_RTTIME 15     /* timeout for RT tasks in us */
 #define RLIM_NLIMITS 16
 
-#define RLIM_INFINITY		(~0UL)
+#define RLIM_INFINITY (~0UL)
 #define RLIM64_INFINITY RLIM_INFINITY
 
 // for prlimit
@@ -30,8 +30,8 @@ struct rlimit {
 };
 typedef unsigned long long __u64;
 struct rlimit64 {
-	__u64 rlim_cur;
-	__u64 rlim_max;
+    __u64 rlim_cur;
+    __u64 rlim_max;
 };
 
 #endif

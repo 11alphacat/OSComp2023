@@ -30,6 +30,12 @@ struct fat32_sb_info {
     // FSINFO ~ may modify
     uint free_count;
     uint nxt_free;
+
+    // help fsinfo
+    int hint_valid;
+
+    // dirty
+    int dirty;
 };
 
 // fat32 inode information
@@ -162,7 +168,7 @@ int fat32_fcb_delete(struct inode *dp, struct inode *ip);
 
 // ==================== part II : the management of BPB、FSINFO and FAT table ====================
 // allocate a new fat entry
-uint fat32_fat_alloc(void);
+uint fat32_fat_alloc(FAT_entry_t hint);
 
 // set the fat entry to given value
 void fat32_fat_set(uint cluster, uint value);
@@ -178,6 +184,15 @@ uint fat32_next_cluster(uint cluster_cur);
 
 // update fsinfo
 void fat32_update_fsinfo(uint dev);
+
+// allocate a page to fill cluster num
+uint64 fat32_index_page_alloc(void);
+
+// lookup or create index table to find the cluster_num of logistic_num
+uint32 fat32_ctl_index_table(struct inode *ip, uint32 l_num, uint32 cluster_num);
+
+// free index table
+void fat32_free_index_table(struct inode *ip);
 
 // ==================== part III : special for long entry and short entry ====================
 // reverse the dirent_l to get the long name
@@ -213,7 +228,7 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
 
 // ==================== part V : the management of blocks ====================
 // move cursor
-void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset);
+uint32 fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset);
 
 // get bio of blocks
 int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int alloc);

@@ -123,6 +123,13 @@ uint64 sys_execve(void) {
         return -1;
     }
 
+    // // special for /bin/true and /bin/fasle
+    // if(!strncmp(path, "/bin/true", 9)) {
+    //     return 0;
+    // } else if(!strncmp(path, "/bin/fasle", 10)) {
+    //     return 1;
+    // }
+
     /* fetch the paddr of char **argv and char **envp */
     argaddr(1, &uargv);
     argaddr(2, &uenvp);
@@ -254,10 +261,9 @@ uint64 sys_getuid(void) {
 uint64 sys_set_tid_address(void) {
     uint64 tidptr;
     argaddr(0, &tidptr);
-    struct proc *p = proc_current();
     struct tcb *t = thread_current();
 
-    t->clear_child_tid = getphyaddr(p->mm->pagetable, tidptr);
+    t->clear_child_tid = tidptr;
 
     return t->tid;
 }
@@ -278,8 +284,6 @@ uint64 sys_rt_sigaction(void) {
     argulong(3, &sigsetsize);
 
     int ret;
-
-    // struct sigaction act_real;
 
     if (sigsetsize != sizeof(sigset_t))
         return -1;
@@ -350,8 +354,10 @@ uint64 sys_rt_sigreturn(void) {
     struct tcb *t = thread_current();
     // signal_queue_pop(sig_gen_mask(t->sig_ing), &(t->pending));
     // signal_trapframe_restore(t);
+
     signal_frame_restore(t, (struct rt_sigframe *)t->trapframe->sp);
-    return 0;
+
+    return -EINTR; // bug for unixbench(fstime)!!!
 }
 
 // pid_t pid, sig_t signo
@@ -491,10 +497,28 @@ uint64 sys_getegid() {
 
 uint64 sys_exit_group(void) {
     struct proc *p = proc_current();
-    exit_group(p); 
+    do_exit_group(p);
     return 0;
 }
 
 uint64 sys_gettid(void) {
     return proc_current()->pid;
+}
+uint64 sys_sched_setscheduler(void) {
+    return 0;
+}
+uint64 sys_sched_getaffinity(void) {
+    return 0;
+}
+uint64 sys_sched_setaffinity(void) {
+    return 0;
+}
+uint64 sys_sched_getscheduler(void) {
+    return 0;
+}
+uint64 sys_sched_getparam(void) {
+    return 0;
+}
+uint64 sys_membarrier(void) {
+    return 0;
 }

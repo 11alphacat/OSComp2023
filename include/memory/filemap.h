@@ -4,13 +4,9 @@
 #include "memory/buddy.h"
 
 #define READ_AHEAD_RATE 20
-
 #define READ_AHEAD_PAGE_MAX_CNT 16
-
 #define WRITE_FULL_PAGE(rest_val) (rest_val >= PGSIZE)
-#define OUT_FILE(offset_cur, offset_tot) (offset_cur > offset_tot)
-// #define NOT_FULL_PAGE(offset) ((offset) != 0)
-// #define OUTFILE(index, pgsize) ((index) > (pgsize))
+#define OUT_FILE(offset_cur, offset_tot) ((offset_cur > offset_tot))
 
 #define CHANGE_READ_AHEAD(mapping) (mapping->read_ahead_cnt = ((mapping->read_ahead_cnt) == 0) ? 1 : mapping->read_ahead_cnt * 2)
 

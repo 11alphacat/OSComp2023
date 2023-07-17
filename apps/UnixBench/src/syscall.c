@@ -34,91 +34,88 @@ char SCCSid[] = "@(#) @(#)syscall.c:3.3 -- 5/15/91 19:30:21";
 
 unsigned long iter;
 
-void report()
-{
-	fprintf(stdout,"COUNT|%ld|1|lps\n", iter);
-	exit(0);
+void report() {
+    fprintf(stdout, "COUNT|%ld|1|lps\n", iter);
+    exit(0);
 }
 
-int create_fd()
-{
-	int fd[2];
+int create_fd() {
+    int fd[2];
 
-	if (pipe(fd) != 0 || close(fd[1]) != 0)
-	    exit(1);
+    if (pipe(fd) != 0 || close(fd[1]) != 0)
+        exit(1);
 
-	return fd[0];
+    return fd[0];
 }
 
 int main(argc, argv)
-int	argc;
-char	*argv[];
+int argc;
+char *argv[];
 {
-        char   *test;
-	int	duration;
-	int	fd;
+    char *test;
+    int duration;
+    int fd;
 
-	if (argc < 2) {
-		fprintf(stderr,"Usage: %s duration [ test ]\n", argv[0]);
-                fprintf(stderr,"test is one of:\n");
-                fprintf(stderr,"  \"mix\" (default), \"close\", \"getpid\", \"exec\"\n");
-		exit(1);
-	}
-        if (argc > 2)
-            test = argv[2];
-        else
-            test = "mix";
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s duration [ test ]\n", argv[0]);
+        fprintf(stderr, "test is one of:\n");
+        fprintf(stderr, "  \"mix\" (default), \"close\", \"getpid\", \"exec\"\n");
+        exit(1);
+    }
+    if (argc > 2)
+        test = argv[2];
+    else
+        test = "mix";
 
-	duration = atoi(argv[1]);
+    duration = atoi(argv[1]);
 
-	iter = 0;
-	wake_me(duration, report);
+    iter = 0;
+    wake_me(duration, report);
 
-        switch (test[0]) {
-        case 'm':
-	   fd = create_fd();
-	   while (1) {
-		close(dup(fd));
-		syscall(SYS_getpid);
-		getuid();
-		umask(022);
-		iter++;
-	   }
-	   /* NOTREACHED */
-        case 'c':
-           fd = create_fd();
-           while (1) {
-                close(dup(fd));
-                iter++;
-           }
-           /* NOTREACHED */
-        case 'g':
-           while (1) {
-                syscall(SYS_getpid);
-                iter++;
-           }
-           /* NOTREACHED */
-        case 'e':
-           while (1) {
-                pid_t pid = fork();
-                if (pid < 0) {
-                    fprintf(stderr,"%s: fork failed\n", argv[0]);
-                    exit(1);
-                } else if (pid == 0) {
-                    execl("/bin/true", "/bin/true", (char *) 0);
-                    fprintf(stderr,"%s: exec /bin/true failed\n", argv[0]);
-                    exit(1);
-                } else {
-                    if (waitpid(pid, NULL, 0) < 0) {
-                        fprintf(stderr,"%s: waitpid failed\n", argv[0]);
-                        exit(1);
-                    }
-                }
-                iter++;
-           }
-           /* NOTREACHED */
+    switch (test[0]) {
+    case 'm':
+        fd = create_fd();
+        while (1) {
+            close(dup(fd));
+            syscall(SYS_getpid);
+            getuid();
+            umask(022);
+            iter++;
         }
+        /* NOTREACHED */
+    case 'c':
+        fd = create_fd();
+        while (1) {
+            close(dup(fd));
+            iter++;
+        }
+        /* NOTREACHED */
+    case 'g':
+        while (1) {
+            syscall(SYS_getpid);
+            iter++;
+        }
+        /* NOTREACHED */
+    case 'e':
+        while (1) {
+            pid_t pid = fork();
+            if (pid < 0) {
+                fprintf(stderr, "%s: fork failed\n", argv[0]);
+                exit(1);
+            } else if (pid == 0) {
+                execl("/bin/true", "/bin/true", (char *)0);
+                fprintf(stderr, "%s: exec /bin/true failed\n", argv[0]);
+                exit(1);
+            } else {
+                if (waitpid(pid, NULL, 0) < 0) {
+                    fprintf(stderr, "%s: waitpid failed\n", argv[0]);
+                    exit(1);
+                }
+            }
+            iter++;
+        }
+        /* NOTREACHED */
+    }
 
-        exit(9);
+    exit(9);
 }
-

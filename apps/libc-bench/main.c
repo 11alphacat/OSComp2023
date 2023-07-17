@@ -60,39 +60,39 @@ int run_bench(const char *label, size_t (*bench)(void *), void *params)
 
 int main()
 {
-	RUN(b_malloc_sparse, 0);
-	RUN(b_malloc_bubble, 0);
-	RUN(b_malloc_tiny1, 0);
-	RUN(b_malloc_tiny2, 0);
-	RUN(b_malloc_big1, 0);
-	RUN(b_malloc_big2, 0);
+	// RUN(b_malloc_sparse, 0);
+	// RUN(b_malloc_bubble, 0);
+	// RUN(b_malloc_tiny1, 0);
+	// RUN(b_malloc_tiny2, 0);
+	// RUN(b_malloc_big1, 0);
+	// RUN(b_malloc_big2, 0);
 
 
 	// RUN(b_malloc_thread_stress, 0);
 	// RUN(b_malloc_thread_local, 0);
 
-	RUN(b_string_strstr, "abcdefghijklmnopqrstuvwxyz");
-	RUN(b_string_strstr, "azbycxdwevfugthsirjqkplomn");
-	RUN(b_string_strstr, "aaaaaaaaaaaaaacccccccccccc");
-	RUN(b_string_strstr, "aaaaaaaaaaaaaaaaaaaaaaaaac");
-	RUN(b_string_strstr, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac");
-	RUN(b_string_memset, 0);
-	RUN(b_string_strchr, 0);
-	RUN(b_string_strlen, 0);
+	// RUN(b_string_strstr, "abcdefghijklmnopqrstuvwxyz");
+	// RUN(b_string_strstr, "azbycxdwevfugthsirjqkplomn");
+	// RUN(b_string_strstr, "aaaaaaaaaaaaaacccccccccccc");
+	// RUN(b_string_strstr, "aaaaaaaaaaaaaaaaaaaaaaaaac");
+	// RUN(b_string_strstr, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac");
+	// RUN(b_string_memset, 0);
+	// RUN(b_string_strchr, 0);
+	// RUN(b_string_strlen, 0);
 
 	// RUN(b_pthread_createjoin_serial1, 0);
 	// RUN(b_pthread_createjoin_serial2, 0);
-	// RUN(b_pthread_create_serial1, 0);
+	// RUN(b_pthread_create_serial1, 0);//ok
 	// RUN(b_pthread_uselesslock, 0);
 
-	RUN(b_utf8_bigbuf, 0);
-	RUN(b_utf8_onebyone, 0);
+	// RUN(b_utf8_bigbuf, 0);
+	// RUN(b_utf8_onebyone, 0);
 
-	RUN(b_stdio_putcgetc, 0);
-	RUN(b_stdio_putcgetc_unlocked, 0);
+	// RUN(b_stdio_putcgetc, 0);
+	// RUN(b_stdio_putcgetc_unlocked, 0);
 
-	RUN(b_regex_compile, "(a|b|c)*d*b");
-	RUN(b_regex_search, "(a|b|c)*d*b");
-	RUN(b_regex_search, "a{25}b");
+	// RUN(b_regex_compile, "(a|b|c)*d*b");
+	// RUN(b_regex_search, "(a|b|c)*d*b");
+	// RUN(b_regex_search, "a{25}b");
 }
 

@@ -1,14 +1,14 @@
+#include "kernel/cpu.h"
+#include "proc/sched.h"
+#include "proc/pcb_life.h"
+#include "memory/vm.h"
+#include "memory/memlayout.h"
+#include "fs/fat/fat32_mem.h"
+#include "lib/sbi.h"
+#include "lib/riscv.h"
+#include "test.h"
 #include "common.h"
 #include "param.h"
-#include "memory/memlayout.h"
-#include "lib/riscv.h"
-#include "proc/pcb_life.h"
-#include "kernel/cpu.h"
-#include "fs/fat/fat32_mem.h"
-#include "test.h"
-#include "memory/vm.h"
-#include "proc/sched.h"
-#include "lib/sbi.h"
 
 void printfinit(void);
 void consoleinit(void);
@@ -33,6 +33,7 @@ void page_writeback_timer_init(void);
 void disk_init(void);
 void null_zero_dev_init();
 void dma_init(void);
+void init_socket_table();
 
 volatile static int started = 0;
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
@@ -62,7 +63,6 @@ void main(uint64 hartid) {
     if (first_core == 1) {
         first_core = 0;
         first_hartid = hartid;
-
         // int status[10] = {0};
         // for (int i = 0; i < NCPU; i++) {
         //     status[i] = sbi_hart_get_status(i);
@@ -81,14 +81,15 @@ void main(uint64 hartid) {
         // Memory management
         mm_init();
         vmas_init();
-        extern void init_socket_table();
+
+        // socket
         init_socket_table();
 
         // KVM
         kvminit();     // create kernel page table
         kvminithart(); // turn on paging
 
-        // Proc management
+        // Proc management and Thread management
         proc_init(); // process table
         tcb_init();
 
@@ -123,7 +124,7 @@ void main(uint64 hartid) {
         userinit(); // first user process
 
         // pdflush kernel thread
-        // pdflush_init();
+        pdflush_init();
         __sync_synchronize();
 
 #if defined(SIFIVE_U) || defined(SIFIVE_B)

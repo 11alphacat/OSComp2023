@@ -113,26 +113,26 @@ void info_socket(int funcid, int sockfd, struct socket *sock, ...) {
     switch (funcid) {
     case SYS_sendto:
     case SYS_connect: {
-        printfGreen("\n fd is %d, src_port is %d, dst_port is %d\n", sockfd, sock->src_port, sock->dst_port);
+        // printfGreen("\n fd is %d, src_port is %d, dst_port is %d\n", sockfd, sock->src_port, sock->dst_port);
         break;
     }
     case SYS_bind: {
-        printfGreen("\n fd is %d, src_port is %d", sockfd, sock->src_port);
+        // printfGreen("\n fd is %d, src_port is %d", sockfd, sock->src_port);
         break;
     }
     case SYS_close: {
-        printfGreen("\n src_port is %d, dst_port is %d", sockfd, sock->src_port, sock->dst_port);
+        // printfGreen("\n src_port is %d, dst_port is %d", sockfd, sock->src_port, sock->dst_port);
         break;
     }
     case SYS_socket: {
         int type = va_arg(ap, int);
         if (type | SOCK_STREAM) {
-            printfGreen("TCP socket\t");
+            // printfGreen("TCP socket\t");
         } else if (type | SOCK_DGRAM) {
-            printfGreen("UDP socket\t");
+            // printfGreen("UDP socket\t");
         }
         if (type & SOCK_NONBLOCK) {
-            printfGreen("NONBLOCK SOCKET\t");
+            // printfGreen("NONBLOCK SOCKET\t");
         }
         break;
     }

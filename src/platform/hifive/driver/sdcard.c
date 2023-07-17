@@ -582,7 +582,7 @@ static int __sd_init() {
 
     for (int _ = 0; _ != 10; ++_) {;}
     
-    printf("SD卡初始化完成!\n");
+    printf("The SD card is initialized\n");
     return 0;
 }
 

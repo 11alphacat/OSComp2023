@@ -694,7 +694,7 @@ int do_execve(char *path, struct binprm *bprm) {
     // uvm_thread_trapframe(mm->pagetable, 0);
 
     /* free the old pagetable */
-    free_mm(oldmm, p->tg->thread_cnt);
+    free_mm(oldmm, atomic_read(&p->tg->thread_cnt));
 
     /* commit new mm */
     p->mm = mm;
@@ -706,7 +706,7 @@ int do_execve(char *path, struct binprm *bprm) {
     }
     /* for debug, print the pagetable and vmas after exec */
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    print_vma(&mm->head_vma);
+    // print_vma(&mm->head_vma);
     // panic(0);
 
     return argc; // this ends up in a0, the first argument to main(argc, argv)

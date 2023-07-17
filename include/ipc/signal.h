@@ -6,14 +6,19 @@
 #include "lib/list.h"
 #include "kernel/trap.h"
 
-#define SIGKILL 9
+#define SIGHUP 1
+#define SIGINT 2
+#define SIGQUIT 3
+#define SIGTERM 15
 #define SIGSTOP 17
 
-#define SIGINT 2
+#define SIGKILL 9
 #define SIGTSTP 18
-#define SIGTERM 15
+#define SIGALRM 14
 #define SIGSEGV 11
 #define SIGCHLD 20
+
+#define SIGCANCEL 33
 
 typedef void __signalfn_t(int);
 typedef __signalfn_t *__sighandler_t;
@@ -63,7 +68,7 @@ struct sigaction {
 // signal process
 struct sighand {
     spinlock_t siglock;
-    atomic_t count;
+    atomic_t ref;
     struct sigaction action[_NSIG];
 };
 
@@ -144,6 +149,28 @@ struct sigcontext {
     // union __riscv_fp_state sc_fpregs;
 };
 
+// struct __riscv_mc_f_ext_state {
+// 	unsigned int __f[32];
+// 	unsigned int __fcsr;
+// };
+
+// struct __riscv_mc_d_ext_state {
+// 	unsigned long long __f[32];
+// 	unsigned int __fcsr;
+// };
+
+// struct __riscv_mc_q_ext_state {
+// 	unsigned long long __f[64] __attribute__((aligned(16)));
+// 	unsigned int __fcsr;
+// 	unsigned int __reserved[3];
+// };
+
+// union __riscv_mc_fp_state {
+// 	struct __riscv_mc_f_ext_state __f;
+// 	struct __riscv_mc_d_ext_state __d;
+// 	struct __riscv_mc_q_ext_state __q;
+// };
+
 struct ucontext {
     // uint64 uc_flags;
     // struct ucontext *uc_link;
@@ -152,6 +179,21 @@ struct ucontext {
     sigset_t uc_sigmask; /* mask last for extensibility */
     sig_t sig_ing;
 };
+typedef unsigned long __riscv_mc_gp_state[32];
+
+// typedef struct mcontext_t {
+// 	__riscv_mc_gp_state __gregs;
+// 	union __riscv_mc_fp_state __fpregs;
+// } mcontext_t;
+
+// typedef struct __ucontext
+// {
+// 	unsigned long uc_flags;
+// 	struct __ucontext *uc_link;
+// 	struct sigaltstack uc_stack;
+// 	struct { unsigned long __bits[128/sizeof(long)]; } uc_sigmask;
+// 	mcontext_t uc_mcontext;
+// } ucontext_t;
 
 struct rt_sigframe {
     // struct siginfo info;

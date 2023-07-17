@@ -61,7 +61,6 @@ pagetable_t proc_pagetable() {
     return pagetable;
 }
 
-
 // Free a process's page table, and free the
 // physical memory it refers to.
 void proc_freepagetable(struct mm_struct *mm, int thread_cnt) {
@@ -85,7 +84,7 @@ void proc_freepagetable(struct mm_struct *mm, int thread_cnt) {
 // Return 0 on success, -1 on failure.
 int growheap(int n) {
     uint64 oldsz, newsz, sz;
-    struct proc* p = proc_current();
+    struct proc *p = proc_current();
     struct mm_struct *mm = p->mm;
     // struct mm_struct *mm = proc_current()->mm;
     sz = mm->brk;

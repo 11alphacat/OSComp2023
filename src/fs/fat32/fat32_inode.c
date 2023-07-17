@@ -47,6 +47,7 @@ void inode_table_init() {
     for (entry = inode_table.inode_entry; entry < &inode_table.inode_entry[NINODE]; entry++) {
         memset(entry, 0, sizeof(struct inode));
         sema_init(&entry->i_sem, 1, "inode_entry_sem");
+        sema_init(&entry->i_read_lock, 1, "read_lock");
         initlock(&entry->i_lock, "inode_entry_lock");
         initlock(&entry->tree_lock, "inode_radix_tree_lock");
         INIT_LIST_HEAD(&entry->dirty_list);
@@ -89,6 +90,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     // root inode initialization
     struct inode *root_ip = (struct inode *)kalloc();
     sema_init(&root_ip->i_sem, 1, "fat_root_inode");
+    sema_init(&root_ip->i_read_lock, 1, "read_root_inode");
     root_ip->i_dev = sb->s_dev;
     // root_ip->i_mode = IMODE_NONE;
     // set root inode num to 0 (this is no longer used)
@@ -158,6 +160,7 @@ uint32 fat32_fat_travel(struct inode *ip, uint num) {
     int prev = 0;
     while (!ISEOF(iter_c_n) && (num > ++cnt || num == 0)) {
         prev = iter_c_n;
+        fat32_ctl_index_table(ip, cnt, iter_c_n); // add cluster_num into index table!
         iter_c_n = fat32_next_cluster(iter_c_n);
     }
 
@@ -173,10 +176,7 @@ uint32 fat32_fat_travel(struct inode *ip, uint num) {
 
 // find the next cluster of current cluster
 uint fat32_next_cluster(uint cluster_cur) {
-    // ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
-    if (!(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX)) {
-        printfBlue("cluster_cur = %d\n", cluster_cur);
-    }
+    ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
     struct buffer_head *bp;
     uint sector_num = ThisFATEntSecNum(cluster_cur);
     bp = bread(fat32_sb.s_dev, sector_num);
@@ -195,6 +195,9 @@ uint fat32_cluster_alloc(uint dev) {
     }
     uint free_num = fat32_sb.fat32_sb_info.nxt_free;
     fat32_sb.fat32_sb_info.free_count--;
+    // if(fat32_sb.fat32_sb_info.free_count%1000==0) {
+    // printfRed("free num --: %d\n", fat32_sb.fat32_sb_info.free_count);
+    // }
 
     // the first sector
     int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
@@ -204,22 +207,25 @@ uint fat32_cluster_alloc(uint dev) {
     if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1) {
         // next free hit
         brelse(bp); // !!!!
-
         fat32_fat_set(fat32_sb.fat32_sb_info.nxt_free, EOC);
+        // printfRed("hint : fat cluster : %x, value : %x\n", fat32_sb.fat32_sb_info.nxt_free, fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free)); // debug!
         fat32_sb.fat32_sb_info.nxt_free++;
     } else {
         // start from the begin of fat
         brelse(bp); // !!!!
-
-        uint fat_next = fat32_fat_alloc();
+        int hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
+        uint fat_next = fat32_fat_alloc(hint);
         if (fat_next == 0)
             panic("no more space");
-        fat32_sb.fat32_sb_info.nxt_free = fat_next + 1;
+        fat32_sb.fat32_sb_info.nxt_free = (fat_next + 1) % (FAT_CLUSTER_MAX); // !!!
+        if (fat32_sb.fat32_sb_info.nxt_free == 0) {
+            fat32_sb.fat32_sb_info.nxt_free = 3;
+        }
+        fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
+        free_num = fat_next;                   // bug !!!
     }
+    fat32_sb.fat32_sb_info.dirty = 1; // sync in put
     sema_signal(&fat32_sb.sem);
-
-    // update fsinfo in disk
-    fat32_update_fsinfo(dev);
 
     // zero cluster (maybe unnecessary)
     // fat32_zero_cluster(free_num);
@@ -227,6 +233,11 @@ uint fat32_cluster_alloc(uint dev) {
 }
 
 void fat32_update_fsinfo(uint dev) {
+    sema_wait(&fat32_sb.sem);
+    if (!fat32_sb.fat32_sb_info.dirty) {
+        sema_signal(&fat32_sb.sem);
+        return;
+    }
     // update fsinfo
     struct buffer_head *bp;
     fsinfo_t *fsinfo_tmp;
@@ -244,21 +255,27 @@ void fat32_update_fsinfo(uint dev) {
     fsinfo_tmp->Nxt_Free = fat32_sb.fat32_sb_info.nxt_free;
     bwrite(bp);
     brelse(bp);
+
+    fat32_sb.fat32_sb_info.dirty = 0; // !!!
+    sema_signal(&fat32_sb.sem);
 }
 
 // allocate a new fat entry
-uint fat32_fat_alloc() {
+uint fat32_fat_alloc(FAT_entry_t hint) {
+    // TODO : using hint speed up
     struct buffer_head *bp;
-    int c = 3;
+    int c = hint;
     // cluster 0 and cluster 1 is reserved, cluster 2 is for root
-    int sec = FAT_BASE;
+    int s_init = c % FAT_PER_SECTOR;
+    int sec = FAT_BASE + c / FAT_PER_SECTOR;
     while (c < FAT_CLUSTER_MAX) {
         bp = bread(fat32_sb.s_dev, sec);
         FAT_entry_t *fats = (FAT_entry_t *)(bp->data);
-        for (int s = 0; s < FAT_PER_SECTOR; s++) {
+        for (int s = s_init; s < FAT_PER_SECTOR; s++) {
             if (fats[s] == FREE_MASK) {
                 brelse(bp); // !!!!
                 fat32_fat_set(c, EOC);
+                // printfRed("not hint : fat cluster : %x, value : %x\n", c, fat32_next_cluster(c)); // debug!
                 return c;
             }
             c++;
@@ -267,6 +284,7 @@ uint fat32_fat_alloc() {
                 return 0;
             }
         }
+        s_init = 0;
         sec++;
         brelse(bp);
     }
@@ -285,23 +303,112 @@ void fat32_fat_set(uint cluster, uint value) {
 }
 
 // move search cursor(<cluster, sector, offset>) given off
-void fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset) {
-    uint C_NUM_off = LOGISTIC_C_NUM(off) + 1;
+uint32 fat32_cursor_to_offset(struct inode *ip, uint off, FAT_entry_t *c_start, int *init_s_n, int *init_s_offset) {
+    uint32 C_NUM_off = LOGISTIC_C_NUM(off) + 1;
     // find the target cluster of off
-    *c_start = fat32_fat_travel(ip, C_NUM_off);
+    // *c_start = fat32_fat_travel(ip, C_NUM_off);
+    *c_start = fat32_ctl_index_table(ip, C_NUM_off, 0);
+    if (ISEOF(*c_start)) {
+        *c_start = ip->fat32_i.cluster_end;
+    }
     while (C_NUM_off > ip->fat32_i.cluster_cnt) {
         FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
         fat32_fat_set(*c_start, fat_new);
         *c_start = fat_new;
         ip->fat32_i.cluster_cnt++;
         ip->fat32_i.cluster_end = fat_new;
+        fat32_ctl_index_table(ip, ip->fat32_i.cluster_cnt, fat_new); // add fat_new into index table!
     }
     *init_s_n = LOGISTIC_S_NUM(off);
     *init_s_offset = LOGISTIC_S_OFFSET(off);
+    return C_NUM_off;
+}
+
+// allocate an index page to fill cluster number
+uint64 fat32_index_page_alloc(void) {
+    uint64 idx_page;
+    if ((idx_page = (uint64)kzalloc(PGSIZE)) == 0) {
+        panic("page alloc : no enough memory\n");
+    }
+    return idx_page;
+}
+
+#define INDEX_LOOKUP(p) (p ? p : EOC)
+static uint32 get_index_val(uint32 *idx_table, uint32 idx_entry, uint32 cluster_num) {
+    int alloc = (cluster_num == 0 ? 0 : 1);
+    // it is ok to use direct page
+    if (alloc) {
+        // allocate it?
+        idx_table[idx_entry] = cluster_num;
+        return cluster_num;
+    } else {
+        // lookup it?
+        return INDEX_LOOKUP(idx_table[idx_entry]);
+    }
+}
+
+// logistic_num -> cluster_num
+// if cluster_num != 0, create <logistic_num,cluster_num> mapping
+// else lookup the cluster_num of l_num
+// l_num starts from 1
+// if not cached, return EOC
+uint32 fat32_ctl_index_table(struct inode *ip, uint32 l_num, uint32 cluster_num) {
+    ASSERT(l_num >= 1 && l_num <= MAX_INDEX_3);
+    // if(ip->fat32_i.cluster_cnt)
+    //     l_num = MIN(l_num, ip->fat32_i.cluster_cnt);// avoid exceed cluster_cnt
+    uint32 idx = l_num - 1;
+    struct index_table *itp = &ip->i_table;
+    if (l_num <= MAX_INDEX_0) {
+        // level 0
+        return get_index_val(itp->direct, idx, cluster_num);
+    } else if (l_num <= MAX_INDEX_1) {
+        // level 1
+        idx -= MAX_INDEX_0;
+        uint64 table_offset = idx / OFFSET_LEVEL_1;
+        idx = idx % OFFSET_LEVEL_1;
+        uint64 idx_table = itp->indirect_one[table_offset];
+        if (idx_table == 0) {
+            idx_table = fat32_index_page_alloc();
+            itp->indirect_one[table_offset] = idx_table;
+        }
+        return get_index_val((uint32 *)idx_table, IDX_OFFSET(idx), cluster_num);
+    } else {
+        // TODO : level 2 and level 3
+        panic("lookup not tested\n");
+    }
+    return 0;
+}
+
+// free index table
+void fat32_free_index_table(struct inode *ip) {
+    struct index_table *itp = &ip->i_table;
+    uint32 cluster_cnt = ip->fat32_i.cluster_cnt;
+    if (cluster_cnt == 0) {
+        // for device file
+        sema_signal(&ip->i_sem);
+        return;
+    }
+    for (int idx = 0; idx < N_DIRECT; idx++) {
+        if (!itp->direct[idx])
+            break;
+        itp->direct[idx] = 0;
+    }
+    for (int table_offet = 0; table_offet < N_LEVEL_ONE; table_offet++) {
+        if (!itp->indirect_one[table_offet])
+            break;
+        kfree((void *)itp->indirect_one[table_offet]);
+        itp->indirect_one[table_offet] = 0;
+    }
 }
 
 // Read data from fa32 inode.
 ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
+    // int need_lock = 0;
+    // if (ip->locked == 0) {
+    //     need_lock = 1;
+    //     sema_wait(&ip->i_sem);
+    // printfRed("read %s not using lock???\n",ip->fat32_i.fname);
+    // }
     int fileSize = ip->i_size;
 
     // 特判合法
@@ -323,12 +430,22 @@ ssize_t fat32_inode_read(struct inode *ip, int user_dst, uint64 dst, uint off, u
     // using mapping to speed up read
     int ret = do_generic_file_read(ip->i_mapping, user_dst, dst, off, n);
 
+    // if(need_lock) {
+    //     sema_signal(&ip->i_sem);
+    // sema_signal();
+    // }
     return ret;
 }
 
 // Write data to fat32 inode
 // 写 inode 文件，从偏移量 off 起， 写 src 的 n 个字节的内容
 ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
+    // int need_lock = 0;
+    // if (ip->i_sem.value == 1) {
+    //     need_lock = 1;
+    //     sema_wait(&ip->i_sem);
+    //     // printfRed("write %s not using lock???\n", ip->fat32_i.fname);
+    // }
     int fileSize = ip->i_size;
     if (off + n < off)
         return -1;
@@ -366,6 +483,9 @@ ssize_t fat32_inode_write(struct inode *ip, int user_src, uint64 src, uint off, 
         printfCYAN("file %s is dirty in parent\n", ip->fat32_i.fname);
 #endif
     }
+    // if(need_lock) {
+    //     sema_signal(&ip->i_sem);
+    // }
 
     return tot;
 }
@@ -522,7 +642,11 @@ int fat32_inode_load_from_disk(struct inode *ip) {
     if (ip->parent->valid == 0) {
         panic("error");
     }
+
+    // sema_wait(&ip->parent->i_sem);
     int ret = fat32_inode_read(ip->parent, 0, (uint64)bp, off, 32); // read fcb using its parent, rather than itself!!!
+    // sema_signal(&ip->parent->i_sem);
+
     ASSERT(ret == 32);
     dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp;
     // bug like this :     dirent_s_t *dirent_s_tmp = (dirent_s_t *)bp + sector_offset;
@@ -543,6 +667,7 @@ int fat32_inode_load_from_disk(struct inode *ip) {
     // !!!
     if (ip->fat32_i.cluster_start != 0) {
         ip->fat32_i.cluster_cnt = fat32_fat_travel(ip, 0);
+        // printfRed("start , filename : %s, cluster cnt : %d \n",ip->fat32_i.fname, ip->fat32_i.cluster_cnt);// debug
     } else if (!S_ISCHR(ip->i_mode) && !S_ISBLK(ip->i_mode)) {
         // printfRed("i_mode = 0x%x\n", ip->i_mode);
         // printfRed("the cluster_start of the file %s is zero\n", ip->fat32_i.fname);
@@ -604,7 +729,10 @@ void fat32_inode_put(struct inode *ip) {
     // sema_wait(&inode_table.lock);
     int put_parent = 0;
     int unlock_parent = 0;
+    int put_self = 0;
     if (ip->ref == 1) {
+        put_self = 1;
+        // printfGreen("end , filename : %s, cluster cnt : %d \n",ip->fat32_i.fname, ip->fat32_i.cluster_cnt);// debug
         // destory hash table
         fat32_inode_hash_destroy(ip);
 
@@ -633,8 +761,7 @@ void fat32_inode_put(struct inode *ip) {
         //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
         // }
 
-        ip->valid = 0;
-
+        // ip->valid = 0;
         // delete file, if it's nlink == 0
         if (ip->valid && ip->i_nlink == 0) {
             fat32_inode_lock(ip);
@@ -646,6 +773,11 @@ void fat32_inode_put(struct inode *ip) {
 
             fat32_inode_unlock(ip);
             acquire(&inode_table.lock);
+        } else {
+            // free index table
+            sema_wait(&ip->i_sem);
+            fat32_free_index_table(ip);
+            sema_signal(&ip->i_sem);
         }
     }
 
@@ -660,6 +792,10 @@ void fat32_inode_put(struct inode *ip) {
     if (put_parent) {
         fat32_inode_put(ip->parent);
     }
+    if (put_self) {
+        // update fsinfo (in fact, it is uncessary for comp)
+        fat32_update_fsinfo(ROOTDEV);
+    }
 }
 
 // unlock and put
@@ -673,13 +809,25 @@ void fat32_inode_unlock_put(struct inode *ip) {
 void fat32_inode_trunc(struct inode *ip) {
     FAT_entry_t iter_c_n = ip->fat32_i.cluster_start;
 
-    // truncate the data block
+    uint32 l_num = 1;
     // truncate the fat chain
     while (!ISEOF(iter_c_n)) {
-        FAT_entry_t fat_next = fat32_next_cluster(iter_c_n);
-        fat32_fat_set(iter_c_n, FREE_MASK); // bug
+        // FAT_entry_t fat_next = fat32_next_cluster(iter_c_n);
+        // printfGreen("plus : cluster %x ++\n", iter_c_n); // debug!
+        FAT_entry_t fat_next = fat32_ctl_index_table(ip, l_num + 1, 0); // lookup;
+        fat32_fat_set(iter_c_n, FREE_MASK);                             // bug like this : fat32_fat_set(iter_c_n, EOC);
         iter_c_n = fat_next;
+        l_num++;
     }
+    // free index table
+    fat32_free_index_table(ip);
+
+    // necessary!!!
+    sema_wait(&fat32_sb.sem);
+    fat32_sb.fat32_sb_info.free_count += ip->fat32_i.cluster_cnt;
+    // fat32_sb.fat32_sb_info.nxt_free = ip->fat32_i.cluster_start;// !!!???
+    // printfGreen("free num ++ : %d\n", fat32_sb.fat32_sb_info.free_count);// debug
+    sema_signal(&fat32_sb.sem);
 
     ip->fat32_i.cluster_start = 0;
     ip->fat32_i.cluster_end = 0;
@@ -711,7 +859,9 @@ void fat32_inode_update(struct inode *ip) {
     if (ip->parent->valid == 0) {
         panic("error");
     }
+    // sema_wait(&ip->parent->i_sem);
     int ret = fat32_inode_read(ip->parent, 0, (uint64)bp, off, 32); // read fcb using its parent, rather than itself!!!
+    // sema_signal(&ip->parent->i_sem);
 
     ASSERT(ret == 32);
 
@@ -734,7 +884,9 @@ void fat32_inode_update(struct inode *ip) {
     if (ip->parent->valid == 0) {
         panic("error");
     }
+    // sema_wait(&ip->parent->i_sem);
     fat32_inode_write(ip->parent, 0, (uint64)bp, off, 32);
+    // sema_signal(&ip->parent->i_sem);
 }
 
 int fat32_filter_longname(dirent_l_t *dirent_l_tmp, char *ret_name) {
@@ -1305,9 +1457,8 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
     int init_s_n;
     int init_s_offset;
     // move cursor
-    fat32_cursor_to_offset(ip, off, &iter_c_n, &init_s_n, &init_s_offset);
+    uint32 l_num = fat32_cursor_to_offset(ip, off, &iter_c_n, &init_s_n, &init_s_offset); // get logistic_num. start from 1
     ASSERT(init_s_offset == 0);
-
     // The unit of cur_s_n and tot_s_n is sector(512 B, if the size of block is 512B)
     uint cur_s_n = 0;
     uint tot_s_n = CEIL_DIVIDE(n, __BPB_BytsPerSec);
@@ -1339,27 +1490,34 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
         cur_s_n += blocks_n;
 
         if (cur_s_n == tot_s_n)
-            break;
+            break; // don't forget it
 
         init_s_n = 0;
         init_s_offset = 0;
 
         if (alloc) {
             // write it, we need to append new cluster if necessary
-            uint next = fat32_next_cluster(iter_c_n);
+            // FAT_entry_t next = fat32_next_cluster(iter_c_n);
+            FAT_entry_t next = fat32_ctl_index_table(ip, l_num + 1, 0); // lookup
             if (ISEOF(next)) {
                 FAT_entry_t fat_new = fat32_cluster_alloc(ROOTDEV);
                 fat32_fat_set(iter_c_n, fat_new);
+                // printfRed("fat cluster : %x, value : %x\n",iter_c_n, fat32_next_cluster(iter_c_n));// debug!!
                 iter_c_n = fat_new;
                 ip->fat32_i.cluster_cnt++;
                 ip->fat32_i.cluster_end = fat_new;
+                fat32_ctl_index_table(ip, ip->fat32_i.cluster_cnt, fat_new); // add fat_new into index table!
             } else {
                 iter_c_n = next;
             }
         } else {
+            // FAT_entry_t tmp = iter_c_n;// debug
+            // iter_c_n = fat32_next_cluster(tmp);// debug
             // read it, we don't need to append new cluster
-            iter_c_n = fat32_next_cluster(iter_c_n);
+            // iter_c_n = fat32_next_cluster(iter_c_n);
+            iter_c_n = fat32_ctl_index_table(ip, l_num + 1, 0); // lookup
         }
+        l_num++; // !!!
     }
     // bio_print(bio_p); // debug
 #ifdef __DEBUG_PAGE_CACHE__

@@ -8,6 +8,9 @@
 #include "driver/disk.h"
 #include "debug.h"
 
+// int hit;
+// int total; // debug
+
 struct {
     struct spinlock lock;
     struct buffer_head buf[NBUF];
@@ -34,6 +37,7 @@ static struct buffer_head *bget(uint dev, uint blockno) {
     struct buffer_head *b;
 
     acquire(&bcache.lock);
+    // total++;// debug
 
     // Is the block already cached?
     list_for_each_entry(b, &bcache.head, lru) {
@@ -41,6 +45,7 @@ static struct buffer_head *bget(uint dev, uint blockno) {
             atomic_inc_return(&b->refcnt);
             release(&bcache.lock);
             sema_wait(&b->sem_lock);
+            // printfRed("hit : %d/%d\n",++hit, total);// debug
             return b;
         }
     }
@@ -78,6 +83,14 @@ struct buffer_head *bread(uint dev, uint blockno) {
 // Write b's contents to disk.  Must be locked.
 void bwrite(struct buffer_head *b) {
     b->dirty = 1;
+}
+
+// buffer write back
+void bwback(struct buffer_head *b) {
+    if (b->dirty == 1) {
+        disk_rw_bio(b, DISK_WRITE);
+        b->dirty = 0;
+    }
 }
 
 // Release a locked buffer.

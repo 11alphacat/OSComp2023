@@ -3,6 +3,7 @@
 #include "atomic/spinlock.h"
 #include "memory/allocator.h"
 #include "proc/pcb_life.h"
+#include "proc/tcb_life.h"
 #include "lib/riscv.h"
 #include "lib/list.h"
 #include "debug.h"
@@ -198,13 +199,15 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
     // ASSERT(len % PGSIZE == 0);
     size_t origin_len = len;
     len = PGROUNDUP(len);
-    ASSERT(size >= len);
-    // len = PGROUNDUP(len);
 
     if (vma->type == VMA_FILE) {
         /* if the perm has PERM_SHREAD, call writeback */
         if ((vma->perm & PERM_SHARED) && (vma->perm & PERM_WRITE)) {
+            // if(start == 0x32407000) {
+            // vmprint(mm->pagetable, 1, 0, 0x32406000, 0);
+            // print_vma(&mm->head_vma);
             writeback(mm->pagetable, vma->vm_file, start, origin_len);
+            // }
         }
     }
 
@@ -214,16 +217,18 @@ int vmspace_unmap(struct mm_struct *mm, vaddr_t va, size_t len) {
         vma->size -= len;
         uvmunmap(mm->pagetable, start, PGROUNDUP(size) / PGSIZE, 1, 1);
         return 0;
-    } else {
-        if (vma->type == VMA_FILE) {
-            // generic_fileclose(vma->vm_file); ???
-        }
     }
 
     del_vma_from_vmspace(&mm->head_vma, vma);
 
     // Note: non-leaf pte still not recycle
     uvmunmap(mm->pagetable, start, PGROUNDUP(size) / PGSIZE, 1, 1);
+
+    if (size < len) {
+        // print_vma(&mm->head_vma);
+        // size < len: in case the vma has split before
+        vmspace_unmap(mm, va + size, len - size);
+    }
 
     return 0;
 }
@@ -279,7 +284,7 @@ void print_vma(struct list_head *head_vma) {
     // VMA("%s vmas:\n", proc_current()->name);
     printfYELLOW("=====================\n");
     list_for_each_entry(pos, head_vma, node) {
-        VMA("%#p-%#p %dKB\t", pos->startva, pos->startva + pos->size, pos->size / PGSIZE);
+        VMA("%#p-%#p %dKB\t", pos->startva, pos->startva + pos->size, pos->size / 1024);
         if (pos->perm & PERM_READ) {
             VMA("r");
         } else {

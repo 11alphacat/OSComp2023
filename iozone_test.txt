@@ -290,3 +290,24 @@ busybox echo iozone throughtput pwritev/preadv measurements
 iozone -t 4 -i 11 -i 12 -r 1k -s 1m
 
 
+
+补充：
+通过连续测试iozone 和 unixbench发现系统存在严重的磁盘空间泄漏，在测试一些大文件的读写过程中竟然发现磁盘空间不足？？？
+发现这个语句一直没有执行？？？
+if (ip->valid && ip->i_nlink == 0) {
+    fat32_inode_lock(ip);
+    release(&inode_table.lock);
+
+    fat32_inode_trunc(ip);
+    // ip->dirty_in_parent = 1;
+    // fat32_inode_update(ip);
+
+    fat32_inode_unlock(ip);
+    acquire(&inode_table.lock);
+}
+
+并且需要在 fat32_inode_trunc中添加：
+sema_wait(&fat32_sb.sem);
+fat32_sb.fat32_sb_info.free_count+= ip->fat32_i.cluster_cnt;
+sema_signal(&fat32_sb.sem);
+

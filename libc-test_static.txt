@@ -178,21 +178,111 @@ zero： write n 个字符， 返回 0， 不需要任何操作，read n 个 字�
 类别为一个空字符生成自动机，读n个字符就返回n个空字符，返回n（的确读了，但是为空字符）；生成自动机只读，不写（没有保存的空间）
 
 
-./runtest.exe -w entry-static.exe pthread_cancel_points 
+
+./runtest.exe -w entry-static.exe pthread_cancel_points
+需要注意这个文件的源代码文件是pthread_cancel-points!!!不是下划线，是短横杆！
+
+第一次tkill的用户态地址： 
+4610e
+pagefault 的地址：
+44efc
+线程的sig一定要用ref进行计数！
+
+报下面这个错误：
+[PAGEFAULT]: va is not in the vmas
+usertrap(): process name: entry-static.exe pid: 4
+scause 000000000000000d LOAD PAGEFAULT
+sepc=0000000000044efc
+stval=00000000000000b0
+
+这个sepc是handler中某条指令的地址！
+static void cancel_handler(int sig, siginfo_t *si, void *ctx)
+{
+	pthread_t self = __pthread_self();
+	ucontext_t *uc = ctx;
+	uintptr_t pc = uc->uc_mcontext.MC_PC;
+
+	a_barrier();
+	if (!self->cancel || self->canceldisable == PTHREAD_CANCEL_DISABLE) return;
+
+	_sigaddset(&uc->uc_sigmask, SIGCANCEL);
+
+	if (self->cancelasync) {
+		pthread_sigmask(SIG_SETMASK, &uc->uc_sigmask, 0);
+		__cancel();
+	}
+
+	if (pc >= (uintptr_t)__cp_begin && pc < (uintptr_t)__cp_end) {
+		uc->uc_mcontext.MC_PC = (uintptr_t)__cp_cancel;
+#ifdef CANCEL_GOT
+		uc->uc_mcontext.MC_GOT = CANCEL_GOT;
+#endif
+		return;
+	}
+
+	__syscall(SYS_tkill, self->tid, SIGCANCEL);
+}
+再执行第一行的时候就发生了异常，但不是缺页异常！而是访问tp寄存器就出现了问题？
+cancel_handler 的第一条指令的地址是： 0x44ef0
+原因是a2寄存器没有赋值，改过来就好了：
+tf->a2 = tf->tp;        /* a2: ucontext pointer */
+
+然后程序卡住了？？？
+似乎是调用了ecall进入了内核呀
+一个线程已经退出，一个线程通过futex_wait进行等待，一直没有被唤醒？？？
+
+exit 的指令地址：
+epc : 0x45920
+
+0x45e76 ？？？
+
+为什么程序一直卡住？？一个进程clone出了一个线程，但是线程退出了，另一个线程仍然在wait？？
+
+CLONE_CHILD_CLEARTID
+Clear (zero) the child thread ID at the location pointed to by child_tid (clone()) or cl_args.child_tid (clone3()) in child memory when the child exits, and
+do a wakeup on the futex at that address.  The address involved may be changed by the set_tid_address(2) system call.  This is used by threading libraries.
+
+CLONE_CHILD_SETTID
+Store the child thread ID at the location pointed to by child_tid (clone()) or cl_args.child_tid (clone3()) in the child's memory.  The store operation com‐
+pletes  before  the  clone  call returns control to user space in the child process.  (Note that the store operation may not have completed before the clone
+call returns in the parent process, which will be relevant if the CLONE_VM flag is also employed.)
+For each thread, the kernel maintains two attributes (addresses) called set_child_tid and clear_child_tid.  These two attributes contain the value NULL by default.
+
+set_child_tid
+If a thread is started using clone(2) with the CLONE_CHILD_SETTID flag, set_child_tid is set to the value passed in the ctid argument of that system call.
+When set_child_tid is set, the very first thing the new thread does is to write its thread ID at this address.
+
+
+clear_child_tid
+If a thread is started using clone(2) with the CLONE_CHILD_CLEARTID flag, clear_child_tid is set to the value passed in the ctid argument of that system call.
+The system call set_tid_address() sets the clear_child_tid value for the calling thread to tidptr.
+When  a thread whose clear_child_tid is not NULL terminates, then, if the thread is sharing memory with other threads, then 0 is written at the address specified in clear_child_tid and
+the kernel performs the following operation:
+futex(clear_child_tid, FUTEX_WAKE, 1, NULL, NULL, 0);
+The effect of this operation is to wake a single thread that is performing a futex wait on the memory location.  Errors from the futex wake operation are ignored.
+
 
 
 
 ./runtest.exe -w entry-static.exe pthread_cancel 
 ./runtest.exe -w entry-static.exe pthread_cond 
+用户态地址：0x39300
 ./runtest.exe -w entry-static.exe pthread_tsd 
 ./runtest.exe -w entry-static.exe pthread_robust_detach
 ./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
-./runtest.exe -w entry-static.exe pthread_cond_smasher
+./runtest.exe -w entry-static.exe pthread_cond_smasher [sleeping error]
 ./runtest.exe -w entry-static.exe pthread_condattr_setclock
 ./runtest.exe -w entry-static.exe pthread_exit_cancel
 ./runtest.exe -w entry-static.exe pthread_once_deadlock
 ./runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 
+共性的问题：munmap的时候size < len？？？
+在vmspace_unmap的最后加上：
+if (size < len) {
+	// print_vma(&mm->head_vma);
+	// size < len: in case the vma has split before
+	vmspace_unmap(mm, va + size, len - size);
+}
 
 
 
@@ -236,5 +326,5 @@ RLIMIT_NOFILE
 
 
 ./runtest.exe -w entry-static.exe socket 
-TODO: socket 系统调用需要实现
+socket 系统调用需要实现
 

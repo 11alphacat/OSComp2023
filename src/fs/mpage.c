@@ -9,6 +9,7 @@
 #include "common.h"
 #include "fs/mpage.h"
 #include "debug.h"
+#include "proc/pcb_life.h"
 
 // index : page index
 // cnt : page count
@@ -142,7 +143,10 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
                 uint64 pa_tmp = pa + (z - start_idx) * PGSIZE;
                 uint64 index_tmp = index + z;
                 struct page *page = pa_to_page(pa_tmp);
-
+                // if (find_get_page_atomic(mapping, index_tmp, 0)) {
+                //     panic("mpage_readpages : error\n");
+                // }
+                // printf("pid , %d, filename : %s \n", proc_current()->pid, ip->fat32_i.fname);
                 add_to_page_cache_atomic(page, mapping, index_tmp); // don't forget it
 
                 if (cnt == 1 && read_from_disk == 0)

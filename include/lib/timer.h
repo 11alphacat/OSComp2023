@@ -27,6 +27,7 @@ struct timer_list {
     int count;                // for pdflush
     int cycle;                // for every clock interrupt
     int over;                 // for pselect
+    uint64 interval;          // for setitimer
 };
 
 void timer_entry_init(struct timer_entry *t_entry, char *name);

@@ -11,7 +11,6 @@ uint64 sys_geteuid(void) {
     return 0;
 }
 
-
 uint64 sys_rt_sigtimedwait(void) {
     return 0;
 }
