@@ -78,7 +78,7 @@ struct tcb *alloc_thread(thread_callback callback) {
     TCB_Q_changeState(t, TCB_USED);
 
     // map <tid, t>
-    hash_insert(&tid_map, (void *)&t->tid, (void *)t);
+    hash_insert(&tid_map, (void *)&t->tid, (void *)t, 0); // not holding it
 
     // timeout for timer
     t->time_out = 0;
@@ -92,14 +92,16 @@ struct tcb *alloc_thread(thread_callback callback) {
 // free a thread
 void free_thread(struct tcb *t) {
     // free & unmap tramframe
+    // acquire(&t->p->mm->lock);
     if (t->trapframe)
         uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 1, 1);
     else
         uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0, 1);
+    // release(&t->p->mm->lock);
 
     // bug!
     if (t->wait_chan_entry != NULL) {
-        Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
+        // Queue_remove_atomic(thread->wait_chan_entry, (void *)thread);
         ASSERT(thread->state == TCB_SLEEPING);
         thread->wait_chan_entry = NULL;
     }
@@ -114,7 +116,7 @@ void free_thread(struct tcb *t) {
     }
 
     // delete <tid, t>
-    hash_delete(&tid_map, (void *)&t->tid);
+    hash_delete(&tid_map, (void *)&t->tid, 0, 1); // not holding lock, release lock
 
     cnt_tid_dec;
 
@@ -237,7 +239,7 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
 
 // find the tcb* given tid using hash map
 struct tcb *find_get_tid(tid_t tid) {
-    struct hash_node *node = hash_lookup(&tid_map, (void *)&tid, NULL, 1); // release it
+    struct hash_node *node = hash_lookup(&tid_map, (void *)&tid, NULL, 1, 0); // release it, not holding it
     return node != NULL ? (struct tcb *)(node->value) : NULL;
 }
 

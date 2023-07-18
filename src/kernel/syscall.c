@@ -235,6 +235,9 @@ static struct syscall_info info[] = {
     [SYS_lseek] { "lseek", 3, "dld" },
     [SYS_prlimit64] { "prlimit64", 4, "ddpp" },
     [SYS_readv] { "readv", 3, "dpd" },
+    [SYS_clock_nanosleep] { "clock_nanosleep", 4, "ddpp" },
+    [SYS_socketpair] { "socketpair", 4, "dddd" },
+    [SYS_get_robust_list] { "get_robust_list", 3, "dpp" },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);

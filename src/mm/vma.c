@@ -246,7 +246,7 @@ struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr) {
     return NULL;
 }
 
-#define MMAP_START 0x30000000
+#define MMAP_START 0x50000000
 vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
     struct vma *pos;
     vaddr_t max = MMAP_START;
@@ -267,10 +267,15 @@ vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
     // assert code: make sure the max address is not in pagetable(not mapping)
     pte_t *pte;
     int ret;
+    // acquire(&mm->lock);
     ret = walk(mm->pagetable, max, 0, 0, &pte);
+    // release(&mm->lock);
     // Log("%p", max);
     // vmprint(mm->pagetable, 1, 0, 0, 0);
-    ASSERT(ret == -1 || *pte == 0);
+    // ASSERT(ret == -1 || *pte == 0);
+    if (!(ret == -1 || *pte == 0)) {
+        panic("this page not map???\n");
+    }
     return max;
 }
 

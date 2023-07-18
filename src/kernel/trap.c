@@ -59,8 +59,10 @@ void killproc(struct proc *p) {
 void thread_usertrap(void) {
     int which_dev = 0;
 
-    if ((r_sstatus() & SSTATUS_SPP) != 0)
+    if ((r_sstatus() & SSTATUS_SPP) != 0) {
+        trapframe_print(thread_current()->trapframe);
         panic("usertrap: not from user mode");
+    }
 
     // send interrupts and exceptions to kerneltrap(),
     // since we're now in the kernel.
@@ -267,6 +269,8 @@ void trapframe_print(struct trapframe *tf) {
     printf("    a3: %lx\n", tf->a3);
     printf("    a4: %lx\n", tf->a4);
     printf("    a5: %lx\n", tf->a5);
+    printf("    a6: %lx\n", tf->a6);
+    printf("    a7: %lx\n", tf->a7);
     printf("    s3: %lx\n", tf->s3);
     printf("}\n");
 }

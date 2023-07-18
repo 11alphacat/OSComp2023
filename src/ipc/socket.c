@@ -496,3 +496,7 @@ uint64 sys_setsockopt(void) {
 uint64 sys_getsockopt(void) {
     return 0;
 }
+
+uint64 sys_socketpair(void) {
+    return 0;
+}

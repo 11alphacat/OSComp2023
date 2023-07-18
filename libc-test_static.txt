@@ -265,10 +265,18 @@ The effect of this operation is to wake a single thread that is performing a fut
 
 
 ./runtest.exe -w entry-static.exe pthread_cancel 
+
+出现下面这个错误？？？
+src/functional/pthread_cancel-points.c:144: res != PTHREAD_CANCELED failed (shm_open, canceled thread exit status)
+
 ./runtest.exe -w entry-static.exe pthread_cond 
 用户态地址：0x39300
 ./runtest.exe -w entry-static.exe pthread_tsd 
+
+
 ./runtest.exe -w entry-static.exe pthread_robust_detach
+又是futex_wait后就没有唤醒？？程序卡住？
+
 ./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
 ./runtest.exe -w entry-static.exe pthread_cond_smasher [sleeping error]
 ./runtest.exe -w entry-static.exe pthread_condattr_setclock
@@ -328,3 +336,83 @@ RLIMIT_NOFILE
 ./runtest.exe -w entry-static.exe socket 
 socket 系统调用需要实现
 
+
+
+./runtest.exe -w entry-static.exe pthread_cancel_points
+出现下面的问题？
+src/functional/pthread_cancel-points.c:144: res != PTHREAD_CANCELED failed (shm_open, canceled thread exit status)??
+似乎是在最后一个测试点挂了？
+{0, prepare_dummy, execute_shm_open, cleanup_shm, &(int){0}, "shm_open"},
+
+对用户程序打断点跟踪？
+static void execute_shm_open(void *arg)
+{
+	int *fd = arg;
+	TESTE(*fd = shm_open("/testshm", O_RDWR|O_CREAT, 0666), "");
+}
+int shm_open(const char *name, int flag, mode_t mode)
+{
+	int cs;
+	char buf[NAME_MAX+10];
+	if (!(name = __shm_mapname(name, buf))) return -1;
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &cs);
+	int fd = open(name, flag|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK, mode);
+	pthread_setcancelstate(cs, 0);
+	return fd;
+}
+char *__shm_mapname(const char *name, char *buf)
+{
+	char *p;
+	while (*name == '/') name++;
+	if (*(p = __strchrnul(name, '/')) || p==name ||
+	    (p-name <= 2 && name[0]=='.' && p[-1]=='.')) {
+		errno = EINVAL;
+		return 0;
+	}
+	if (p-name > NAME_MAX) {
+		errno = ENAMETOOLONG;
+		return 0;
+	}
+	memcpy(buf, "/dev/shm/", 9);
+	memcpy(buf+9, name, p-name+1);
+	return buf;
+}
+原因竟然是没有创建/dev/shm？？？？
+在init 中创建一个即可！
+
+./runtest.exe -w entry-static.exe pthread_robust_detach
+sys_get_robust_list系统调用需要实现？？
+不然会卡住，甚至出现 panic: usertrap: not from user mode？？
+
+用户地址： 468e2
+
+usertrap: not from user mode？？出现的地方：
+46cbc
+
+if (state==DT_DETACHED && self->map_base) {
+	/* Detached threads must block even implementation-internal
+		* signals, since they will not have a stack in their last
+		* moments of existence. */
+	__block_all_sigs(&set);
+
+	/* Robust list will no longer be valid, and was already
+		* processed above, so unregister it with the kernel. */
+	if (self->robust_list.off)
+		__syscall(SYS_set_robust_list, 0, 3*sizeof(long));
+
+	/* The following call unmaps the thread's stack mapping
+		* and then exits without touching the stack. */
+	__unmapself(self->map_base, self->map_size);
+}
+
+.global __unmapself
+.type __unmapself, %function
+__unmapself:
+	li a7, 215 # SYS_munmap
+	ecall
+	li a7, 93  # SYS_exit
+	ecall
+	
+
+加锁？？
+vmspace_unmap

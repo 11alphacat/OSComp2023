@@ -8,6 +8,7 @@
 #include "lib/riscv.h"
 #include "fs/vfs/fs.h"
 #include "kernel/syscall.h"
+#include "atomic/spinlock.h"
 
 /* int munmap(void *addr, size_t length); */
 uint64 sys_munmap(void) {
@@ -17,9 +18,12 @@ uint64 sys_munmap(void) {
     argulong(1, &length);
     struct proc *p = proc_current();
 
+    acquire(&p->mm->lock);
     if (vmspace_unmap(p->mm, addr, length) != 0) {
+        release(&p->mm->lock);
         return -1;
     }
+    release(&p->mm->lock);
     return 0;
 }
 
@@ -33,12 +37,16 @@ static uint64 mkperm(int prot, int flags) {
 
 void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp, off_t offset) {
     struct mm_struct *mm = proc_current()->mm;
+    // sema_wait(&mm->mmap_sem);
     vaddr_t mapva;
     if (addr == 0) {
+        // acquire(&mm->lock);
         mapva = find_mapping_space(mm, addr, length);
+        // release(&mm->lock);
     } else {
         if ((flags & MAP_FIXED) == 0) {
             Warn("mmap: not support");
+            // sema_signal(&mm->mmap_sem);
             return MAP_FAILED;
         }
 
@@ -50,12 +58,14 @@ void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp,
             print_vma(&mm->head_vma);
             if (start != vma->startva) {
                 if (split_vma(mm, vma, start, 1) < 0) {
+                    // sema_signal(&mm->mmap_sem);
                     return MAP_FAILED;
                 }
             }
 
             if (end != vma->startva + vma->size) {
                 if (split_vma(mm, vma, end, 0) < 0) {
+                    // sema_signal(&mm->mmap_sem);
                     return MAP_FAILED;
                 }
             }
@@ -75,16 +85,19 @@ void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp,
     }
     if (flags & MAP_ANONYMOUS) {
         if (vma_map(mm, mapva, length, mkperm(prot, flags), VMA_ANON) < 0) {
+            // sema_signal(&mm->mmap_sem);
             return MAP_FAILED;
         }
     } else {
         if (vma_map_file(mm, mapva, length, mkperm(prot, flags), VMA_FILE, offset, fp) < 0) {
+            // sema_signal(&mm->mmap_sem);
             return MAP_FAILED;
         }
     }
     // print_vma(&mm->head_vma);
 
     // print_vma(&mm->head_vma);
+    // sema_signal(&mm->mmap_sem);
     return (void *)mapva;
 }
 
@@ -115,7 +128,13 @@ void *sys_mmap(void) {
         Warn("mmap: not support");
         return MAP_FAILED;
     }
-    return do_mmap(addr, length, prot, flags, fp, offset);
+    struct mm_struct *m = proc_current()->mm;
+    // sema_wait(&m->mmap_sem);
+    acquire(&m->lock);
+    void *retval = do_mmap(addr, length, prot, flags, fp, offset);
+    release(&m->lock);
+    // sema_signal(&m->mmap_sem);
+    return retval;
 }
 
 /* int mprotect(void *addr, size_t len, int prot); */

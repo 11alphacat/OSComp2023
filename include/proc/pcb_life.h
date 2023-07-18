@@ -76,6 +76,8 @@ struct proc {
     struct semaphore sem_wait_chan_self;
     // for setitimer
     struct timer_list real_timer;
+    // for futex
+    struct robust_list_head *robust_list;
 
     // // signal
     // int sig_pending_cnt;                   // have signal?

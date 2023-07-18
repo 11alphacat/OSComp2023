@@ -22,7 +22,9 @@ int main(void) {
     mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8);
     // for /dev/cpu_dma_latency
     mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
-    
+    // for /dev/shm(libc-test)
+    mkdir("/dev/shm", 0666);
+
     // for /dev/tty
     if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {
         mknod("/dev/tty", S_IFCHR, CONSOLE << 8);

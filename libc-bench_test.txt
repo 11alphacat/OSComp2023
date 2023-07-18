@@ -39,3 +39,53 @@ b_regex_search 执行完 clock_gettime 后又双叒叕卡住了？？？
 将用户栈加大到了 90 个页
 
 
+问题三：
+panic: mappages: remap
+线程数量超上限了
+
+问题四：
+在通过libc-test后似乎仍然有并发bug？？
+
+
+问题五：
+Trapframe {
+    sp: 3fffdfeff0
+    fp: 30022f20
+    pc: 1aafe
+    ra: 1a234
+    a0: 2
+    a1: 3fffdffb20
+    a2: 0
+    a3: 8
+    a4: 29b28
+    a5: 0
+    s3: 30000000
+}
+panic: usertrap: not from user mode
+
+问题六：
+连续跑和多次跑出现的问题？
+连续跑第二和第三遍:
+b_malloc_thread_local (0)
+[PAGEFAULT]: cow: try to write a readonly page
+usertrap(): process name: libc-bench pid: 63
+scause 000000000000000d LOAD PAGEFAULT
+sepc=0000000000012e02
+stval=000000003008017d
+
+b_pthread_create_serial1 (0)
+if (lk == NULL) {
+    panic("???\n");
+}
+将futex初始化为全0！用kzalloc
+
+程序卡住？？？
+
+连续跑第四遍出现：
+fat32_next_cluster中的ASSERT失败？？
+
+
+解决了一个futex有关的内存泄漏问题！！
+struct hash_table futex_map = {.lock = INIT_SPINLOCK(futex_hash_table),
+                               .type = FUTEX_MAP,
+                               .size = FUTEX_NUM};

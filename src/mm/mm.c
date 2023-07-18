@@ -20,6 +20,9 @@ struct mm_struct *alloc_mm() {
     // semaphore
     sema_init(&mm->mmap_sem, 1, "mm_semaphore");
 
+    // spin lock
+    initlock(&mm->lock, "mm_lock");
+
     // an empty user page table.
     mm->pagetable = proc_pagetable();
     if (mm->pagetable == 0) {

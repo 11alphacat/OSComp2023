@@ -43,16 +43,17 @@ void ipc_hashtable_init(struct ipc_ids *ids) {
 
 int ipc_hash_insert(struct ipc_ids *ids, int id, struct kern_ipc_perm *new) {
     // don't use fat32_inode_hash_lookup!!!
-    if (hash_lookup(ids->key_ht, (void *)&id, NULL, 1) != NULL) { // release it
-        return -1;                                                //!!!
+    if (hash_lookup(ids->key_ht, (void *)&id, NULL, 1, 0) != NULL) { // release it, not holding it
+        return -1;                                                   //!!!
     }
-    hash_insert(ids->key_ht, (void *)&id, (void *)new);
+    hash_insert(ids->key_ht, (void *)&id, (void *)new, 0);
     return 0;
 }
 
 struct kern_ipc_perm *ipc_hash_lookup(struct ipc_ids *ids, int id) {
-    struct hash_node *node = hash_lookup(ids->key_ht, (void *)&id, NULL, 0);
+    struct hash_node *node = hash_lookup(ids->key_ht, (void *)&id, NULL, 0, 0); //
     // not release it(must holding lock!!!!)
+    // not holding it
     if (node != NULL) {
         // find it
         struct kern_ipc_perm *search = NULL;
@@ -344,7 +345,7 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd, stru
 void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp) {
     int lid = ipcid_to_idx(ipcp->id);
 
-    hash_delete(ids->key_ht, (void *)&lid);
+    hash_delete(ids->key_ht, (void *)&lid, 0, 1); // not holding lock, release
     // idr_remove(&ids->ipcs_idr, lid);
 
     ids->in_use--;

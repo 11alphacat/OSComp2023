@@ -489,6 +489,43 @@ uint64 sys_getgid() {
     return 0;
 }
 
+// get/set list of robust futexes
+// long get_robust_list(int pid, struct robust_list_head **head_ptr, size_t *len_ptr);
+// These system calls deal with per-thread robust futex lists.
+// These lists are managed in user space: the ker‐nel knows only about the location of the head of the list.
+// A thread can inform the kernel of  the  location of its  robust  futex list using set_robust_list().
+// The address of a thread's robust futex list can be ob‐tained using get_robust_list().
+uint64 sys_get_robust_list() {
+    int pid;
+    uint64 head_ptr_addr;
+    uint64 len_ptr_addr;
+    argint(0, &pid);
+    argaddr(1, &head_ptr_addr);
+    argaddr(2, &len_ptr_addr);
+
+    // struct robust_list_head *head;
+
+    trapframe_print(thread_current()->trapframe);
+    // struct proc* p = pid ? find_get_pid(pid) : proc_current();
+    // if(!p) {
+    //     return -EPERM;
+    // }
+    // head = p->robust_list;
+    // int len = sizeof(*head);
+    // if (len_ptr_addr) {
+    //     if (copyout(p->mm->pagetable, len_ptr_addr, (char *)&len, sizeof(len)) < 0) {
+    //         return -EFAULT;
+    //     }
+    // }
+    // if(head_ptr_addr) {
+    //     if (copyout(p->mm->pagetable, head_ptr_addr, (char *)&head, sizeof(head)) < 0) {
+    //         return -EFAULT;
+    //     }
+    // }
+
+    return 0;
+}
+
 // the effective group ID of the calling process
 uint64 sys_getegid() {
     // return proc_current()->pid;

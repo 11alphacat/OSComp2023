@@ -34,10 +34,10 @@ struct hash_table {
     struct hash_entry *hash_head; // hash entry
 };
 
-struct hash_entry *hash_get_entry(struct hash_table *table, void *key);
-struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_entry **entry, int release);
-void hash_insert(struct hash_table *table, void *key, void *value);
-void hash_delete(struct hash_table *table, void *key);
+struct hash_entry *hash_get_entry(struct hash_table *table, void *key, int holding);
+struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_entry **entry, int release, int holding);
+void hash_insert(struct hash_table *table, void *key, void *value, int holding);
+void hash_delete(struct hash_table *table, void *key, int holding, int release);
 void hash_destroy(struct hash_table *table, int free);
 
 uint64 hash_str(char *name);

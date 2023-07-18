@@ -13,10 +13,10 @@
 ./runtest.exe -w entry-static.exe inet_pton
 ./runtest.exe -w entry-static.exe mbc
 ./runtest.exe -w entry-static.exe memstream
-# ./runtest.exe -w entry-static.exe pthread_cancel_points
-# ./runtest.exe -w entry-static.exe pthread_cancel
-# ./runtest.exe -w entry-static.exe pthread_cond
-# ./runtest.exe -w entry-static.exe pthread_tsd
+./runtest.exe -w entry-static.exe pthread_cancel_points
+./runtest.exe -w entry-static.exe pthread_cancel
+./runtest.exe -w entry-static.exe pthread_cond
+./runtest.exe -w entry-static.exe pthread_tsd
 ./runtest.exe -w entry-static.exe qsort
 ./runtest.exe -w entry-static.exe random
 ./runtest.exe -w entry-static.exe search_hsearch
@@ -80,12 +80,12 @@
 ./runtest.exe -w entry-static.exe printf_fmt_g_zeros
 ./runtest.exe -w entry-static.exe printf_fmt_n
 # ./runtest.exe -w entry-static.exe pthread_robust_detach
-# ./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
-# ./runtest.exe -w entry-static.exe pthread_cond_smasher
+./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
+./runtest.exe -w entry-static.exe pthread_cond_smasher
 ./runtest.exe -w entry-static.exe pthread_condattr_setclock
-# ./runtest.exe -w entry-static.exe pthread_exit_cancel
-# ./runtest.exe -w entry-static.exe pthread_once_deadlock
-# ./runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+./runtest.exe -w entry-static.exe pthread_exit_cancel
+./runtest.exe -w entry-static.exe pthread_once_deadlock
+./runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 ./runtest.exe -w entry-static.exe putenv_doublefree
 ./runtest.exe -w entry-static.exe regex_backref_0
 ./runtest.exe -w entry-static.exe regex_bracket_icase

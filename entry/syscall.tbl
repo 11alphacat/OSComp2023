@@ -121,3 +121,7 @@
 283 membarrier sys_membarrier
 115 clock_nanosleep sys_clock_nanosleep
 122 sched_setaffinity sys_sched_setaffinity
+
+199 socketpair sys_socketpair
+
+100 get_robust_list sys_get_robust_list

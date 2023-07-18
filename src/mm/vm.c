@@ -405,7 +405,8 @@ void freewalk(pagetable_t pagetable, int level) {
 #endif
         }
     }
-    kfree((void *)pagetable);
+    if (pagetable) // bug!!!
+        kfree((void *)pagetable);
 }
 
 // Free all pages in vmas,

@@ -17,6 +17,7 @@ struct mm_struct {
     struct vma *heapvma;
 
     struct semaphore mmap_sem;
+    struct spinlock lock;
 };
 
 struct mm_struct *alloc_mm();

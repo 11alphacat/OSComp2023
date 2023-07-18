@@ -176,19 +176,25 @@ uint32 fat32_fat_travel(struct inode *ip, uint num) {
 
 // find the next cluster of current cluster
 uint fat32_next_cluster(uint cluster_cur) {
-    ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
+    // ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
+    if (!(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX)) {
+        printfRed("cluster_cur : %d(%x)\n", cluster_cur, cluster_cur);
+        panic("next cluster error\n");
+    }
     struct buffer_head *bp;
     uint sector_num = ThisFATEntSecNum(cluster_cur);
     bp = bread(fat32_sb.s_dev, sector_num);
     FAT_entry_t fat_next = FAT32ClusEntryVal(bp->data, cluster_cur);
     brelse(bp);
+    // if (!(fat_next >= 2 && fat_next < FAT_CLUSTER_MAX) && fat_next != EOC) {
+    //     printfRed("fat_next : %d(%x)\n", fat_next, fat_next);
+    //     panic("fat_next error\n");
+    // }
     return fat_next;
 }
 
 // allocate a free cluster
 uint fat32_cluster_alloc(uint dev) {
-    struct buffer_head *bp;
-
     sema_wait(&fat32_sb.sem);
     if (!fat32_sb.fat32_sb_info.free_count) {
         panic("no disk space!!!\n");
@@ -199,31 +205,52 @@ uint fat32_cluster_alloc(uint dev) {
     // printfRed("free num --: %d\n", fat32_sb.fat32_sb_info.free_count);
     // }
 
-    // the first sector
-    int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
+    // FAT_entry_t tmp;
+    // if((tmp = fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free))) {
 
-    bp = bread(dev, first_sector);
-
-    if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1) {
-        // next free hit
-        brelse(bp); // !!!!
-        fat32_fat_set(fat32_sb.fat32_sb_info.nxt_free, EOC);
-        // printfRed("hint : fat cluster : %x, value : %x\n", fat32_sb.fat32_sb_info.nxt_free, fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free)); // debug!
-        fat32_sb.fat32_sb_info.nxt_free++;
-    } else {
-        // start from the begin of fat
-        brelse(bp); // !!!!
-        int hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
-        uint fat_next = fat32_fat_alloc(hint);
-        if (fat_next == 0)
-            panic("no more space");
-        fat32_sb.fat32_sb_info.nxt_free = (fat_next + 1) % (FAT_CLUSTER_MAX); // !!!
-        if (fat32_sb.fat32_sb_info.nxt_free == 0) {
-            fat32_sb.fat32_sb_info.nxt_free = 3;
-        }
-        fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
-        free_num = fat_next;                   // bug !!!
+    // }
+    int hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
+    uint fat_next = fat32_fat_alloc(hint);
+    if (fat_next == 0)
+        panic("no more space");
+    fat32_sb.fat32_sb_info.nxt_free = (fat_next + 1) % (FAT_CLUSTER_MAX); // !!!
+    if (fat32_sb.fat32_sb_info.nxt_free == 0) {
+        fat32_sb.fat32_sb_info.nxt_free = 3;
     }
+    fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
+    free_num = fat_next;                   // bug !!!
+
+    // the first sector
+
+    // int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);
+    // struct buffer_head* bp = bread(dev, first_sector);
+    // if (NAME0_FREE_ALL((bp->data)[0]) && fat32_sb.fat32_sb_info.nxt_free < FAT_CLUSTER_MAX - 1) {
+    //     // next free hit
+    //     brelse(bp); // !!!!
+
+    //     // FAT_entry_t tmp;
+    //     // if((tmp = fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free))) {
+    //     //     // printf("next cluster : %d", tmp);
+    //     //     // panic("alloc error\n");
+    //     // }
+    //     fat32_fat_set(fat32_sb.fat32_sb_info.nxt_free, EOC);
+    //     // printfRed("hint : fat cluster : %x, value : %x\n", fat32_sb.fat32_sb_info.nxt_free, fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free)); // debug!
+    //     fat32_sb.fat32_sb_info.nxt_free++;
+    // } else {
+    //     // start from the begin of fat
+    //     brelse(bp); // !!!!
+    //     int hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
+    //     uint fat_next = fat32_fat_alloc(hint);
+    //     if (fat_next == 0)
+    //         panic("no more space");
+    //     fat32_sb.fat32_sb_info.nxt_free = (fat_next + 1) % (FAT_CLUSTER_MAX); // !!!
+    //     if (fat32_sb.fat32_sb_info.nxt_free == 0) {
+    //         fat32_sb.fat32_sb_info.nxt_free = 3;
+    //     }
+    //     fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
+    //     free_num = fat_next;                   // bug !!!
+    // }
+
     fat32_sb.fat32_sb_info.dirty = 1; // sync in put
     sema_signal(&fat32_sb.sem);
 
@@ -294,6 +321,13 @@ uint fat32_fat_alloc(FAT_entry_t hint) {
 // set fat to value
 // NOTE : we don't update fat region 2 (it is unnecessary)
 void fat32_fat_set(uint cluster, uint value) {
+    if (!(cluster >= 2 && cluster < FAT_CLUSTER_MAX)) {
+        panic("next cluster error\n");
+    }
+    if (!(value >= 2 && value < FAT_CLUSTER_MAX) && value != EOC && value != FREE_MASK) {
+        panic("next cluster error\n");
+    }
+
     struct buffer_head *bp;
     uint sector_num = ThisFATEntSecNum(cluster);
     bp = bread(fat32_sb.s_dev, sector_num);
@@ -1350,7 +1384,7 @@ int fat32_fcb_delete(struct inode *dp, struct inode *ip) {
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
 
-    hash_delete(dp->i_hash, (void *)ip->fat32_i.fname);
+    hash_delete(dp->i_hash, (void *)ip->fat32_i.fname, 0, 1); // not holding
     return 0;
 }
 
@@ -1386,8 +1420,8 @@ void fat32_inode_hash_init(struct inode *dp) {
 // int fat32_inode_hash_insert(struct inode *dp, const char *name, uint ino, uint off) {
 int fat32_inode_hash_insert(struct inode *dp, const char *name, struct inode *ip, uint off) {
     // don't use fat32_inode_hash_lookup!!!
-    if (hash_lookup(dp->i_hash, (void *)name, NULL, 1) != NULL) { // release it
-        return -1;                                                //!!!
+    if (hash_lookup(dp->i_hash, (void *)name, NULL, 1, 0) != NULL) { // release it, not holding lock
+        return -1;                                                   //!!!
     }
     struct inode_cache *c = (struct inode_cache *)kmalloc(sizeof(struct inode_cache));
 
@@ -1398,14 +1432,15 @@ int fat32_inode_hash_insert(struct inode *dp, const char *name, struct inode *ip
     c->ip = ip;
     c->off = off;
 
-    hash_insert(dp->i_hash, (void *)name, (void *)c);
+    hash_insert(dp->i_hash, (void *)name, (void *)c, 0); // not holding it
     return 0;
 }
 
 // using hash table to speed up dirlookup
 struct inode *fat32_inode_hash_lookup(struct inode *dp, const char *name) {
-    struct hash_node *node = hash_lookup(dp->i_hash, (void *)name, NULL, 0);
+    struct hash_node *node = hash_lookup(dp->i_hash, (void *)name, NULL, 0, 0);
     // not release it(must holding lock!!!!)
+    // not holding lock
 
     if (node != NULL) {
         // find it

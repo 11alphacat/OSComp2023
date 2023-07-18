@@ -151,7 +151,7 @@ struct proc *alloc_proc(void) {
     sema_init(&p->sem_wait_chan_self, 0, "wait_self");
 
     // map <pid, p>
-    hash_insert(&pid_map, (void *)&(p->pid), (void *)p);
+    hash_insert(&pid_map, (void *)&(p->pid), (void *)p, 0); // not holding it
     return p;
 }
 
@@ -191,7 +191,7 @@ void free_proc(struct proc *p) {
     p->ipc_ns = 0;
 
     // delete <pid, t>
-    hash_delete(&pid_map, (void *)&p->pid);
+    hash_delete(&pid_map, (void *)&p->pid, 0, 1); // not holding lock , release lock
 
     cnt_pid_dec;
     p->pid = 0;
@@ -234,7 +234,7 @@ void init_ret(void) {
 
 // find the proc we search using hash map
 inline struct proc *find_get_pid(pid_t pid) {
-    struct hash_node *node = hash_lookup(&pid_map, (void *)&pid, NULL, 1); // realese it
+    struct hash_node *node = hash_lookup(&pid_map, (void *)&pid, NULL, 1, 0); // realese it, not holiding it
     return node != NULL ? (struct proc *)(node->value) : NULL;
 }
 
@@ -459,19 +459,20 @@ void do_exit(int status) {
     acquire(&tg->lock);
     list_del_reinit(&t->threads);
     release(&tg->lock);
+
+#ifdef __DEBUG_THREAD__
+    printfMAGENTA("exit a thread start, pid : %d, tid : %d\n", t->p->pid, t->tid);
+#endif
+    acquire(&t->lock);
+    free_thread(t);
+#ifdef __DEBUG_THREAD__
+    printfMAGENTA("exit a thread end, pid : %d, tid : %d\n", t->p->pid, t->tid);
+#endif
     if (last_thread) {
         release(&p->lock);
     }
     // !!!! =======atomic=======
-
-#ifdef __DEBUG_THREAD__
-    printfRed("exit a thread, pid : %d, tid : %d\n", t->p->pid, t->tid);
-#endif
-
-    acquire(&t->lock);
-    free_thread(t);
     thread_sched();
-
     panic("do_exit should never return");
     return;
 }

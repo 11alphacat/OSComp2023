@@ -1,5 +1,6 @@
 #include "memory/allocator.h"
 #include "atomic/spinlock.h"
+#include "atomic/futex.h"
 #include "lib/hash.h"
 #include "debug.h"
 
@@ -11,11 +12,12 @@ struct hash_table tid_map = {.lock = INIT_SPINLOCK(tid_hash_table),
                              .type = TID_MAP,
                              .size = NTCB};
 struct hash_table futex_map = {.lock = INIT_SPINLOCK(futex_hash_table),
-                               .type = TID_MAP,
+                               .type = FUTEX_MAP,
                                .size = FUTEX_NUM};
+struct futex;
 
 // find the table entry given the table，type and key
-struct hash_entry *hash_get_entry(struct hash_table *table, void *key) {
+struct hash_entry *hash_get_entry(struct hash_table *table, void *key, int holding) {
     uint64 hash_val = 0;
     struct hash_entry *entry = NULL;
 
@@ -37,14 +39,15 @@ struct hash_entry *hash_get_entry(struct hash_table *table, void *key) {
         panic("hash_get_entry : this type is invalid\n");
     }
     entry = table->hash_head + hash_val;
-    acquire(&table->lock);
+    if (!holding)
+        acquire(&table->lock);
     return entry;
 }
 
 // lookup the hash table
 // release : release its lock?
-struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_entry **entry, int release) {
-    struct hash_entry *_entry = hash_get_entry(table, key);
+struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_entry **entry, int release, int holding) {
+    struct hash_entry *_entry = hash_get_entry(table, key, holding);
 
     if (entry)
         *entry = _entry;
@@ -63,9 +66,9 @@ struct hash_node *hash_lookup(struct hash_table *table, void *key, struct hash_e
 }
 
 // insert the hash node into the table
-void hash_insert(struct hash_table *table, void *key, void *value) {
+void hash_insert(struct hash_table *table, void *key, void *value, int holding) {
     struct hash_entry *entry = NULL;
-    struct hash_node *node = hash_lookup(table, key, &entry, 0); // not release it
+    struct hash_node *node = hash_lookup(table, key, &entry, 0, holding); // not release it
 
     struct hash_node *node_new;
     if (node == NULL) {
@@ -84,20 +87,25 @@ void hash_insert(struct hash_table *table, void *key, void *value) {
 }
 
 // delete the inode given the key
-void hash_delete(struct hash_table *table, void *key) {
-    struct hash_node *node = hash_lookup(table, key, NULL, 0); // not release it
+void hash_delete(struct hash_table *table, void *key, int holding, int release) {
+    struct hash_node *node = hash_lookup(table, key, NULL, 0, holding); // not release it
 
     if (node != NULL) {
         list_del_reinit(&node->list);
 
         if (table->type == INODE_MAP || table->type == FUTEX_MAP) {
+            // if(table->type == FUTEX_MAP) {
+            //     struct futex* fp = (struct futex*)(node->value);
+            //     release(&fp->lock);
+            // }
             kfree(node->value); // !!!
         }
         kfree(node);
     } else {
         // printfRed("hash delete : this key doesn't existed\n");
     }
-    release(&table->lock);
+    if (release)
+        release(&table->lock);
 }
 
 // destroy hash table
@@ -195,7 +203,7 @@ void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
 // init every hash table entry
 void hash_table_entry_init(struct hash_table *table) {
     // printfBlue("inode init(before) : free RAM: %d\n", get_free_mem());
-    table->hash_head = (struct hash_entry *)kmalloc(table->size * sizeof(struct hash_entry));
+    table->hash_head = (struct hash_entry *)kzalloc(table->size * sizeof(struct hash_entry));
     // printfBlue("inode init(after) : free RAM: %d\n", get_free_mem());
     for (int i = 0; i < table->size; i++) {
         INIT_LIST_HEAD(&table->hash_head[i].list);

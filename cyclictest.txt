@@ -107,3 +107,30 @@ sys_clock_nanosleep需要实现？？
 
 问题五：
 sys_sched_setaffinity需要实现？？
+
+
+问题六：
+futex的bug：查找和删除必须原子！！！
+
+
+问题七：
+sys_socketpair需要写？
+
+
+问题八：
+CLIENT: ready write (error: Operation not permitted)
+
+
+问题九：
+Creating workers (error: Operation not permitted)
+
+
+问题十：
+14 children started.  Expected 40
+
+
+问题十一：
+./cyclictest_testcode.sh: line 19: sleep: not found
+
+
+测试通过触发15号信号SIGTERM来杀掉进程

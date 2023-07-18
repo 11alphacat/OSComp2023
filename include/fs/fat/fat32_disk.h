@@ -169,7 +169,7 @@ extern struct _superblock fat32_sb;
 #define ISEOF(FATContent) ((FATContent) >= 0x0FFFFFF8)
 
 // 2. EOC and FREE
-#define EOC 0xFFFFFFFF
+#define EOC 0x0FFFFFFF
 #define FREE_MASK 0x00000000
 
 // 3. NAME0 flag
