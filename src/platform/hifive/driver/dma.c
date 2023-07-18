@@ -5,9 +5,6 @@
 #include "debug.h"
 #include "kernel/cpu.h"
 
-#define ChanID2HART(chanID) ((chanID) + 1)
-#define HART2ChanID(hart)   ((hart) - 1)
-
 // 目前 hart 1~4 使用 DMA channel 0~3
 
 static struct dma {
@@ -47,6 +44,7 @@ void dma_intr(int irq) {
     int interrupt = irq - DMA_IRQ_START; 
     ASSERT( (interrupt & 1) == 0); // 只许成功
     int chanID = interrupt / 2; 
+
     if ( DMA_CONTROL(chanID) & (1 << DONE_FIELD) ) {
         // ensure the transaction has done
         sema_signal(&dma[ChanID2HART(chanID)].done);
@@ -60,7 +58,10 @@ void dma_intr(int irq) {
 
 void dma_init() {
     int hart = cpuid();
-    ASSERT(hart > 0);
+    if (hart == 0) {
+        return;
+    }
+    // ASSERT(hart > 0);
     int chanID = HART2ChanID(hart);
     sema_init(&dma[hart].free, 1, "dma");
     sema_init(&dma[hart].done, 0, "dma");

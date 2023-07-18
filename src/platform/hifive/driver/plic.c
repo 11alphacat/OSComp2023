@@ -36,10 +36,15 @@ void plicinithart(void) {
         PLIC_SET_SENABLE(hart,UART0_IRQ);
         
         // for the PDMA
-        for ( int intid = DMA_IRQ_START; intid <= DMA_IRQ_END; ++intid) {
-            PLIC_SET_SENABLE(hart,intid);
-        }
+        // for ( int intid = DMA_IRQ_START; intid <= DMA_IRQ_END; ++intid) {
+        //     PLIC_SET_SENABLE(hart,intid);
+        // }
         
+        // 将 hart 绑定到对应的 DMA channel 上
+        // 这样一个 dma 中断发来时，只有一个核进入中断处理程序
+        PLIC_SET_SENABLE(hart, DMA_IRQ_START + HART2ChanID(hart) * 2);      // transfer complete 
+        PLIC_SET_SENABLE(hart, DMA_IRQ_START + HART2ChanID(hart) * 2 + 1);  // encounter an error
+
         // set this hart's S-mode priority threshold to 0.
         PLIC_SPRIORITY(hart) = 0;
     } 

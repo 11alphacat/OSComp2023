@@ -32,8 +32,10 @@
 
 #define DMA_NCHANNEL    4
 #define DMA_COMPLETE_IRQ(chanID) (DMA_IRQ_START + (chanID)*2 ) 
-#define DMA_ERROR_IRQ(chanID)  (DMA_IRQ_START + (chanID)*2 + 1 )    
-
+#define DMA_ERROR_IRQ(chanID)  (DMA_IRQ_START + (chanID)*2 + 1 )  
+  
+#define ChanID2HART(chanID) ((chanID) + 1)
+#define HART2ChanID(hart)   ((hart) - 1)
 
 
 

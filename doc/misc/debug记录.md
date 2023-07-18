@@ -129,6 +129,10 @@ if (S_ISCHR(mode) || S_ISBLK(mode) ) {   // 用类型判断，而非用设备号
 ## SD卡驱动
 利用 SPI 模式编写驱动最最重要的一个函数便是 __spi_xfer(), 它保证了读写的同步。先前遇到的诸多bug， 大多是因为之前编写的 spi_read() 与 spi_write() 底层没有很好地做到 SPI 模式数据传输的同步。
 
+## PLIC
+qemu模拟的是[hifive u540](https://sifive.cdn.prismic.io/sifive/d3ed5cd0-6e74-46b2-a12d-72b06706513e_fu540-c000-manual-v1p4.pdf), 比赛选的板子是[hifive u740](https://sifive.cdn.prismic.io/sifive/1a82e600-1f93-4f41-b2d8-86ed8b16acba_fu740-c000-manual-v1p6.pdf), 两者在 PLIC 上有些差距，例如 u740 支持更多的外部中断源。
+
+
 ## 系统调用
 ### openat
 在测试 busybox 的 cat 程序时，我们发现其调用的 openat 系统调用总会返回不正确的值，经过  

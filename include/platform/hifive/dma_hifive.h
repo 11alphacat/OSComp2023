@@ -22,7 +22,7 @@
 #define RUN_FIELD 1
 #define DONEIE_FIELD 14
 #define ERRORIE_FIELD 15
-#define DONE_FIELD 0
-#define ERROR_FIELD 0
+#define DONE_FIELD 30
+#define ERROR_FIELD 31
 
 #endif // __DMA_HIFIVE_H__
