@@ -36,6 +36,12 @@ struct pipe {
 #define PIPE_FULL(pi) (pi->nwrite == pi->nread + PIPESIZE)
 #define PIPE_EMPTY(pi) (pi->nread == pi->nwrite)
 
+#define pipereadable(p) (p->readopen)
+#define pipewriteable(p) (p->writeopen)
+
+
+int pipe_empty(struct pipe *p);
+int pipe_full(struct pipe *p);
 int pipe_alloc(struct file **f0, struct file **f1);
 void pipe_close(struct pipe *pi, int writable);
 int pipe_read(struct pipe *pi, int user_dst, uint64 addr, int n);

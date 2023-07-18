@@ -7,34 +7,12 @@
 #include "errno.h"
 #include "memory/allocator.h"
 #include "debug.h"
+#include "ipc/pipe.h"
 
 int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
-    // ktime_t expire, *to = NULL;
-    // struct poll_wqueues table;
-    // poll_table *wait;
     int retval;
 
-    // int retval, i, timed_out = 0;
-    // uint64 slack = 0;
-
-    // rcu_read_lock();
-    // retval = max_select_fd(nfds, fds);
-    // rcu_read_unlock();
-
-    // if (retval < 0)
-    // 	return retval;
-    // nfds = retval;
-
-    // poll_initwait(&table);
-    // wait = &table.pt;
-
-    // if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
-    // 	wait = NULL;
-    // 	timed_out = 1;
-    // }
     uint64 time_now = TIME2NS(rdtime());
-    // if (end_time && !timed_out)
-    // 	slack = estimate_accuracy(end_time);
     struct proc *p = proc_current();
     retval = 0;
     for (;;) {
@@ -50,9 +28,7 @@ int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
         for (int i = 0; i < nfds; ++rinp, ++routp, ++rexp) {
             uint64 in, out, ex;
             uint64 bit = 1;
-            // 		uint64 mask;
             uint64 res_in = 0, res_out = 0, res_ex = 0;
-            // 		const struct file_operations *f_op = NULL;
             struct file *file = NULL;
 
             in = *inp++;
@@ -77,7 +53,10 @@ int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
                     switch (file->f_type) {
                     case FD_INODE:
                         break;
+                    case FD_PIPE: {
+                    }
                     default:
+                        Warn("TYPE is %d", file->f_type);
                         panic("this type not tested\n");
                     }
                     if (in & bit) {
@@ -93,31 +72,6 @@ int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
                         retval++;
                     }
                 }
-                // 			file = fget_light(i, &fput_needed);
-                // 			if (file) {
-                // 				f_op = file->f_op;
-                // 				mask = DEFAULT_POLLMASK;
-                // 				if (f_op && f_op->poll) {
-                // 					wait_key_set(wait, in, out, bit);
-                // 					mask = (*f_op->poll)(file, wait);
-                // 				}
-                // 				fput_light(file, fput_needed);
-                // 				if ((mask & POLLIN_SET) && (in & bit)) {
-                // 					res_in  |= bit;
-                // 					retval++;
-                // 					wait = NULL;
-                // 				}
-                // 				if ((mask & POLLOUT_SET) && (out & bit)) {
-                // 					res_out |= bit;
-                // 					retval++;
-                // 					wait = NULL;
-                // 				}
-                // 				if ((mask & POLLEX_SET) && (ex & bit)) {
-                // 					res_ex |= bit;
-                // 					retval++;
-                // 					wait = NULL;
-                // 				}
-                // 			}
             }
             if (res_in)
                 *rinp = res_in;
@@ -125,18 +79,7 @@ int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
                 *routp = res_out;
             if (res_ex)
                 *rexp = res_ex;
-            // 		cond_resched();
         }
-        // if(ans > 0) break;
-
-        // if(timeout == -1) continue;
-
-        // if(timeout) {
-        // 	wait_tick();
-        // 	timeout--;
-        // } else {
-        // 	break;
-        // }
 
         // 	wait = NULL;
         if (retval || (TIME2NS(rdtime()) > time_now + timeout)) {
@@ -146,29 +89,7 @@ int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
         } else {
             // TODO : set a waiting queue
         }
-        // 	if (retval || timed_out || signal_pending(current))
-        // 		break;
-        // 	if (table.error) {
-        // 		retval = table.error;
-        // 		break;
-        // 	}
-
-        // 	/*
-        // 	 * If this is the first loop and we have a timeout
-        // 	 * given, then we convert to ktime_t and set the to
-        // 	 * pointer to the expiry value.
-        // 	 */
-        // 	if (end_time && !to) {
-        // 		expire = timespec_to_ktime(*end_time);
-        // 		to = &expire;
-        // 	}
-
-        // 	if (!poll_schedule_timeout(&table, TASK_INTERRUPTIBLE,
-        // 				   to, slack))
-        // 		timed_out = 1;
     }
-
-    // poll_freewait(&table);
 
     return retval;
 }
@@ -304,48 +225,13 @@ int poll_select_copy_remaining(uint64 timeout, void *p, int timeval, int ret) {
 }
 
 long do_pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timespec *tsp, const sigset_t *sigmask, size_t sigsetsize) {
-    // sigset_t ksigmask, sigsaved;
-    // struct timespec ts, end_time, *to = NULL;
     int ret;
 
-    // if (tsp) {
-    // 	if (copy_from_user(&ts, tsp, sizeof(ts)))
-    // 		return -EFAULT;
-
-    // 	to = &end_time;
-    // 	if (poll_select_set_timeout(to, ts.tv_sec, ts.tv_nsec))
-    // 		return -EINVAL;
-    // }
-
     uint64 time_out = (tsp != NULL ? TIMESEPC2NS((*tsp)) : 0);
-    // if (sigmask) {
-    // panic("sigmask not tested\n");
-    // 	/* XXX: Don't preclude handling different sized sigset_t's.  */
-    // 	if (sigsetsize != sizeof(sigset_t))
-    // 		return -EINVAL;
-    // 	if (copy_from_user(&ksigmask, sigmask, sizeof(ksigmask)))
-    // 		return -EFAULT;
-
-    // 	sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
-    // 	sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
-    // }
 
     ret = core_sys_select(nfds, readfds, writefds, exceptfds, time_out);
-    // ret = poll_select_copy_remaining(&end_time, tsp, 0, ret);
 
-    // if (ret == -ERESTARTNOHAND) {
-    // 	/*
-    // 	 * Don't restore the signal mask yet. Let do_signal() deliver
-    // 	 * the signal on the way back to userspace, before the signal
-    // 	 * mask is restored.
-    // 	 */
-    // 	if (sigmask) {
-    // 		memcpy(&current->saved_sigmask, &sigsaved,
-    // 				sizeof(sigsaved));
-    // 		set_restore_sigmask();
-    // 	}
-    // } else if (sigmask)
-    // 	sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+    // if ()
 
     return ret;
 }
@@ -374,20 +260,88 @@ uint64 sys_pselect6(void) {
         if (copyin(p->mm->pagetable, (char *)&timeout, timeout_addr, sizeof(timeout)) < 0) return -1;
         // panic("timeout not tested\n");
     }
+    uint64 time_out = (timeout_addr != 0 ? TIMESEPC2NS(timeout) : 0);
 
-    size_t sigsetsize = 0;
+    // size_t sigsetsize = 0;
     if (sigmask_addr) {
         if (copyin(p->mm->pagetable, (char *)&sigmask, sigmask_addr, sizeof(sigmask)) < 0) return -1;
-        // print_signal_mask(sigmask);
-        // panic("sigmask not tested\n");
-        // if (!access_ok(VERIFY_READ, sig, sizeof(void *)+sizeof(size_t))
-        //     || __get_user(up, (sigset_t  *  *)sig)
-        //     || __get_user(sigsetsize,
-        // 		(size_t  *)(sig+sizeof(void *))))
-        // 	return -EFAULT;
     }
 
-    int ret = do_pselect(nfds, &readfds, &writefds, &exceptfds, timeout_addr ? &timeout : NULL, &sigmask, sigsetsize);
+    // int ret = do_pselect(nfds, &readfds, &writefds, &exceptfds, timeout_addr ? &timeout : NULL, &sigmask, sigsetsize);
+
+    int ret = 0;
+
+    struct file *fp;
+    while (1) {
+        if (readfds_addr) {
+            for (int i = 0; i < nfds; i++) {
+                fp = p->ofile[i];
+                if (fp) {
+                    switch (fp->f_type) {
+                    case FD_INODE:
+                        break;
+                    case FD_PIPE: {
+                        if (!pipereadable(fp->f_tp.f_pipe) || pipe_empty(fp->f_tp.f_pipe)) {
+                            FD_CLR(i, &readfds);
+                            break;
+                        }
+                    }
+                    case FD_DEVICE:
+                    case FD_SOCKET: {
+                        ret++;
+                        break;
+                    }
+                    default:
+                        Warn("TYPE is %d", fp->f_type);
+                        panic("this type not tested\n");
+                    }
+                }
+            }
+        }
+
+        if (writefds_addr) {
+            for (int i = 0; i < nfds; i++) {
+                fp = p->ofile[i];
+                if (fp) {
+                    switch (fp->f_type) {
+                    case FD_INODE:
+                        break;
+                    case FD_PIPE: {
+                        if (!pipewriteable(fp->f_tp.f_pipe) || pipe_full(fp->f_tp.f_pipe))  {
+                            FD_CLR(i, &writefds);
+                            break;
+                        }
+                    }
+                    case FD_DEVICE:
+                    case FD_SOCKET: {
+                        ret++;
+                        break;
+                    }
+                    default:
+                        Warn("TYPE is %d", fp->f_type);
+                        panic("this type not tested\n");
+                    }
+                }
+            }
+        }
+
+        if (exceptfds_addr) {
+            for (int i = 0; i < nfds; i++) {
+                FD_CLR(i, &exceptfds);
+            }
+        }
+
+        // timeout
+        // 	wait = NULL;
+        uint64 time_now = TIME2NS(rdtime());
+        if (ret || (TIME2NS(rdtime()) > time_now + time_out)) {
+            // printf("ready\n");
+            // printfGreen("select , pid : %d exit\n", proc_current()->pid);// debug
+            break;
+        } else {
+            // TODO : set a waiting queue
+        }
+    }
 
     if (readfds_addr && (copyout(p->mm->pagetable, readfds_addr, (char *)&readfds, sizeof(readfds)) < 0)) return -1;
     if (writefds_addr && (copyout(p->mm->pagetable, writefds_addr, (char *)&writefds, sizeof(writefds)) < 0)) return -1;

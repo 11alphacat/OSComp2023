@@ -38,6 +38,7 @@ lua:
 
 lmbench:
 	make -C lmbench build CC="riscv64-linux-gnu-gcc -static" OS=riscv64 -j4
+	riscv64-linux-gnu-objdump -S ./lmbench/bin/riscv64/lmbench_all > ./lmbench/bin/riscv64/lmbench_all.asm
 
 unix-bench:
 	make -C UnixBench -j 4 all

@@ -248,6 +248,7 @@ void thread_forkret(void) {
     }
     // printfRed("tid : %d , name : %s forkret\n", thread_current()->tid, thread_current()->name);// debug
     // trapframe_print(thread_current()->trapframe);// debug
+    proc_current()->last_in = proc_current()->last_out = rdtime();
     thread_usertrapret();
 }
 

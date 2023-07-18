@@ -27,6 +27,7 @@ static uint64 START = 0;
 
 struct interpreter ldso;
 void print_ustack(pagetable_t pagetable, uint64 stacktop);
+char *lmpath = "/lmbench/lmbench_all";
 
 #define AUX_CNT 38
 
@@ -308,12 +309,13 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[i * 2] = i + 1;
     }
     auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
-    if (bprm->interp) {
+    // if (bprm->interp) {
+    if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
         auxv[AT_BASE * 2 - 1] = LDSO;
 #ifdef __DEBUG_LDSO__
         auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->elf_ex->e_phoff;
 #else
-        auxv[AT_PHDR * 2 - 1] = bprm->elf_ex->e_phoff;
+        auxv[AT_PHDR * 3 - 1] = bprm->elf_ex->e_phoff;
 #endif
         auxv[AT_PHNUM * 2 - 1] = bprm->elf_ex->e_phnum;
         auxv[AT_PHENT * 2 - 1] = sizeof(Elf64_Phdr);
@@ -323,7 +325,13 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[AT_ENTRY * 2 - 1] = bprm->e_entry;
 #endif
     }
+    uint64 random[2] = {0xea0dad5a44586952, 0x5a1fa5497a4a283d};
+    memmove((void *)&auxv[AT_RANDOM * 2 - 1], random, 16);
     auxv[AT_RANDOM * 2 - 1] = SPP2SP;
+
+    // char *s = "RISC-V64";
+    // memmove((void *)&auxv[AT_PLATFORM * 2 - 1], (void *)s, sizeof(s));
+
     spp -= AUX_CNT * 16 + 8; /* reserved 8bits for null auxv entry */
     if (spp < stackbase) {
         return -1;
@@ -576,6 +584,15 @@ static int load_elf_binary(struct binprm *bprm) {
         goto bad;
     }
 
+    if (strcmp(bprm->path, lmpath) == 0) {
+        void *pa = kzalloc(PGSIZE);
+        memmove((void *)pa + elf_ex->e_phoff, (void *)elf_phdata, elf_ex->e_phnum * elf_ex->e_phentsize);
+        mappages(bprm->mm->pagetable, 0, PGSIZE, (paddr_t)pa, PTE_U | PTE_R | PTE_W, 0);
+        if (vma_map(bprm->mm, 0, PGSIZE, PERM_READ | PERM_WRITE, VMA_TEXT) < 0) {
+            return -1;
+        }
+    }
+
     if (load_program(bprm, elf_phdata) < 0) {
         goto bad;
     }
@@ -617,6 +634,7 @@ int do_execve(char *path, struct binprm *bprm) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
     vaddr_t brk; /* program_break */
+    bprm->path = path;
 
     struct mm_struct *mm, *oldmm = p->mm;
     mm = alloc_mm();

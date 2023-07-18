@@ -11,7 +11,7 @@ struct inode;
  * This structure is used to hold the arguments that are used when loading binaries.
  */
 struct binprm {
-    // const char *path;
+    const char *path;
     int argc, envpc;
     char **argv, **envp;
     struct inode *ip;

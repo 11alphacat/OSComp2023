@@ -1850,7 +1850,3 @@ uint64 sys_fsync(void) {
 uint64 sys_ftruncate(void) {
     return 0;
 }
-
-uint64 sys_umask(void) {
-    return 0;
-}

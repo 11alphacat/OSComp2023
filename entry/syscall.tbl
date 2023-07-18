@@ -110,7 +110,6 @@
 
 
 103 setitimer sys_setitimer
-166 umask sys_umask
 
 123 sched_getaffinity sys_sched_getaffinity
 120 sched_getscheduler sys_sched_getscheduler
@@ -122,6 +121,11 @@
 115 clock_nanosleep sys_clock_nanosleep
 122 sched_setaffinity sys_sched_setaffinity
 
-199 socketpair sys_socketpair
 
 100 get_robust_list sys_get_robust_list
+165 getrusage sys_getrusage
+166 umask sys_umask
+227 msync sys_msync
+78 readlinkat sys_readlinkat
+
+199 socketpair sys_socketpair

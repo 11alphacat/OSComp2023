@@ -197,7 +197,14 @@ uint64 sys_execve(void) {
         bprm.argv = sh_argv;
         return do_execve("/busybox/busybox", &bprm);
     }
-    return do_execve(path, &bprm);
+    int ret = do_execve(path, &bprm);
+    extern char *lmpath;
+    if (strcmp(path, lmpath) == 0) {
+        return 0;
+    } else {
+        return ret;
+    }
+    // return do_execve(path, &bprm);
 }
 
 uint64 sys_sbrk(void) {
@@ -233,7 +240,7 @@ uint64 sys_brk(void) {
         // printf("free RAM : %ld, increment : %ld\n", get_free_mem(), increment);
         return -1;
     }
-    return oldaddr;
+    return newaddr;
 }
 
 uint64 sys_print_pgtable(void) {

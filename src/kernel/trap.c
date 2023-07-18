@@ -71,6 +71,9 @@ void thread_usertrap(void) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
 
+    p->last_in = rdtime();
+    p->utime += rdtime() - p->last_out;
+
     // save user program counter.
     t->trapframe->epc = r_sepc();
 
@@ -128,6 +131,9 @@ void thread_usertrapret() {
     // kerneltrap() to usertrap(), so turn off interrupts until
     // we're back in user space, where usertrap() is correct.
     intr_off();
+
+    p->last_out = rdtime();
+    p->stime += rdtime() - p->last_in;
 
     // send syscalls, interrupts, and exceptions to uservec in trampoline.S
     uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);

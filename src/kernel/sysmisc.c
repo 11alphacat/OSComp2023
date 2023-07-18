@@ -15,6 +15,7 @@
 #include "lib/resource.h"
 #include "debug.h"
 #include "ipc/signal.h"
+#include "memory/vm.h"
 
 extern atomic_t ticks;
 extern struct cond cond_ticks;
@@ -38,8 +39,8 @@ struct utsname {
 struct utsname sys_ut = {
     "LostWakeup OS",
     "oskernel",
-    "4.5.6",
-    "0.0.1",
+    .release = "5.0",
+    .version = "0.0.0",
     "RISCV",
     "www.hdu.lostwakeup.edu.cn",
 };
@@ -702,5 +703,42 @@ uint64 sys_clock_nanosleep(void) {
         break;
     }
 
+    return 0;
+}
+// int getrusage(int who, struct rusage *usage);
+uint64 sys_getrusage(void) {
+    int who;
+    uint64 usage;
+    paddr_t pa;
+    struct proc *p = proc_current();
+
+    argint(0, &who);
+    argaddr(1, &usage);
+
+    pa = getphyaddr(proc_current()->mm->pagetable, usage);
+    switch (who) {
+    case RUSAGE_SELF: {
+        struct timeval utime = TIME2TIMEVAL(p->utime); 
+        struct timeval stime = TIME2TIMEVAL(p->stime); 
+        memmove((void *)(&((struct rusage *)pa)->ru_utime), (const void *)&utime, sizeof(struct timeval));
+        memmove((void *)(&((struct rusage *)pa)->ru_stime), (const void *)&stime, sizeof(struct timeval));
+        break;
+    }
+    default:
+        Warn("not support");
+        return -1;
+    }
+
+    return 0;
+}
+
+uint64 sys_umask(void) {
+    return 0x777;
+}
+
+uint64 sys_msync(void) {
+    return 0;
+}
+uint64 sys_readlinkat(void) {
     return 0;
 }

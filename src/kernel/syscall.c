@@ -280,11 +280,15 @@ static struct syscall_info info[] = {
     [SYS_futex] { "futex", 6, "pddppd" },
     [SYS_tkill] { "tkill", 2, "dd" },
     [SYS_membarrier] { "membarrier", 3, "ddd" },
-    [SYS_clock_nanosleep] { "clock_nanosleep", 4, "ddpp" }
+    [SYS_clock_nanosleep] { "clock_nanosleep", 4, "ddpp" },
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
     // [SYS_mkdir] { "mkdir", 1, "s" },
+    //  int getrusage(int who, struct rusage *usage);
+    [SYS_getrusage] {"getrusage", 2, "dp"},
+    // int socketpair(int domain, int type, int protocol, int sv[2]);
+    [SYS_socketpair] {"socketpair", 4, "dddp"},
 };
 
 // static int syscall_filter[] = {
@@ -301,6 +305,7 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
 
 int is_strace_target(int num) {
     /* trace all proc except sh and init */
+    // if (proc_current()->pid > 2 && num == SYS_execve) {
     if (proc_current()->pid > 2) {
         // if(num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime) {
         //     return 0;

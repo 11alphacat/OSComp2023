@@ -216,3 +216,16 @@ int pipe_read(struct pipe *pi, int user_dst, uint64 addr, int n) {
 //     }
 //     return i;
 // }
+int pipe_empty(struct pipe *p) {
+    acquire(&p->lock);
+    int ret = (p->nread == p->nwrite);
+    release(&p->lock);
+    return ret;
+}
+
+int pipe_full(struct pipe *p) {
+    acquire(&p->lock);
+    int ret = ((p->nread + PIPESIZE) == p->nwrite);
+    release(&p->lock);
+    return ret;
+}
