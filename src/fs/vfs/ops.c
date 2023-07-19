@@ -69,7 +69,7 @@ void generic_fileclose(struct file *f) {
 }
 
 static inline const struct file_operations *get_fat32_fileops(void) {
-    // Mayer's singleton
+    // Meyer's singleton
     static const struct file_operations fops_instance = {
         .dup = fat32_filedup,
         .read = fat32_fileread,
@@ -187,9 +187,9 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
 
         ip->i_op->iunlock(ip);
         // printf("ip %s sem.value: %d  unlocked~\n",ip->fat32_i.fname, ip->i_sem.value);
-        if (likely(*path != '\0')) {
-            ip->i_op->iput(ip);
-        }
+        // if (likely(*path != '\0')) {
+        //     ip->i_op->iput(ip);
+        // }
         ip = next;
     }
     // printf("inode_namex got ip!\n");
