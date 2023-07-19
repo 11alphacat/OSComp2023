@@ -96,6 +96,15 @@ void thread_usertrap(void) {
     } else if ((which_dev = devintr()) != 0) {
         // ok
     } else {
+        // if (thread_current()->trapframe->epc == 0x33786) {
+        //     struct proc *p = thread_current()->p;
+        //     vaddr_t va = walkaddr(p->mm->pagetable, 0x33786);
+        //     vmprint(p->mm->pagetable, 1, 0, 0x30000, 0x37000, 0);
+        //     Log("hit %d", va);
+        // }
+        // if (r_stval() < 0x35000 && r_stval() > 0x30000) {
+        //     Log("hit: %d", r_scause());
+        // }
         if (ISPAGEFAULT(cause)) {
             if (pagefault(cause, p->mm->pagetable, r_stval()) < 0) {
                 killproc(p);
@@ -149,11 +158,11 @@ void thread_usertrapret() {
 
     // trapframe_print(t->trapframe);// debug
 
-    if (print_tf_flag) {
-        printf("%d\n", p->pid);
-        trapframe_print(t->trapframe);
-        print_tf_flag = 0;
-    }
+    // if (print_tf_flag) {
+    //     printf("%d\n", p->pid);
+    //     trapframe_print(t->trapframe);
+    //     print_tf_flag = 0;
+    // }
 
     // set up the registers that trampoline.S's sret will use
     // to get to user space.
@@ -228,7 +237,7 @@ int devintr() {
         }
 #ifdef SIFIVE_U
         // TODO()
-        if ( irq >= DMA_IRQ_START && irq <= DMA_IRQ_END ) {
+        if (irq >= DMA_IRQ_START && irq <= DMA_IRQ_END) {
             dma_intr(irq);
         }
         // else if (irq == VIRTIO0_IRQ) {

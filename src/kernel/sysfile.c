@@ -1587,7 +1587,9 @@ uint64 sys_utimensat(void) {
     uint64 times_addr;
     int flags;
     argint(0, &dirfd);
-    if (argstr(1, pathname, MAXPATH) < 0) {
+    uint64 pathaddr;
+    argaddr(1, &pathaddr);
+    if (pathaddr == 0 || argstr(1, pathname, MAXPATH) < 0) {
         pathname[0] = '\0';
         // return -1;
     }

@@ -24,6 +24,6 @@ int uvm_thread_stack(pagetable_t pagetable, int thread_idx);
 struct trapframe *uvm_thread_trapframe(pagetable_t pagetable, int thread_idx);
 
 /* print the pagetable */
-void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 vabase);
+void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 end, uint64 vabase);
 
 #endif // __VM_H__

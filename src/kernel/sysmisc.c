@@ -470,15 +470,6 @@ uint64 sys_prlimit64(void) {
     // unsigned int checkflags = 0;
     int ret;
 
-    // if (old_rlim)
-    // 	checkflags |= LSM_PRLIMIT_READ;
-
-    // if (new_rlim) {
-    // 	if (copy_from_user(&new64, new_rlim, sizeof(new64)))
-    // 		return -EFAULT;
-    // 	rlim64_to_rlim(&new64, &new);
-    // 	checkflags |= LSM_PRLIMIT_WRITE;
-    // }
     if (new_limit_addr) {
         if (copyin(proc_current()->mm->pagetable, (char *)&new64_limit, new_limit_addr, sizeof(new64_limit)) < 0) {
             return -EFAULT;
@@ -490,19 +481,7 @@ uint64 sys_prlimit64(void) {
     if (!p) {
         panic("proc get error\n");
     }
-    // tsk = pid ? find_task_by_vpid(pid) : current;
-    // if (!tsk) {
-    // 	rcu_read_unlock();
-    // 	return -ESRCH;
-    // }
     acquire(&p->lock);
-    // ret = check_prlimit_permission(tsk, checkflags);
-    // if (ret) {
-    // 	rcu_read_unlock();
-    // 	return ret;
-    // }
-    // get_task_struct(tsk);
-    // rcu_read_unlock();
 
     ret = do_prlimit(p, resource, new_limit_addr ? &new_limit : NULL, old_limit_addr ? &old_limit : NULL);
 

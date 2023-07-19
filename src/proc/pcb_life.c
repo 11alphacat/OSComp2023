@@ -311,6 +311,7 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
 
     if (stack) {
         t->trapframe->sp = stack;
+        t->ustack = stack;
     }
 
     if (flags & CLONE_SIGHAND) {

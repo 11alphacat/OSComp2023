@@ -9,6 +9,7 @@
 #include "fs/vfs/fs.h"
 #include "kernel/syscall.h"
 #include "atomic/spinlock.h"
+#include "proc/tcb_life.h"
 
 /* int munmap(void *addr, size_t length); */
 uint64 sys_munmap(void) {
@@ -17,7 +18,15 @@ uint64 sys_munmap(void) {
     argaddr(0, &addr);
     argulong(1, &length);
     struct proc *p = proc_current();
+    struct tcb *t = thread_current();
 
+    // print_vma(&p->mm->head_vma);
+    // struct vma *v1 = find_vma_for_va(p->mm, t->ustack);
+    struct vma *v2 = find_vma_for_va(p->mm, addr);
+    if (t->tidx != 0 && v2->type == VMA_ANON) {
+        // Log("ustack hit");
+        return 0;
+    }
     acquire(&p->mm->lock);
     if (vmspace_unmap(p->mm, addr, length) != 0) {
         release(&p->mm->lock);
@@ -55,7 +64,7 @@ void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp,
         end = addr + length;
         struct vma *vma;
         if ((vma = find_vma_for_va(mm, addr)) != NULL) {
-            print_vma(&mm->head_vma);
+            // print_vma(&mm->head_vma);
             if (start != vma->startva) {
                 if (split_vma(mm, vma, start, 1) < 0) {
                     // sema_signal(&mm->mmap_sem);
@@ -70,7 +79,7 @@ void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp,
                 }
             }
 
-            print_vma(&mm->head_vma);
+            // print_vma(&mm->head_vma);
             if (vma != NULL) {
                 del_vma_from_vmspace(&mm->head_vma, vma);
             }

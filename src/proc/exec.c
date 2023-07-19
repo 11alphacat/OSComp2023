@@ -309,13 +309,13 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[i * 2] = i + 1;
     }
     auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
-    // if (bprm->interp) {
-    if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
+    if (bprm->interp) {
+    // if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
         auxv[AT_BASE * 2 - 1] = LDSO;
 #ifdef __DEBUG_LDSO__
         auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->elf_ex->e_phoff;
 #else
-        auxv[AT_PHDR * 3 - 1] = bprm->elf_ex->e_phoff;
+        auxv[AT_PHDR * 2 - 1] = bprm->elf_ex->e_phoff;
 #endif
         auxv[AT_PHNUM * 2 - 1] = bprm->elf_ex->e_phnum;
         auxv[AT_PHENT * 2 - 1] = sizeof(Elf64_Phdr);
@@ -325,8 +325,8 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[AT_ENTRY * 2 - 1] = bprm->e_entry;
 #endif
     }
-    uint64 random[2] = {0xea0dad5a44586952, 0x5a1fa5497a4a283d};
-    memmove((void *)&auxv[AT_RANDOM * 2 - 1], random, 16);
+    // uint64 random[2] = {0xea0dad5a44586952, 0x5a1fa5497a4a283d};
+    // memmove((void *)&auxv[AT_RANDOM * 2 - 1], random, 16);
     auxv[AT_RANDOM * 2 - 1] = SPP2SP;
 
     // char *s = "RISC-V64";
@@ -720,10 +720,12 @@ int do_execve(char *path, struct binprm *bprm) {
     kfree(bprm->elf_ex);
 
     if (bprm->interp) {
-        Log("entry is %p", t->trapframe->epc);
+        // Log("entry is %p", t->trapframe->epc);
     }
     /* for debug, print the pagetable and vmas after exec */
-    // vmprint(mm->pagetable, 1, 0, 0, 0);
+    // if (strcmp(path, "entry-static.exe") == 0) {
+    //     vmprint(p->mm->pagetable, 1, 0, 0x30000, 0x37000, 0);
+    // }
     // print_vma(&mm->head_vma);
     // panic(0);
 

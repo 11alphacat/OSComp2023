@@ -71,6 +71,7 @@ struct tcb {
     sig_t sig_ing;             // processing signal
     // kernel stack, trapframe and context
     uint64 kstack;               // kernel stack
+    uint64 ustack;               // user stack
     struct trapframe *trapframe; // data page for trampoline.S
     struct context context;      // swtch() here to run thread
     // thread list

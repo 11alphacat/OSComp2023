@@ -246,7 +246,7 @@ struct vma *find_vma_for_va(struct mm_struct *mm, vaddr_t addr) {
     return NULL;
 }
 
-#define MMAP_START 0x50000000
+#define MMAP_START 0x30000000
 vaddr_t find_mapping_space(struct mm_struct *mm, vaddr_t start, size_t size) {
     struct vma *pos;
     vaddr_t max = MMAP_START;

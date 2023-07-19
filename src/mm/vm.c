@@ -224,7 +224,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm,
             return -1;
         }
         if (*pte & PTE_V) {
-            vmprint(pagetable, 1, 0, 0, 0);
+            vmprint(pagetable, 1, 0, 0, 0, 0);
             // Log("remap va is %x", *pte);
             Log("remap pte is %x", *pte);
             Log("remap pa is %x", PTE2PA(*pte));
@@ -265,7 +265,7 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free, int 
             if (on_demand == 1) {
                 continue;
             }
-            vmprint(pagetable, 1, 0, 0, 0);
+            vmprint(pagetable, 1, 0, 0, 0, 0);
             printf("va is %x\n", va);
             panic("uvmunmap: not mapped");
         }
@@ -400,7 +400,7 @@ void freewalk(pagetable_t pagetable, int level) {
 #ifdef __DEBUG_LDSO__
             continue;
 #else
-            vmprint(pagetable, 1, 0, 0, 0);
+            vmprint(pagetable, 1, 0, 0, 0, 0);
             panic("freewalk: leaf");
 #endif
         }
@@ -651,7 +651,10 @@ void vmprint_indent(int level, int vpn) {
     }
 }
 
-void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 vabase) {
+void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 end, uint64 vabase) {
+    if (end == 0) {
+        end = PHYSTOP;
+    }
     pte_t pte;
     if (isroot) {
         printf("page table %p\n", pagetable);
@@ -668,23 +671,23 @@ void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 
     for (int i = 0; i < 512; i++) {
         pte = pagetable[i];
         if (pte & PTE_V) {
-            if (vabase + i * vagap >= start) {
+            if (vabase + i * vagap >= start && vabase + i * vagap < end) {
                 vmprint_indent(level, i);
             }
             if ((pte & (PTE_W | PTE_X | PTE_R)) == 0) {
                 // not a leaf-pte
-                if (vabase + i * vagap >= start) {
+                if (vabase + i * vagap >= start && vabase + i * vagap < end) {
                     printf("pte %p pa %p\n", pte, PTE2PA(pte));
                 }
-                vmprint((pagetable_t)PTE2PA(pte), 0, level + 1, start, vabase + i * vagap);
+                vmprint((pagetable_t)PTE2PA(pte), 0, level + 1, start, end, vabase + i * vagap);
             } else {
                 // a leaf-pte
                 vaddr_t curva = vabase + i * vagap;
-                if (curva >= start) {
+                if (curva >= start && curva < end) {
                     printf("leaf pte %p pa %p ", pte, PTE2PA(pte));
-                    PTE("RSW %d%d D %d U %d X %d W %d R %d  va is %p  ",
+                    PTE("RSW %d%d A %d D %d U %d X %d W %d R %d  va is %p  ",
                         (pte & PTE_READONLY) > 0, (pte & PTE_SHARE) > 0,
-                        (pte & PTE_D) > 0,
+                        (pte & PTE_D) > 0, (pte & PTE_A) > 0,
                         (pte & PTE_U) > 0, (pte & PTE_X) > 0,
                         (pte & PTE_W) > 0, (pte & PTE_R) > 0,
                         curva);

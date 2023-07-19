@@ -29,7 +29,7 @@
 ./runtest.exe -w entry-dynamic.exe snprintf
 ./runtest.exe -w entry-dynamic.exe socket
 ./runtest.exe -w entry-dynamic.exe sscanf
-# ./runtest.exe -w entry-dynamic.exe sscanf_long
+./runtest.exe -w entry-dynamic.exe sscanf_long
 ./runtest.exe -w entry-dynamic.exe stat
 ./runtest.exe -w entry-dynamic.exe strftime
 ./runtest.exe -w entry-dynamic.exe string
@@ -52,7 +52,7 @@
 ./runtest.exe -w entry-dynamic.exe tls_local_exec
 ./runtest.exe -w entry-dynamic.exe udiv
 ./runtest.exe -w entry-dynamic.exe ungetc
-# ./runtest.exe -w entry-dynamic.exe utime
+./runtest.exe -w entry-dynamic.exe utime
 ./runtest.exe -w entry-dynamic.exe wcsstr
 ./runtest.exe -w entry-dynamic.exe wcstol
 ./runtest.exe -w entry-dynamic.exe daemon_failure
@@ -81,7 +81,7 @@
 ./runtest.exe -w entry-dynamic.exe printf_fmt_g_round
 ./runtest.exe -w entry-dynamic.exe printf_fmt_g_zeros
 ./runtest.exe -w entry-dynamic.exe printf_fmt_n
-# ./runtest.exe -w entry-dynamic.exe pthread_robust_detach
+./runtest.exe -w entry-dynamic.exe pthread_robust_detach
 ./runtest.exe -w entry-dynamic.exe pthread_cond_smasher
 ./runtest.exe -w entry-dynamic.exe pthread_condattr_setclock
 ./runtest.exe -w entry-dynamic.exe pthread_exit_cancel
@@ -105,7 +105,7 @@
 ./runtest.exe -w entry-dynamic.exe statvfs
 ./runtest.exe -w entry-dynamic.exe strverscmp
 ./runtest.exe -w entry-dynamic.exe syscall_sign_extend
-# ./runtest.exe -w entry-dynamic.exe tls_get_new_dtv
+./runtest.exe -w entry-dynamic.exe tls_get_new_dtv
 ./runtest.exe -w entry-dynamic.exe uselocale_0
 ./runtest.exe -w entry-dynamic.exe wcsncpy_read_overflow
 ./runtest.exe -w entry-dynamic.exe wcsstr_false_negative

@@ -27,7 +27,7 @@
 ./runtest.exe -w entry-static.exe snprintf
 ./runtest.exe -w entry-static.exe socket
 ./runtest.exe -w entry-static.exe sscanf
-# ./runtest.exe -w entry-static.exe sscanf_long
+./runtest.exe -w entry-static.exe sscanf_long
 ./runtest.exe -w entry-static.exe stat
 ./runtest.exe -w entry-static.exe strftime
 ./runtest.exe -w entry-static.exe string
@@ -79,7 +79,7 @@
 ./runtest.exe -w entry-static.exe printf_fmt_g_round
 ./runtest.exe -w entry-static.exe printf_fmt_g_zeros
 ./runtest.exe -w entry-static.exe printf_fmt_n
-# ./runtest.exe -w entry-static.exe pthread_robust_detach
+./runtest.exe -w entry-static.exe pthread_robust_detach
 ./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
 ./runtest.exe -w entry-static.exe pthread_cond_smasher
 ./runtest.exe -w entry-static.exe pthread_condattr_setclock
