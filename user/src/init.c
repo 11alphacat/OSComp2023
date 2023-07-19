@@ -11,6 +11,7 @@ char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone:/lmbench", "LD_LIBRARY
 #define CONSOLE 1
 #define DEV_NULL 2
 #define DEV_ZERO 3
+#define DEV_RTC 4
 #define DEV_CPU_DMA_LATENCY 0
 
 int main(void) {
@@ -24,6 +25,11 @@ int main(void) {
     mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
     // for /dev/shm(libc-test)
     mkdir("/dev/shm", 0666);
+
+    // (hwclock busybox-test)       
+    // mkdir("/dev/misc", 0666);
+    // mknod("/dev/misc/rtc", S_IFCHR, DEV_RTC << 8);
+
 
     // for /dev/tty
     if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {
