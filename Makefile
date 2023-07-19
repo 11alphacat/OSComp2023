@@ -235,9 +235,8 @@ image: user fat32.img
 apps:
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
 	@cp apps/libc-test/disk/* fsimg/libc-test
-	# @cp apps/lmbench/bin/riscv64/lmbench_all fsimg/lmbench
+	@cp apps/lmbench/bin/riscv64/lmbench_all fsimg/lmbench
 	@cp sdcard/lmbench_testcode.sh fsimg/lmbench
-	@cp lmbench_all fsimg/lmbench
 	@cp apps/lmbench/bin/riscv64/hello fsimg/lmbench
 	@cp apps/libc-bench/libc-bench fsimg/libc-bench
 	@cp apps/time-test/time-test fsimg/time-test

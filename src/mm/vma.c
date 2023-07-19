@@ -377,7 +377,8 @@ int split_vma(struct mm_struct *mm, struct vma *vma, unsigned long addr, int new
 
     new = alloc_vma();
     if (!new) {
-        Warn("split_vma: no free mem");
+        // TODO, SLOB!!!!!
+        // Warn("split_vma: no free mem");
         return -1;
     }
 
