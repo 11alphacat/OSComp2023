@@ -123,6 +123,7 @@ struct stat {
     uid_t st_uid;         /* User ID of owner */
     gid_t st_gid;         /* Group ID of owner */
     dev_t st_rdev;        /* Device ID (if special file) */
+    uint16 __pad2;
     off_t st_size;        /* Total size, in bytes */
     blksize_t st_blksize; /* Block size for filesystem I/O */
     blkcnt_t st_blocks;   /* Number of 512B blocks allocated */

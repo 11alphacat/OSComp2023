@@ -5,8 +5,8 @@
 #define NTCB_PER_PROC 5
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
 #define NCPU 2     // maximum number of CPUs
-#define NOFILE 200 // open files per process
-#define NFILE 400  // open files per system
+#define NOFILE 400 // open files per process
+#define NFILE 800  // open files per system
 
 #define NIPCIDX 40
 #define NINODE 100                // maximum number of active i-nodes

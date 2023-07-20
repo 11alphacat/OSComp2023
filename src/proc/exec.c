@@ -312,13 +312,17 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[i * 2] = i + 1;
     }
     auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
-    if (bprm->interp) {
-        // if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
+    // if (bprm->interp) {
+    if (bprm->interp || (strcmp(bprm->path, lmpath[0]) == 0)) {
         auxv[AT_BASE * 2 - 1] = LDSO;
 #ifdef __DEBUG_LDSO__
         auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->phvaddr;
 #else
-        auxv[AT_PHDR * 2 - 1] = bprm->phvaddr;
+        if (strcmp(bprm->path, lmpath[0]) == 0) {
+            auxv[AT_PHDR * 2 - 1] = bprm->elf_ex->e_phoff;
+        } else {
+            auxv[AT_PHDR * 2 - 1] = bprm->phvaddr;
+        }
 #endif
         auxv[AT_PHNUM * 2 - 1] = bprm->elf_ex->e_phnum;
         auxv[AT_PHENT * 2 - 1] = bprm->elf_ex->e_phentsize;

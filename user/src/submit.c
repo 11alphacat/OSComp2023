@@ -10,7 +10,9 @@ char *envp[] = {"PATH=/", "LD_LIBRARY_PATH=/", 0};
 #define CONSOLE 1
 #define DEV_NULL 2
 #define DEV_ZERO 3
+#define DEV_RTC 3
 #define DEV_CPU_DMA_LATENCY 0
+#define DEV_URANDOM 4
 
 #define CHECK(c, ...) ((c) ? 1 : (printf(#c "fail" __VA_ARGS__), exit(-1)))
 
@@ -28,7 +30,6 @@ int main(void) {
 
     // after we create tty, we can use printf
     // CHECK(0 + 0, "%s\n", "test");
-    CHECK(mkdir("/findyou", 0666) == 0);
     CHECK(mkdir("/proc", 0666) == 0);
     CHECK(mkdir("/proc/mounts", 0666) == 0);
     CHECK(mkdir("/tmp", 0666) == 0);
@@ -36,6 +37,8 @@ int main(void) {
     CHECK(mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8) == 0);
     CHECK(mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8) == 0);
     CHECK(mkdir("/dev/shm", 0666) == 0);
+    CHECK(mkdir("/dev/misc", 0666) == 0);
+    CHECK(mknod("/dev/misc/rtc", S_IFCHR, DEV_RTC << 8) == 0);
 
     runtest();
     shutdown();

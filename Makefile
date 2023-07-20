@@ -3,7 +3,7 @@
 PLATFORM ?= qemu_virt
 # PLATFORM ?= qemu_sifive_u
 BUILD=build
-SUBMIT ?= 1
+SUBMIT ?= 0
 
 # debug options
 LOCKTRACE ?= 0
@@ -194,6 +194,8 @@ QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 endif
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 CFLAGS += -DVIRT
+
+# QEMUOPTS = -machine virt -kernel kernel-qemu -m 128M -nographic -smp 2 -bios sbi-qemu -drive file=sdcard.img,if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -device virtio-net-device,netdev=net -netdev user,id=net -initrd initrd.img
 endif
 
 ifeq ($(PLATFORM), qemu_sifive_u)
@@ -222,6 +224,12 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 
 format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
+
+# all: kernel-qemu
+# 	cp bootloader/sbi-qemu ./sbi-qemu
+# 	cp fsimg/boot/init initrd.img
+# 	$(QEMU) $(QEMUOPTS)
+
 
 all: kernel-qemu image
 	$(QEMU) $(QEMUOPTS)

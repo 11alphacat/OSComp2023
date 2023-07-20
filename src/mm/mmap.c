@@ -93,7 +93,8 @@ void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp,
             // }
         }
     }
-    if (flags & MAP_ANONYMOUS) {
+    if (flags & MAP_ANONYMOUS || fp == NULL) {
+    // if (fp == NULL) {
         if (vma_map(mm, mapva, length, mkperm(prot, flags), VMA_ANON) < 0) {
             // sema_signal(&mm->mmap_sem);
             return MAP_FAILED;
@@ -128,8 +129,9 @@ void *sys_mmap(void) {
     argint(2, &prot);
     argint(3, &flags);
     if (argfd(4, &fd, &fp) < 0) {
+        fp = NULL;
         if ((flags & MAP_ANONYMOUS) == 0) {
-            return MAP_FAILED;
+            Log("hit");
         }
     }
     arglong(5, &offset);

@@ -245,8 +245,8 @@ static struct syscall_info info[] = {
     // [SYS_wait] { "wait", 1, "p" },
     // // int pipe(int*);
     // [SYS_pipe] { "pipe", 1, "p" },
-    // // int kill(int);
-    // [SYS_kill] { "kill", 1, "d" },
+    // int kill(pid_t pid, int sig);
+    [SYS_kill] { "kill", 2, "dd" },
     // // int fstat(int fd, struct stat*);
     // [SYS_fstat] { "fstat", 2, "dp" },
     // // int chdir(const char*);
@@ -315,10 +315,36 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
 int is_strace_target(int num) {
     /* trace all proc except sh and init */
     if (proc_current()->pid > 2) {
+        // if (num == SYS_execve) {
+        //     return 1;
+        // } else {
+        //     return 0;
+        // }
+        // if (num == SYS_getuid) {
+        //     return 0;
+        // }
+        if (num == SYS_kill || num == SYS_rt_sigreturn) {
+            return 0;
+        }
+        if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
+            return 0;
+        }
+        printfYELLOW("syscall num is %d\n", num);
+        return 1;
+        // if (num == SYS_clock_gettime || num == SYS_nanosleep || num == SYS_clock_nanosleep) {
+        //     return 0;
+        // }
+        // if (num == SYS_read || num == SYS_write) {
+        //     return 0;
+        // }
+        // if (num == SYS_kill || num == SYS_wait4) {
+        //     return 1;
+        // } else {
+        //     return 0;
+        // }
         // if(num == SYS_msync || num == SYS_mmap || num == SYS_munmap || num == SYS_kill || num == SYS_pselect6 || num == SYS_getrusage || num == SYS_clock_gettime) {
         //     return 0;
         // }
-    // printfYELLOW("syscall num is %d\n", num);
         // if(num==)
         //     return 1;
         // else
