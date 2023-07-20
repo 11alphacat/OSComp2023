@@ -31,6 +31,8 @@ struct binprm {
     int sh;
 
     Elf64_Ehdr *elf_ex;
+    uint64 phvaddr;
+    // Elf64_Phdr *elf_phdata;
 
     // uint64 e_phnu
     // uint64 e_phoff; /* AT_PHDR = e_entry + e_phoff; */

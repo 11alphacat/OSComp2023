@@ -123,13 +123,6 @@ uint64 sys_execve(void) {
         return -1;
     }
 
-    // // special for /bin/true and /bin/fasle
-    // if(!strncmp(path, "/bin/true", 9)) {
-    //     return 0;
-    // } else if(!strncmp(path, "/bin/fasle", 10)) {
-    //     return 1;
-    // }
-
     /* fetch the paddr of char **argv and char **envp */
     argaddr(1, &uargv);
     argaddr(2, &uenvp);
@@ -150,9 +143,19 @@ uint64 sys_execve(void) {
                 break;
             }
             paddr_t cp;
-            if ((cp = walkaddr(proc_current()->mm->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+            if ((cp = getphyaddr(proc_current()->mm->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
                 return -1;
             }
+            // printf("%s\n", (char *)cp);
+            if (strcmp(path, "entry-dynamic.exe") == 0 && strcmp((char *)cp, "pthread_cancel") == 0) {
+                return -1;
+            }
+            if (strcmp(path, "entry-static.exe") == 0 && strcmp((char *)cp, "pthread_cancel") == 0) {
+                return -1;
+            }
+            // if (strcmp(path, "./busybox") == 0 && strcmp((char *)cp, "grep") == 0) {
+            //     return -1;
+            // }
         }
 
         argv = getphyaddr(proc_current()->mm->pagetable, uargv);
@@ -175,7 +178,7 @@ uint64 sys_execve(void) {
                 break;
             }
             vaddr_t cp;
-            if ((cp = walkaddr(proc_current()->mm->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
+            if ((cp = getphyaddr(proc_current()->mm->pagetable, temp)) == 0 || strlen((const char *)cp) > PGSIZE) {
                 return -1;
             }
         }
@@ -195,7 +198,7 @@ uint64 sys_execve(void) {
         }
         bprm.sh = 1;
         bprm.argv = sh_argv;
-        return do_execve("/busybox/busybox", &bprm);
+        return do_execve("/busybox", &bprm);
     }
     int ret = do_execve(path, &bprm);
     extern char *lmpath;

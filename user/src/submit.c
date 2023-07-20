@@ -1,0 +1,67 @@
+#define USER
+#include "stddef.h"
+#include "unistd.h"
+#include "stdio.h"
+#include "string.h"
+
+// char *argv[] = {"/busybox/busybox", "sh", 0};
+char *envp[] = {"PATH=/", "LD_LIBRARY_PATH=/", 0};
+
+#define CONSOLE 1
+#define DEV_NULL 2
+#define DEV_ZERO 3
+#define DEV_CPU_DMA_LATENCY 0
+
+#define CHECK(c, ...) ((c) ? 1 : (printf(#c "fail" __VA_ARGS__), exit(-1)))
+
+void runtest();
+
+int main(void) {
+    mkdir("/dev", 0666);
+    if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {
+        mknod("/dev/tty", S_IFCHR, CONSOLE << 8);
+        openat(AT_FDCWD, "/dev/tty", O_RDWR);
+    }
+
+    dup(0); // stdout
+    dup(0); // stderr
+
+    // after we create tty, we can use printf
+    // CHECK(0 + 0, "%s\n", "test");
+    CHECK(mkdir("/findyou", 0666) == 0);
+    CHECK(mkdir("/proc", 0666) == 0);
+    CHECK(mkdir("/proc/mounts", 0666) == 0);
+    CHECK(mkdir("/tmp", 0666) == 0);
+    CHECK(mknod("/dev/null", S_IFCHR, DEV_NULL << 8) == 0);
+    CHECK(mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8) == 0);
+    CHECK(mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8) == 0);
+    CHECK(mkdir("/dev/shm", 0666) == 0);
+
+    runtest();
+    shutdown();
+    return 0;
+}
+
+char *testpath[] = {"libctest_testcode.sh", "lua_testcode.sh", "unixbench_testcode.sh", 
+                    "libc-bench", "iozone_testcode.sh", "busybox_testcode.sh"};
+
+// number of elements in fixed-size array
+#define NELEM(x) (sizeof(x) / sizeof((x)[0]))
+
+void runtest() {
+    int pid;
+    for (int i = 0; i < NELEM(testpath); i++) {
+        pid = fork();
+        if (pid < 0) {
+            printf("fork failed\n");
+            exit(-1);
+        }
+        if (pid == 0) {
+            execve(testpath[i], NULL, envp);
+            printf("never reach here");
+            exit(-1);
+        } else {
+            wait(0);
+        }
+    }
+}

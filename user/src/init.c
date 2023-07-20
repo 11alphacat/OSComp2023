@@ -6,7 +6,7 @@
 #include "string.h"
 
 char *argv[] = {"/busybox/busybox", "sh", 0};
-char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone:/lmbench", "LD_LIBRARY_PATH=/libc-test", 0};
+char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone:/lmbench", "LD_LIBRARY_PATH=/", 0};
 
 #define CONSOLE 1
 #define DEV_NULL 2
@@ -60,7 +60,7 @@ int main(void) {
         if (pid == 0) {
             printf("about to start sh\n");
             // execve("/bin/sh",argv,envp);
-            execve("/busybox/busybox", argv, envp);
+            execve("/busybox", argv, envp);
             printf("init: exec sh failed\n");
             exit(1);
         }

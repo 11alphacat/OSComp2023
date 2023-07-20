@@ -721,3 +721,15 @@ uint64 sys_msync(void) {
 uint64 sys_readlinkat(void) {
     return 0;
 }
+    //    int madvise(void *addr, size_t length, int advice);
+uint64 sys_madvise(void) {
+    return 0;
+}
+
+uint64 sys_setpgid(void) {
+    return 0;
+}
+
+uint64 sys_getpgid(void) {
+    return 0;
+}

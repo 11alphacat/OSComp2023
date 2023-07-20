@@ -227,9 +227,14 @@ void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
+
+#ifdef SUBMIT
+    return;
+#else
     struct binprm bprm;
     memset(&bprm, 0, sizeof(bprm));
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", &bprm);
+#endif
 }
 
 // find the proc we search using hash map
@@ -345,6 +350,7 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
         release(&np->lock);
         return -1;
     }
+    // print_vma(&p->mm->head_vma);
 
     // Copy user memory from parent to child.
     if (flags & CLONE_VM) {
@@ -783,4 +789,61 @@ void procChildrenChain(struct proc *p) {
         }
     }
     printf("%s\n", tmp_str);
+}
+
+uchar initcode[] ={
+#include "initcode.h"
+};
+
+void uvminit(struct mm_struct *mm, uchar *src, uint sz) {
+    char *mem;
+    pagetable_t pagetable = mm->pagetable;
+    // vmprint(pagetable, 1, 0, 0, 0, 0);
+
+    if (sz > 4 * PGSIZE)
+        panic("init: more than 4 pages");
+
+    // program
+    for (int i = 0; i < 4; i++) {
+        mem = kzalloc(PGSIZE);
+        mappages(pagetable, 0 + i * PGSIZE, PGSIZE, (uint64)mem, PTE_W | PTE_R | PTE_X | PTE_U, COMMONPAGE);
+        memmove(mem, src + PGSIZE * i, (PGSIZE > (sz - i * PGSIZE) ? (sz - i * PGSIZE) : PGSIZE));
+    }
+
+    if (vma_map(mm, 0, 4 * PGSIZE, PERM_READ | PERM_WRITE, VMA_TEXT) < 0) {
+        panic("uvminit: vma_map failed");
+    }
+
+    // print_vma(&mm->head_vma);
+    // stack
+    uvm_thread_stack(pagetable, 0);
+    if (vma_map(mm, USTACK, USTACK_PAGE * PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
+        panic("uvminit: vma_map failed");
+    }
+
+    // vmprint(pagetable, 1, 0, 0, 0, 0);
+}
+
+void oscomp_init(void) {
+    struct proc *p;
+    struct tcb *t;
+    p = create_proc();
+    ASSERT(p != NULL);
+    t = p->tg->group_leader;
+    ASSERT(t != NULL);
+    initproc = p;
+
+    // printf("sizeof code = %p\n", sizeof(initcode));
+    uvminit(p->mm, initcode, sizeof(initcode));
+
+    // prepare for the very first "return" from kernel to user.
+    t->trapframe->epc = 0;
+    t->trapframe->sp = USTACK + USTACK_PAGE * PGSIZE;
+
+    safestrcpy(p->name, "/init", 10);
+    // acquire(&t->lock);
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+    // release(&t->lock);
+    release(&p->lock);
+    return;
 }

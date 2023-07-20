@@ -1,0 +1,1 @@
+cat /home/jr/myos/submit | ./scripts/convert.sh | ./scripts/code.sh > include/initcode.h

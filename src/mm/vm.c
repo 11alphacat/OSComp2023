@@ -653,7 +653,7 @@ void vmprint_indent(int level, int vpn) {
 
 void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 end, uint64 vabase) {
     if (end == 0) {
-        end = PHYSTOP;
+        end = MAXVA;
     }
     pte_t pte;
     if (isroot) {

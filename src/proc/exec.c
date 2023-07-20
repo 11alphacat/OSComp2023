@@ -303,8 +303,11 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
     /* auxiliary vectors */
     uint64 auxv[AUX_CNT * 2] = {0};
     for (int i = 0; i < AUX_CNT; i++) {
-        // if (i + 1 > AT_ENTRY) {
-        //     break;
+        if (i + 1 > AT_RANDOM) {
+            break;
+        }
+        // if (i == AT_EXECFN) {
+        //     continue;
         // }
         auxv[i * 2] = i + 1;
     }
@@ -313,17 +316,18 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
     if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
         auxv[AT_BASE * 2 - 1] = LDSO;
 #ifdef __DEBUG_LDSO__
-        auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->elf_ex->e_phoff;
+        auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->phvaddr;
 #else
-        auxv[AT_PHDR * 2 - 1] = bprm->elf_ex->e_phoff;
+        auxv[AT_PHDR * 2 - 1] = bprm->phvaddr;
 #endif
         auxv[AT_PHNUM * 2 - 1] = bprm->elf_ex->e_phnum;
-        auxv[AT_PHENT * 2 - 1] = sizeof(Elf64_Phdr);
+        auxv[AT_PHENT * 2 - 1] = bprm->elf_ex->e_phentsize;
 #ifdef __DEBUG_LDSO__
         auxv[AT_ENTRY * 2 - 1] = bprm->e_entry + 0x20000000;
 #else
         auxv[AT_ENTRY * 2 - 1] = bprm->e_entry;
 #endif
+        // auxv[AT_EXECFN * 2 - 1] = 0;
     }
     // uint64 random[2] = {0xea0dad5a44586952, 0x5a1fa5497a4a283d};
     // memmove((void *)&auxv[AT_RANDOM * 2 - 1], random, 16);
@@ -372,7 +376,7 @@ void print_ustack(pagetable_t pagetable, uint64 stacktop) {
     char *pa = (char *)getphyaddr(pagetable, stacktop - 1) + 1;
     // Log("pa is %p", pa);
     /* just print the first 100 8bits of the ustack */
-    for (int i = 8; i < 100 * 8; i += 8) {
+    for (int i = 8; i < 150 * 8; i += 8) {
         if (i % 16 == 0) {
             printfGreen("aligned -> ");
         } else {
@@ -583,6 +587,7 @@ static int load_elf_binary(struct binprm *bprm) {
         Warn("load_elf_phdr failed");
         goto bad;
     }
+    bprm->phvaddr = elf_phdata->p_vaddr;
 
     if (strcmp(bprm->path, lmpath) == 0) {
         void *pa = kzalloc(PGSIZE);
@@ -724,7 +729,7 @@ int do_execve(char *path, struct binprm *bprm) {
     }
     /* for debug, print the pagetable and vmas after exec */
     // if (strcmp(path, "entry-static.exe") == 0) {
-    //     vmprint(p->mm->pagetable, 1, 0, 0x30000, 0x37000, 0);
+        // vmprint(p->mm->pagetable, 1, 0, 0x2f000, 0x30000, 0);
     // }
     // print_vma(&mm->head_vma);
     // panic(0);

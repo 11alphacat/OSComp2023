@@ -120,11 +120,17 @@ void main(uint64 hartid) {
         // DMA
         dma_init();
 #endif    
+
+#ifdef SUBMIT
+        extern void oscomp_init(void); 
+        oscomp_init();
+#else 
         // First user process
         userinit(); // first user process
+#endif
 
         // pdflush kernel thread
-        pdflush_init();
+        // pdflush_init();
         __sync_synchronize();
 
 #if defined(SIFIVE_U) || defined(SIFIVE_B)

@@ -290,11 +290,13 @@ static struct syscall_info info[] = {
     // int socketpair(int domain, int type, int protocol, int sv[2]);
     [SYS_socketpair] {"socketpair", 4, "dddp"},
     // ssize_t readlink(const char *pathname, char *buf, size_t bufsiz);
-    [SYS_readlinkat] {"readlinkat", 3, "ppd"},
+    [SYS_readlinkat] {"readlinkat", 3, "spd"},
     // int kill(pid_t pid, int sig);
     [SYS_kill] {"kill", 2, "dd"},
     // int msync(void *addr, size_t length, int flags);
     [SYS_msync] {"msync", 3, "pdd"},
+    // int mkdirat(int dirfd, const char *pathname, mode_t mode);
+    [SYS_mkdirat] {"mkdirat", 3, "dsu"},
 };
 
 // static int syscall_filter[] = {
@@ -313,9 +315,9 @@ int is_strace_target(int num) {
     /* trace all proc except sh and init */
     // if (proc_current()->pid > 2 && num == SYS_execve) {
     if (proc_current()->pid > 2) {
-        if(num == SYS_msync || num == SYS_mmap || num == SYS_munmap || num == SYS_kill || num == SYS_pselect6 || num == SYS_getrusage || num == SYS_clock_gettime) {
-            return 0;
-        }
+        // if(num == SYS_msync || num == SYS_mmap || num == SYS_munmap || num == SYS_kill || num == SYS_pselect6 || num == SYS_getrusage || num == SYS_clock_gettime) {
+        //     return 0;
+        // }
     // printfYELLOW("syscall num is %d\n", num);
         // if(num==)
         //     return 1;

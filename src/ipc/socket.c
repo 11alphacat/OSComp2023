@@ -108,31 +108,34 @@ atomic_t PORT = ATOMIC_INIT(1024);
 #define ASSIGN_PORT atomic_inc_return(&PORT)
 
 void info_socket(int funcid, int sockfd, struct socket *sock, ...) {
+#ifndef __STRACE__
+    return;
+#else
     va_list ap;
     va_start(ap, sock);
     switch (funcid) {
     case SYS_sendto:
     case SYS_connect: {
-        // printfGreen("\n fd is %d, src_port is %d, dst_port is %d\n", sockfd, sock->src_port, sock->dst_port);
+        printfGreen("\n fd is %d, src_port is %d, dst_port is %d\n", sockfd, sock->src_port, sock->dst_port);
         break;
     }
     case SYS_bind: {
-        // printfGreen("\n fd is %d, src_port is %d", sockfd, sock->src_port);
+        printfGreen("\n fd is %d, src_port is %d", sockfd, sock->src_port);
         break;
     }
     case SYS_close: {
-        // printfGreen("\n src_port is %d, dst_port is %d", sockfd, sock->src_port, sock->dst_port);
+        printfGreen("\n src_port is %d, dst_port is %d", sockfd, sock->src_port, sock->dst_port);
         break;
     }
     case SYS_socket: {
         int type = va_arg(ap, int);
         if (type | SOCK_STREAM) {
-            // printfGreen("TCP socket\t");
+            printfGreen("TCP socket\t");
         } else if (type | SOCK_DGRAM) {
-            // printfGreen("UDP socket\t");
+            printfGreen("UDP socket\t");
         }
         if (type & SOCK_NONBLOCK) {
-            // printfGreen("NONBLOCK SOCKET\t");
+            printfGreen("NONBLOCK SOCKET\t");
         }
         break;
     }
@@ -141,6 +144,7 @@ void info_socket(int funcid, int sockfd, struct socket *sock, ...) {
         break;
     }
     va_end(ap);
+#endif
 }
 //       int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 uint64 sys_bind(void) {
@@ -497,6 +501,16 @@ uint64 sys_getsockopt(void) {
     return 0;
 }
 
+// int socketpair(int domain, int type, int protocol, int sv[2]);
 uint64 sys_socketpair(void) {
+    struct trapframe *tp = thread_current()->trapframe;
+    int type = tp->a1;
+    int *sv = (int *)getphyaddr(proc_current()->mm->pagetable, tp->a3);
+
+    int fd1 = create_sockfp(type);
+    int fd2 = create_sockfp(type);
+    sv[0] = fd1;
+    sv[1] = fd2;
+
     return 0;
 }

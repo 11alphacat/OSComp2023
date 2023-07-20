@@ -3,6 +3,7 @@
 PLATFORM ?= qemu_virt
 # PLATFORM ?= qemu_sifive_u
 BUILD=build
+SUBMIT ?= 0
 
 # debug options
 LOCKTRACE ?= 0
@@ -50,7 +51,7 @@ $(shell mkdir -p $(FSIMG)/oscomp)
 $(shell mkdir -p $(FSIMG)/bin)
 $(shell mkdir -p $(FSIMG)/dev)
 $(shell mkdir -p $(FSIMG)/boot)
-$(shell mkdir -p $(FSIMG)/busybox)
+# $(shell mkdir -p $(FSIMG)/busybox)
 $(shell mkdir -p $(FSIMG)/libc-test)
 $(shell mkdir -p $(FSIMG)/lmbench)
 $(shell mkdir -p $(FSIMG)/time-test)
@@ -142,6 +143,10 @@ ifeq ($(DEBUG_THREAD), 1)
 CFLAGS += -D__DEBUG_THREAD__
 endif
 
+ifeq ($(SUBMIT), 1)
+CFLAGS += -DSUBMIT
+endif
+
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany -march=rv64g -mabi=lp64f
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -177,7 +182,11 @@ endif
 ifeq ($(PLATFORM), qemu_virt)
 QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 1G -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
+ifeq ($(SUBMIT), 1)
+QEMUOPTS += -drive file=sdcard.img,if=none,format=raw,id=x0
+else
 QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
+endif
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 CFLAGS += -DVIRT
 endif
@@ -234,7 +243,7 @@ image: user fat32.img
 # 	make -C apps
 apps:
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
-	@cp apps/libc-test/disk/* fsimg/libc-test
+	# @cp apps/libc-test/disk/* fsimg/libc-test
 	@cp apps/lmbench/bin/riscv64/lmbench_all fsimg/lmbench
 	@cp sdcard/lmbench_testcode.sh fsimg/lmbench
 	@cp apps/lmbench/bin/riscv64/hello fsimg/lmbench
@@ -262,11 +271,11 @@ apps:
 # @cp sdcard/
 
 # user: oscomp busybox
-user: busybox apps
+user: apps
 	@echo "$(YELLOW)build user:$(RESET)"
 	@cp README.md $(FSIMG)/	
 	@make -C $(User)
-#	@cp -r $(addprefix $(oscompU)/build/riscv64/, $(shell ls ./$(oscompU)/build/riscv64/)) $(FSIMG)/oscomp/
+	@cp busybox/busybox $(FSIMG)/busybox
 	@mv $(BINFILE) $(FSIMG)/bin/
 	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/TEST/
