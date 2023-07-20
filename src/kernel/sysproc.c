@@ -204,7 +204,7 @@ uint64 sys_execve(void) {
     extern char *lmpath[];
     if (strcmp(path, lmpath[0]) == 0 || strcmp(path, lmpath[1]) == 0) {
         return 0;
-    } else {
+    } else { 
         return ret;
     }
     // return do_execve(path, &bprm);

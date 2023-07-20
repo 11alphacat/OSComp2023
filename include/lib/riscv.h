@@ -88,7 +88,7 @@ r_sstatus() {
 
 static inline void
 w_sstatus(uint64 x) {
-    asm volatile("csrw sstatus, %0"
+asm volatile("csrw sstatus, %0"
                  :
                  : "r"(x));
 }

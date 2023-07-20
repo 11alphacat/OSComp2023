@@ -202,7 +202,7 @@ uint fat32_cluster_alloc(uint dev) {
     uint free_num = fat32_sb.fat32_sb_info.nxt_free;
     fat32_sb.fat32_sb_info.free_count--;
     // if(fat32_sb.fat32_sb_info.free_count%1000==0) {
-    // printfRed("free num --: %d\n", fat32_sb.fat32_sb_info.free_count);
+        // printfRed("free num --: %d\n", fat32_sb.fat32_sb_info.free_count);
     // }
 
     // FAT_entry_t tmp;
@@ -758,7 +758,6 @@ void fat32_inode_unlock(struct inode *ip) {
 // fat32 inode put : trunc and update
 void fat32_inode_put(struct inode *ip) {
     acquire(&inode_table.lock);
-
     // debug
     // if (ip->fat32_i.fname[0] != '/') {
     //     printfMAGENTA("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
@@ -804,6 +803,7 @@ void fat32_inode_put(struct inode *ip) {
         if (ip->valid && ip->i_nlink == 0) {
             fat32_inode_lock(ip);
             release(&inode_table.lock);
+            
 
             fat32_inode_trunc(ip);
             // ip->dirty_in_parent = 1;
@@ -1111,6 +1111,8 @@ struct inode *fat32_inode_create(struct inode *dp, const char *name, uint16 type
 // allocate a new inode
 struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uint16 type) {
     uchar *fcb_char = kzalloc(FCB_MAX_LENGTH);
+    // printfMAGENTA("fcb_char, mm-- : %d pages\n", get_free_mem() / 4096);
+
     int fcb_cnt = fat32_fcb_init(dp, (const uchar *)name, type, (char *)fcb_char);
     uint offset = fat32_dir_fcb_insert_offset(dp, fcb_cnt); // unit is 32Bytes
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, offset * sizeof(dirent_l_t), fcb_cnt * sizeof(dirent_l_t));
@@ -1675,6 +1677,7 @@ void fat32_inode_general_trav(struct inode *dp, struct trav_control *tc, trav_ha
         if ((kbuf = kzalloc(sz)) == 0) {
             panic("fat32_inode_general_trav : no enough memory\n");
         }
+        // printfMAGENTA("tc->kbuf, mm-- : %d pages\n", get_free_mem() / 4096);
         tc->kbuf = kbuf;
         free_flag = 1;
     }
@@ -1697,7 +1700,6 @@ void fat32_inode_general_trav(struct inode *dp, struct trav_control *tc, trav_ha
         kfree(tc->kbuf);
         // printfGreen("fat32_inode_general_trav : kbuf, mm ++: %d pages\n", get_free_mem() / PGSIZE);
     }
-
     // over
     if (tc->ops == DIRLOOKUP_OP || tc->ops == GETDENTS_OP) {
         stack_free(tc->fcb_stack);

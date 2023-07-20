@@ -734,6 +734,7 @@ int do_execve(char *path, struct binprm *bprm) {
     // print_vma(&mm->head_vma);
     // panic(0);
 
+    // printfGreen("mm: %d pages\n", get_free_mem()/4096);
     return argc; // this ends up in a0, the first argument to main(argc, argv)
 
 bad:

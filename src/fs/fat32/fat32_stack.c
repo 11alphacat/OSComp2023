@@ -7,7 +7,6 @@
 void stack_init(Stack_t *stack) {
     stack->data = (elemtype *)kmalloc(30 * 32);
     // printfMAGENTA("stack_init, mm-- : %d pages\n", get_free_mem() / 4096);
-
     if (stack->data == NULL) {
         panic("stack_init : there is no free space\n");
     }

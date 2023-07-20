@@ -44,9 +44,9 @@ memmove(void *dst, const void *src, uint n) {
 
     } else
         while (n-- > 0) {
-            // if (d == NULL || s == NULL) {
-            //     Log("ready\n");
-            // }
+            if (*d == 0x88200000 || *s == 0x88200000) {
+                Log("ready\n");
+            }
             *d++ = *s++;
         }
 

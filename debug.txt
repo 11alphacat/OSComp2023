@@ -64,3 +64,7 @@ x (unsigned int*)(0x10050000 + 0x40)
 vscode 快捷按键：
 crtl + k + w ， 关闭所有窗口
 crtl + shift +v , 将markdown渲染
+
+git:
+git pull --rebase origin final
+git rebase --continue

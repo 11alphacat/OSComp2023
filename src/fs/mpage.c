@@ -132,6 +132,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 
             // allocpages:
             if ((pa = (uint64)kzalloc(PGSIZE * (end_idx - start_idx))) == 0) {
+                printfRed("end_idx : %d, start_idx : %d\n", end_idx, start_idx);
                 panic("mpage_readpages, pa, : no enough memory\n");
             }
             // printfMAGENTA("mpage_readpages: page alloc, mm-- : %d pages\n", get_free_mem() / 4096);
@@ -158,6 +159,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
                 if ((p_item = (struct Page_item *)kzalloc(sizeof(struct Page_item))) == NULL) {
                     panic("mpage_readpages, p_item, : no enough memory\n");
                 }
+                // printfMAGENTA("mpage_readpages: Page_item alloc, mm-- : %d pages\n", get_free_mem() / 4096);
                 // printfMAGENTA("mpage_readpages: page_item alloc, mm-- : %d pages\n", get_free_mem() / 4096);
                 p_item->index = index_tmp; // !!!
                 p_item->pa = pa_tmp;       // !!!

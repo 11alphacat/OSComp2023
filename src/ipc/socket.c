@@ -487,13 +487,16 @@ uint64 sys_recvfrom(void) {
 
 // int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
 uint64 sys_setsockopt(void) {
+
     return 0;
 }
 
 // int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
 uint64 sys_getsockopt(void) {
+    
     return 0;
 }
+
 
 // //        int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 // //                      const struct timespec *timeout, const sigset_t *sigmask);

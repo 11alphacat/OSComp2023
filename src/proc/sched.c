@@ -127,7 +127,7 @@ int thread_sched(void) {
     int set_timer = thread->time_out; // !!!
     struct timer_list timer;
     timer.expires = 0;
-    timer.count = 1; // only once
+    timer.count = 1;                 // only once
     if (set_timer != 0) {
         INIT_LIST_HEAD(&timer.list); // bug!!!
         add_timer_atomic(&timer, thread->time_out, thread_wakeup_atomic, (void *)thread);

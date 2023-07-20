@@ -289,8 +289,12 @@ static int do_faccess(struct inode *ip, int mode, int flags) {
 static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, size_t count) {
     void *kbuf;
     struct inode *rdip, *wrip;
-    uint offset, nread, nwritten;
-    if ((kbuf = kmalloc(PGSIZE)) == 0) {
+    off_t offset;
+    ssize_t nread, nwritten;
+    // bug like this :
+    // kbuf = kmalloc(PGSIZE)
+    // printfBlue("count : %ldB, %ldKB, %ldMB\n",count, count/1024, count/1024/1024);
+    if ((kbuf = kzalloc(count)) == 0) {
         return -1;
     }
     if (poff) {
@@ -300,7 +304,7 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
     }
     rdip = rf->f_tp.f_inode;
     wrip = wf->f_tp.f_inode;
-    if ((nread = rdip->i_op->iread(rdip, 0, (uint64)kbuf, offset, count)) < 0) {
+    if ((nread = rdip->i_op->iread(rdip, 0, (uint64)kbuf, offset, count)) <= 0) {
         goto bad;
     }
 
@@ -312,20 +316,23 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
             goto bad;
         }
     } else if (wf->f_type == FD_INODE) {
-        if ((nwritten = wrip->i_op->iwrite(wrip, 0, (uint64)kbuf, wf->f_pos, count)) < 0) {
+        if ((nwritten = wrip->i_op->iwrite(wrip, 0, (uint64)kbuf, wf->f_pos, MIN(count, nread))) < 0) {
             goto bad;
         }
-        rf->f_pos += nread;
-        offset = rf->f_pos;
-        wf->f_pos += nwritten;
     } else {
         // unsupported file type
         goto bad;
     }
 
+    offset += nread;
+
     if (poff) {
         either_copyout(1, (uint64)poff, &offset, sizeof(offset));
+    } else {
+        rf->f_pos += nread;
+        wf->f_pos += nwritten;
     }
+    kfree(kbuf);
     return nwritten;
 
 bad:
@@ -1373,8 +1380,11 @@ uint64 sys_sendfile(void) {
     if (argfd(0, 0, &wf) < 0 || argfd(1, 0, &rf) < 0) {
         return -1;
     }
-    if (argint(3, (int *)&count) < 0) {
+    if (arglong(3, (long *)&count) < 0) {
         return -1;
+    }
+    if (count == 0) {
+        return 0; // bug!!!
     }
     // argaddr(2,poff);
     poff = (off_t *)argraw(2);
@@ -1403,13 +1413,13 @@ uint64 sys_statfs(void) {
     fs_stat.f_bsize = BSIZE;
     fs_stat.f_frsize = BSIZE;
     fs_stat.f_blocks = __TotSec;
-    fs_stat.f_bfree = __TotSec / 4; // not important
+    fs_stat.f_bfree = __TotSec / 4;  // not important
     fs_stat.f_files = NINODE;
     fs_stat.f_ffree = NINODE / 4;    // not important
     fs_stat.f_bavail = __TotSec / 4; // not important
     fs_stat.f_fsid.val[0] = 2;       // not important
     fs_stat.f_namelen = NAME_LONG_MAX;
-    fs_stat.f_flags = 0; // not important
+    fs_stat.f_flags = 0;             // not important
     // printfRed("%x", ustat_addr);
     struct proc *p = proc_current();
     if (copyout(p->mm->pagetable, ustat_addr, (char *)&fs_stat, sizeof(fs_stat)) < 0) { // rember add 1 for '\0'

@@ -237,15 +237,15 @@ void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
 #ifdef __DEBUG_PROC__
     printfCYAN("tkill : kill thread %d, signo = %d\n", t_cur->tid, info->si_signo); // debug
 #endif
-    switch (info->si_signo) {
-    case SIGKILL:
-    case SIGSTOP:
-        t_cur->killed = 1;
-        break;
-    default:
-        break;
+    switch(info->si_signo) {
+        case SIGKILL:  
+        case SIGSTOP:
+            t_cur->killed = 1;
+            break;
+        default:
+            break;
     }
-
+    
     return;
 }
 

@@ -121,10 +121,9 @@ void hash_destroy(struct hash_table *table, int free) {
         list_for_each_entry_safe(node_cur, node_tmp, &table->hash_head[i].list, list) {
             if (table->type == INODE_MAP || table->type == FUTEX_MAP)
                 kfree(node_cur->value); // !!!
-            kfree(node_cur);
+            kfree(node_cur);    
         }
     }
-    kfree(table->hash_head); // bug !!!
     release(&table->lock);
 
     if (free) {

@@ -194,6 +194,7 @@ int radix_tree_tag_get(struct radix_tree_root *root, uint64 index, uint32 tag) {
 struct radix_tree_node *radix_tree_node_alloc(struct radix_tree_root *root) {
     struct radix_tree_node *ret = NULL;
     ret = (struct radix_tree_node *)kzalloc(sizeof(struct radix_tree_node)); // kzalloc : with zero function
+    // printfGreen("radix_tree_node_alloc, mm: %d pages\n", get_free_mem()/4096);
     if (ret == NULL) {
         panic("radix_tree_node_init : no memory\n");
     }
