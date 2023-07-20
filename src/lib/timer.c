@@ -80,6 +80,8 @@ void timer_list_decrease_atomic(struct timer_entry *head) {
 }
 
 void clockintr() {
-    atomic_inc_return(&ticks);
+// static int ctr = 0;
+// printf("hit, clockintr %d, %d\n",++ctr, CLINT_INTERVAL);
+    atomic_inc_return(&ticks);       // 或许可以不用原子操作
     timer_list_decrease_atomic(&timer_head);
 }

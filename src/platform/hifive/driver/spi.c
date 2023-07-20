@@ -18,7 +18,6 @@ void QSPI2_Init() {
 // 读写同步很重要
 static uint8 __spi_xfer(uint8 dataframe)
 {
-// ==> 参考了22年北航的 code
 	int r;
     int txdata; 
     do {

@@ -284,6 +284,8 @@ int do_sleep_ns(struct tcb *t, struct timespec ts) {
 
     acquire(&cond_ticks.waiting_queue.lock);
     t->time_out = interval_ns;
+// printf("from do_sleep_ns: hart = %d\n",cpuid());
+// printf("t-time_out = %d\n",interval_ns);
     int wait_ret = cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
     release(&cond_ticks.waiting_queue.lock);
     return wait_ret;

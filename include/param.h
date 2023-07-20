@@ -4,7 +4,7 @@
 #define NPROC 100 // maximum number of processes
 #define NTCB_PER_PROC 5
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
-#define NCPU 5     // maximum number of CPUs
+#define NCPU 4     // maximum number of CPUs
 #define NOFILE 200 // open files per process
 #define NFILE 400  // open files per system
 

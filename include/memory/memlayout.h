@@ -65,4 +65,13 @@
 #define USED_MEM (FREE_MEM - TOTAL_MEM)
 #define FREE_RATE(rate) (DIV_ROUND_UP(FREE_MEM, rate))
 
+#define wmb() __asm__ __volatile__("fence w,o" \
+                                   :           \
+                                   :           \
+                                   : "memory")
+#define rmb() __asm__ __volatile__("fence i,r" \
+                                   :           \
+                                   :           \
+                                   : "memory")
+
 #endif // __MEMLAYOUT_H__

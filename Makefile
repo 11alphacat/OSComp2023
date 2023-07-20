@@ -176,7 +176,7 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ## 4. QEMU Configuration
 ifndef CPUS
-CPUS := 5
+CPUS := 4
 endif
 
 ifeq ($(PLATFORM), qemu_virt)
@@ -192,14 +192,14 @@ CFLAGS += -DVIRT
 endif
 
 ifeq ($(PLATFORM), qemu_sifive_u)
-QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 130M -nographic
+QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 8G -nographic
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
 CFLAGS += -DSIFIVE_U
 endif
 
 ifeq ($(PLATFORM), board_sifive_u)
-QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 130M -nographic
+# QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 8G -nographic
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
 CFLAGS += -DSIFIVE_B
@@ -243,7 +243,7 @@ image: user fat32.img
 # 	make -C apps
 apps:
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
-	# @cp apps/libc-test/disk/* fsimg/libc-test
+	@cp apps/libc-test/disk/* fsimg/libc-test
 	@cp apps/lmbench/bin/riscv64/lmbench_all fsimg/lmbench
 	@cp sdcard/lmbench_testcode.sh fsimg/lmbench
 	@cp apps/lmbench/bin/riscv64/hello fsimg/lmbench

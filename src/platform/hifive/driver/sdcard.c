@@ -5,6 +5,7 @@
 #include "fs/bio.h"
 #include "debug.h"
 #include "memory/allocator.h"
+#include "memory/memlayout.h"
 
 /* 
     ref =>
@@ -827,14 +828,14 @@ void sdcard_disk_read(void *addr, uint sec, uint nr_sec) {
         // DMA 测试
     {
         char *data_tmp = (char*)kzalloc(nr_sec * BSIZE);
-        uint64 pa_des, pa_src;
+        uint64 pa_des;
         pa_des = (uint64)data_tmp;
     
 #ifndef SIFIVE_U
         sec *= BSIZE; 
 #endif
-        pa_src = sec;
-        dma_req(data_tmp,addr,nr_sec * BSIZE);
+        // pa_src = sec;
+        dma_req(pa_des,(uint64)addr,nr_sec * BSIZE);      // 内存 to 内存
 
         ASSERT(!memcmp(addr, data_tmp,BSIZE));
         kfree(data_tmp);
