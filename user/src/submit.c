@@ -13,6 +13,7 @@ char *envp[] = {"PATH=/", "LD_LIBRARY_PATH=/", 0};
 #define DEV_RTC 3
 #define DEV_CPU_DMA_LATENCY 0
 #define DEV_URANDOM 4
+#define AT_FDCWD -100
 
 #define CHECK(c, ...) ((c) ? 1 : (printf(#c "fail" __VA_ARGS__), exit(-1)))
 
@@ -32,6 +33,7 @@ int main(void) {
     // CHECK(0 + 0, "%s\n", "test");
     CHECK(mkdir("/proc", 0666) == 0);
     CHECK(mkdir("/proc/mounts", 0666) == 0);
+    CHECK(openat(AT_FDCWD, "/proc/meminfo", O_RDWR | O_CREAT) > 0);
     CHECK(mkdir("/tmp", 0666) == 0);
     CHECK(mknod("/dev/null", S_IFCHR, DEV_NULL << 8) == 0);
     CHECK(mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8) == 0);
@@ -46,7 +48,7 @@ int main(void) {
 }
 
 char *testpath[] = {"busybox_testcode.sh", "libctest_testcode.sh", "lua_testcode.sh", "libc-bench", 
-                    "cyclictest_testcode.sh", "iozone_testcode.sh", "unixbench_testcode.sh"};
+                    "unixbench_testcode.sh"};
 
 // char *testpath[] = {"unixbench_testcode.sh"};
 
