@@ -296,6 +296,12 @@ fat32.img: dep
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
 	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)
 
+# $(shell mkdir mount_sd)
+mount:
+	@sudo mount -t vfat sdcard.img mount_sd
+umount:
+	@sudo umount -v mount_sd
+
 clean-all: clean
 	-@make -C $(User)/ clean
 	-@make -C $(oscompU)/ clean
@@ -304,7 +310,7 @@ clean-all: clean
 clean: 
 	-rm build/* kernel-qemu $(GENINC) -rf 
 
-.PHONY: qemu clean user clean-all format test oscomp dep image busybox apps _apps
+.PHONY: qemu clean user clean-all format test oscomp dep image busybox apps mount umount
 
 ## 6. Build Kernel
 include $(SCRIPTS)/build.mk
