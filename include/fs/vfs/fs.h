@@ -88,7 +88,7 @@ struct ftable {
 // for index table of inode
 // levl0 : level1 : level2 : level 3 = 12 : 1 : 1 : 1 is recommended
 #define N_DIRECT 12                          // direct
-#define N_LEVEL_ONE 10                       // level 1
+#define N_LEVEL_ONE 50                       // level 1
 #define N_LEVEL_TWO 1                        // level 2
 #define N_LEVEL_THREE 1                      // level 3
 #define N_INDIRECT (PGSIZE / sizeof(uint32)) // 4096/4 = 1024

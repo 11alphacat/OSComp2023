@@ -111,6 +111,7 @@ void info_socket(int funcid, int sockfd, struct socket *sock, ...) {
 #ifndef __STRACE__
     return;
 #else
+    return;
     va_list ap;
     va_start(ap, sock);
     switch (funcid) {
@@ -359,6 +360,10 @@ uint64 sys_socket(void) {
 
     sock->file = fp;
     sock->type = type;
+    if (sock->sbuf.type == NONE) {
+        sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
+        sock->sbuf.type = SOCKET_SBUF;
+    }
     // sock.family = domain;
 
     return fd;
@@ -379,14 +384,59 @@ int create_sockfp(int type) {
     fp->f_type = FD_SOCKET;
     fp->f_tp.f_sock = sock;
     fp->f_count = 1;
+    // tmp for socketpair
+    fp->f_flags |= O_RDWR;
     info_socket(SYS_socket, fd, sock, type);
 
     sock->file = fp;
     sock->type = type;
 
+    if (sock->sbuf.type == NONE) {
+        sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
+        sock->sbuf.type = SOCKET_SBUF;
+    }
+
     return fd;
 }
 
+uint64 socket_write(struct socket *sock, vaddr_t addr, int len) {
+    paddr_t buf = getphyaddr(proc_current()->mm->pagetable, addr);
+
+    int ret = 0;
+    // TODO, fix len
+    for (int i = 0; i < len; i++) {
+        if (sbuf_full(&sock->sbuf)) {
+            // Log("break");
+            break;
+        }
+        if (sbuf_insert(&sock->sbuf, 0, buf) < 0) {
+            Warn("sendto failed");
+            return -1;
+        }
+        ret++;
+    }
+
+    return ret;
+}
+
+uint64 socket_read(struct socket *sock, vaddr_t addr, int len) {
+    paddr_t buf = getphyaddr(proc_current()->mm->pagetable, addr);
+
+    int ret = 0;
+    for (int i = 0; i < len; i++) {
+        if (sbuf_empty(&sock->sbuf)) {
+            // Log("break");
+            break;
+        }
+        if (sbuf_remove(&sock->sbuf, 0, buf) < 0) {
+            Warn("sendto failed");
+            return -1;
+        }
+        ret++;
+    }
+
+    return ret;
+}
 //    ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
 //                   const struct sockaddr *dest_addr, socklen_t addrlen);
 uint64 sys_sendto(void) {
@@ -407,58 +457,32 @@ uint64 sys_sendto(void) {
         add_mapping(sock->src_port, sock);
     }
 
-    paddr_t buf = getphyaddr(proc_current()->mm->pagetable, tp->a1);
+    paddr_t addr = tp->a1;
     size_t len = tp->a2;
     sock->dst_port = sa->sin_port;
-    info_socket(SYS_sendto, sockfd, sock);
+    // info_socket(SYS_sendto, sockfd, sock);
 
     struct socket *dstsock = port2sock(sock->dst_port);
 
-    if (dstsock->sbuf.type == NONE) {
-        sbuf_init(&dstsock->sbuf, PGSIZE / sizeof(char));
-        dstsock->sbuf.type = SOCKET_SBUF;
-    }
-
-    for (int i = 0; i < len; i++) {
-        if (sbuf_insert(&dstsock->sbuf, 0, buf) < 0) {
-            Warn("sendto failed");
-            return -1;
-        }
-    }
-
-    return len;
+    return socket_write(dstsock, addr, len);
 }
+
+
 
 //        ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
 //                  struct sockaddr *src_addr, socklen_t *addrlen);
 uint64 sys_recvfrom(void) {
     struct trapframe *tp = thread_current()->trapframe;
     // int sockfd = tp->a0;
-    paddr_t buf = getphyaddr(proc_current()->mm->pagetable, tp->a1);
+    // paddr_t buf = getphyaddr(proc_current()->mm->pagetable, tp->a1);
+    vaddr_t addr = tp->a1;
     // size_t len = tp->a2;
     const struct sockaddr_in *sa = (const struct sockaddr_in *)getphyaddr(proc_current()->mm->pagetable, tp->a4);
-    // size_t len = tp->a2;
+    size_t len = tp->a2;
 
     struct socket *sock = port2sock(sa->sin_port);
 
-    // if (dstsock->sbuf.type == NONE) {
-    //     sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
-    //     dstsock->sbuf.type = SOCKET_SBUF;
-    // }
-
-    // TODO: len
-    for (int i = 0; i < 1; i++) {
-        if (sbuf_remove(&sock->sbuf, 0, buf) < 0) {
-            Warn("sendto failed");
-            return -1;
-        }
-    }
-
-    // struct file *fp = proc_current()->ofile[3];
-    // struct socket *sock = fp->f_tp.f_sock;
-    // sbuf_remove(&sock->sbuf, 0, buf);
-
-    return 1;
+    return socket_read(sock, addr, len);
 }
 
 // int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
@@ -517,6 +541,7 @@ uint64 sys_socketpair(void) {
     int fd2 = create_sockfp(type);
     sv[0] = fd1;
     sv[1] = fd2;
+    // Log("%d %d", fd1, fd2);
 
     return 0;
 }

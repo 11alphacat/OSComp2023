@@ -6,21 +6,7 @@
 #include "atomic/semaphore.h"
 #include "lib/sbuf.h"
 
-struct socket_operations {
-    int (*read)(int, uint64, int);
-    int (*write)(int, uint64, int);
-};
-
 #define BUFSIZE PGSIZE
-// struct sock_buf {
-//     struct spinlock lock;
-//     int r, w;
-//     void *buf;
-
-//     struct semaphore empty;
-//     struct semaphore full;
-//     struct semaphore mutex;
-// };
 
 struct socket {
     // socket_state		state;
@@ -41,6 +27,11 @@ struct socket {
     int has_map;
     int used;
     // wait_queue_head_t	wait;
+};
+
+struct socket_operations {
+    int (*read)(struct socket *, uint64, int);
+    int (*write)(struct socket *, uint64, int);
 };
 
 void free_socket(struct socket *sock);

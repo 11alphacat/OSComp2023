@@ -279,7 +279,7 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
     } else {
         // Allocate process.
         if ((np = create_proc()) == 0) {
-            proc_thread_print();
+            // proc_thread_print();
             return -1;
         }
         t = np->tg->group_leader; // !!!

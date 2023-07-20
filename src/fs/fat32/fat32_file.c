@@ -16,6 +16,8 @@
 #include "fs/fat/fat32_file.h"
 #include "memory/allocator.h"
 
+extern uint64 socket_write(struct socket *sock, vaddr_t addr, int len);
+extern uint64 socket_read(struct socket *sock, vaddr_t addr, int len);
 int pid_debug_1 = 9;
 int pid_debug_2 = 11;
 
@@ -101,6 +103,8 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
             printfMAGENTA("read inode : pid : %d, read %d chars of inode file %s starting from %d \n", proc_current()->pid, r, f->f_tp.f_inode->fat32_i.fname, f->f_pos - r);
             // }
 #endif
+    } else if (f->f_type == FD_SOCKET) {
+        r = socket_read(f->f_tp.f_sock, addr, n);
     } else {
         panic("fileread");
     }
@@ -180,6 +184,8 @@ ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
             printfBlue("write inode: pid : %d, write %d chars -> inode file %s starting from %d\n", proc_current()->pid, i, f->f_tp.f_inode->fat32_i.fname, f->f_pos - i);
             // }
 #endif
+    } else if (f->f_type == FD_SOCKET) {
+        ret = socket_write(f->f_tp.f_sock, addr, n);
     } else {
         // panic("filewrite");
         if (!f->is_shm_file) {

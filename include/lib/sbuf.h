@@ -26,5 +26,7 @@ void sbuf_init(struct sbuf *buffer, uint n);
 void sbuf_free(struct sbuf *buffer);
 int sbuf_insert(struct sbuf *sp, int user_dst, uint64 addr);
 int sbuf_remove(struct sbuf *sp, int user_dst, uint64 addr);
+int sbuf_empty(struct sbuf *sp);
+int sbuf_full(struct sbuf *sp);
 
 #endif

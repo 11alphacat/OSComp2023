@@ -20,6 +20,20 @@ void sbuf_free(struct sbuf *sp) {
     kfree(sp->buf);
 }
 
+int sbuf_empty(struct sbuf *sp) {
+    acquire(&sp->lock);
+    int ret = (sp->r == sp->w);
+    release(&sp->lock);
+    return ret;
+}
+
+int sbuf_full(struct sbuf *sp) {
+    acquire(&sp->lock);
+    int ret = (sp->r + sp->n == sp->w);
+    release(&sp->lock);
+    return ret;
+}
+
 int sbuf_insert(struct sbuf *sp, int user_dst, uint64 addr) {
     char item;
     sema_wait(&sp->slots);

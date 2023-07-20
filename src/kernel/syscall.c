@@ -317,6 +317,21 @@ int is_strace_target(int num) {
         if (num == SYS_ppoll) {
             return 0;
         }
+        // if (num == SYS_clock_gettime || num == SYS_nanosleep || num == SYS_clock_nanosleep) {
+        //     return 0;
+        // }
+        // if (num == SYS_read || num == SYS_write) {
+        //     return 0;
+        // }
+        // if (num == SYS_kill || num == SYS_wait4) {
+        //     return 1;
+        // } else {
+        //     return 0;
+        // }
+        // if(num == SYS_msync || num == SYS_mmap || num == SYS_munmap || num == SYS_kill || num == SYS_pselect6 || num == SYS_getrusage || num == SYS_clock_gettime) {
+        //     return 0;
+        // }
+    // printfYELLOW("syscall num is %d\n", num);
         // if(num==)
         //     return 1;
         // else
