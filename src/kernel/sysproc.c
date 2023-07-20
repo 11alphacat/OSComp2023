@@ -46,9 +46,9 @@ uint64 sys_exit(void) {
  */
 uint64
 sys_getppid(void) {
-    acquire(&proc_current()->lock);
+    // acquire(&proc_current()->lock);
     uint64 ppid = proc_current()->parent->pid;
-    release(&proc_current()->lock);
+    // release(&proc_current()->lock);
     return ppid;
 }
 
@@ -201,8 +201,8 @@ uint64 sys_execve(void) {
         return do_execve("/busybox", &bprm);
     }
     int ret = do_execve(path, &bprm);
-    extern char *lmpath;
-    if (strcmp(path, lmpath) == 0) {
+    extern char *lmpath[];
+    if (strcmp(path, lmpath[0]) == 0 || strcmp(path, lmpath[1]) == 0) {
         return 0;
     } else {
         return ret;
@@ -378,15 +378,15 @@ uint64 sys_kill(void) {
     argint(0, &pid);
     argulong(1, &signo);
 
-    struct proc *p;
-    if ((p = find_get_pid(pid)) == NULL)
-        return -1;
-    // release(&p->lock);
-
     // empty signal
     if (signo == 0) {
         return 0;
     }
+
+    struct proc *p;
+    if ((p = find_get_pid(pid)) == NULL)
+        return -1;
+        // release(&p->lock);
 
 #ifdef __DEBUG_PROC__
     printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
@@ -404,14 +404,14 @@ uint64 sys_tkill() {
     argint(0, &tid);
     argulong(1, &signo);
 
-    struct tcb *t;
-    if ((t = find_get_tid(tid)) == NULL)
-        return -1;
-
     // empty signal
     if (signo == 0) {
         return 0;
     }
+
+    struct tcb *t;
+    if ((t = find_get_tid(tid)) == NULL)
+        return -1;
 
     // do_tkill
     do_tkill(t, signo);
@@ -513,25 +513,24 @@ uint64 sys_get_robust_list() {
     argaddr(1, &head_ptr_addr);
     argaddr(2, &len_ptr_addr);
 
-    // struct robust_list_head *head;
-
+    struct robust_list_head *head;
     // trapframe_print(thread_current()->trapframe);
-    // struct proc* p = pid ? find_get_pid(pid) : proc_current();
-    // if(!p) {
-    //     return -EPERM;
-    // }
-    // head = p->robust_list;
-    // int len = sizeof(*head);
-    // if (len_ptr_addr) {
-    //     if (copyout(p->mm->pagetable, len_ptr_addr, (char *)&len, sizeof(len)) < 0) {
-    //         return -EFAULT;
-    //     }
-    // }
-    // if(head_ptr_addr) {
-    //     if (copyout(p->mm->pagetable, head_ptr_addr, (char *)&head, sizeof(head)) < 0) {
-    //         return -EFAULT;
-    //     }
-    // }
+    struct proc *p = pid ? find_get_pid(pid) : proc_current();
+    if (!p) {
+        return -EPERM;
+    }
+    head = p->robust_list;
+    int len = sizeof(*head);
+    if (len_ptr_addr) {
+        if (copyout(p->mm->pagetable, len_ptr_addr, (char *)&len, sizeof(len)) < 0) {
+            return -EFAULT;
+        }
+    }
+    if (head_ptr_addr) {
+        if (copyout(p->mm->pagetable, head_ptr_addr, (char *)&head, sizeof(head)) < 0) {
+            return -EFAULT;
+        }
+    }
 
     return 0;
 }
@@ -549,6 +548,12 @@ uint64 sys_getegid() {
 uint64 sys_exit_group(void) {
     struct proc *p = proc_current();
     do_exit_group(p);
+    return 0;
+}
+
+// pid_t setsid(void);
+// process group ID
+uint64 sys_setsid(void) {
     return 0;
 }
 

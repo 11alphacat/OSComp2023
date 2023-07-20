@@ -79,7 +79,6 @@ struct proc {
     // for futex
     struct robust_list_head *robust_list;
 
-
     uint64 utime, stime, last_in, last_out;
     // // signal
     // int sig_pending_cnt;                   // have signal?

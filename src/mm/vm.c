@@ -49,7 +49,6 @@ kvmmake(void) {
     kvmmap(kpgtbl, QSPI_2_BASE, QSPI_2_BASE, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
 #endif
 
-
     // map kernel text executable and read-only.
     vaddr_t super_aligned_sz = SUPERPG_DOWN((uint64)etext - KERNBASE);
     if (super_aligned_sz != 0) {

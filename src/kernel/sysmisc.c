@@ -507,7 +507,10 @@ void setitimer_REAL_callback(void *ptr) {
     struct proc *p = (struct proc *)ptr;
     sig_t signo = SIGALRM;
 
-    // printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
+// printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
+#ifdef __DEBUG_SIGNAL__
+    printf("send SIGALRM(14) signal to pid : %d\n", p->pid);
+#endif
     proc_sendsignal_all_thread(p, signo, 1);
 }
 
@@ -538,7 +541,16 @@ int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue) {
         }
         uint64 base = TIMEVAL2NS(value->it_value);
         uint64 interval = TIMEVAL2NS(value->it_interval);
-        timer->count = interval ? 0 : -1;
+#ifdef __DEBUG_SIGNAL__
+        printfMAGENTA("setitimer , pid : %d, base : %ld(ns)/%ld(s), interval : %ld(ns)/%ld(s)", p->pid, base, NS_to_S(base), interval, NS_to_S(interval));
+#endif
+
+        if (base == 0) {
+            // delete_timer_atomic(&p->real_timer);// bug ???
+            return 0;
+        }
+        timer->count = interval ? -1 : 0; // bug!!!
+        // bug like this : timer->count = interval ? 0 : -1;
         timer->interval = interval;
 
         // uint64 time_out = S_to_NS(dirty_writeback_cycle);
@@ -697,8 +709,8 @@ uint64 sys_getrusage(void) {
     pa = getphyaddr(proc_current()->mm->pagetable, usage);
     switch (who) {
     case RUSAGE_SELF: {
-        struct timeval utime = TIME2TIMEVAL(p->utime); 
-        struct timeval stime = TIME2TIMEVAL(p->stime); 
+        struct timeval utime = TIME2TIMEVAL(p->utime);
+        struct timeval stime = TIME2TIMEVAL(p->stime);
         memmove((void *)(&((struct rusage *)pa)->ru_utime), (const void *)&utime, sizeof(struct timeval));
         memmove((void *)(&((struct rusage *)pa)->ru_stime), (const void *)&stime, sizeof(struct timeval));
         break;
@@ -721,7 +733,7 @@ uint64 sys_msync(void) {
 uint64 sys_readlinkat(void) {
     return 0;
 }
-    //    int madvise(void *addr, size_t length, int advice);
+//    int madvise(void *addr, size_t length, int advice);
 uint64 sys_madvise(void) {
     return 0;
 }

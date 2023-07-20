@@ -122,7 +122,7 @@ int pdflush_operation(void (*fn)(uint64), uint64 arg0) {
         pdf->fn = fn;
         pdf->arg0 = arg0;
         // wakeup thread
-        thread_wakeup((void *)pdf->who);
+        thread_wakeup_atomic((void *)pdf->who);
         release(&pdflush_control.lock);
     }
     return ret;

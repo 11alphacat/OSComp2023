@@ -76,7 +76,7 @@ int signal_send(siginfo_t *info, struct tcb *t) {
     }
 
     // be killed immediately !!!
-    if (sig == SIGKILL || sig == SIGSTOP) {
+    if (sig == SIGKILL || sig == SIGSTOP || sig == SIGTERM) {
         t->killed = 1;
     }
 
@@ -105,8 +105,8 @@ int signal_handle(struct tcb *t) {
     if (t->sig_pending_cnt == 0)
         return 0;
     if (t->sig_ing != 0) {
-#ifdef __DEBUG_SIGNALL__
-        printfRed("tid : %d is handing the signal %d\n", t->tid, t->sig_ing); // debug
+#ifdef __DEBUG_SIGNAL__
+        // printfRed("tid : %d is handing the signal %d\n", t->tid, t->sig_ing); // debug
 #endif
     }
 
@@ -126,13 +126,16 @@ int signal_handle(struct tcb *t) {
         if (sig_act.sa_handler == SIG_DFL) {
             signal_DFL(t, sig_no);
             t->sig_pending_cnt--; // !!!
+            // delete the signal immediately !!!
+            sig_del_set_mask(t->pending.signal, sig_gen_mask(sig_no));
+            list_del_reinit(&sig_cur->list);
+            kfree(sig_cur);
         } else if (sig_act.sa_handler == SIG_IGN) {
             continue;
         } else {
             do_handle(t, sig_no, &sig_act);
             t->sig_pending_cnt--; // !!!
             t->sig_ing = sig_no;
-
             // delete the signal immediately !!!
             sig_del_set_mask(t->pending.signal, sig_gen_mask(sig_no));
             list_del_reinit(&sig_cur->list);
@@ -140,7 +143,6 @@ int signal_handle(struct tcb *t) {
             break;
         }
     }
-
     return 1;
 }
 

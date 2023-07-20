@@ -10,9 +10,9 @@
 */
 
 #if defined(SIFIVE_U) || defined(SIFIVE_B)
-    #include "platform/hifive/pml_hifive.h"
+#include "platform/hifive/pml_hifive.h"
 #else
-    #include "platform/qemu/pml.h"
+#include "platform/qemu/pml.h"
 #endif
 
 /*

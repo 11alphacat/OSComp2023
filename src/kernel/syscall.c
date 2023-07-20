@@ -238,6 +238,7 @@ static struct syscall_info info[] = {
     [SYS_clock_nanosleep] { "clock_nanosleep", 4, "ddpp" },
     [SYS_socketpair] { "socketpair", 4, "dddd" },
     [SYS_get_robust_list] { "get_robust_list", 3, "dpp" },
+    [SYS_msync] { "msync", 3, "pdd" },
     // // int fork(void);
     // [SYS_fork] { "fork", 0, },
     // // int wait(int*);
@@ -281,22 +282,15 @@ static struct syscall_info info[] = {
     [SYS_tkill] { "tkill", 2, "dd" },
     [SYS_membarrier] { "membarrier", 3, "ddd" },
     [SYS_clock_nanosleep] { "clock_nanosleep", 4, "ddpp" },
+    [SYS_geteuid] { "geteuid", 0 },
     // int link(const char*, const char*);
     // [SYS_link] { "link", 2, "ss" },
     // // int mkdir(const char*);
     // [SYS_mkdir] { "mkdir", 1, "s" },
     //  int getrusage(int who, struct rusage *usage);
-    [SYS_getrusage] {"getrusage", 2, "dp"},
+    [SYS_getrusage] { "getrusage", 2, "dp" },
     // int socketpair(int domain, int type, int protocol, int sv[2]);
-    [SYS_socketpair] {"socketpair", 4, "dddp"},
-    // ssize_t readlink(const char *pathname, char *buf, size_t bufsiz);
-    [SYS_readlinkat] {"readlinkat", 3, "spd"},
-    // int kill(pid_t pid, int sig);
-    [SYS_kill] {"kill", 2, "dd"},
-    // int msync(void *addr, size_t length, int flags);
-    [SYS_msync] {"msync", 3, "pdd"},
-    // int mkdirat(int dirfd, const char *pathname, mode_t mode);
-    [SYS_mkdirat] {"mkdirat", 3, "dsu"},
+    [SYS_socketpair] { "socketpair", 4, "dddp" },
 };
 
 // static int syscall_filter[] = {
@@ -313,12 +307,16 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
 
 int is_strace_target(int num) {
     /* trace all proc except sh and init */
-    // if (proc_current()->pid > 2 && num == SYS_execve) {
     if (proc_current()->pid > 2) {
-        // if(num == SYS_msync || num == SYS_mmap || num == SYS_munmap || num == SYS_kill || num == SYS_pselect6 || num == SYS_getrusage || num == SYS_clock_gettime) {
-        //     return 0;
-        // }
-    // printfYELLOW("syscall num is %d\n", num);
+        if (num == SYS_getuid) {
+            return 0;
+        }
+        if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
+            return 0;
+        }
+        if (num == SYS_ppoll) {
+            return 0;
+        }
         // if(num==)
         //     return 1;
         // else
@@ -354,7 +352,7 @@ void syscall(void) {
     struct tcb *t = thread_current();
 
     num = t->trapframe->a7;
-    // printfYELLOW("syscall num is %d\n", num);
+    printfYELLOW("syscall num is %d\n", num);
     if (num >= 0 && num < NELEM(syscalls) && syscalls[num]) {
         // Use num to lookup the system call function for num, call it,
         // and store its return value in p->trapframe->a0

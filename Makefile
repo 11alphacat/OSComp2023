@@ -3,18 +3,19 @@
 PLATFORM ?= qemu_virt
 # PLATFORM ?= qemu_sifive_u
 BUILD=build
-SUBMIT ?= 0
+SUBMIT ?= 1
 
 # debug options
 LOCKTRACE ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_RW ?= 0
+DEBUG_INODE ?=0
 DEBUG_PIPE ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 0
+STRACE ?= 1
 DEBUG_LDSO ?= 0
-DEBUG_SIGNAL ?= 0
+DEBUG_SIGNAL ?=0 
 DEBUG_FUTEX ?= 0
 DEBUG_THREAD ?= 0
 
@@ -142,6 +143,10 @@ endif
 ifeq ($(DEBUG_THREAD), 1)
 CFLAGS += -D__DEBUG_THREAD__
 endif
+ifeq ($(DEBUG_INODE), 1)
+CFLAGS += -D__DEBUG_INODE__
+endif
+
 
 ifeq ($(SUBMIT), 1)
 CFLAGS += -DSUBMIT
@@ -243,7 +248,7 @@ image: user fat32.img
 # 	make -C apps
 apps:
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
-	# @cp apps/libc-test/disk/* fsimg/libc-test
+	@cp apps/libc-test/disk/* fsimg/libc-test
 	@cp apps/lmbench/bin/riscv64/lmbench_all fsimg/lmbench
 	@cp sdcard/lmbench_testcode.sh fsimg/lmbench
 	@cp apps/lmbench/bin/riscv64/hello fsimg/lmbench
@@ -261,6 +266,8 @@ apps:
 	@cp sdcard/hello fsimg/lmbench_test
 	@cp sdcard/lmbench_testcode.sh fsimg/lmbench_test
 	@cp sdcard/unixbench/* fsimg/unixbench
+	@cp sdcard/iperf3 fsimg/iperf
+	@cp sdcard/iperf_testcode.sh fsimg/iperf
 
 # @cp lmbench/bin/riscv64/lmbench_all sdcard/
 # @cp lmbench/bin/riscv64/hello sdcard/

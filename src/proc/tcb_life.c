@@ -224,16 +224,28 @@ void sighandinit(struct tcb *t) {
 void thread_send_signal(struct tcb *t_cur, siginfo_t *info) {
     signal_send(info, t_cur);
 
-    // wakeup thread sleeping of proc p
-    if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
-        if (t_cur->state == TCB_SLEEPING) {
-            Queue_remove_atomic(&cond_ticks.waiting_queue, (void *)t_cur); // bug
-            TCB_Q_changeState(t_cur, TCB_RUNNABLE);
-        }
+    if (t_cur->state == TCB_SLEEPING) {
+        thread_wakeup(t_cur);
     }
+    // wakeup thread sleeping of proc p
+    // if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
+    //     if (t_cur->state == TCB_SLEEPING) {
+    //         Queue_remove_atomic(&cond_ticks.waiting_queue, (void *)t_cur); // bug
+    //         TCB_Q_changeState(t_cur, TCB_RUNNABLE);
+    //     }
+    // }
 #ifdef __DEBUG_PROC__
     printfCYAN("tkill : kill thread %d, signo = %d\n", t_cur->tid, info->si_signo); // debug
 #endif
+    switch (info->si_signo) {
+    case SIGKILL:
+    case SIGSTOP:
+        t_cur->killed = 1;
+        break;
+    default:
+        break;
+    }
+
     return;
 }
 

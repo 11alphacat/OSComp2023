@@ -20,7 +20,7 @@ int zero_read(int user_dst, uint64 dst, int n) {
     uchar *buf_zero;
     // avoid stacking overflow
     if ((buf_zero = kzalloc(n)) == NULL) {
-        panic("no free space\n");
+        panic("zero_read : no free space\n");
     }
     if (either_copyout(user_dst, dst, (void *)buf_zero, n) == -1) {
         panic("zero_read either_copyout error\n");

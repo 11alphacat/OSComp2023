@@ -8,35 +8,19 @@ iperf_auth.lo: iperf_auth.c iperf_config.h \
  /usr/local/musl/include/bits/termios.h \
  /usr/local/musl/include/inttypes.h /usr/local/musl/include/stdint.h \
  /usr/local/musl/include/bits/stdint.h
-
 iperf_config.h:
-
 /usr/local/musl/include/string.h:
-
 /usr/local/musl/include/features.h:
-
 /usr/local/musl/include/bits/alltypes.h:
-
 /usr/local/musl/include/strings.h:
-
 /usr/local/musl/include/assert.h:
-
 /usr/local/musl/include/time.h:
-
 /usr/local/musl/include/sys/types.h:
-
 /usr/local/musl/include/endian.h:
-
 /usr/local/musl/include/sys/select.h:
-
 /usr/local/musl/include/stdio.h:
-
 /usr/local/musl/include/termios.h:
-
 /usr/local/musl/include/bits/termios.h:
-
 /usr/local/musl/include/inttypes.h:
-
 /usr/local/musl/include/stdint.h:
-
 /usr/local/musl/include/bits/stdint.h:

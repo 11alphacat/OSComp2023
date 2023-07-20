@@ -307,7 +307,7 @@ uint64 sys_pselect6(void) {
                     case FD_INODE:
                         break;
                     case FD_PIPE: {
-                        if (!pipewriteable(fp->f_tp.f_pipe) || pipe_full(fp->f_tp.f_pipe))  {
+                        if (!pipewriteable(fp->f_tp.f_pipe) || pipe_full(fp->f_tp.f_pipe)) {
                             FD_CLR(i, &writefds);
                             break;
                         }

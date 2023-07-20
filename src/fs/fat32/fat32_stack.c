@@ -1,10 +1,13 @@
 #include "fs/fat/fat32_stack.h"
 #include "memory/allocator.h"
 #include "common.h"
+#include "debug.h"
 
 // 初始化栈
 void stack_init(Stack_t *stack) {
     stack->data = (elemtype *)kmalloc(30 * 32);
+    // printfMAGENTA("stack_init, mm-- : %d pages\n", get_free_mem() / 4096);
+
     if (stack->data == NULL) {
         panic("stack_init : there is no free space\n");
     }
@@ -48,4 +51,5 @@ elemtype stack_peek(Stack_t *stack) {
 // 释放栈的空间
 void stack_free(Stack_t *stack) {
     kfree(stack->data);
+    // printfGreen("stack_free , mm ++: %d pages\n", get_free_mem() / 4096);
 }

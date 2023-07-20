@@ -227,14 +227,9 @@ void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
-
-#ifdef SUBMIT
-    return;
-#else
     struct binprm bprm;
     memset(&bprm, 0, sizeof(bprm));
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", &bprm);
-#endif
 }
 
 // find the proc we search using hash map
@@ -316,7 +311,6 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
 
     if (stack) {
         t->trapframe->sp = stack;
-        t->ustack = stack;
     }
 
     if (flags & CLONE_SIGHAND) {
@@ -350,7 +344,6 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
         release(&np->lock);
         return -1;
     }
-    // print_vma(&p->mm->head_vma);
 
     // Copy user memory from parent to child.
     if (flags & CLONE_VM) {
@@ -791,7 +784,7 @@ void procChildrenChain(struct proc *p) {
     printf("%s\n", tmp_str);
 }
 
-uchar initcode[] ={
+uchar initcode[] = {
 #include "initcode.h"
 };
 

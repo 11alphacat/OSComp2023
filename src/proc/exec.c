@@ -27,7 +27,7 @@ static uint64 START = 0;
 
 struct interpreter ldso;
 void print_ustack(pagetable_t pagetable, uint64 stacktop);
-char *lmpath = "/lmbench/lmbench_all";
+char *lmpath[] = {"/lmbench/lmbench_all", "lmbench_all"};
 
 #define AUX_CNT 38
 
@@ -312,8 +312,8 @@ static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bpr
         auxv[i * 2] = i + 1;
     }
     auxv[AT_PAGESZ * 2 - 1] = PGSIZE;
-    // if (bprm->interp) {
-    if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
+    if (bprm->interp) {
+        // if (bprm->interp || (strcmp(bprm->path, lmpath) == 0)) {
         auxv[AT_BASE * 2 - 1] = LDSO;
 #ifdef __DEBUG_LDSO__
         auxv[AT_PHDR * 2 - 1] = 0x20000000 + bprm->phvaddr;
@@ -589,7 +589,7 @@ static int load_elf_binary(struct binprm *bprm) {
     }
     bprm->phvaddr = elf_phdata->p_vaddr;
 
-    if (strcmp(bprm->path, lmpath) == 0) {
+    if (strcmp(bprm->path, lmpath[0]) == 0 || strcmp(bprm->path, lmpath[1]) == 0) {
         void *pa = kzalloc(PGSIZE);
         memmove((void *)pa + elf_ex->e_phoff, (void *)elf_phdata, elf_ex->e_phnum * elf_ex->e_phentsize);
         mappages(bprm->mm->pagetable, 0, PGSIZE, (paddr_t)pa, PTE_U | PTE_R | PTE_W, 0);
@@ -729,7 +729,7 @@ int do_execve(char *path, struct binprm *bprm) {
     }
     /* for debug, print the pagetable and vmas after exec */
     // if (strcmp(path, "entry-static.exe") == 0) {
-        // vmprint(p->mm->pagetable, 1, 0, 0x2f000, 0x30000, 0);
+    // vmprint(p->mm->pagetable, 1, 0, 0x2f000, 0x30000, 0);
     // }
     // print_vma(&mm->head_vma);
     // panic(0);

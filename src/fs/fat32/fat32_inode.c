@@ -177,9 +177,9 @@ uint32 fat32_fat_travel(struct inode *ip, uint num) {
 // find the next cluster of current cluster
 uint fat32_next_cluster(uint cluster_cur) {
     // ASSERT(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX);
-    if (!(cluster_cur >= 2 && cluster_cur < FAT_CLUSTER_MAX)) {
+    if (!(cluster_cur >= 2 && cluster_cur <= FAT_CLUSTER_MAX)) {
         printfRed("cluster_cur : %d(%x)\n", cluster_cur, cluster_cur);
-        panic("next cluster error\n");
+        panic("fat32_next_cluster, cluster_cur error\n");
     }
     struct buffer_head *bp;
     uint sector_num = ThisFATEntSecNum(cluster_cur);
@@ -213,8 +213,8 @@ uint fat32_cluster_alloc(uint dev) {
     uint fat_next = fat32_fat_alloc(hint);
     if (fat_next == 0)
         panic("no more space");
-    fat32_sb.fat32_sb_info.nxt_free = (fat_next + 1) % (FAT_CLUSTER_MAX); // !!!
-    if (fat32_sb.fat32_sb_info.nxt_free == 0) {
+    fat32_sb.fat32_sb_info.nxt_free = fat_next + 1; // !!!
+    if (fat32_sb.fat32_sb_info.nxt_free >= FAT_CLUSTER_MAX) {
         fat32_sb.fat32_sb_info.nxt_free = 3;
     }
     fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
@@ -321,11 +321,13 @@ uint fat32_fat_alloc(FAT_entry_t hint) {
 // set fat to value
 // NOTE : we don't update fat region 2 (it is unnecessary)
 void fat32_fat_set(uint cluster, uint value) {
-    if (!(cluster >= 2 && cluster < FAT_CLUSTER_MAX)) {
-        panic("next cluster error\n");
+    if (!(cluster >= 2 && cluster <= FAT_CLUSTER_MAX)) {
+        printfRed("cluster : %d(%x)\n", cluster, cluster);
+        panic("fat32_fat_set, cluster error\n");
     }
-    if (!(value >= 2 && value < FAT_CLUSTER_MAX) && value != EOC && value != FREE_MASK) {
-        panic("next cluster error\n");
+    if (!(value >= 2 && value <= FAT_CLUSTER_MAX) && value != EOC && value != FREE_MASK) {
+        printfRed("value : %d(%x)\n", value, value);
+        panic("fat32_fat_set, value error\n");
     }
 
     struct buffer_head *bp;
@@ -756,8 +758,10 @@ void fat32_inode_unlock(struct inode *ip) {
 // fat32 inode put : trunc and update
 void fat32_inode_put(struct inode *ip) {
     acquire(&inode_table.lock);
+
+    // debug
     // if (ip->fat32_i.fname[0] != '/') {
-    //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+    //     printfMAGENTA("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
     // }
     // acquire();
     // sema_wait(&inode_table.lock);
@@ -1132,8 +1136,8 @@ struct inode *fat32_inode_alloc(struct inode *dp, const char *name, uint16 type)
     ip_new->parent = dp;
     dp->off_hint = off + 1; // don't use off, but the next one
 
-#ifdef __DEBUG_FS__
-    printf("inode alloc : pid %d, filename : %s, off : %d (%x)\n", proc_current()->pid, ip_new->fat32_i.fname, off, off);
+#ifdef __DEBUG_INODE__
+    printfRed("inode alloc : pid %d, filename : %s, off : %d (%x)\n", proc_current()->pid, ip_new->fat32_i.fname, off, off);
 #endif
     return ip_new;
 }
@@ -1228,8 +1232,8 @@ int fat32_fcb_init(struct inode *ip_parent, const uchar *long_name, uint16 type,
     Stack_t fcb_stack;
     stack_init(&fcb_stack);
     uchar checksum = ChkSum(dirent_s_cur.DIR_Name);
-#ifdef __DEBUG_FS__
-    printf("inode init : pid %d, %s, checksum = %x \n", proc_current()->pid, long_name, checksum);
+#ifdef __DEBUG_INODE__
+    printfGreen("inode init : pid %d, %s, checksum = %x \n", proc_current()->pid, long_name, checksum);
 #endif
     int char_idx = 0;
     // every long name entry
@@ -1378,13 +1382,13 @@ int fat32_fcb_delete(struct inode *dp, struct inode *ip) {
         fcb_char[i * 32] = 0xE5;
     // ASSERT(off - long_dir_len > 0);
     ASSERT(off - long_dir_len >= 0); // !!! bug , off-long_dir_len should >=0
-#ifdef __DEBUG_FS__
+#ifdef __DEBUG_INODE__
     printf("inode delete : pid %d, %s, off = %d (%x), long_dir_len = %d\n", proc_current()->pid, ip->fat32_i.fname, off, off, long_dir_len);
 #endif
     uint tot = fat32_inode_write(dp, 0, (uint64)fcb_char, (off - long_dir_len) * sizeof(dirent_s_t), (long_dir_len + 1) * sizeof(dirent_s_t));
     ASSERT(tot == (long_dir_len + 1) * sizeof(dirent_l_t));
 
-    hash_delete(dp->i_hash, (void *)ip->fat32_i.fname, 0, 1); // not holding
+    hash_delete(dp->i_hash, (void *)ip->fat32_i.fname, 0, 1); // not holding lock, release it
     return 0;
 }
 
@@ -1408,6 +1412,7 @@ void fat32_short_name_parser(dirent_s_t dirent_s, char *name_buf) {
 
 void fat32_inode_hash_init(struct inode *dp) {
     dp->i_hash = (struct hash_table *)kmalloc(sizeof(struct hash_table));
+    // printfMAGENTA("fat32_inode_hash_init, mm-- : %d pages\n", get_free_mem() / PGSIZE);
     if (dp->i_hash == NULL) {
         panic("hash table init : no free space\n");
     }
@@ -1425,8 +1430,10 @@ int fat32_inode_hash_insert(struct inode *dp, const char *name, struct inode *ip
     }
     struct inode_cache *c = (struct inode_cache *)kmalloc(sizeof(struct inode_cache));
 
+    // printfMAGENTA("fat32_inode_hash_insert, mm --: %d pages\n", get_free_mem() / PGSIZE);
+
     if (c == NULL) {
-        panic("no free space\n");
+        panic("fat32_inode_hash_insert : no free space\n");
     }
     // c->ino = ino;
     c->ip = ip;
@@ -1507,6 +1514,8 @@ int fat32_get_block(struct inode *ip, struct bio *bio_p, uint off, uint n, int a
             if ((vec_cur = (struct bio_vec *)kzalloc(sizeof(struct bio_vec))) == NULL) {
                 panic("fat_get_block : no free memory\n");
             }
+            // printfMAGENTA("fat32_get_block: bio_vec alloc, mm-- : %d pages\n", get_free_mem() / 4096);
+
             sema_init(&vec_cur->sem_disk_done, 0, "bio_disk_done"); // !!! don't forget it
             INIT_LIST_HEAD(&vec_cur->list);                         // !!! don't forget it
             list_add_tail(&vec_cur->list, &bio_p->list_entry);
@@ -1587,6 +1596,7 @@ void fat32_i_mapping_destroy(struct inode *ip) {
 
     kfree(mapping);
     ip->i_mapping = NULL;
+    // printfGreen("fat32_i_mapping_destroy, mm ++: %d pages\n", get_free_mem() / 4096);
 
     release(&ip->tree_lock); // !!!
 
@@ -1598,6 +1608,7 @@ void fat32_i_mapping_destroy(struct inode *ip) {
 // init i_mapping
 void fat32_i_mapping_init(struct inode *ip) {
     struct address_space *mapping = kzalloc(sizeof(struct address_space));
+    // printfMAGENTA("fat32_i_mapping_init, mm-- : %d pages\n", get_free_mem() / 4096);
     ip->i_mapping = mapping;
     mapping->host = ip; // !!!
     mapping->nrpages = 0;
@@ -1662,7 +1673,7 @@ void fat32_inode_general_trav(struct inode *dp, struct trav_control *tc, trav_ha
     if (tc->kbuf == NULL) {
         char *kbuf;
         if ((kbuf = kzalloc(sz)) == 0) {
-            panic("dirlookup : no enough memory\n");
+            panic("fat32_inode_general_trav : no enough memory\n");
         }
         tc->kbuf = kbuf;
         free_flag = 1;
@@ -1682,8 +1693,10 @@ void fat32_inode_general_trav(struct inode *dp, struct trav_control *tc, trav_ha
     }
 
     // don't forget kfree
-    if (free_flag)
+    if (free_flag) {
         kfree(tc->kbuf);
+        // printfGreen("fat32_inode_general_trav : kbuf, mm ++: %d pages\n", get_free_mem() / PGSIZE);
+    }
 
     // over
     if (tc->ops == DIRLOOKUP_OP || tc->ops == GETDENTS_OP) {

@@ -90,6 +90,7 @@ void fat32_rw_pages_batch(struct inode *ip, struct Page_entry *p_entry, int rw, 
 
     // must remember to free page list
     page_list_free(p_entry);
+    // printfGreen("page_list_free, mm ++: %d pages\n", get_free_mem() / PGSIZE);
 }
 
 void page_list_free(struct Page_entry *p_entry) {
@@ -131,8 +132,9 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 
             // allocpages:
             if ((pa = (uint64)kzalloc(PGSIZE * (end_idx - start_idx))) == 0) {
-                panic("mpage_readpages : no enough memory\n");
+                panic("mpage_readpages, pa, : no enough memory\n");
             }
+            // printfMAGENTA("mpage_readpages: page alloc, mm-- : %d pages\n", get_free_mem() / 4096);
 
             if (first_pa == 0) {
                 first_pa = pa; // !!!
@@ -154,8 +156,9 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
 
                 // page list item :
                 if ((p_item = (struct Page_item *)kzalloc(sizeof(struct Page_item))) == NULL) {
-                    panic("mpage_readpages : no enough memory\n");
+                    panic("mpage_readpages, p_item, : no enough memory\n");
                 }
+                // printfMAGENTA("mpage_readpages: page_item alloc, mm-- : %d pages\n", get_free_mem() / 4096);
                 p_item->index = index_tmp; // !!!
                 p_item->pa = pa_tmp;       // !!!
 
@@ -171,7 +174,7 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
         } else {
             // panic("mpage_readpages : not tested\n");
             if (start_idx == 0) {
-                panic("mpage_readpages : error\n");
+                panic("mpage_readpages ,start idx : error\n");
             }
             start_idx++;
         }
@@ -221,8 +224,10 @@ void page_list_add(void *entry, void *item, uint64 index, void *node) {
     struct Page_entry *p_entry = (struct Page_entry *)entry;
     struct Page_item *p_item = NULL;
     if ((p_item = (struct Page_item *)kzalloc(sizeof(struct Page_item))) == NULL) {
-        panic("mpage_readpages : no enough memory\n");
+        panic("mpage_readpages, page_list_add, : no enough memory\n");
     }
+
+    // printfMAGENTA("page_list_add(page cache write back), mm ++: %d pages\n", get_free_mem() / 4096);
 
     // p_item
     struct page *page = (struct page *)item;

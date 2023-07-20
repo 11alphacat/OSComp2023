@@ -163,13 +163,13 @@ uint64 sys_bind(void) {
     // ASSERT(addrlen == sizeof(struct sockaddr_in));
 
     if (sa->sin_family != AF_INET) {
-        Warn("not support");
+        Warn("sa->sin_family != AF_INET, not support");
         return -1;
     }
 
     // only support localhost socket
     if (sa->sin_addr.s_addr != INADDR_ANY && sa->sin_addr.s_addr != 0x100007f) {
-        Warn("not support");
+        Warn("sa->sin_family != INADDR_ANY, not support");
         return -1;
     }
 
@@ -329,6 +329,9 @@ void free_socket(struct socket *sock) {
 
 extern int fdalloc(struct file *f);
 // int socket(int domain, int type, int protocol);
+// domain : address family ipv4 ipv6 unix
+// type : features
+// protocol : ipv4 ipv6 icmp raw tcp udp
 uint64 sys_socket(void) {
     struct socket *sock = alloc_socket();
     struct trapframe *tp = thread_current()->trapframe;
@@ -457,7 +460,14 @@ uint64 sys_recvfrom(void) {
 
     return 1;
 }
+
+// int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
 uint64 sys_setsockopt(void) {
+    return 0;
+}
+
+// int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
+uint64 sys_getsockopt(void) {
     return 0;
 }
 
@@ -496,10 +506,6 @@ uint64 sys_setsockopt(void) {
 //     }
 //     return 1;
 // }
-
-uint64 sys_getsockopt(void) {
-    return 0;
-}
 
 // int socketpair(int domain, int type, int protocol, int sv[2]);
 uint64 sys_socketpair(void) {

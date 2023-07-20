@@ -33,10 +33,16 @@ int cond_wait(struct cond *cond, struct spinlock *mutex) {
     release(mutex);
 
     int ret = thread_sched();
-
-    // Reacquire original lock.
+    // ==========special for signal==============
+    int killed = t->killed;
     release(&t->lock);
+    if (killed) {
+        do_exit(-1);
+    }
+    // ==========special for signal ==============
+    // Reacquire original lock.
     acquire(mutex);
+
     return ret;
 }
 

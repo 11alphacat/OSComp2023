@@ -61,6 +61,13 @@ void TCB_Q_changeState(struct tcb *t, enum thread_state state_new) {
     }
     Queue_push_back_atomic(tcb_q_new, (void *)t);
 
+    // if (t->tid == 4 && state_new == TCB_SLEEPING) {
+    //     printfGreen("4 ready\n");
+    // }
+    // if (t->tid == 6 && state_new == TCB_SLEEPING) {
+    //     printfGreen("6 ready\n");
+    // }
+
     t->state = state_new;
     return;
 }
@@ -75,11 +82,20 @@ void thread_yield(void) {
     release(&t->lock);
 }
 
+// holding lock
+void thread_wakeup(struct tcb *t) {
+    ASSERT(t->wait_chan_entry != NULL);
+    Queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    ASSERT(t->state == TCB_SLEEPING);
+    t->wait_chan_entry = NULL;
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+}
+
 // it is essential !!!
-void thread_wakeup(void *t) {
+void thread_wakeup_atomic(void *t) {
     struct tcb *thread = (struct tcb *)t;
 #ifdef __DEBUG_FUTEX__
-    printfCYAN("timer : thread_wakeup tid : %d\n", thread->tid);
+    printfCYAN("timer : thread_wakeup_atomic tid : %d\n", thread->tid);
 #endif
 
     acquire(&thread->lock);
@@ -114,7 +130,7 @@ int thread_sched(void) {
     timer.count = 1; // only once
     if (set_timer != 0) {
         INIT_LIST_HEAD(&timer.list); // bug!!!
-        add_timer_atomic(&timer, thread->time_out, thread_wakeup, (void *)thread);
+        add_timer_atomic(&timer, thread->time_out, thread_wakeup_atomic, (void *)thread);
     }
 
     swtch(&thread->context, &t_mycpu()->context);

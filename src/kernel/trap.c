@@ -45,7 +45,7 @@ void trapinithart(void) {
 }
 
 void tf_flstore(struct trapframe *self) {
-    __asm__ __volatile__ (
+    __asm__ __volatile__(
         "fsd f0,296(%0)\n\t"
         "fsd f1,304(%0)\n\t"
         "fsd f2,312(%0)\n\t"
@@ -82,12 +82,11 @@ void tf_flstore(struct trapframe *self) {
         "sd t0,552(%0)\n\t"
         :
         : "r"(self)
-        : "t0"
-    );
+        : "t0");
 }
 
 void tf_flrestore(struct trapframe *self) {
-    __asm__ __volatile__ (
+    __asm__ __volatile__(
         "fld f0,296(%0)\n\t"
         "fld f1,304(%0)\n\t"
         "fld f2,312(%0)\n\t"
@@ -124,8 +123,7 @@ void tf_flrestore(struct trapframe *self) {
         "fscsr t0\n\t"
         :
         : "r"(self)
-        : "t0"
-    );
+        : "t0");
 }
 
 void killproc(struct proc *p) {

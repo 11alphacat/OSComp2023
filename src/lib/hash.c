@@ -99,8 +99,10 @@ void hash_delete(struct hash_table *table, void *key, int holding, int release) 
             //     release(&fp->lock);
             // }
             kfree(node->value); // !!!
+            // printfGreen("hash_delete : node->value, mm ++: %d pages\n", get_free_mem() / 4096);
         }
         kfree(node);
+        // printfGreen("hash_delete : node, mm ++: %d pages\n", get_free_mem() / 4096);
     } else {
         // printfRed("hash delete : this key doesn't existed\n");
     }
@@ -122,11 +124,13 @@ void hash_destroy(struct hash_table *table, int free) {
             kfree(node_cur);
         }
     }
+    kfree(table->hash_head); // bug !!!
     release(&table->lock);
 
     if (free) {
         kfree(table);
     }
+    // printfGreen("hash_destroy, mm ++: %d pages\n", get_free_mem() / 4096);
     // printfGreen("inode destory(after) : free RAM: %d\n", get_free_mem());
 }
 
@@ -204,6 +208,7 @@ void hash_assign(struct hash_node *node, void *key, enum hash_type type) {
 void hash_table_entry_init(struct hash_table *table) {
     // printfBlue("inode init(before) : free RAM: %d\n", get_free_mem());
     table->hash_head = (struct hash_entry *)kzalloc(table->size * sizeof(struct hash_entry));
+    // printfMAGENTA("hash_table_entry_init, mm-- : %d pages\n", get_free_mem() / 4096);
     // printfBlue("inode init(after) : free RAM: %d\n", get_free_mem());
     for (int i = 0; i < table->size; i++) {
         INIT_LIST_HEAD(&table->hash_head[i].list);

@@ -13,6 +13,7 @@ char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone:/lmbench", "LD_LIBRARY
 #define DEV_ZERO 3
 #define DEV_RTC 3
 #define DEV_CPU_DMA_LATENCY 0
+#define DEV_URANDOM 4
 
 int main(void) {
     int pid, wpid;
@@ -23,6 +24,8 @@ int main(void) {
     mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8);
     // for /dev/cpu_dma_latency
     mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
+    // for /dev/urandom(for iperf)
+    mknod("/dev/urandom", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
     // for /dev/shm(libc-test)
     mkdir("/dev/shm", 0666);
 

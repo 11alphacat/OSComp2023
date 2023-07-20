@@ -39,7 +39,6 @@ struct pipe {
 #define pipereadable(p) (p->readopen)
 #define pipewriteable(p) (p->writeopen)
 
-
 int pipe_empty(struct pipe *p);
 int pipe_full(struct pipe *p);
 int pipe_alloc(struct file **f0, struct file **f1);

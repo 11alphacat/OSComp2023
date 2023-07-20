@@ -119,12 +119,12 @@ void main(uint64 hartid) {
 #if defined(SIFIVE_U) || defined(SIFIVE_B)
         // DMA
         dma_init();
-#endif    
+#endif
 
 #ifdef SUBMIT
-        extern void oscomp_init(void); 
+        extern void oscomp_init(void);
         oscomp_init();
-#else 
+#else
         // First user process
         userinit(); // first user process
 #endif
@@ -151,7 +151,7 @@ void main(uint64 hartid) {
 #if defined(SIFIVE_U) || defined(SIFIVE_B)
         // DMA
         dma_init();
-#endif    
+#endif
     }
 
     thread_scheduler();

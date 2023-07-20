@@ -686,6 +686,7 @@ uint64 sys_openat(void) {
 
     fd = assist_openat(ip, flags, omode, 0);
 
+    // printfRed("mm : %d pages\n", get_free_mem() / PGSIZE);
     return fd;
 }
 
@@ -713,6 +714,7 @@ uint64 sys_close(void) {
 
     // debug ！！！
     // printfCYAN("close end: filename : %s, pid %d, fd = %d\n", f->f_tp.f_inode->fat32_i.fname, proc_current()->pid, fd);
+    // printfRed("mm : %d pages\n", get_free_mem() / PGSIZE);
     return 0;
 }
 
@@ -844,6 +846,7 @@ uint64 sys_unlinkat(void) {
         return -1;
     }
 
+    // printfRed("unlinkat1, mm : %d pages\n", get_free_mem() / PGSIZE);
     dp->i_op->ilock(dp);
     if ((ip = dp->i_op->idirlookup(dp, name, 0)) == 0) {
         // error: target file not found
@@ -887,6 +890,7 @@ uint64 sys_unlinkat(void) {
                                // fcb delete-> hash delete -> inode unlink(3 steps should be atomic)
     // ---
 */
+    // printfRed("unlinkat2, mm : %d pages\n", get_free_mem() / PGSIZE);
     return 0;
 }
 
@@ -1253,14 +1257,32 @@ uint64 sys_readv(void) {
     }
 
     int nr = 0, filesz = f->f_tp.f_inode->i_size;
+
     p = (struct iovec *)kbuf;
-    for (int i = 0; i != iovcnt && filesz > 0; ++i) {
-        if ((nr = f->f_op->read(f, (uint64)p->iov_base, MIN(p->iov_len, filesz))) < 0) {
-            goto bad;
+
+    struct proc *p_current = proc_current();
+    // special for urandom
+    if (!strncmp(f->f_tp.f_inode->fat32_i.fname, "urandom", 7)) {
+        for (int i = 0; i != iovcnt; i++) {
+            uchar *buf_tmp;
+            if ((buf_tmp = kmalloc(p->iov_len)) == NULL) {
+                panic("sys_readv : no free space\n");
+            }
+            copyout(p_current->mm->pagetable, (uint64)p->iov_base, (void *)buf_tmp, p->iov_len);
+            kfree(buf_tmp);
+            nread += p->iov_len;
+            ++p;
         }
-        nread += nr;
-        filesz -= nr;
-        ++p;
+    } else {
+        // general process
+        for (int i = 0; i != iovcnt && filesz > 0; ++i) {
+            if ((nr = f->f_op->read(f, (uint64)p->iov_base, MIN(p->iov_len, filesz))) < 0) {
+                goto bad;
+            }
+            nread += nr;
+            filesz -= nr;
+            ++p;
+        }
     }
 
     kfree(kbuf);

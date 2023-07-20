@@ -151,6 +151,7 @@ void submit_bio(struct bio *bio, int free) {
         disk_rw((void *)vec_cur, bio->bi_rw, BLOCK_SEL);
         if (free) {
             kfree(vec_cur);
+            // printfGreen("submit_bio, mm ++: %d pages\n", get_free_mem() / PGSIZE);
         }
     }
 }

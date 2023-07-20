@@ -73,4 +73,4 @@ clean:
 configure:	
 	echo TODO
 
-.PHONY: all musl busybox clean configure lmbench time-test libc-bench unix-bench iozone cyclictest lua
+.PHONY: all musl busybox clean configure lmbench time-test libc-bench unix-bench iozone cyclictest lua iperf

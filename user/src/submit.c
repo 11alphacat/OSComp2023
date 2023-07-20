@@ -42,8 +42,8 @@ int main(void) {
     return 0;
 }
 
-char *testpath[] = {"libctest_testcode.sh", "lua_testcode.sh", "unixbench_testcode.sh", 
-                    "libc-bench", "iozone_testcode.sh", "busybox_testcode.sh"};
+char *testpath[] = {"busybox_testcode.sh", "libctest_testcode.sh", "lua_testcode.sh", "unixbench_testcode.sh", 
+                    "libc-bench", "iozone_testcode.sh"};
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
