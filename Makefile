@@ -1,24 +1,30 @@
 ## 1. Basic
 .DEFAULT_GOAL=kernel
-PLATFORM ?= qemu_virt
-# PLATFORM ?= qemu_sifive_u
-BUILD=build
-SUBMIT ?= 1
+
+# configuration ###############
+# PLATFORM ?= qemu_virt
+PLATFORM ?= qemu_sifive_u
+# PLATFORM ?= board_sifive_u
+SUBMIT ?= 0
+###############################
 
 # debug options
+STRACE ?= 0
 LOCKTRACE ?= 0
+DEBUG_LDSO ?= 0
 DEBUG_PROC ?= 0
 DEBUG_FS ?= 0
 DEBUG_RW ?= 0
 DEBUG_INODE ?=0
 DEBUG_PIPE ?= 0
 DEBUG_PAGE_CACHE ?=0
-STRACE ?= 0
-DEBUG_LDSO ?= 0
 DEBUG_SIGNAL ?=0 
 DEBUG_FUTEX ?= 0
 DEBUG_THREAD ?= 0
 
+User=user
+oscompU=oscomp_user
+BUILD=build
 FSIMG = fsimg
 ROOT=$(shell pwd)
 SCRIPTS = $(ROOT)/scripts
@@ -26,9 +32,7 @@ GENINC=include/syscall_gen
 $(shell mkdir -p $(GENINC))
 MNT_DIR=build/mnt
 $(shell mkdir -p $(MNT_DIR))
-
-User=user
-oscompU=oscomp_user
+$(shell mkdir mount_sd) # for sdcard.img
 
 # Initial File in Directory
 TEST=user_test kalloctest mmaptest \
@@ -37,22 +41,18 @@ TEST=user_test kalloctest mmaptest \
 	sendfile_test renameat2_test
 BIN=ls echo cat mkdir rawcwd rm shutdown wc kill grep sh sysinfo true
 BOOT=init
-BUSYBOX=busybox busybox_cmd.txt busybox_testcode.sh busybox_d
 
 TESTFILE = $(addprefix $(FSIMG)/, $(TEST))
-OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
 BINFILE = $(addprefix $(FSIMG)/, $(BIN))
 BOOTFILE = $(addprefix $(FSIMG)/, $(BOOT))
-BUSYBOXFILE = $(addprefix $(FSMIG)/, $(BUSYBOX))
+# OSCOMPFILE = $(addprefix $(FSIMG)/, $(OSCOMP))
+
 $(shell mkdir -p $(FSIMG)/TEST)
-# for libc-test
-$(shell mkdir -p $(FSIMG)/tmp)
-$(shell mkdir -p $(FSIMG)/test)
 $(shell mkdir -p $(FSIMG)/oscomp)
 $(shell mkdir -p $(FSIMG)/bin)
-$(shell mkdir -p $(FSIMG)/dev)
 $(shell mkdir -p $(FSIMG)/boot)
-# $(shell mkdir -p $(FSIMG)/busybox)
+
+# tests
 $(shell mkdir -p $(FSIMG)/libc-test)
 $(shell mkdir -p $(FSIMG)/lmbench)
 $(shell mkdir -p $(FSIMG)/time-test)
@@ -60,16 +60,16 @@ $(shell mkdir -p $(FSIMG)/libc-bench)
 $(shell mkdir -p $(FSIMG)/iozone)
 $(shell mkdir -p $(FSIMG)/lua)
 $(shell mkdir -p $(FSIMG)/netperf)
-$(shell mkdir -p $(FSIMG)/proc/mounts)
 $(shell mkdir -p $(FSIMG)/iperf)
 $(shell mkdir -p $(FSIMG)/netperf)
 $(shell mkdir -p $(FSIMG)/cyclictest)
 $(shell mkdir -p $(FSIMG)/unixbench)
 $(shell mkdir -p $(FSIMG)/lmbench_test)
-# $(shell mkdir -p $(FSIMG)/cyclictest)
 
+# tmp
 $(shell mkdir -p $(FSIMG)/var/tmp)
 $(shell touch $(FSIMG)/var/tmp/lmbench)
+
 # $(shell touch $(FSIMG)/var/tmp/XXX)
 
 ## 2. Compilation Flags 
@@ -147,7 +147,6 @@ ifeq ($(DEBUG_INODE), 1)
 CFLAGS += -D__DEBUG_INODE__
 endif
 
-
 ifeq ($(SUBMIT), 1)
 CFLAGS += -DSUBMIT
 endif
@@ -179,39 +178,35 @@ SRCS-BLACKLIST-y += $(SRCS-BLACKLIST) $(shell find $(DIRS-BLACKLIST-y) -name "*.
 SRCS-y += $(shell find $(DIRS-y) -name "*.c" -o -name "*.S")
 SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
-## 4. QEMU Configuration
-ifndef CPUS
-CPUS := 2
-endif
+##### PLATFORM ######
 
 ifeq ($(PLATFORM), qemu_virt)
-# QEMUOPTS = -machine virt -bios bootloader/sbi-qemu -kernel kernel-qemu -m 1G -smp $(CPUS) -nographic
-# # QEMUOPTS += -global virtio-mmio.force-legacy=false
-# ifeq ($(SUBMIT), 1)
-# QEMUOPTS += -drive file=sdcard.img,if=none,format=raw,id=x0
-# else
-# QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
-# endif
-# QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-CFLAGS += -DVIRT
-
-QEMUOPTS = -machine virt -kernel kernel-qemu -m 128M -nographic -smp 2 -bios sbi-qemu -drive file=sdcard.img,if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -device virtio-net-device,netdev=net -netdev user,id=net -initrd initrd.img
+QEMUOPTS = -machine virt -bios bootloader/opensbi-qemu -kernel kernel-qemu -m 128M -smp 2 -nographic
+ifeq ($(SUBMIT), 1)
+QEMUOPTS += -drive file=sdcard.img,if=none,format=raw,id=x0
+else
+QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
+endif
+QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+CFLAGS += -DVIRT -DNCPU=2
+# QEMUOPTS = -machine virt -kernel kernel-qemu -m 128M -nographic -smp 2 -bios sbi-qemu -drive file=sdcard.img,if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -device virtio-net-device,netdev=net -netdev user,id=net -initrd initrd.img
 endif
 
 ifeq ($(PLATFORM), qemu_sifive_u)
-QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 8G -nographic
-QEMUOPTS += -smp $(CPUS)
-QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
-CFLAGS += -DSIFIVE_U
+QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 1G -nographic
+QEMUOPTS += -smp 5
+ifeq ($(SUBMIT), 1)
+QEMUOPTS += -drive file=sdcard.img,if=sd,format=raw
+else
+QEMUOPTS += -drive file=fat32.img,if=sd,format=raw
+endif
+
+CFLAGS += -DSIFIVE_U -DNCPU=5
 endif
 
 ifeq ($(PLATFORM), board_sifive_u)
-# QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 8G -nographic
-QEMUOPTS += -smp $(CPUS)
-QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
-CFLAGS += -DSIFIVE_B
+CFLAGS += -DSIFIVE_B -DNCPU=5
 endif
-
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
@@ -225,14 +220,14 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
-all: kernel-qemu
-	cp bootloader/opensbi-qemu ./sbi-qemu
-#   cp fsimg/boot/init initrd.img
-#	$(QEMU) $(QEMUOPTS)
+# for submit
+# all: kernel-qemu
+# 	cp bootloader/opensbi-qemu ./sbi-qemu
+##	$(QEMU) $(QEMUOPTS)
 
 
-# all: kernel-qemu image
-# 	$(QEMU) $(QEMUOPTS)
+all: kernel-qemu image
+	$(QEMU) $(QEMUOPTS)
 
 kernel: kernel-qemu
 	$(QEMU) $(QEMUOPTS)
@@ -249,11 +244,6 @@ export CC AS LD OBJCOPY OBJDUMP CFLAGS ASFLAGS LDFLAGS ROOT SCRIPTS User
 
 image: user fat32.img
 
-# apps: _apps fat32.img
-
-# # use `make apps` instead of using `make _apps` directly
-# _apps:
-# 	make -C apps
 apps:
 	@cp apps/musl-1.2.4/lib/libc.so fsimg/
 	@cp apps/libc-test/disk/* fsimg/libc-test
@@ -295,11 +285,6 @@ user: apps
 	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/TEST/
 
-SRCSFILE = $(addprefix busybox/, $(BUSYBOX))
-
-busybox:
-	cp $(SRCSFILE) $(FSIMG)/busybox
-
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
 
@@ -311,7 +296,7 @@ fat32.img: dep
 	@sudo cp -r $(FSIMG)/* $(MNT_DIR)/
 	@sync $(MNT_DIR) && sudo umount -v $(MNT_DIR)
 
-$(shell mkdir mount_sd)
+# for sdcard.img(local test)
 mount:
 	@sudo mount -t vfat sdcard.img mount_sd
 umount:
@@ -332,7 +317,7 @@ clean-all: clean
 clean: 
 	-rm build/* kernel-qemu $(GENINC) -rf 
 
-.PHONY: qemu clean user clean-all format test oscomp dep image busybox apps mount umount submit
+.PHONY: qemu clean user clean-all format test oscomp dep image apps mount umount submit
 
 ## 6. Build Kernel
 include $(SCRIPTS)/build.mk

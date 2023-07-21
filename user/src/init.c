@@ -14,27 +14,14 @@ char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone:/lmbench", "LD_LIBRARY
 #define DEV_RTC 3
 #define DEV_CPU_DMA_LATENCY 0
 #define DEV_URANDOM 4
+#define AT_FDCWD -100
+
+#define CHECK(c, ...) ((c) ? 1 : (printf(#c "fail" __VA_ARGS__), exit(-1)))
 
 int main(void) {
     int pid, wpid;
 
-    // for /dev/null
-    mknod("/dev/null", S_IFCHR, DEV_NULL << 8);
-    // for /dev/zero
-    mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8);
-    // for /dev/cpu_dma_latency
-    mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
-    // for /dev/urandom(for iperf)
-    mknod("/dev/urandom", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
-    // for /dev/shm(libc-test)
-    mkdir("/dev/shm", 0666);
-
-    // (hwclock busybox-test)       
-    mkdir("/dev/misc", 0666);
-    mknod("/dev/misc/rtc", S_IFCHR, DEV_RTC << 8);
-    printf("mk* ok\n");
-
-    // for /dev/tty
+    mkdir("/dev", 0666);
     if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {
         mknod("/dev/tty", S_IFCHR, CONSOLE << 8);
         openat(AT_FDCWD, "/dev/tty", O_RDWR);
@@ -42,6 +29,20 @@ int main(void) {
 
     dup(0); // stdout
     dup(0); // stderr
+
+    // after we create tty, we can use printf
+    CHECK(mkdir("/proc", 0666) == 0);
+    CHECK(mkdir("/proc/mounts", 0666) == 0);
+    CHECK(openat(AT_FDCWD, "/proc/meminfo", O_RDWR | O_CREAT) > 0);
+    CHECK(mkdir("/tmp", 0666) == 0);
+    CHECK(mknod("/dev/null", S_IFCHR, DEV_NULL << 8) == 0);
+    CHECK(mknod("/dev/zero", S_IFCHR, DEV_ZERO << 8) == 0);
+    CHECK(mknod("/dev/cpu_dma_latency", S_IFCHR, DEV_CPU_DMA_LATENCY << 8) == 0);
+    CHECK(mkdir("/dev/shm", 0666) == 0);
+    CHECK(mkdir("/dev/misc", 0666) == 0);
+    CHECK(mknod("/dev/misc/rtc", S_IFCHR, DEV_RTC << 8) == 0);
+    // for /dev/urandom(for iperf)
+    // mknod("/dev/urandom", S_IFCHR, DEV_CPU_DMA_LATENCY << 8);
 
     printf("\n");
     printf("██╗      ██████╗ ███████╗████████╗██╗    ██╗ █████╗ ██╗  ██╗███████╗██╗   ██╗██████╗ \n");
