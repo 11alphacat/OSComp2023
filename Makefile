@@ -227,7 +227,7 @@ format:
 
 all: kernel-qemu
 	cp bootloader/sbi-qemu ./sbi-qemu
-	cp fsimg/boot/init initrd.img
+#   cp fsimg/boot/init initrd.img
 #	$(QEMU) $(QEMUOPTS)
 
 
