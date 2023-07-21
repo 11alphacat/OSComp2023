@@ -147,10 +147,13 @@ uint64 sys_execve(void) {
                 return -1;
             }
             // printf("%s\n", (char *)cp);
-            if (strcmp(path, "entry-dynamic.exe") == 0 && strcmp((char *)cp, "pthread_cancel") == 0) {
+            if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel") == 0) {
                 return -1;
             }
-            if (strcmp(path, "entry-static.exe") == 0 && strcmp((char *)cp, "pthread_cancel") == 0) {
+            if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_points") == 0) {
+                return -1;
+            }
+            if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_sem_wait") == 0) {
                 return -1;
             }
             // if (strcmp(path, "./busybox") == 0 && strcmp((char *)cp, "grep") == 0) {

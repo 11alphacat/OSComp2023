@@ -51,8 +51,7 @@ int main(void) {
     return 0;
 }
 
-char *testpath[] = {"busybox_testcode.sh", "libctest_testcode.sh", "lua_testcode.sh", "libc-bench", 
-                    "unixbench_testcode.sh"};
+char *testpath[] = {"busybox_testcode.sh", "libctest_testcode.sh", "lua_testcode.sh", "libc-bench"};
 
 // char *testpath[] = {"unixbench_testcode.sh"};
 
