@@ -1,7 +1,7 @@
 #ifndef __PARAM_H__
 #define __PARAM_H__
 
-#define NPROC 100 // maximum number of processes
+#define NPROC 500 // maximum number of processes
 #define NTCB_PER_PROC 5
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
 #define NOFILE 400 // open files per process

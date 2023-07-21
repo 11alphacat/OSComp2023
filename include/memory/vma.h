@@ -6,7 +6,7 @@
 #include "memory/mm.h"
 #include "lib/list.h"
 
-#define NVMA 1000
+#define NVMA 3000
 
 // mmap
 #define MAP_FILE 0

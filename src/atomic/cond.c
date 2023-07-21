@@ -52,13 +52,13 @@ void cond_signal(struct cond *cond) {
 
     if (!Queue_isempty_atomic(&cond->waiting_queue)) {
         t = (struct tcb *)Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
+        acquire(&t->lock);
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");
         if (t->state != TCB_SLEEPING) {
             printf("%s\n", t->state);
             panic("cond signal : this thread is not sleeping");
         }
-        acquire(&t->lock);
         ASSERT(t->wait_chan_entry != NULL);
         t->wait_chan_entry = NULL;
         TCB_Q_changeState(t, TCB_RUNNABLE);
@@ -72,6 +72,7 @@ void cond_broadcast(struct cond *cond) {
     while (!Queue_isempty_atomic(&cond->waiting_queue)) {
         t = (struct tcb *)Queue_provide_atomic(&cond->waiting_queue, 1); // remove it
 
+        acquire(&t->lock);
         if (t == NULL)
             panic("cond signal : this cond has no object waiting queue");
         if (t->state != TCB_SLEEPING) {
@@ -79,7 +80,6 @@ void cond_broadcast(struct cond *cond) {
             printf("%s\n", t->state);
             panic("cond broadcast : this thread is not sleeping");
         }
-        acquire(&t->lock);
         ASSERT(t->wait_chan_entry != NULL);
         t->wait_chan_entry = NULL;
         TCB_Q_changeState(t, TCB_RUNNABLE);

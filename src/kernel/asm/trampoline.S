@@ -23,13 +23,13 @@ uservec:
         # in supervisor mode, but with a user page table.
 
         # save user a0 in stack
-        # a0 can be used to get at TRAPFRAME.
+        # a0 can be used to get TRAPFRAME.
         addi sp, sp, -32
         sd a0, 0(sp)
         sd a1, 8(sp)
         sd a2, 16(sp)
 
-get_trapframe:
+        # get_trapframe
         li a0, TRAPFRAME
         li a1, 1024*4
         csrr a2, sscratch

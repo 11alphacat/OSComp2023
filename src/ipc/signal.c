@@ -71,9 +71,9 @@ int signal_send(siginfo_t *info, struct tcb *t) {
 
     // signo
     sig_t sig = info->si_signo;
-    if (sig_ignored(t, sig) || sig_existed(t, sig)) {
-        return 0;
-    }
+    // if (sig_ignored(t, sig) || sig_existed(t, sig)) {
+    //     return 0;
+    // }
 
     // be killed immediately !!!
     if (sig == SIGKILL || sig == SIGSTOP || sig == SIGTERM) {

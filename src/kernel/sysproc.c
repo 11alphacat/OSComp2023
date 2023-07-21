@@ -388,7 +388,7 @@ uint64 sys_kill(void) {
 
     struct proc *p;
     if ((p = find_get_pid(pid)) == NULL)
-        return -1;
+        return 0; // NOTE:test
         // release(&p->lock);
 
 #ifdef __DEBUG_PROC__

@@ -2,10 +2,10 @@
 .DEFAULT_GOAL=kernel
 
 # configuration ###############
-# PLATFORM ?= qemu_virt
-PLATFORM ?= qemu_sifive_u
+PLATFORM ?= qemu_virt
+# PLATFORM ?= qemu_sifive_u
 # PLATFORM ?= board_sifive_u
-SUBMIT ?= 0
+SUBMIT ?= 1
 ###############################
 
 # debug options

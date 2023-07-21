@@ -51,8 +51,10 @@ int main(void) {
     return 0;
 }
 
-char *testpath[] = {"./time-test", "busybox_testcode.sh", "libctest_testcode.sh", "lua_testcode.sh", "libc-bench"};
+char *testpath[] = {"./time-test", "busybox_testcode.sh", "libctest_testcode.sh", 
+                    "lua_testcode.sh", "libc-bench", "unixbench_testcode.sh"};
 
+// char *testpath[] = {"libctest_testcode.sh"};
 // char *testpath[] = {"unixbench_testcode.sh"};
 
 // number of elements in fixed-size array
