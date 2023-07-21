@@ -227,9 +227,14 @@ void init_ret(void) {
     extern struct _superblock fat32_sb;
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
+#ifdef SUBMIT
+    printf("submit-init return\n");
+    return;
+#else
     struct binprm bprm;
     memset(&bprm, 0, sizeof(bprm));
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", &bprm);
+#endif
 }
 
 // find the proc we search using hash map
