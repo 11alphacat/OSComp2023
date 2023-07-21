@@ -226,7 +226,7 @@ format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 all: kernel-qemu
-	cp bootloader/sbi-qemu ./sbi-qemu
+	cp bootloader/opensbi-qemu ./sbi-qemu
 #   cp fsimg/boot/init initrd.img
 #	$(QEMU) $(QEMUOPTS)
 
