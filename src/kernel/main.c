@@ -41,10 +41,8 @@ extern char _entry[];
 
 int debug_lock = 0;
 
-#ifdef SIFIVE_U
 int first_core = 1;
 int first_hartid = 0;
-// multicore boot of sifive_u
 void hart_start() {
     for (int i = 0; i < NCPU; i++) {
         if (i != first_hartid) {
@@ -54,12 +52,9 @@ void hart_start() {
         }
     }
 }
-#endif
+
 // start() jumps here in supervisor mode on all CPUs.
 void main(uint64 hartid) {
-#if defined(VIRT)
-    if (cpuid() == 0) {
-#elif defined(SIFIVE_U) || defined(SIFIVE_B)
     if (first_core == 1) {
         first_core = 0;
         first_hartid = hartid;
@@ -67,7 +62,6 @@ void main(uint64 hartid) {
         // for (int i = 0; i < NCPU; i++) {
         //     status[i] = sbi_hart_get_status(i);
         // }
-#endif
         // console and printf
         consoleinit();
         null_zero_dev_init();
@@ -133,9 +127,7 @@ void main(uint64 hartid) {
         // pdflush_init();
         __sync_synchronize();
 
-#if defined(SIFIVE_U) || defined(SIFIVE_B)
         hart_start();
-#endif
         printf("hart %d starting\n", cpuid());
         started = 1;
     } else {
