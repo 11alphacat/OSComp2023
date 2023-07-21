@@ -18,8 +18,8 @@ busybox uptime                                  [ok]
 busybox printf "abc\n"                          [ok]
 busybox ps                                      [ok]
 busybox pwd                                     [ok]
-busybox free                    [fail]             free: applet not found      
-busybox hwclock                 [fail]             can't open '/dev/misc/rtc': Operation not permitted 
+busybox free                    [fail: ignore]             free: applet not found      
+busybox hwclock                 [ok]             can't open '/dev/misc/rtc': Operation not permitted 
 busybox kill 10                                 [ok]
 busybox ls                                      [ok]    : rewrite sys_fcntl
 busybox sleep 1                                 [ok]
@@ -56,3 +56,4 @@ busybox find -name "busybox_cmd.txt"            [ok]
 
    
 busybox sh busybox/busybox_testcode.sh
+busybox sh lua/lua_testcode.sh

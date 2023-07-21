@@ -7,15 +7,15 @@
 
 // #define DMA_NCHANNEL    4
 // the memory map of the PDMA control registers  ( 0 <= chanID <= 3)
-#define DMA_CONTROL(chanID) *(unsigned int *)(DMA_CHANNEL_BASE(chanID) + 0x000)           // Channel Control Register (RW)
-#define DMA_NEXT_CONFIG(chanID) *(unsigned int *)(DMA_CHANNEL_BASE(chanID) + 0x004)       // Next transfer type (RW)
-#define DMA_NEXT_BYTES(chanID) *(unsigned long *)(DMA_CHANNEL_BASE(chanID) + 0x008)       // Number of bytes to move (RW)
-#define DMA_NEXT_DESTINATION(chanID) *(unsigned long *)(DMA_CHANNEL_BASE(chanID) + 0x010) // Destination start address (RW)
-#define DMA_NEXT_SOURCE(chanID) *(unsigned long *)(DMA_CHANNEL_BASE(chanID) + 0x018)      // Source start address (RW)
-#define DMA_EXEC_CONFIG(chanID) *(unsigned int *)(DMA_CHANNEL_BASE(chanID) + 0x104)       // Active transfer type (RO)
-#define DMA_EXEC_BYTES(chanID) *(unsigned long *)(DMA_CHANNEL_BASE(chanID) + 0x108)       // Number of bytes remaining (RO)
-#define DMA_EXEC_DESTINATION(chanID) *(unsigned long *)(DMA_CHANNEL_BASE(chanID) + 0x110) // Destination current address (RO)
-#define DMA_EXEC_SOURCE(chanID) *(unsigned long *)(DMA_CHANNEL_BASE(chanID) + 0x118)      // Source current address (RO)
+#define DMA_CONTROL(chanID)             *(volatile unsigned int*)(DMA_CHANNEL_BASE(chanID) + 0x000) // Channel Control Register (RW)
+#define DMA_NEXT_CONFIG(chanID)         *(volatile unsigned int*)(DMA_CHANNEL_BASE(chanID) + 0x004) // Next transfer type (RW)
+#define DMA_NEXT_BYTES(chanID)          *(volatile unsigned long*)(DMA_CHANNEL_BASE(chanID) + 0x008) // Number of bytes to move (RW)
+#define DMA_NEXT_DESTINATION(chanID)    *(volatile unsigned long*)(DMA_CHANNEL_BASE(chanID) + 0x010) // Destination start address (RW)
+#define DMA_NEXT_SOURCE(chanID)         *(volatile unsigned long*)(DMA_CHANNEL_BASE(chanID) + 0x018) // Source start address (RW)
+#define DMA_EXEC_CONFIG(chanID)         *(volatile unsigned int*)(DMA_CHANNEL_BASE(chanID) + 0x104) // Active transfer type (RO)
+#define DMA_EXEC_BYTES(chanID)          *(volatile unsigned long*)(DMA_CHANNEL_BASE(chanID) + 0x108) // Number of bytes remaining (RO)
+#define DMA_EXEC_DESTINATION(chanID)    *(volatile unsigned long*)(DMA_CHANNEL_BASE(chanID) + 0x110) // Destination current address (RO)
+#define DMA_EXEC_SOURCE(chanID)         *(volatile unsigned long*)(DMA_CHANNEL_BASE(chanID) + 0x118) // Source current address (RO)
 
 // control register
 #define CLAIM_FIELD 0

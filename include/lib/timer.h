@@ -6,6 +6,7 @@
 #include "atomic/spinlock.h"
 #include "lib/sbi.h"
 #include "lib/riscv.h"
+#include "memory/memlayout.h"
 
 // #define SET_TIMER() sbi_legacy_set_timer(*(uint64 *)CLINT_MTIME + CLINT_INTERVAL)
 #define SET_TIMER() sbi_legacy_set_timer(rdtime() + CLINT_INTERVAL)
