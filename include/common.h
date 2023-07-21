@@ -100,7 +100,12 @@ extern struct devsw devsw[];
 #define CLOCK_SGI_CYCLE 10
 #define CLOCK_TAI 11
 
-#define FREQUENCY 12500000 // qemu时钟频率12500000
+#if defined(SIFIVE_B) || defined(SIFIVE_U)
+    #define FREQUENCY 1000000 // The CPU real time clock (rtcclk) runs at 1 MHz and is driven from input pin RTCCLKIN
+#else 
+    #define FREQUENCY 12500000 // qemu时钟频率12500000
+#endif
+
 #define TIME2SEC(time) (time / FREQUENCY)
 #define TIME2MS(time) (time * 1000 / FREQUENCY)
 #define TIME2US(time) (time * 1000 * 1000 / FREQUENCY)

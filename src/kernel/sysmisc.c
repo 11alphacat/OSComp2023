@@ -125,6 +125,9 @@ uint64 sys_gettimeofday(void) {
  */
 uint64 sys_nanosleep(void) {
     /* NOTE:currently, we do not support rem! */
+// #if defined (SIFIVE_U) || defined (SIFIVE_B)
+//     return 0;
+// #endif
     uint64 req;
     argaddr(0, &req);
 

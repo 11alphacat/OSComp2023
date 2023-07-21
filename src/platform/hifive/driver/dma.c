@@ -1,5 +1,6 @@
 #include "platform/hifive/dma_hifive.h"
 #include "platform/hifive/pml_hifive.h"
+#include "memory/memlayout.h"
 #include "param.h"
 #include "atomic/semaphore.h"
 #include "debug.h"
@@ -26,15 +27,24 @@ printf("%d",reg_control);
         panic("dma_req: dma still running!");
     }
     
-    DMA_CONTROL(chanID) |= (1 << CLAIM_FIELD) | (1 << DONEIE_FIELD); // claim and set the doneIE
+    DMA_CONTROL(chanID) = 0;
+    DMA_CONTROL(chanID) |= (1 << CLAIM_FIELD) | (1 << DONEIE_FIELD) | (1 << ERRORIE_FIELD); // claim and set the doneIE
     DMA_NEXT_CONFIG(chanID) = 0;
     DMA_NEXT_SOURCE(chanID) = pa_src;
     DMA_NEXT_DESTINATION(chanID) = pa_des;
     DMA_NEXT_BYTES(chanID) = nr_bytes;
+printf("Next bytes: %d\n",DMA_NEXT_BYTES(chanID));
+printf("Next source: 0x%x\n",DMA_NEXT_SOURCE(chanID));
+printf("Next destination: 0x%x\n",DMA_NEXT_DESTINATION(chanID));
 
     // run
-    DMA_CONTROL(chanID) |= (1 << RUN_FIELD); 
+    wmb();
+    DMA_CONTROL(chanID) |= (1 << RUN_FIELD);
+printf("dma control: 0x%x\n", DMA_CONTROL(chanID));
 
+printf("Exec bytes: %d\n",DMA_EXEC_BYTES(chanID));
+printf("Exec source: 0x%x\n",DMA_EXEC_SOURCE(chanID));
+printf("Exec destination: 0x%x\n",DMA_EXEC_DESTINATION(chanID));
     sema_wait(&dma[hart].done);
     return;
 }

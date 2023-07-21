@@ -41,7 +41,7 @@
 #define CLINT 0x2000000L
 // #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8 * (hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
-#define CLINT_INTERVAL 1000000       // cycles; about 1/10th second in qemu.
+#define CLINT_INTERVAL 200000       // 
 
 // hifive u740 puts platform-level interrupt controller (PLIC_BASE) here. (width=4B)
 #define PLIC_BASE ((unsigned long)0x0C000000)

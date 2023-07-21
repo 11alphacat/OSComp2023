@@ -41,6 +41,8 @@ static char *cause[16] = {
 void trapinithart(void) {
     w_stvec((uint64)kernelvec);
     w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
+// uint64 time = rdtime();
+// printf("time = %d\n",time); 
     SET_TIMER();
 }
 
@@ -319,7 +321,7 @@ int devintr() {
         if (irq == UART0_IRQ) {
             uartintr();
         }
-#ifdef SIFIVE_U
+#if defined(SIFIVE_U) || defined(SIFIVE_B)
         // TODO()
         if (irq >= DMA_IRQ_START && irq <= DMA_IRQ_END) {
             dma_intr(irq);
@@ -345,7 +347,7 @@ int devintr() {
         return 1;
 
     } else if (scause == 0x8000000000000005L) {
-        if (cpuid() == 0) {
+        if (cpuid() == 1) {         // bugs: can't be 0 when based on sifive_u
             clockintr();
         }
         SET_TIMER();

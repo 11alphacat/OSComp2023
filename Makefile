@@ -199,14 +199,14 @@ QEMUOPTS = -machine virt -kernel kernel-qemu -m 128M -nographic -smp 2 -bios sbi
 endif
 
 ifeq ($(PLATFORM), qemu_sifive_u)
-QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 130M -nographic
+QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 8G -nographic
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
 CFLAGS += -DSIFIVE_U
 endif
 
 ifeq ($(PLATFORM), board_sifive_u)
-QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 130M -nographic
+# QEMUOPTS = -machine sifive_u -bios bootloader/sbi-sifive -kernel kernel-qemu -m 8G -nographic
 QEMUOPTS += -smp $(CPUS)
 QEMUOPTS += -drive file=fat32.img,if=sd,format=raw 
 CFLAGS += -DSIFIVE_B
