@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include "string.h"
 
+
 // char *argv[] = {"/busybox/busybox", "sh", 0};
 char *envp[] = {"PATH=/", "LD_LIBRARY_PATH=/", 0};
 
@@ -20,6 +21,7 @@ char *envp[] = {"PATH=/", "LD_LIBRARY_PATH=/", 0};
 void runtest();
 
 int main(void) {
+    print_vma();
     mkdir("/dev", 0666);
     if (openat(AT_FDCWD, "/dev/tty", O_RDWR) < 0) {
         mknod("/dev/tty", S_IFCHR, CONSOLE << 8);
