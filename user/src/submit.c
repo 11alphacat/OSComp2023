@@ -30,6 +30,7 @@ int main(void) {
     dup(0); // stderr
 
     // after we create tty, we can use printf
+    printf("submit start\n");
     // CHECK(0 + 0, "%s\n", "test");
     CHECK(mkdir("/proc", 0666) == 0);
     CHECK(mkdir("/proc/mounts", 0666) == 0);
@@ -42,6 +43,7 @@ int main(void) {
     CHECK(mkdir("/dev/misc", 0666) == 0);
     CHECK(mknod("/dev/misc/rtc", S_IFCHR, DEV_RTC << 8) == 0);
 
+    printf("ready to run test\n");
     runtest();
     shutdown();
     return 0;

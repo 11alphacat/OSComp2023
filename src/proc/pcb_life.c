@@ -838,5 +838,6 @@ void oscomp_init(void) {
     TCB_Q_changeState(t, TCB_RUNNABLE);
     // release(&t->lock);
     release(&p->lock);
+    printf("init finished!\n");
     return;
 }
