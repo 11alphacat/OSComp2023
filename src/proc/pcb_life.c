@@ -814,8 +814,8 @@ void uvminit(struct mm_struct *mm, uchar *src, uint sz) {
 
     // print_vma(&mm->head_vma);
     // stack
-    uvm_thread_stack(pagetable, 0);
-    if (vma_map(mm, USTACK, USTACK_PAGE * PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
+    uvm_thread_stack(pagetable, 10);
+    if (vma_map(mm, USTACK, 10 * PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
         panic("uvminit: vma_map failed");
     }
 
@@ -836,7 +836,7 @@ void oscomp_init(void) {
 
     // prepare for the very first "return" from kernel to user.
     t->trapframe->epc = 0;
-    t->trapframe->sp = USTACK + USTACK_PAGE * PGSIZE;
+    t->trapframe->sp = USTACK + 5 * PGSIZE;
 
     safestrcpy(p->name, "/init", 10);
     // acquire(&t->lock);

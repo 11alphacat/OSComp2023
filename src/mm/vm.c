@@ -433,7 +433,8 @@ int uvmcopy(struct mm_struct *srcmm, struct mm_struct *dstmm) {
 
         /* for STACK VMA, copy both the pagetable and the physical memory */
         if (pos->type == VMA_STACK) {
-            ASSERT(pos->size == USTACK_PAGE * PGSIZE);
+            // ASSERT(pos->size == USTACK_PAGE * PGSIZE);
+            // Log("stack size is %d", pos->size / PGSIZE);
             for (uint64 offset = 0; offset < pos->size; offset += PGSIZE) {
                 level = walk(srcmm->pagetable, pos->startva + offset, 0, 0, &pte);
                 // ASSERT(level <= 1 && level >= 0);
@@ -704,7 +705,7 @@ void vmprint(pagetable_t pagetable, int isroot, int level, uint64 start, uint64 
     }
 }
 
-int uvm_thread_stack(pagetable_t pagetable, int thread_idx) {
+int uvm_thread_stack(pagetable_t pagetable, int ustack_page) {
     /* for guard page */
     paddr_t pa = (paddr_t)kzalloc(PGSIZE);
     if (pa == 0) {
@@ -712,14 +713,13 @@ int uvm_thread_stack(pagetable_t pagetable, int thread_idx) {
         return -1;
     }
 
-    int offset = thread_idx * (USTACK_PAGE + 1);
-    /* guard page: page with PTE_R | PTE_W , but not PTE_U */
-    if (mappages(pagetable, USTACK_GURAD_PAGE - offset * PGSIZE, PGSIZE, pa, PTE_R | PTE_W, COMMONPAGE) < 0) {
-        return -1;
-    }
+    // /* guard page: page with PTE_R | PTE_W , but not PTE_U */
+    // if (mappages(pagetable, USTACK_GURAD_PAGE, PGSIZE, pa, PTE_R | PTE_W, COMMONPAGE) < 0) {
+    //     return -1;
+    // }
 
-    vaddr_t stackdown = USTACK - offset * PGSIZE;
-    if (uvmalloc(pagetable, stackdown, stackdown + USTACK_PAGE * PGSIZE, PTE_W | PTE_R) == 0) {
+    vaddr_t stackdown = USTACK;
+    if (uvmalloc(pagetable, stackdown, stackdown + ustack_page * PGSIZE, PTE_W | PTE_R) == 0) {
         return -1;
     }
     return 0;

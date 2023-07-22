@@ -40,6 +40,8 @@ struct binprm {
 
     /* reserve for xv6_user program */
     uint64 a1, a2;
+
+    int stack_limit;
 };
 
 struct interpreter {

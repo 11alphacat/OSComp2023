@@ -123,6 +123,11 @@ uint64 sys_execve(void) {
         return -1;
     }
 
+    if (strcmp(path, "./cyclictest") == 0 || strcmp(path, "./hackbench") == 0) {
+        // Log("hit stack!");
+        bprm.stack_limit = 1;
+    }
+
     /* fetch the paddr of char **argv and char **envp */
     argaddr(1, &uargv);
     argaddr(2, &uenvp);

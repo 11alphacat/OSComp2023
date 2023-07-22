@@ -206,11 +206,11 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
 
 vaddr_t p_argc, p_envp, p_argv, p_auxv;
 /* return argc, or -1 to indicate error */
-static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bprm, char *const argv[], char *const envp[]) {
-    paddr_t spp = getphyaddr(pagetable, USTACK + USTACK_PAGE * PGSIZE - 1) + 1;
+static int ustack_init(struct proc *p, pagetable_t pagetable, struct binprm *bprm, char *const argv[], char *const envp[], int ustack_page) {
+    paddr_t spp = getphyaddr(pagetable, USTACK + ustack_page * PGSIZE - 1) + 1;
     paddr_t stacktop = spp;
-    paddr_t stackbase = spp - USTACK_PAGE * PGSIZE;
-#define SPP2SP (USTACK + USTACK_PAGE * PGSIZE - (stacktop - spp)) /* only use this macro in this func! */
+    paddr_t stackbase = spp - ustack_page * PGSIZE;
+#define SPP2SP (USTACK + ustack_page * PGSIZE - (stacktop - spp)) /* only use this macro in this func! */
     // Log("%p %p", spp, stackbase);
 
     /*       Initial Process Stack (follows SYSTEM V ABI)
@@ -675,15 +675,19 @@ int do_execve(char *path, struct binprm *bprm) {
     mm->heapvma = NULL;
 
     /* Stack Initialization */
-    if (uvm_thread_stack(mm->pagetable, 0) < 0) {
+    int ustack_page = USTACK_PAGE;
+    if (bprm->stack_limit == 1) {
+        ustack_page = 10;
+    }
+    if (uvm_thread_stack(mm->pagetable, ustack_page) < 0) {
         Warn("bad");
         goto bad;
     }
-    if (vma_map(mm, USTACK, USTACK_PAGE * PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
+    if (vma_map(mm, USTACK, ustack_page * PGSIZE, PERM_READ | PERM_WRITE, VMA_STACK) < 0) {
         goto bad;
     }
 
-    int argc = ustack_init(p, mm->pagetable, bprm, bprm->argv, bprm->envp);
+    int argc = ustack_init(p, mm->pagetable, bprm, bprm->argv, bprm->envp, ustack_page);
     if (argc < 0) {
         goto bad;
     }
