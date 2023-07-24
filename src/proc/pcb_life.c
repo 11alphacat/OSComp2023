@@ -139,6 +139,9 @@ struct proc *alloc_proc(void) {
     // setitimer
     p->real_timer.expires = 0;
     p->real_timer.interval = 0;
+    p->stub_time = rdtime();
+    p->utime = 0;
+    p->stime = 0;
 
     // bug!!!
     INIT_LIST_HEAD(&p->real_timer.list);

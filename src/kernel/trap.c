@@ -41,8 +41,8 @@ static char *cause[16] = {
 void trapinithart(void) {
     w_stvec((uint64)kernelvec);
     w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
-// uint64 time = rdtime();
-// printf("time = %d\n",time); 
+    // uint64 time = rdtime();
+    // printf("time = %d\n",time);
     SET_TIMER();
 }
 
@@ -156,10 +156,11 @@ void thread_usertrap(void) {
     struct proc *p = proc_current();
     struct tcb *t = thread_current();
 
-    p->last_in = rdtime();
-    p->utime += rdtime() - p->last_out;
+    // p->last_in = rdtime();
+    // p->utime += rdtime() - p->last_out;
 
     // save user program counter.
+    p->utime += rdtime() - p->stub_time;
     t->trapframe->epc = r_sepc();
 
     uint64 cause = r_scause();
@@ -173,11 +174,13 @@ void thread_usertrap(void) {
         // but we want to return to the next instruction.
         t->trapframe->epc += 4;
 
+        p->stub_time = rdtime();
         // an interrupt will change sepc, scause, and sstatus,
         // so enable only now that we're done with those registers.
         intr_on();
 
         syscall();
+        p->stime += rdtime() - p->stub_time;
     } else if ((which_dev = devintr()) != 0) {
         // ok
     } else {
@@ -225,9 +228,10 @@ void thread_usertrapret() {
     // kerneltrap() to usertrap(), so turn off interrupts until
     // we're back in user space, where usertrap() is correct.
     intr_off();
+    p->stub_time = rdtime();
 
-    p->last_out = rdtime();
-    p->stime += rdtime() - p->last_in;
+    // p->last_out = rdtime();
+    // p->stime += rdtime() - p->last_in;
 
     // send syscalls, interrupts, and exceptions to uservec in trampoline.S
     uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
@@ -347,7 +351,7 @@ int devintr() {
         return 1;
 
     } else if (scause == 0x8000000000000005L) {
-        if (cpuid() == 1) {         // bugs: can't be 0 when based on sifive_u
+        if (cpuid() == 1) { // bugs: can't be 0 when based on sifive_u
             clockintr();
         }
         SET_TIMER();

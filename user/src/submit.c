@@ -54,8 +54,17 @@ int main(void) {
     return 0;
 }
 
-char *testpath[] = {"./cyclictest_testcode.sh", "lmbench_testcode.sh", "./time-test", "busybox_testcode.sh", "libctest_testcode.sh", 
-                    "lua_testcode.sh", "libc-bench", "unixbench_testcode.sh", "iozone_testcode.sh"};
+char *testpath[] = {
+    // "./time-test",
+    // "busybox_testcode.sh",
+    // "libctest_testcode.sh",
+    // "lua_testcode.sh",
+    // "libc-bench",
+    // "unixbench_testcode.sh",
+    // "iozone_testcode.sh",
+    // "./cyclictest_testcode.sh",
+    "lmbench_testcode.sh",
+};
 
 // char *testpath[] = {"./cyclictest_testcode.sh", "libc-bench"};
 // char *testpath[] = {"libctest_testcode.sh"};
