@@ -322,7 +322,7 @@ void free_socket(struct socket *sock) {
     // }
     sock->used = 0;
     if (free_mapping(sock->src_port) < 0) {
-        Warn("free failed");
+        // Warn("free failed");
     }
     info_socket(SYS_close, 0, sock);
     return;
@@ -361,7 +361,7 @@ uint64 sys_socket(void) {
     sock->file = fp;
     sock->type = type;
     if (sock->sbuf.type == NONE) {
-        sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
+        sbuf_init(&sock->sbuf, 10 * PGSIZE / sizeof(char));
         sock->sbuf.type = SOCKET_SBUF;
     }
     // sock.family = domain;
@@ -392,7 +392,7 @@ int create_sockfp(int type) {
     sock->type = type;
 
     if (sock->sbuf.type == NONE) {
-        sbuf_init(&sock->sbuf, PGSIZE / sizeof(char));
+        sbuf_init(&sock->sbuf, 10 * PGSIZE / sizeof(char));
         sock->sbuf.type = SOCKET_SBUF;
     }
 
@@ -405,6 +405,9 @@ uint64 socket_write(struct socket *sock, vaddr_t addr, int len) {
     int ret = 0;
     // TODO, fix len
     for (int i = 0; i < len; i++) {
+        if(sock->used == 0) {
+            break;
+        }
         if (sbuf_full(&sock->sbuf)) {
             // Log("break");
             break;
@@ -424,6 +427,9 @@ uint64 socket_read(struct socket *sock, vaddr_t addr, int len) {
 
     int ret = 0;
     for (int i = 0; i < len; i++) {
+        if(sock->used == 0) {
+            break;
+        }
         if (sbuf_empty(&sock->sbuf)) {
             // Log("break");
             break;

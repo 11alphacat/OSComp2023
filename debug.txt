@@ -68,3 +68,5 @@ crtl + shift +v , 将markdown渲染
 git:
 git pull --rebase origin final
 git rebase --continue
+git checkout -b [分支名]
+git rebase [分支名]
