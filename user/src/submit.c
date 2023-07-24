@@ -35,6 +35,9 @@ int main(void) {
     printf("submit start\n");
     // CHECK(0 + 0, "%s\n", "test");
     CHECK(mkdir("/proc", 0666) == 0);
+    CHECK(mkdir("/var", 0666) == 0);
+    CHECK(mkdir("/var/tmp", 0666) == 0);
+    CHECK(mkdir("/var/tmp/lmbench", 0666) == 0);
     CHECK(mkdir("/proc/mounts", 0666) == 0);
     CHECK(openat(AT_FDCWD, "/proc/meminfo", O_RDWR | O_CREAT) > 0);
     CHECK(mkdir("/tmp", 0666) == 0);
@@ -51,8 +54,8 @@ int main(void) {
     return 0;
 }
 
-char *testpath[] = {"./time-test", "./cyclictest_testcode.sh", "busybox_testcode.sh", "libctest_testcode.sh", 
-                    "lua_testcode.sh", "libc-bench", "unixbench_testcode.sh"};
+char *testpath[] = {"./cyclictest_testcode.sh", "lmbench_testcode.sh", "./time-test", "busybox_testcode.sh", "libctest_testcode.sh", 
+                    "lua_testcode.sh", "libc-bench", "unixbench_testcode.sh", "iozone_testcode.sh"};
 
 // char *testpath[] = {"./cyclictest_testcode.sh", "libc-bench"};
 // char *testpath[] = {"libctest_testcode.sh"};

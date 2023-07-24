@@ -27,7 +27,7 @@ static uint64 START = 0;
 
 struct interpreter ldso;
 void print_ustack(pagetable_t pagetable, uint64 stacktop);
-char *lmpath[] = {"/lmbench/lmbench_all", "lmbench_all"};
+char *lmpath[] = {"//lmbench_all", "lmbench_all"};
 
 #define AUX_CNT 38
 
@@ -677,7 +677,7 @@ int do_execve(char *path, struct binprm *bprm) {
     /* Stack Initialization */
     int ustack_page = USTACK_PAGE;
     if (bprm->stack_limit == 1) {
-        ustack_page = 10;
+        ustack_page = 40;
     }
     if (uvm_thread_stack(mm->pagetable, ustack_page) < 0) {
         Warn("bad");

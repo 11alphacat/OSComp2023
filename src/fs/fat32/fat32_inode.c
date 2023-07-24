@@ -209,17 +209,19 @@ uint fat32_cluster_alloc(uint dev) {
     // if((tmp = fat32_next_cluster(fat32_sb.fat32_sb_info.nxt_free))) {
 
     // }
-    int hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
-    uint fat_next = fat32_fat_alloc(hint);
-    if (fat_next == 0)
-        panic("no more space");
+    int hint;
+    uint fat_next;
+retry:
+    hint = fat32_sb.fat32_sb_info.hint_valid ? fat32_sb.fat32_sb_info.nxt_free : 0;
+    fat_next = fat32_fat_alloc(hint);    
     fat32_sb.fat32_sb_info.nxt_free = fat_next + 1; // !!!
     if (fat32_sb.fat32_sb_info.nxt_free >= FAT_CLUSTER_MAX) {
         fat32_sb.fat32_sb_info.nxt_free = 3;
     }
     fat32_sb.fat32_sb_info.hint_valid = 1; // using hint!
+    if (fat_next == 0)
+        goto retry;
     free_num = fat_next;                   // bug !!!
-
     // the first sector
 
     // int first_sector = FirstSectorofCluster(fat32_sb.fat32_sb_info.nxt_free);

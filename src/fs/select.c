@@ -2,12 +2,15 @@
 #include "kernel/syscall.h"
 #include "fs/select.h"
 #include "ipc/signal.h"
+#include "proc/tcb_life.h"
 #include "proc/pcb_life.h"
 #include "lib/poll.h"
 #include "errno.h"
 #include "memory/allocator.h"
 #include "debug.h"
 #include "ipc/pipe.h"
+
+extern struct cond cond_ticks;
 
 int do_select(int nfds, fd_set_bits *fds, uint64 timeout) {
     int retval;
@@ -339,7 +342,12 @@ uint64 sys_pselect6(void) {
             // printfGreen("select , pid : %d exit\n", proc_current()->pid);// debug
             break;
         } else {
-            // TODO : set a waiting queue
+            acquire(&cond_ticks.waiting_queue.lock);
+            struct tcb* t = thread_current();
+            t->time_out = time_out;
+            cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
+            release(&cond_ticks.waiting_queue.lock);
+            break;
         }
     }
 

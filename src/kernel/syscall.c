@@ -323,19 +323,14 @@ int is_strace_target(int num) {
         // if (num == SYS_getuid) {
         //     return 0;
         // }
-        if (num == SYS_execve) {
-            return 1;
-        } else {
-            return 0;
-        }
         // if (num == SYS_kill || num == SYS_rt_sigreturn) {
         //     return 0;
         // }
-        // if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
-        //     return 0;
-        // }
-        printfYELLOW("syscall num is %d\n", num);
-        return 1;
+        if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
+            return 0;
+        }
+        // printfYELLOW("syscall num is %d\n", num);
+        // return 1;
         // if (num == SYS_clock_gettime || num == SYS_nanosleep || num == SYS_clock_nanosleep) {
         //     return 0;
         // }

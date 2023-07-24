@@ -1,6 +1,6 @@
 #!/bin/bash
-# echo latency measurements
-# lmbench_all lat_syscall -P 1 null[ok]
+echo latency measurements
+lmbench_all lat_syscall -P 1 null
 # lmbench_all lat_syscall -P 1 read[ok]
 # lmbench_all lat_syscall -P 1 write[ok]
 
