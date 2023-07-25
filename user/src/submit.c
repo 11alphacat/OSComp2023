@@ -4,9 +4,15 @@
 #include "stdio.h"
 #include "string.h"
 
-
 // char *argv[] = {"/busybox/busybox", "sh", 0};
-char *envp[] = {"PATH=/", "LD_LIBRARY_PATH=/", 0};
+char *envp[] = {
+    "PATH=/",
+    "LD_LIBRARY_PATH=/",
+    "ENOUGH=3000",
+    "TIMING_O=7",
+    "LOOP_O=0",
+    NULL,
+};
 
 #define CONSOLE 1
 #define DEV_NULL 2
@@ -55,14 +61,14 @@ int main(void) {
 }
 
 char *testpath[] = {
-    // "./time-test",
-    // "busybox_testcode.sh",
-    // "libctest_testcode.sh",
-    // "lua_testcode.sh",
-    // "libc-bench",
-    // "unixbench_testcode.sh",
-    // "iozone_testcode.sh",
+    "./time-test",
+    "busybox_testcode.sh",
     // "./cyclictest_testcode.sh",
+    "iozone_testcode.sh",
+    "libctest_testcode.sh",
+    "lua_testcode.sh",
+    "libc-bench",
+    "unixbench_testcode.sh",
     "lmbench_testcode.sh",
 };
 

@@ -152,6 +152,12 @@ uint64 sys_execve(void) {
                 return -1;
             }
             // printf("%s\n", (char *)cp);
+            if (i == 5 && strcmp((char *)cp, "lat_sig") == 0) {
+                return -1;
+            }
+            if (i == 1 && strcmp((char *)cp, "bw_pipe") == 0) {
+                return -1;
+            }
             // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel") == 0) {
             //     return -1;
             // }
