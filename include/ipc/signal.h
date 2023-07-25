@@ -149,28 +149,6 @@ struct sigcontext {
     // union __riscv_fp_state sc_fpregs;
 };
 
-// struct __riscv_mc_f_ext_state {
-// 	unsigned int __f[32];
-// 	unsigned int __fcsr;
-// };
-
-// struct __riscv_mc_d_ext_state {
-// 	unsigned long long __f[32];
-// 	unsigned int __fcsr;
-// };
-
-// struct __riscv_mc_q_ext_state {
-// 	unsigned long long __f[64] __attribute__((aligned(16)));
-// 	unsigned int __fcsr;
-// 	unsigned int __reserved[3];
-// };
-
-// union __riscv_mc_fp_state {
-// 	struct __riscv_mc_f_ext_state __f;
-// 	struct __riscv_mc_d_ext_state __d;
-// 	struct __riscv_mc_q_ext_state __q;
-// };
-
 struct ucontext {
     // uint64 uc_flags;
     // struct ucontext *uc_link;
@@ -179,24 +157,48 @@ struct ucontext {
     sigset_t uc_sigmask; /* mask last for extensibility */
     sig_t sig_ing;
 };
+
+struct __riscv_mc_f_ext_state {
+	unsigned int __f[32];
+	unsigned int __fcsr;
+};
+
+struct __riscv_mc_d_ext_state {
+	unsigned long long __f[32];
+	unsigned int __fcsr;
+};
+
+struct __riscv_mc_q_ext_state {
+	unsigned long long __f[64] __attribute__((aligned(16)));
+	unsigned int __fcsr;
+	unsigned int __reserved[3];
+};
+
+union __riscv_mc_fp_state {
+	struct __riscv_mc_f_ext_state __f;
+	struct __riscv_mc_d_ext_state __d;
+	struct __riscv_mc_q_ext_state __q;
+};
+
 typedef unsigned long __riscv_mc_gp_state[32];
 
-// typedef struct mcontext_t {
-// 	__riscv_mc_gp_state __gregs;
-// 	union __riscv_mc_fp_state __fpregs;
-// } mcontext_t;
+typedef struct mcontext_t {
+	__riscv_mc_gp_state __gregs;
+	union __riscv_mc_fp_state __fpregs;
+} mcontext_t;
 
-// typedef struct __ucontext
-// {
-// 	unsigned long uc_flags;
-// 	struct __ucontext *uc_link;
-// 	struct sigaltstack uc_stack;
-// 	struct { unsigned long __bits[128/sizeof(long)]; } uc_sigmask;
-// 	mcontext_t uc_mcontext;
-// } ucontext_t;
+typedef struct __ucontext
+{
+	unsigned long uc_flags;
+	struct __ucontext *uc_link;
+	struct sigaltstack uc_stack;
+	struct { unsigned long __bits[128/sizeof(long)]; } uc_sigmask;
+	mcontext_t uc_mcontext;
+} ucontext_t;
 
 struct rt_sigframe {
     // struct siginfo info;
+    ucontext_t uc_riscv;
     struct ucontext uc;
 };
 
@@ -220,7 +222,6 @@ int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset);
 int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct trapframe *tf);
 int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf);
 int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf);
-
 // debug
 void print_signal_mask(sigset_t sigmask);
 

@@ -656,7 +656,7 @@ int fat32_fcb_copy(struct inode *dp, struct inode *ip) {
 void fat32_inode_lock(struct inode *ip) {
     // static int hit = 0;
     if (ip == 0 || ip->ref < 1) {
-        printfRed("ip : %d, ref : %d\n", ip, ip->ref);
+        printfRed("ip : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
         panic("inode lock");
     }
     // Hint ： 如果发现卡住了，很有可能是两次获取同一把锁
@@ -758,20 +758,99 @@ void fat32_inode_unlock(struct inode *ip) {
 }
 
 // fat32 inode put : trunc and update
+// void fat32_inode_put(struct inode *ip) {
+//     // printfGreen("mm: %d pages\n", get_free_mem()/4096);
+//     // if (ip->fat32_i.fname[0] != '/') {
+//     //     printfMAGENTA("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+//     // }
+//     // return ;
+//     acquire(&inode_table.lock);
+//     // debug
+//     // if (ip->fat32_i.fname[0] != '/') {
+//     //     printfMAGENTA("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+//     // }
+//     // acquire();
+//     // sema_wait(&inode_table.lock);
+//     int put_parent = 0;
+//     int unlock_parent = 0;
+//     int put_self = 0;
+//     if (ip->ref == 1) {
+//         // if (ip->fat32_i.fname[0] != '/') {
+//         //     printfMAGENTA("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+//         // }
+//         put_self = 1;
+//         // printfGreen("end , filename : %s, cluster cnt : %d \n",ip->fat32_i.fname, ip->fat32_i.cluster_cnt);// debug
+//         // destory hash table
+//         fat32_inode_hash_destroy(ip);
+
+//         // write back dirty pages of inode
+//         fat32_i_mapping_writeback(ip);
+
+//         // destory i_mapping
+//         fat32_i_mapping_destroy(ip);
+
+//         // special for inode_create
+//         if (ip->create_first) {
+//             release(&inode_table.lock); // !!! bug for iozone
+//             fat32_inode_lock(ip->parent);
+//             acquire(&inode_table.lock); // !!! bug for iozone
+
+//             ASSERT(ip->parent->valid);
+//             ASSERT(ip->parent->create_cnt);
+//             ip->parent->create_cnt--;
+//             if (!ip->parent->create_cnt) {
+//                 put_parent = 1;
+//             }
+//             unlock_parent = 1;
+//         }
+
+//         // if (ip->fat32_i.fname[0] == 'S') {
+//         //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
+//         // }
+
+//         // ip->valid = 0;
+//         // delete file, if it's nlink == 0
+//         if (ip->valid && ip->i_nlink == 0) {
+//             fat32_inode_lock(ip);
+//             release(&inode_table.lock);
+            
+
+//             fat32_inode_trunc(ip);
+//             // ip->dirty_in_parent = 1;
+//             // fat32_inode_update(ip);
+
+//             fat32_inode_unlock(ip);
+//             acquire(&inode_table.lock);
+//         } else {
+//             // free index table
+//             sema_wait(&ip->i_sem);
+//             fat32_free_index_table(ip);
+//             sema_signal(&ip->i_sem);
+//         }
+//     }
+
+//     ip->ref--;
+//     release(&inode_table.lock);
+
+//     // sema_signal(&inode_table.lock);
+//     // special for inode_create
+//     if (unlock_parent) {
+//         fat32_inode_unlock(ip->parent);
+//     }
+//     if (put_parent) {
+//         fat32_inode_put(ip->parent);
+//     }
+//     if (put_self) {
+//         // update fsinfo (in fact, it is uncessary for comp)
+//         fat32_update_fsinfo(ROOTDEV);
+//     }
+// }
+
 void fat32_inode_put(struct inode *ip) {
+    // int put_parent = 0;
+    // int unlock_parent = 0;
     acquire(&inode_table.lock);
-    // debug
-    // if (ip->fat32_i.fname[0] != '/') {
-    //     printfMAGENTA("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
-    // }
-    // acquire();
-    // sema_wait(&inode_table.lock);
-    int put_parent = 0;
-    int unlock_parent = 0;
-    int put_self = 0;
-    if (ip->ref == 1) {
-        put_self = 1;
-        // printfGreen("end , filename : %s, cluster cnt : %d \n",ip->fat32_i.fname, ip->fat32_i.cluster_cnt);// debug
+    if (ip->valid && ip->i_nlink == 0) {
         // destory hash table
         fat32_inode_hash_destroy(ip);
 
@@ -781,61 +860,18 @@ void fat32_inode_put(struct inode *ip) {
         // destory i_mapping
         fat32_i_mapping_destroy(ip);
 
-        // special for inode_create
-        if (ip->create_first) {
-            release(&inode_table.lock); // !!! bug for iozone
-            fat32_inode_lock(ip->parent);
-            acquire(&inode_table.lock); // !!! bug for iozone
+        // // truncate inode
+        // fat32_inode_lock(ip);
+        // release(&inode_table.lock);
+        // fat32_inode_trunc(ip);
 
-            ASSERT(ip->parent->valid);
-            ASSERT(ip->parent->create_cnt);
-            ip->parent->create_cnt--;
-            if (!ip->parent->create_cnt) {
-                put_parent = 1;
-            }
-            unlock_parent = 1;
-        }
-
-        // if (ip->fat32_i.fname[0] == 'S') {
-        //     printfRed("inode_put , name : %s, ref : %d\n", ip->fat32_i.fname, ip->ref);
-        // }
-
-        // ip->valid = 0;
-        // delete file, if it's nlink == 0
-        if (ip->valid && ip->i_nlink == 0) {
-            fat32_inode_lock(ip);
-            release(&inode_table.lock);
-            
-
-            fat32_inode_trunc(ip);
-            // ip->dirty_in_parent = 1;
-            // fat32_inode_update(ip);
-
-            fat32_inode_unlock(ip);
-            acquire(&inode_table.lock);
-        } else {
-            // free index table
-            sema_wait(&ip->i_sem);
-            fat32_free_index_table(ip);
-            sema_signal(&ip->i_sem);
-        }
+        // fat32_inode_unlock(ip);
+        // acquire(&inode_table.lock);
+        // ip->ref = 0;
+        // printf("filename : %s\n", ip->fat32_i.fname);
+        // printfGreen("mm: %d pages\n", get_free_mem()/4096);
     }
-
-    ip->ref--;
     release(&inode_table.lock);
-
-    // sema_signal(&inode_table.lock);
-    // special for inode_create
-    if (unlock_parent) {
-        fat32_inode_unlock(ip->parent);
-    }
-    if (put_parent) {
-        fat32_inode_put(ip->parent);
-    }
-    if (put_self) {
-        // update fsinfo (in fact, it is uncessary for comp)
-        fat32_update_fsinfo(ROOTDEV);
-    }
 }
 
 // unlock and put

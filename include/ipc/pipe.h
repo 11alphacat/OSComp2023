@@ -8,7 +8,7 @@
 
 struct file;
 
-#define PIPESIZE 4096
+#define PIPESIZE 512
 
 // struct pipe {
 //     struct sbuf buffer;

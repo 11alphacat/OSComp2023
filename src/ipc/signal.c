@@ -85,7 +85,7 @@ int signal_send(siginfo_t *info, struct tcb *t) {
         printf("signal_send : no space in heap\n");
         return 0;
     }
-    q->info = *info; // !!!
+    q->info = *info;          // !!!
     t->sig_pending_cnt++;
     INIT_LIST_HEAD(&q->list); // bug!!!
 
@@ -207,6 +207,8 @@ int do_sigaction(int sig, struct sigaction *act, struct sigaction *oact) {
         // 		t = next_thread(t);
         // 	} while (t != current);
         // }
+    // if(sig == SIGCANCEL)
+    //     printfRed("sigaction , tid : %d, signo : %d, address : %x\n", t->tid, sig, k->sa_handler); // debug
 #ifdef __DEBUG_SIGNAL__
         printfRed("sigaction , tid : %d, signo : %d, address : %x\n", t->tid, sig, k->sa_handler); // debug
 #endif
@@ -289,7 +291,7 @@ int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct tra
     tf->sp = (uint64)frame;
     tf->a0 = (uint64)signo; /* a0: signal number */
     tf->a1 = 0;             // tf->a1  = (uint64)(&frame->info); /* a1: siginfo pointer */
-    tf->a2 = tf->tp;        // tf->a2 = (uint64)(&frame->uc); /* a2: ucontext pointer */
+    tf->a2 = tf->sp;        // tf->a2 = (uint64)(&frame->uc); /* a2: ucontext pointer */
     return 0;
 }
 
@@ -305,8 +307,15 @@ int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *
     struct proc *p = proc_current();
     if (copyout(p->mm->pagetable, (uint64)&rtf->uc, (char *)&uc, sizeof(struct ucontext)))
         return -1;
+
+    ucontext_t uc_riscv;
+    memset((void *)&uc_riscv, 0, sizeof(uc_riscv));
+    if (copyout(p->mm->pagetable, (uint64)&rtf->uc_riscv, (char *)&uc_riscv, sizeof(ucontext_t))) {
+        return -1;
+    }
     return 0;
 }
+
 
 int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf) {
     struct ucontext uc;
@@ -316,6 +325,15 @@ int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf) {
     t->blocked = uc.uc_sigmask;
     *(t->trapframe) = uc.uc_mcontext.tf;
     t->sig_ing = uc.sig_ing;
+
+    ucontext_t uc_riscv;
+    if (copyin(p->mm->pagetable, (char *)&uc_riscv, (uint64)&rtf->uc_riscv, sizeof(ucontext_t)) != 0)
+        return -1;
+    uint64 MC_PC = uc_riscv.uc_mcontext.__gregs[0];// for libc-test (pthread_cancel)
+    if(MC_PC) {
+        // printf("epc : %x\n", uc_riscv.uc_mcontext.__gregs[0]);
+        t->trapframe->epc = MC_PC; 
+    }
 #ifdef __DEBUG_SIGNAL__
     printfRed("sigreturn , tid : %d\n", t->tid);
 #endif

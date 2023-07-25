@@ -152,15 +152,15 @@ uint64 sys_execve(void) {
                 return -1;
             }
             // printf("%s\n", (char *)cp);
-            if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel") == 0) {
-                return -1;
-            }
-            if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_points") == 0) {
-                return -1;
-            }
-            if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_sem_wait") == 0) {
-                return -1;
-            }
+            // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel") == 0) {
+            //     return -1;
+            // }
+            // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_points") == 0) {
+            //     return -1;
+            // }
+            // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_sem_wait") == 0) {
+            //     return -1;
+            // }
             // if (strcmp(path, "./busybox") == 0 && strcmp((char *)cp, "grep") == 0) {
             //     return -1;
             // }
@@ -374,6 +374,13 @@ uint64 sys_rt_sigreturn(void) {
     // signal_trapframe_restore(t);
 
     signal_frame_restore(t, (struct rt_sigframe *)t->trapframe->sp);
+    // ucontext_t uc_riscv;
+    // struct proc* p = proc_current();
+    // if (copyin(p->mm->pagetable, (char *)&uc_riscv, (uint64)&uc_riscv, sizeof(ucontext_t)) != 0)
+    //     return -1;
+    // if(uc_riscv.uc_mcontext.__gregs[0]) {
+    //     panic("pc not tested\n");
+    // }
 
     return -EINTR; // bug for unixbench(fstime)!!!
 }

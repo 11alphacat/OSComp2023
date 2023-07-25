@@ -326,7 +326,10 @@ int is_strace_target(int num) {
         // if (num == SYS_kill || num == SYS_rt_sigreturn) {
         //     return 0;
         // }
-        if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
+        // if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
+        //     return 0;
+        // }
+        if(num == SYS_clock_gettime || num == SYS_getrusage || num == SYS_pselect6) {
             return 0;
         }
         // printfYELLOW("syscall num is %d\n", num);

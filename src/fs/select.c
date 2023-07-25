@@ -264,12 +264,12 @@ uint64 sys_pselect6(void) {
         // panic("timeout not tested\n");
     }
     uint64 time_out = (timeout_addr != 0 ? TIMESEPC2NS(timeout) : 0);
+    // printfRed("time_out : %ld\n", time_out);
 
     // size_t sigsetsize = 0;
     if (sigmask_addr) {
         if (copyin(p->mm->pagetable, (char *)&sigmask, sigmask_addr, sizeof(sigmask)) < 0) return -1;
     }
-
     // int ret = do_pselect(nfds, &readfds, &writefds, &exceptfds, timeout_addr ? &timeout : NULL, &sigmask, sigsetsize);
 
     int ret = 0;

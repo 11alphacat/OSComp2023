@@ -556,8 +556,9 @@ int do_setitimer(int which, struct itimerval *value, struct itimerval *ovalue) {
         // bug like this : timer->count = interval ? 0 : -1;
         timer->interval = interval;
 
+        int rate = 1;
         // uint64 time_out = S_to_NS(dirty_writeback_cycle);
-        add_timer_atomic(timer, base, setitimer_REAL_callback, (void *)p);
+        add_timer_atomic(timer, base * rate, setitimer_REAL_callback, (void *)p);
         // 		if (ovalue) {
         // 			ovalue->it_value = itimer_get_remtime(timer);
         // 			ovalue->it_interval
