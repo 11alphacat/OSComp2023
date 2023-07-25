@@ -72,7 +72,7 @@ struct tcb *alloc_thread(thread_callback callback) {
     // Set up new context to start executing at forkret, which returns to user space.
     memset(&t->context, 0, sizeof(t->context));
     t->context.ra = (uint64)callback;
-    t->context.sp = t->kstack + PGSIZE;
+    t->context.sp = t->kstack + KSTACK_PAGE * PGSIZE;
 
     // chage state of TCB
     TCB_Q_changeState(t, TCB_USED);

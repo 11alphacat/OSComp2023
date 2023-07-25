@@ -23,11 +23,11 @@ void tcb_mapstacks(pagetable_t kpgtbl) {
     struct tcb *t;
 
     for (t = thread; t < &thread[NTCB]; t++) {
-        char *pa = kalloc();
+        char *pa = kmalloc(KSTACK_PAGE * PGSIZE);
         if (pa == 0)
             panic("kalloc");
         uint64 va = KSTACK((int)(t - thread));
-        kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W, COMMONPAGE);
+        kvmmap(kpgtbl, va, (uint64)pa, KSTACK_PAGE * PGSIZE, PTE_R | PTE_W, COMMONPAGE);
     }
 }
 

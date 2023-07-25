@@ -30,9 +30,10 @@
 // in both user and kernel space.
 #define TRAMPOLINE (MAXVA - PGSIZE)
 
+#define KSTACK_PAGE 2
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.
-#define KSTACK(p) (TRAMPOLINE - ((p) + 1) * 2 * PGSIZE)
+#define KSTACK(p) (TRAMPOLINE - ((p) + 1) * (KSTACK_PAGE + 1) * PGSIZE)
 
 #ifdef __DEBUG_LDSO__
 #define LDSO 0x00000000
