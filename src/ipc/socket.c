@@ -408,6 +408,9 @@ uint64 socket_write(struct socket *sock, vaddr_t addr, int len) {
         if(sock->used == 0) {
             break;
         }
+        if(sock == NULL) {
+            break;
+        }
         if (sbuf_full(&sock->sbuf)) {
             // Log("break");
             break;
@@ -428,6 +431,9 @@ uint64 socket_read(struct socket *sock, vaddr_t addr, int len) {
     int ret = 0;
     for (int i = 0; i < len; i++) {
         if(sock->used == 0) {
+            break;
+        }
+        if(sock == NULL) {
             break;
         }
         if (sbuf_empty(&sock->sbuf)) {

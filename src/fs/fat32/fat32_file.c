@@ -66,6 +66,9 @@ int fat32_filestat(struct file *f, uint64 addr) {
 // addr is a user virtual address.
 // 语义：读取文件 f ，从 偏移量 f->f_pos 起始，读取 n 个字节到 addr 指向的用户空间
 ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
+#ifdef __DEBUG_PIPE__   
+    static int pipe_r_cnt = 0;// debug
+#endif
     int r = 0;
 
     if (F_READABLE(f) == 0)
@@ -74,8 +77,9 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
     if (f->f_type == FD_PIPE) {
         r = pipe_read(f->f_tp.f_pipe, 1, addr, n);
 #ifdef __DEBUG_PIPE__
-        // if(proc_current()->pid == pid_debug_1 || proc_current()->pid == pid_debug_2)
-        printfGreen("read pipe : pid : %d, read %d chars -> pipe file (%d) starting from %d\n", proc_current()->pid, r, f->f_tp.f_pipe, f->f_tp.f_pipe->buffer.r - r);
+        pipe_r_cnt += 1;
+        if(pipe_r_cnt % 1000==0)
+        printfGreen("read pipe : pid : %d, read %d chars -> pipe file (%d) starting from %d\n", proc_current()->pid, r, f->f_tp.f_pipe, f->f_tp.f_pipe->nread - r);
 #endif
     } else if (f->f_type == FD_DEVICE) {
         if (f->f_major < 0 || f->f_major >= NDEV || !devsw[f->f_major].read)
@@ -116,18 +120,21 @@ ssize_t fat32_fileread(struct file *f, uint64 addr, int n) {
 // addr is a user virtual address.
 // 语义：写文件 f ，从 f->f_pos开始，把用户空间 addr 起始的 n 个字节的内容写入文件 f
 ssize_t fat32_filewrite(struct file *f, uint64 addr, int n) {
+#ifdef __DEBUG_PIPE__   
+    static int pipe_w_cnt = 0;// debug
+#endif
     int r, ret = 0;
 
     if (F_WRITEABLE(f) == 0)
         return -1;
 
     if (f->f_type == FD_PIPE) {
-        // ret = pipewrite(f->f_tp.f_pipe, 1, addr, n);
         ret = pipe_write(f->f_tp.f_pipe, 1, addr, n);
         // debug!!
 #ifdef __DEBUG_PIPE__
-        // if(proc_current()->pid == pid_debug_1 || proc_current()->pid == pid_debug_2)
-        printfYELLOW("write pipe: pid : %d, write %d chars -> pipe file (%d) starting from %d\n", proc_current()->pid, ret, f->f_tp.f_pipe, f->f_tp.f_pipe->buffer.w - ret);
+        pipe_w_cnt += 1;
+        if(pipe_w_cnt % 1000==0)
+        printfYELLOW("write pipe: pid : %d, write %d chars -> pipe file (%d) starting from %d\n", proc_current()->pid, ret, f->f_tp.f_pipe, f->f_tp.f_pipe->nwrite - ret);
 #endif
     } else if (f->f_type == FD_DEVICE) {
         // special for dev_cpu_dma_latency?

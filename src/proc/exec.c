@@ -677,7 +677,7 @@ int do_execve(char *path, struct binprm *bprm) {
     /* Stack Initialization */
     int ustack_page = USTACK_PAGE;
     if (bprm->stack_limit == 1) {
-        ustack_page = 40;
+        ustack_page = 2;
     }
     if (uvm_thread_stack(mm->pagetable, ustack_page) < 0) {
         Warn("bad");

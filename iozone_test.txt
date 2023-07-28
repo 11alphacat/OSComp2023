@@ -311,3 +311,11 @@ sema_wait(&fat32_sb.sem);
 fat32_sb.fat32_sb_info.free_count+= ip->fat32_i.cluster_cnt;
 sema_signal(&fat32_sb.sem);
 
+
+内存泄漏？
+shp = kzalloc(sizeof(struct shmid_kernel)); 没有回收？
+if ((sfd = (struct shm_file_data *)kzalloc(sizeof(struct shm_file_data))) == 0) {
+    panic("no free memory\n");
+}
+没有回收？
+ids->key_ht = (struct hash_table *)kmalloc(sizeof(struct hash_table)); 没有回收？

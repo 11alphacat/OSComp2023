@@ -177,7 +177,7 @@ void fat32_fat_set(uint cluster, uint value);
 uint32 fat32_fat_travel(struct inode *ip, uint num);
 
 // allocate a new cluster
-uint fat32_cluster_alloc(uint dev);
+FAT_entry_t fat32_cluster_alloc(uint dev);
 
 // return the next cluster number
 uint fat32_next_cluster(uint cluster_cur);
@@ -186,7 +186,7 @@ uint fat32_next_cluster(uint cluster_cur);
 void fat32_update_fsinfo(uint dev);
 
 // allocate a page to fill cluster num
-uint64 fat32_index_page_alloc(void);
+uint64 fat32_page_alloc(int n);
 
 // lookup or create index table to find the cluster_num of logistic_num
 uint32 fat32_ctl_index_table(struct inode *ip, uint32 l_num, uint32 cluster_num);
@@ -278,6 +278,8 @@ void fat32_i_mapping_writeback(struct inode *ip);
 // destory i_mapping
 void fat32_i_mapping_destroy(struct inode *ip);
 
+// ignore it, a rough process
+void alloc_fail(void);
 // ======================= abandon， may be ============================
 // timer to string
 // int fat32_time_parser(uint16 *, char *, int);

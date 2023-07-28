@@ -274,6 +274,15 @@ extern struct _superblock fat32_sb;
 #define UNIQUE_INO(off, cluster_start) (((uint64)(off) << 32) | (cluster_start))
 
 #define ROOT_INO 2
+
+// for bit map, starts from 0
+#define BIT_INDEX(pos, unit) (pos / unit)
+#define BIT_OFFSET(pos, unit) (pos % unit)
+#define SET_BIT(bitmap, pos) (bitmap |= (1 << pos))
+#define CLEAR_BIT(bitmap, pos) (bitmap &= ~(1 << pos))
+#define TEST_BIT(bitmap, pos) (bitmap & (1 << pos))
+
+
 // FAT32 Boot Record
 typedef struct FAT32_BootRecord {
     /*FAT common field*/
@@ -431,4 +440,20 @@ int fat32_boot_sector_parser(struct _superblock *, fat_bpb_t *);
 
 // 3. fsinfo parser
 int fat32_fsinfo_parser(struct _superblock *, fsinfo_t *);
+
+// 4. fat table -> bit map
+void fat32_fat_bitmap_init(int dev, struct _superblock *sb);
+
+// 5. alloc a valid cluster given bit map
+FAT_entry_t fat32_bitmap_alloc(struct _superblock *sb, FAT_entry_t hint);
+
+// 6. set/clear bit map given cluster number
+void fat32_bitmap_op(struct _superblock *sb, FAT_entry_t cluster, int set);
+
+// 7. set fat table entry given cluster number using fat table in memory
+void fat32_fat_cache_set(FAT_entry_t cluster, FAT_entry_t value);
+
+// 8. get fat table entry given cluster number using fat table in memory
+FAT_entry_t fat32_fat_cache_get(FAT_entry_t cluster);
+
 #endif

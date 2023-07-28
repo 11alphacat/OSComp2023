@@ -261,6 +261,8 @@ void thread_forkret(void) {
 }
 
 int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) {
+
+    // printfGreen("clone start, mm: %d pages\n", get_free_mem()/4096);
     int pid;
     struct proc *p = proc_current();
     struct proc *np = NULL;
@@ -399,6 +401,7 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
     printfRed("clone : %d -> %d\n", p->pid, np->pid); // debug
 #endif
 
+    // printfGreen("clone end, mm: %d pages\n", get_free_mem()/4096);
     acquire(&t->lock);
     TCB_Q_changeState(t, TCB_RUNNABLE);
     release(&t->lock);

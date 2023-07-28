@@ -643,6 +643,7 @@ uint64 sys_dup3(void) {
 // - mode：文件的所有权描述。详见`man 7 inode `。
 // 返回值：成功执行，返回新的文件描述符。失败，返回-1。
 uint64 sys_openat(void) {
+
     char path[MAXPATH];
     int dirfd, flags, omode, fd;
     struct inode *ip;
@@ -656,11 +657,11 @@ uint64 sys_openat(void) {
 
     argint(3, &omode);
 
-    // if(!strncmp(path, "iozone.tmp", 10)) {
-    //     extern int print_tf_flag;
-    //     flag = 1;
+    // if(!strncmp(path, "/etc/localtime", 14)) {
     //     printf("ready\n");
+    //     printfGreen("openat %s begin, mm: %d pages\n", path, get_free_mem()/4096);
     // }
+
 
     // 如果是要求创建文件，则调用 create
     if ((flags & O_CREAT) == O_CREAT) {
@@ -693,6 +694,7 @@ uint64 sys_openat(void) {
 
     fd = assist_openat(ip, flags, omode, 0);
 
+    // printfGreen("openat %s end, mm: %d pages\n", path, get_free_mem()/4096);
     // printfRed("mm : %d pages\n", get_free_mem() / PGSIZE);
     return fd;
 }
@@ -752,7 +754,15 @@ uint64 sys_read(void) {
         printfMAGENTA("read : pid %d, fd = %d\n", proc_current()->pid, fd);
     }
 #endif
-    return f->f_op->read(f, buf, count);
+    // static int read_cnt = 0;
+    // read_cnt ++;
+    // if(read_cnt%1000==0) {
+    //     printf("sys_read, cnt : %d\n",read_cnt);
+    // }
+    // printfRed("read before, file name : %s, mm: %d pages\n", f->f_tp.f_inode->fat32_i.fname, get_free_mem()/4096);
+    int retval = f->f_op->read(f, buf, count);
+    // printfRed("read after, file name : %s, mm: %d pages\n", f->f_tp.f_inode->fat32_i.fname, get_free_mem()/4096);
+    return retval;
 }
 
 // 功能：从一个文件描述符中写入；
@@ -842,6 +852,7 @@ uint64 sys_unlinkat(void) {
     // ASSERT(flags == 0);
     if (argstr(1, path, MAXPATH) < 0 || __namecmp(path, "/") == 0)
         return -1;
+    // printfRed("unlinkat , %s\n", path);
     // printf("unlinkat hit = %d name = %s\n",++hit,path);
 
     if ((dp = find_inode(path, dirfd, name)) == 0) {
@@ -1395,6 +1406,10 @@ uint64 sys_sendfile(void) {
         return -1;
     }
 
+    // printfRed("sendfile begin, mm: %d pages\n", get_free_mem()/4096);
+    // int retval = do_sendfile(rf, wf, poff, count);
+    // printfRed("sendfile end,  mm: %d pages\n", get_free_mem()/4096);
+    // return retval;
     return do_sendfile(rf, wf, poff, count);
 }
 
@@ -1808,6 +1823,7 @@ uint64 sys_pwrite64(void) {
     arglong(3, &offset);
 
     struct inode *ip = f->f_tp.f_inode;
+
     ip->i_op->ilock(ip);
     uint64 retval = ip->i_op->iwrite(ip, 1, buf, offset, count);
     ip->i_op->iunlock(ip);

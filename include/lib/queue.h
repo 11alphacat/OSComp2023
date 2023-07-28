@@ -9,12 +9,13 @@ struct proc;
 
 enum queue_type { TCB_STATE_QUEUE,
                   PCB_STATE_QUEUE,
-                  TCB_WAIT_QUEUE };
+                  TCB_WAIT_QUEUE,
+                  INODE_FREE_QUEUE };
 
 struct Queue {
     struct spinlock lock;
     struct list_head list;
-    char name[12]; // the name of queue
+    char name[30]; // the name of queue
     enum queue_type type;
 };
 

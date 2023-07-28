@@ -30,6 +30,7 @@ typedef enum {
 
 struct _superblock {
     struct semaphore sem; /* binary semaphore */
+    struct spinlock lock;// spinlock
     uint8 s_dev;          // device number
 
     uint32 s_blocksize;       // 逻辑块的数量
@@ -46,6 +47,11 @@ struct _superblock {
 
     struct spinlock dirty_lock; // used to protect dirty list
     struct list_head s_dirty;   /* dirty inodes */
+
+    // FAT table -> bit map
+    uint64 bit_map;
+    uint64 fat_table;
+    
     union {
         struct fat32_sb_info fat32_sb_info;
         // struct xv6fs_sb_info xv6fs_sb;
@@ -138,6 +144,7 @@ struct inode {
 
     struct semaphore i_sem;       /* binary semaphore */
     struct semaphore i_read_lock; // special for mpage_read
+    struct semaphore i_writeback_lock;// special for write back and clear cache
 
     const struct inode_operations *i_op;
     struct _superblock *i_sb;

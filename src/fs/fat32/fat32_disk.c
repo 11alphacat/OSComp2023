@@ -18,7 +18,8 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     /* superblock initialization */
     sb->s_op = TODO();
     sb->s_dev = dev;
-    sema_init(&sb->sem, 1, "fat32_sb");
+    sema_init(&sb->sem, 1, "fat32_sb_sem");
+    initlock(&sb->lock, "fat32_sb_lock"); // for bit map (to replace FAT table)
 
     /* read boot sector in sector 0 */
     struct buffer_head *bp;
@@ -31,6 +32,17 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     fat32_fsinfo_parser(sb, (fsinfo_t *)bp->data);
     brelse(bp);
 
+    Info("=======BIT MAP and FAT TABLE======\n");
+    // FAT table -> bit map
+    int n = DIV_ROUND_UP((FAT_CLUSTER_MAX >> 3), PGSIZE); // ÷ 8
+    sb->bit_map = fat32_page_alloc(n);
+    Info("bit map : %d pages\n", n);
+    n = DIV_ROUND_UP((FAT_CLUSTER_MAX << 2), PGSIZE); // x 4
+    sb->fat_table = fat32_page_alloc(n);
+    Info("fat table : %d pages\n", n);
+
+    fat32_fat_bitmap_init(ROOTDEV, sb);
+
     /* 调用fat32_root_entry_init，获取到root根目录的fat_entry*/
     sb->root = fat32_root_inode_init(sb);
     sb->s_mount = sb->root;
@@ -38,6 +50,7 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     // dirty list and lock protecting it
     INIT_LIST_HEAD(&sb->s_dirty);
     initlock(&sb->dirty_lock, "dirty_lock");
+
     return 0;
 }
 
@@ -151,4 +164,127 @@ int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
 
     // panic("boot sector parser");
     return 0;
+}
+
+// fat table -> bitmap
+// init the fat table in memory
+void fat32_fat_bitmap_init(int dev, struct _superblock *sb) {
+    struct buffer_head *bp;
+    int c = 0;
+    // cluster 0 and cluster 1 is reserved, cluster 2 belongs to root
+    int sec = FAT_BASE;
+    uint64 map_mini = 0;
+    int map_mini_size = sizeof(map_mini) << 3; // * 8
+    uint64 *map = (uint64 *)sb->bit_map;
+    FAT_entry_t *fat_table = (FAT_entry_t *)sb->fat_table;
+    while (c < FAT_CLUSTER_MAX) {
+        bp = bread(fat32_sb.s_dev, sec);
+        FAT_entry_t *fats = (FAT_entry_t *)(bp->data);
+        for (int s = 0; s < FAT_PER_SECTOR; s++) {
+            int idx = BIT_INDEX(c, map_mini_size);
+            int off = BIT_OFFSET(c, map_mini_size);
+            if (fats[s] != FREE_MASK) {
+                SET_BIT(map_mini, off);   // set to
+                fat_table[c] = fats[s];   // copy fat table to memory
+            } else {
+                CLEAR_BIT(map_mini, off); // set to 0
+            }
+            c++;
+            int save_flag = (off + 1 == map_mini_size);
+            if (save_flag) {
+                map[idx] = map_mini;
+            }
+            if (c > FAT_CLUSTER_MAX) {
+                brelse(bp);
+                if (!save_flag) {
+                    // remember to save the last map_mini
+                    map[idx] = map_mini;
+                }
+                return;
+            }
+        }
+        sec++;
+        brelse(bp);
+    }
+    panic("fat32_fat_bitmap_init : can't reach here\n");
+}
+
+// called not holding lock
+void fat32_bitmap_op(struct _superblock *sb, FAT_entry_t cluster, int set) {
+    acquire(&sb->lock);
+    uint64 map_mini = 0;
+    int map_mini_size = sizeof(map_mini) << 3; // * 8
+    uint64 *map = (uint64 *)sb->bit_map;
+    int idx = BIT_INDEX(cluster, map_mini_size);
+    int off = BIT_OFFSET(cluster, map_mini_size);
+    map_mini = map[idx];
+    ASSERT(TEST_BIT(map_mini, off));
+    if (set)
+        SET_BIT(map_mini, off);
+    else
+        CLEAR_BIT(map_mini, off);
+    map[idx] = map_mini; // don't forget it
+    release(&sb->lock);
+}
+
+FAT_entry_t fat32_bitmap_alloc(struct _superblock *sb, FAT_entry_t hint) {
+    // using hint speed up
+    uint64 map_mini = 0;
+    int map_mini_size = sizeof(map_mini) << 3; // * 8
+    uint64 *map = (uint64 *)sb->bit_map;
+    FAT_entry_t c = hint;
+    // cluster 0 and cluster 1 is reserved, cluster 2 is for root
+    int idx = BIT_INDEX(hint, map_mini_size);
+    int off_init = BIT_OFFSET(hint, map_mini_size);
+    // idx is similar to cluster
+    // off is similar to FAT entry in cluster
+    while (c < FAT_CLUSTER_MAX) {
+        map_mini = map[idx];
+        for (int off = off_init; off < map_mini_size; off++) {
+            if (!TEST_BIT(map_mini, off)) {
+                SET_BIT(map_mini, off);
+                map[idx] = map_mini; // don't forget it
+                return c;
+            }
+            c++;
+            if (c > FAT_CLUSTER_MAX) {
+                return 0;
+            }
+        }
+        off_init = 0;
+        idx++;
+    }
+    return 0;
+}
+
+// called holding lock
+void fat32_fat_cache_set(FAT_entry_t cluster, FAT_entry_t value) {
+    if (!(cluster >= 2 && cluster <= FAT_CLUSTER_MAX)) {
+        printfRed("cluster : %d(%x)\n", cluster, cluster);
+        panic("fat32_fat_cache_set, cluster error\n");
+    }
+    if (!(value >= 2 && value <= FAT_CLUSTER_MAX) && value != EOC && value != FREE_MASK) {
+        printfRed("value : %d(%x)\n", value, value);
+        panic("fat32_fat_cache_set, value error\n");
+    }
+    FAT_entry_t *fats = (FAT_entry_t *)fat32_sb.fat_table;
+    // FAT_entry_t old_value = fats[cluster];
+    fats[cluster] = value;
+    // printfMAGENTA("cluster : %x, %x -> %x\n", cluster, old_value, fats[cluster]);
+}
+
+// called holding lock
+FAT_entry_t fat32_fat_cache_get(FAT_entry_t cluster) {
+    if (!(cluster >= 2 && cluster <= FAT_CLUSTER_MAX)) {
+        printfRed("cluster_cur : %d(%x)\n", cluster, cluster);
+        panic("fat32_fat_cache_get, cluster_cur error\n");
+    }
+    FAT_entry_t *fats = (FAT_entry_t *)fat32_sb.fat_table;
+    FAT_entry_t fat_next = fats[cluster];
+
+    if (fat_next == 0) {
+        printfRed("cluster_cur : %d(%x)\n", cluster, cluster);
+        panic("fat32_fat_cache_get, fat_next error\n");
+    }
+    return fat_next;
 }

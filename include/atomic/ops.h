@@ -34,9 +34,9 @@ static inline int atomic_dec_return(atomic_t *v) {
 }
 
 // 增加
-// static  int atomic_add_return(atomic_t *v, int i) {
-//     return __sync_fetch_and_add(&v->counter, i);
-// }
+static inline int atomic_add_return(atomic_t *v, int i) {
+    return __sync_fetch_and_add(&v->counter, i);
+}
 
 // 减少
 static inline int atomic_sub_return(atomic_t *v, int i) {

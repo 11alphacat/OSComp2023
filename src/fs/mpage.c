@@ -152,8 +152,9 @@ uint64 mpage_readpages(struct inode *ip, uint64 index, uint64 cnt, int read_from
                 // printf("pid , %d, filename : %s \n", proc_current()->pid, ip->fat32_i.fname);
                 add_to_page_cache_atomic(page, mapping, index_tmp); // don't forget it
 
-                if (cnt == 1 && read_from_disk == 0)
+                if (cnt == 1 && read_from_disk == 0) {
                     return first_pa; // !!!
+                }
 
                 // page list item :
                 if ((p_item = (struct Page_item *)kzalloc(sizeof(struct Page_item))) == NULL) {

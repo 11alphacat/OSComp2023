@@ -2,6 +2,7 @@
 #define __ALLOCATOR_H__
 
 #include "common.h"
+#define PAGES_THRESHOLD 500
 
 /* reserve this to be compatible with the old kalloc call
  * use kmalloc(PGSIZE) instead

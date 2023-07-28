@@ -298,6 +298,8 @@ static struct syscall_info info[] = {
     [SYS_msync] {"msync", 3, "pdd"},
     // int mkdirat(int dirfd, const char *pathname, mode_t mode);
     [SYS_mkdirat] {"mkdirat", 3, "dsu"},
+    [SYS_pread64] {"pread64", 4, "dpdd"},
+    [SYS_pwrite64] {"pwrite64", 4, "dpdd"}
 };
 
 // static int syscall_filter[] = {
@@ -329,9 +331,12 @@ int is_strace_target(int num) {
         // if (num == SYS_read || num == SYS_write || num == SYS_lseek || num == SYS_pselect6 || num == SYS_clock_gettime || num == SYS_getrusage) {
         //     return 0;
         // }
-        if(num == SYS_clock_gettime || num == SYS_getrusage || num == SYS_pselect6) {
-            return 0;
-        }
+        // if (num == SYS_writev || num == SYS_readv) {
+        //     return 0;
+        // }
+        // if(num == SYS_clock_gettime || num == SYS_getrusage || num == SYS_pselect6) {
+        //     return 0;
+        // }
         // printfYELLOW("syscall num is %d\n", num);
         // return 1;
         // if (num == SYS_clock_gettime || num == SYS_nanosleep || num == SYS_clock_nanosleep) {

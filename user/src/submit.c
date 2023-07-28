@@ -26,6 +26,7 @@ char *envp[] = {
 
 void runtest();
 
+
 int main(void) {
     print_vma();
     mkdir("/dev", 0666);
@@ -63,13 +64,13 @@ int main(void) {
 char *testpath[] = {
     "./time-test",
     "busybox_testcode.sh",
-    // "./cyclictest_testcode.sh",
-    "iozone_testcode.sh",
     "libctest_testcode.sh",
+    "iozone_testcode.sh",
     "lua_testcode.sh",
     "libc-bench",
     "unixbench_testcode.sh",
     "lmbench_testcode.sh",
+    "cyclictest_testcode.sh",
 };
 
 // char *testpath[] = {"./cyclictest_testcode.sh", "libc-bench"};
@@ -81,6 +82,8 @@ char *testpath[] = {
 
 void runtest() {
     int pid;
+    
+    // while(1) {
     for (int i = 0; i < NELEM(testpath); i++) {
         pid = fork();
         if (pid < 0) {
@@ -99,4 +102,5 @@ void runtest() {
             }
         }
     }
+    // }
 }

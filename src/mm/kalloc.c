@@ -11,8 +11,13 @@
 #include "memory/buddy.h"
 #include "debug.h"
 #include "kernel/cpu.h"
+#include "atomic/ops.h"
 
 extern char end[];
+extern void alloc_fail();
+
+atomic_t pages_cnt;
+atomic_t recycling;
 
 static inline int get_pages_cpu(struct page *page) {
     return (page - pagemeta_start) / PAGES_PER_CPU;
@@ -82,7 +87,27 @@ void *kmalloc(size_t size) {
     atomic_set(&page->refcnt, 1);
     // page->count = 1;
     // release(&page->lock);
-    return (void *)page_to_pa(page);
+    void *page_ret = (void *)page_to_pa(page);
+    // if (page_ret != NULL) {
+    atomic_sub_return(&pages_cnt, 1 << page->order);
+
+    // if (atomic_read(&pages_cnt) < PAGES_THRESHOLD) {
+    //     alloc_fail();
+    // }
+    if (!atomic_read(&recycling) && atomic_read(&pages_cnt) < PAGES_THRESHOLD) {
+        atomic_inc_return(&recycling);
+        alloc_fail();
+        atomic_dec_return(&recycling);
+    }
+    // int cnt = 1<< page->order;
+
+    // if(cnt == 4) {
+    //     printfBlue("ready\n");
+    // }
+
+    // if (cnt > 1)
+    //     printfRed("kmalloc, page alloc : %d pages \n", cnt);
+    return page_ret;
 }
 
 void *kzalloc(size_t size) {
@@ -120,7 +145,25 @@ void *kalloc(void) {
     // ASSERT(page->count == 0);
     // page->count = 1;
     // release(&page->lock);
-    return (void *)page_to_pa(page);
+    void *page_ret = (void *)page_to_pa(page);
+    // if (page_ret != NULL) {
+    atomic_sub_return(&pages_cnt, 1 << page->order);
+    // }
+
+    if (!atomic_read(&recycling) && atomic_read(&pages_cnt) < PAGES_THRESHOLD) {
+        atomic_inc_return(&recycling);
+        alloc_fail();
+        atomic_dec_return(&recycling);
+    }
+
+    // int cnt = 1<< page->order;
+    // if(cnt == 4) {
+    //     printfBlue("ready\n");
+    // }
+
+    // if (cnt > 1)
+    //     printfRed("kalloc, page alloc : %d pages \n", cnt);
+    return page_ret;
 }
 
 void kfree(void *pa) {
@@ -145,6 +188,10 @@ void kfree(void *pa) {
     ASSERT(page->allocated == 1);
     int id = get_pages_cpu(page);
     ASSERT(id >= 0 && id < NCPU);
+
+    // if (page != NULL) {
+    atomic_add_return(&pages_cnt, 1 << page->order);
+    // }
     buddy_free_pages(&mempools[id], page);
 }
 

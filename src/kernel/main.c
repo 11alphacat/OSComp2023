@@ -74,6 +74,7 @@ void main(uint64 hartid) {
 
         // Memory management
         mm_init();
+        
         vmas_init();
 
         // socket
@@ -124,7 +125,7 @@ void main(uint64 hartid) {
 #endif
 
         // pdflush kernel thread
-        // pdflush_init();
+        pdflush_init();
         __sync_synchronize();
 
         hart_start();

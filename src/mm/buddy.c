@@ -4,6 +4,10 @@
 #include "lib/list.h"
 #include "lib/riscv.h"
 #include "debug.h"
+#include "atomic/ops.h"
+
+extern atomic_t pages_cnt;
+extern atomic_t recycling;
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
@@ -43,6 +47,8 @@ void mm_init() {
     pagemeta_start = (struct page *)PGROUNDUP((uint64)end);
     printf("pagemeta_start %x\n", pagemeta_start);
     printf("NPAGES: %d\n", NPAGES);
+    atomic_set(&pages_cnt, NPAGES);
+    atomic_set(&recycling, 0);
     printf("PAGES PER CPU: %d\n", PAGES_PER_CPU);
     for (int i = 0; i < NCPU; i++) {
         init_buddy(&mempools[i],

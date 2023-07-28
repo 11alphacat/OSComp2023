@@ -113,4 +113,50 @@ sepc=00000000000c6908
 stval=0000000500000001
 
 
+问题十四：
+跑最后一个测试的时候，仅仅输出了一行，后面的都没有输出？
+看一下lat_ctx.c的源代码，发现了一些 exit(1); :
+if (write(pState->p[i][1], &msg, sizeof(msg)) != sizeof(msg)) {
+    /* perror("read/write on pipe"); */
+    exit(1);				
+}
+if (read(pState->p[i][0], &msg, sizeof(msg)) != sizeof(msg)) {
+    /* perror("read/write on pipe"); */
+    exit(1);
+}
+for ( ;; ) {
+    if (read(rd, &msg, sizeof(msg)) != sizeof(msg)) {
+        /* perror("read/write on pipe"); */
+        break;
+    }
+    bread(data, process_size);
+    if (write(wr, &msg, sizeof(msg)) != sizeof(msg)) {
+        /* perror("read/write on pipe"); */
+        break;
+    }
+}
+exit(1);
 
+if (write(p[0][1], &msg, sizeof(msg)) != sizeof(msg) ||
+    read(p[procs-1][0], &msg, sizeof(msg)) != sizeof(msg)) {
+    /* perror("write/read/write on pipe"); */
+    exit(1);
+}
+
+基本可以断定是管道读写出现了问题？？
+但似乎不是，问题似乎是获取时间不正确？？然后就没有输出？？
+for (i = optind; i < ac; ++i) {
+    state.procs = atoi(av[i]);
+    benchmp(initialize, benchmark, cleanup, 0, parallel, 
+        warmup, repetitions, &state);
+
+    time = gettime();
+    time /= get_n();
+    time /= state.procs;
+    time -= state.overhead;
+
+    if (time > 0.0)
+        fprintf(stderr, "%d %.2f\n", state.procs, time);
+}
+
+浮点寄存器没有保存？对了，就是没有保存。。。不是管道的问题

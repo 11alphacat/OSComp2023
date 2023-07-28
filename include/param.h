@@ -2,13 +2,13 @@
 #define __PARAM_H__
 
 #define NPROC 500 // maximum number of processes
-#define NTCB_PER_PROC 5
+#define NTCB_PER_PROC 2
 #define NTCB ((NPROC) * (NTCB_PER_PROC))
 #define NOFILE 400 // open files per process
 #define NFILE 800  // open files per system
 
 #define NIPCIDX 40
-#define NINODE 100                // maximum number of active i-nodes
+#define NINODE 200                // maximum number of active i-nodes
 #define NDEV 10                   // maximum major device number
 #define ROOTDEV 1                 // device number of file system root disk
 #define MAXARG 32                 // max exec arguments

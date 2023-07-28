@@ -62,6 +62,9 @@ uint64 max_sane_readahead(uint64 nr, uint64 read_ahead, uint64 tot_nr) {
 
 // read using mapping
 ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64 dst, uint off, uint n) {
+    // static int read_cnt = 0;// debug
+    // static int read_hit_cnt =0; // debug
+
     struct inode *ip = mapping->host;
     ASSERT(ip->i_size > 0);
 
@@ -84,6 +87,7 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
     // printfRed("read content : ");
 
     // int first_char = 0;
+
     sema_wait(&ip->i_read_lock);
     while (1) {
         struct page *page;
@@ -104,6 +108,7 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
         nr = nr - offset;
         /* Find the page */
         page = find_get_page_atomic(mapping, index, 0); // not acquire the lock of page
+        // read_cnt++;// debug
         if (page == NULL) {
             read_sane_cnt = max_sane_readahead(n - retval, mapping->read_ahead_cnt, isize - (off + retval));
             mapping->read_ahead_end = index + read_sane_cnt - 1; // !!!
@@ -139,6 +144,9 @@ ssize_t do_generic_file_read(struct address_space *mapping, int user_dst, uint64
                         ip->fat32_i.fname, off, n, index, offset, mapping->read_ahead_cnt, mapping->read_ahead_end);
 #endif
             pa = page_to_pa(page);
+            // read_hit_cnt ++;// debug
+            // printf("read hit : %d/%d\n",read_hit_cnt, read_cnt);// debug
+
         }
 
         // similar to fat32_inode_read
@@ -194,6 +202,11 @@ out:
 
 // write using mapping
 ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint64 src, uint off, uint n) {
+    // static int write_cnt = 0;// debug
+    // static int write_hit_cnt =0; // debug
+    // static int read_from_disk_cnt = 0;// debug
+    
+
     struct inode *ip = mapping->host;
     ASSERT(n > 0);
     uint64 index = off >> PGSHIFT; // page number
@@ -222,7 +235,7 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
         /* nr is the maximum number of bytes to copy from this page */
         nr = PGSIZE - offset;
         page = find_get_page_atomic(mapping, index, 0); // not acquire lock
-
+        // write_cnt++;
         if (page == NULL) {
             int read_from_disk = -1;
 
@@ -235,6 +248,8 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
             } else {
                 // panic("not tested\n");
                 read_from_disk = 1;
+                // read_from_disk_cnt++;
+                // printf("nread from disk cnt , %d/%d, n-retval : %d, offset : %d, isize_offset : %d, isize : %d\n", read_from_disk_cnt, write_cnt, n-retval, offset, isize_offset, ip->i_size);
             }
             pa = mpage_readpages(ip, index, 1, read_from_disk, 1); // just read one page, allocate clusters if necessary
             page = pa_to_page(pa);
@@ -249,6 +264,8 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
                        ip->fat32_i.fname, off, n, index, offset);
 #endif
             pa = page_to_pa(page);
+            // write_hit_cnt++;
+            // printf("write hit : %d/%d\n", write_hit_cnt, write_cnt);// debug     
         }
 
         // printf("write : %x\n", pa);

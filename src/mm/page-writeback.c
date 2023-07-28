@@ -2,10 +2,15 @@
 #include "memory/writeback.h"
 #include "proc/pdflush.h"
 #include "lib/timer.h"
+#include "memory/allocator.h"
 
 struct timer_list wb_timer;
 
 static void background_writeout(uint64 _min_pages) {
+    // only valid if the number of rest of pages is less than threshold
+    if (get_free_mem() > PAGES_THRESHOLD * PGSIZE) {
+        return;
+    }
     uint64 nr_to_write = MAX_WRITEBACK_PAGES;
 
     for (;;) {

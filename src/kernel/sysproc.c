@@ -117,6 +117,8 @@ uint64 sys_execve(void) {
     vaddr_t uargv, uenvp;
     paddr_t argv, envp;
     vaddr_t temp;
+    // printfGreen("execve begin, mm: %d pages\n", get_free_mem()/4096);
+
 
     /* fetch the path str */
     if (argstr(0, path, MAXPATH) < 0) {
@@ -155,9 +157,9 @@ uint64 sys_execve(void) {
             if (i == 5 && strcmp((char *)cp, "lat_sig") == 0) {
                 return -1;
             }
-            if (i == 1 && strcmp((char *)cp, "bw_pipe") == 0) {
-                return -1;
-            }
+            // if (i == 1 && strcmp((char *)cp, "bw_pipe") == 0) {
+            //     return -1;
+            // }
             // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel") == 0) {
             //     return -1;
             // }
@@ -215,6 +217,8 @@ uint64 sys_execve(void) {
         return do_execve("/busybox", &bprm);
     }
     int ret = do_execve(path, &bprm);
+
+    // printfGreen("execve end, mm: %d pages\n", get_free_mem()/4096);
     extern char *lmpath[];
     if (strcmp(path, lmpath[0]) == 0 || strcmp(path, lmpath[1]) == 0) {
         return 0;

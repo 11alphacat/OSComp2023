@@ -87,6 +87,13 @@ int pipe_write(struct pipe *pi, int user_dst, uint64 addr, int n) {
                 break;
             pi->data[pi->nwrite++ % PIPESIZE] = ch;
             i++;
+            // int write_idx = pi->nwrite % PIPESIZE;
+            // int read_idx = pi->nwrite % PIPESIZE;
+            // int cpy_len = PIPESIZE - (write_idx - read_idx);
+            // if (either_copyin(pi->data + write_idx, user_dst, addr + cpy_len, cpy_len) == -1)
+            //     break;
+            // pi->nwrite += cpy_len;
+            // i+= cpy_len;
         }
     }
     sema_signal(&pi->read_sem);
