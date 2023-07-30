@@ -298,6 +298,7 @@ struct spinlock socket_table_lock;
 void init_socket_table() {
     initlock(&socket_table_lock, "socket_table");
     initlock(&map_lock, "map_lock");
+    Info("socket table init [ok]\n");
 }
 struct socket socket_table[100];
 struct socket *alloc_socket() {

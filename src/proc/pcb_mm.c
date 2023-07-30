@@ -29,6 +29,9 @@ void tcb_mapstacks(pagetable_t kpgtbl) {
         uint64 va = KSTACK((int)(t - thread));
         kvmmap(kpgtbl, va, (uint64)pa, KSTACK_PAGE * PGSIZE, PTE_R | PTE_W, COMMONPAGE);
     }
+    Info("========= Information of thread kernel stack ==========\n");
+    Info("number of thread : %d , pages per thread : %d, total : %d\n", NTCB, KSTACK_PAGE, NTCB * KSTACK_PAGE);
+    Info("thread kernel stack init [ok]\n");
 }
 
 /* Create a user page table, with no user memory,
@@ -71,10 +74,12 @@ void proc_freepagetable(struct mm_struct *mm, int thread_cnt) {
     uvmunmap(mm->pagetable, SIGRETURN, 1, 0, 0);
     uvmunmap(mm->pagetable, USTACK_GURAD_PAGE, 1, 0, 1);
     // vmprint(mm->pagetable, 1, 0, 0, 0);
+    acquire(&mm->lock);
     for (int offset = 0; offset < thread_cnt; offset++) {
         /* on-demand unmap */
         uvmunmap(mm->pagetable, TRAPFRAME - offset * PGSIZE, 1, 0, 1);
     }
+    release(&mm->lock);
     // printfYELLOW("================");
     // vmprint(mm->pagetable, 1, 0, 0, 0);
     uvmfree(mm);

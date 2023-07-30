@@ -108,22 +108,22 @@ extern struct devsw devsw[];
 
 #define TIME2SEC(time) (time / FREQUENCY)
 #define TIME2MS(time) (time * 1000 / FREQUENCY)
-#define TIME2US(time) (time * 1000 * 1000 / FREQUENCY)
-#define TIME2NS(time) (time * 1000 * 1000 * 1000 / FREQUENCY)
+#define TIME2US(time) (time * 1000000 / FREQUENCY)
+#define TIME2NS(time) (time * 1000000000 / FREQUENCY)
 
-#define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000 * 1000 * 1000)
-#define TIMEVAL2NS(val) (val.tv_usec * 1000 + val.tv_sec * 1000 * 1000 * 1000)
-#define NS_to_S(ns) (ns / (1000 * 1000 * 1000))
-#define S_to_NS(s) (s * 1UL * 1000 * 1000 * 1000)
+#define TIMESEPC2NS(sepc) (sepc.ts_nsec + sepc.ts_sec * 1000000000)
+#define TIMEVAL2NS(val) (val.tv_usec * 1000 + val.tv_sec * 1000000000)
+#define NS_to_S(ns) (ns / (1000000000))
+#define S_to_NS(s) (s * 1UL * 1000000000)
 
 #define TIME2TIMESPEC(time)                                                       \
     (struct timespec) {                                                           \
-        .ts_sec = TIME2SEC(time), .ts_nsec = TIME2NS(time) % (1000 * 1000 * 1000) \
+        .ts_sec = TIME2SEC(time), .ts_nsec = TIME2NS(time) % (1000000000) \
     }
 
 #define TIME2TIMEVAL(time)                                                 \
     (struct timeval) {                                                     \
-        .tv_sec = TIME2SEC(time), .tv_usec = TIME2US(time) % (1000 * 1000) \
+        .tv_sec = TIME2SEC(time), .tv_usec = TIME2US(time) % (1000000) \
     }
 struct timespec {
     uint64 ts_sec;  /* Seconds */

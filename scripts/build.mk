@@ -10,7 +10,7 @@ $(OBJS): EXTRAFLAG := $(KCSANFLAG)
 include $(SCRIPTS)/rules.mk
 
 syscall_gen:
-	@sh ./$(ENTRY)/syscalltbl.sh $(ENTRY)/syscall.tbl $(GENINC)/syscall_num.h $(GENINC)/syscall_func.h $(GENINC)/syscall_def.h
+	@sh ./$(ENTRY)/syscalltbl.sh $(ENTRY)/syscall.tbl $(GENINC)/syscall_num.h $(GENINC)/syscall_func.h $(GENINC)/syscall_def.h $(GENINC)/syscall_cnt.h $(GENINC)/syscall_str.h
 
 kernel-qemu: syscall_gen $(OBJS) $(SCRIPTS)/kernel.ld $(OBJS_KCSAN)
 	$(LD) $(LDFLAGS) -T $(SCRIPTS)/kernel.ld -o kernel-qemu $(OBJS) $(OBJS_KCSAN)

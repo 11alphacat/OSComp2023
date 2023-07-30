@@ -37,6 +37,7 @@ void tcb_init(void) {
         t->kstack = KSTACK((int)(t - thread));
         Queue_push_back(&unused_t_q, t);
     }
+    Info("thread table init [ok]\n");
     return;
 }
 
@@ -92,12 +93,12 @@ struct tcb *alloc_thread(thread_callback callback) {
 // free a thread
 void free_thread(struct tcb *t) {
     // free & unmap tramframe
-    // acquire(&t->p->mm->lock);
+    acquire(&t->p->mm->lock);
     if (t->trapframe)
         uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 1, 1);
     else
         uvmunmap(t->p->mm->pagetable, THREAD_TRAPFRAME(t->tidx), 1, 0, 1);
-    // release(&t->p->mm->lock);
+    release(&t->p->mm->lock);
 
     // bug!
     if (t->wait_chan_entry != NULL) {
@@ -140,20 +141,25 @@ void free_thread(struct tcb *t) {
 int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     struct thread_group *tg = p->tg;
 
+    atomic_inc_return(&tg->thread_cnt);
     acquire(&tg->lock);
     if (tg->group_leader == NULL) {
         tg->group_leader = t;
     }
     list_add_tail(&t->threads, &p->tg->threads);
     tg->tgid = p->pid;
-    atomic_inc_return(&tg->thread_cnt);
     t->tidx = tg->thread_idx++;
     t->p = p;
+    release(&p->tg->lock);
 
+    acquire(&t->p->mm->lock);
     // Log("thread idx is %d, within group %d", t->tidx, p->pid);
-    if ((t->trapframe = uvm_thread_trapframe(p->mm->pagetable, t->tidx)) == 0) {
+    if ((t->trapframe = uvm_thread_trapframe(p->mm->pagetable, t->tidx)) == 0) {   
+        release(&t->p->mm->lock);
         return -1;
     }
+    release(&t->p->mm->lock);
+
     // vmprint(p->mm->pagetable, 0, 0, MAXVA - 512 * PGSIZE, 0);
     if (name == NULL) {
         char name_tmp[20];
@@ -162,7 +168,7 @@ int proc_join_thread(struct proc *p, struct tcb *t, char *name) {
     } else {
         strncpy(t->name, name, 20);
     }
-    release(&p->tg->lock);
+
 
     return 0;
 }

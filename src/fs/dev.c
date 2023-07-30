@@ -39,4 +39,5 @@ void null_zero_dev_init() {
     devsw[DEV_NULL].write = null_write;
     devsw[DEV_ZERO].read = zero_read;
     devsw[DEV_ZERO].write = zero_write;
+    Info("null and dev init [ok]\n");
 }

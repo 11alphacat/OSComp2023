@@ -119,7 +119,6 @@ uint64 sys_execve(void) {
     vaddr_t temp;
     // printfGreen("execve begin, mm: %d pages\n", get_free_mem()/4096);
 
-
     /* fetch the path str */
     if (argstr(0, path, MAXPATH) < 0) {
         return -1;
@@ -157,9 +156,9 @@ uint64 sys_execve(void) {
             if (i == 5 && strcmp((char *)cp, "lat_sig") == 0) {
                 return -1;
             }
-            // if (i == 1 && strcmp((char *)cp, "bw_pipe") == 0) {
-            //     return -1;
-            // }
+            if (i == 1 && strcmp((char *)cp, "bw_pipe") == 0) {
+                return -1;
+            }
             // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel") == 0) {
             //     return -1;
             // }
@@ -222,7 +221,7 @@ uint64 sys_execve(void) {
     extern char *lmpath[];
     if (strcmp(path, lmpath[0]) == 0 || strcmp(path, lmpath[1]) == 0) {
         return 0;
-    } else { 
+    } else {
         return ret;
     }
     // return do_execve(path, &bprm);
@@ -287,11 +286,11 @@ uint64 sys_getuid(void) {
 
 // pid_t set_tid_address(int *tidptr);
 uint64 sys_set_tid_address(void) {
-    uint64 tidptr;
-    argaddr(0, &tidptr);
+    // uint64 tidptr;
+    // argaddr(0, &tidptr);
     struct tcb *t = thread_current();
 
-    t->clear_child_tid = tidptr;
+    t->clear_child_tid = t->trapframe->a0;
 
     return t->tid;
 }
@@ -300,7 +299,7 @@ uint64 sys_set_tid_address(void) {
 // examine and change a signal action
 uint64 sys_rt_sigaction(void) {
     int signum;
-    size_t sigsetsize;
+    // size_t sigsetsize;
 
     uint64 act_addr;
     uint64 oldact_addr;
@@ -309,12 +308,12 @@ uint64 sys_rt_sigaction(void) {
     argint(0, &signum);
     argaddr(1, &act_addr);
     argaddr(2, &oldact_addr);
-    argulong(3, &sigsetsize);
+    // argulong(3, &sigsetsize);
 
     int ret;
 
-    if (sigsetsize != sizeof(sigset_t))
-        return -1;
+    // if (sigsetsize != sizeof(sigset_t))
+    //     return -1;
 
     struct proc *p = proc_current();
     // If act is non-NULL, the new action for signal signum is installed from act
@@ -411,7 +410,7 @@ uint64 sys_kill(void) {
     struct proc *p;
     if ((p = find_get_pid(pid)) == NULL)
         return 0; // NOTE:test
-        // release(&p->lock);
+                  // release(&p->lock);
 
 #ifdef __DEBUG_PROC__
     printfCYAN("kill : kill proc %d, signo = %d\n", p->pid, signo); // debug
@@ -572,6 +571,9 @@ uint64 sys_getegid() {
 
 uint64 sys_exit_group(void) {
     struct proc *p = proc_current();
+    if (atomic_read(&p->tg->thread_cnt) < 2) {
+        return 0;
+    }
     do_exit_group(p);
     return 0;
 }

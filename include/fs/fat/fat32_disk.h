@@ -456,4 +456,6 @@ void fat32_fat_cache_set(FAT_entry_t cluster, FAT_entry_t value);
 // 8. get fat table entry given cluster number using fat table in memory
 FAT_entry_t fat32_fat_cache_get(FAT_entry_t cluster);
 
+// 9. writeback FATtable
+void fat32_fat_bitmap_writeback(int dev, struct _superblock *sb);
 #endif

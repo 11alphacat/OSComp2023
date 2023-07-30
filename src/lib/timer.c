@@ -4,6 +4,7 @@
 #include "memory/memlayout.h"
 #include "atomic/cond.h"
 #include "atomic/ops.h"
+#include "debug.h"
 
 struct timer_entry timer_head;
 struct spinlock tickslock;
@@ -14,6 +15,7 @@ void timer_init() {
     atomic_set(&ticks, 0);
     cond_init(&cond_ticks, "cond_ticks");
     timer_entry_init(&timer_head, "timer_entry");
+    Info("timer init [ok]\n");
 }
 
 void timer_entry_init(struct timer_entry *t_entry, char *name) {

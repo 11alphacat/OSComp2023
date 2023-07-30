@@ -17,6 +17,7 @@
 #include "ipc/signal.h"
 #include "memory/vm.h"
 #include "memory/allocator.h"
+#include "kernel/syscall.h"
 
 extern atomic_t ticks;
 extern struct cond cond_ticks;
@@ -141,9 +142,14 @@ uint64 sys_nanosleep(void) {
     return 0;
 }
 
+extern void shutdown_writeback(void);
 uint64 sys_shutdown() {
-    // printfGreen("mm: %d pages shutdown\n", get_free_mem()/4096);
+    syscall_count_analysis();
+    // shutdown_writeback();
+    
+    printfGreen("mm: %d pages when shutdown\n", get_free_mem()/4096);
     sbi_shutdown();
+
     panic("shutdown: can not reach here");
 }
 

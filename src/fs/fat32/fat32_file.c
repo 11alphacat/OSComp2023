@@ -45,7 +45,7 @@ struct file *fat32_filedup(struct file *f) {
 int fat32_filestat(struct file *f, uint64 addr) {
     struct proc *p = proc_current();
     struct kstat st;
-    ASSERT(sizeof(st) == 128);
+    // ASSERT(sizeof(st) == 128);
     // printf("KERNEL: sizeof kstat = %d\n",sizeof(st));
     memset(&st, 0, sizeof(st)); // avoid leak kernel data to user
 

@@ -4,7 +4,7 @@
 #include "memory/buddy.h"
 
 #define READ_AHEAD_RATE 20
-#define READ_AHEAD_PAGE_MAX_CNT 32
+#define READ_AHEAD_PAGE_MAX_CNT 8
 #define WRITE_FULL_PAGE(rest_val) (rest_val >= PGSIZE)
 #define OUT_FILE(offset_cur, offset_tot) ((offset_cur > offset_tot))
 

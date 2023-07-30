@@ -32,7 +32,7 @@ int fat32_fs_mount(int dev, struct _superblock *sb) {
     fat32_fsinfo_parser(sb, (fsinfo_t *)bp->data);
     brelse(bp);
 
-    Info("=======BIT MAP and FAT TABLE======\n");
+    Info("======= BIT MAP and FAT TABLE ======\n");
     // FAT table -> bit map
     int n = DIV_ROUND_UP((FAT_CLUSTER_MAX >> 3), PGSIZE); // ÷ 8
     sb->bit_map = fat32_page_alloc(n);
@@ -63,7 +63,7 @@ int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
     sb->fat32_sb_info.hint_valid = 0;
 
     ////////////////////////////////////////////////////////////////////////////////
-    Info("=============FSINFO==========\n");
+    Info("============= FSINFO ==========\n");
     // Info("LeadSig : ");
     // Show_bytes((byte_pointer)&fsinfo->LeadSig, sizeof(fsinfo->LeadSig));
 
@@ -81,7 +81,7 @@ int fat32_fsinfo_parser(struct _superblock *sb, fsinfo_t *fsinfo) {
 }
 
 int fat32_boot_sector_parser(struct _superblock *sb, fat_bpb_t *fat_bpb) {
-    Info("=============BOOT Sector==========\n");
+    Info("============= BOOT Sector ==========\n");
     /* superblock initialization */
     // common
     sb->sector_size = fat_bpb->BytsPerSec;
@@ -207,6 +207,50 @@ void fat32_fat_bitmap_init(int dev, struct _superblock *sb) {
         brelse(bp);
     }
     panic("fat32_fat_bitmap_init : can't reach here\n");
+}
+
+void fat32_fat_bitmap_writeback(int dev, struct _superblock *sb) {
+    struct buffer_head *bp;
+    int c = 0;
+    // cluster 0 and cluster 1 is reserved, cluster 2 belongs to root
+    int sec = FAT_BASE;
+    // uint64 map_mini = 0;
+    // int map_mini_size = sizeof(map_mini) << 3; // * 8
+    // uint64 *map = (uint64 *)sb->bit_map;
+    FAT_entry_t *fat_table = (FAT_entry_t *)sb->fat_table;
+    while (c < FAT_CLUSTER_MAX) {
+        bp = bread(fat32_sb.s_dev, sec);
+        FAT_entry_t *fats = (FAT_entry_t *)(bp->data);
+        for (int s = 0; s < FAT_PER_SECTOR; s++) {
+            // int idx = BIT_INDEX(c, map_mini_size);
+            // int off = BIT_OFFSET(c, map_mini_size);
+            fats[s] = fat_table[c];
+            // if (fats[s] != FREE_MASK) {
+            //     SET_BIT(map_mini, off);   // set to
+            //     fat_table[c] = fats[s];   // copy fat table to memory
+            // } else {
+            //     CLEAR_BIT(map_mini, off); // set to 0
+            // }
+            c++;
+            // int save_flag = (off + 1 == map_mini_size);
+            // if (save_flag) {
+            //     map[idx] = map_mini;
+            // }
+            if (c > FAT_CLUSTER_MAX) {
+                bwrite(bp);
+                brelse(bp);
+                // if (!save_flag) {
+                //     // remember to save the last map_mini
+                //     map[idx] = map_mini;
+                // }
+                return;
+            }
+        }
+        sec++;
+        bwrite(bp);
+        brelse(bp);
+    }
+    panic("fat32_fat_bitmap_writeback : can't reach here\n");
 }
 
 // called not holding lock

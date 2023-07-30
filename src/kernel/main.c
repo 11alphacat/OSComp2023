@@ -62,54 +62,58 @@ void main(uint64 hartid) {
         // for (int i = 0; i < NCPU; i++) {
         //     status[i] = sbi_hart_get_status(i);
         // }
-        // console and printf
+
+        Info("========= Character device ==========\n");
+        //========== console ============
         consoleinit();
+        //========== zero and null ============
         null_zero_dev_init();
-
+        //========== printf ============
         printfinit();
-        // printf("\nkernel is booting\n\n");
-
+        //========== hart ============
         hartinit();
         debug_lock = 1;
 
-        // Memory management
-        mm_init();
         
+        //========== physical memory management ==========
+        mm_init();
+        //========== VMA management ==========
         vmas_init();
 
-        // socket
-        init_socket_table();
-
-        // KVM
+        //========== kernel virtual memory ==========
         kvminit();     // create kernel page table
         kvminithart(); // turn on paging
 
-        // Proc management and Thread management
+        // ========= Proc management and Thread management =======
         proc_init(); // process table
         tcb_init();
 
-        // map init
-        hash_tables_init();
-
-        // timer init
+        // ========== timer init ==========
         timer_init();
 
         // !!! Note: trapinithart can be called after timer_init
         // Trap
         trapinithart(); // install kernel trap vector
 
-        // PLIC
+        // =========== PLIC ===========
         plicinit();     // set up interrupt controller
         plicinithart(); // ask PLIC for device interrupts
 
-        // File System
-        binit(); // buffer cache
+        // =========== File System ==========
+        binit();
         fileinit();
         inode_table_init();
 
-        // virtual disk
+        //========== socket ==========
+        init_socket_table();
+
+        //========== global map ==========
+        hash_tables_init();
+
+
+        Info("========= Block device ==========\n");
+        //========== block device ============
         disk_init();
-        // virtio_disk_init(); // emulated hard disk
 
 #if defined(SIFIVE_U) || defined(SIFIVE_B)
         // DMA
@@ -120,23 +124,23 @@ void main(uint64 hartid) {
         extern void oscomp_init(void);
         oscomp_init();
 #else
-        // First user process
-        userinit(); // first user process
+        //========== First user process =========
+        userinit();
 #endif
 
         // pdflush kernel thread
-        pdflush_init();
+        // pdflush_init();
         __sync_synchronize();
 
         hart_start();
-        printf("hart %d starting\n", cpuid());
+        Info("hart %d is working\n", cpuid());
         started = 1;
     } else {
         while (atomic_read4((int *)&started) == 0)
             ;
         hartinit();
         __sync_synchronize();
-        printf("hart %d starting\n", cpuid());
+        Info("hart %d is working\n", cpuid());
         kvminithart();  // turn on paging
         trapinithart(); // install kernel trap vector
         plicinithart(); // ask PLIC for device interrupts

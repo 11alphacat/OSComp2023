@@ -13,7 +13,7 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
     page->mapping = mapping;
     page->index = index;
 
-    acquire(&mapping->host->tree_lock);
+    // acquire(&mapping->host->tree_lock);
     int error = radix_tree_insert(&mapping->page_tree, index, page);
     if (likely(!error)) {
         // if(mapping->host->fat32_i.fname[0]=='b')
@@ -22,7 +22,7 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
     } else {
         panic("add_to_page_cache : error\n");
     }
-    release(&mapping->host->tree_lock);
+    // release(&mapping->host->tree_lock);
 
 #ifdef __DEBUG_PAGE_CACHE__
     if (!error) {
@@ -37,9 +37,9 @@ int add_to_page_cache_atomic(struct page *page, struct address_space *mapping, u
 struct page *find_get_page_atomic(struct address_space *mapping, uint64 index, int lock) {
     struct page *page;
 
-    acquire(&mapping->host->tree_lock);
+    // acquire(&mapping->host->tree_lock);
     page = (struct page *)radix_tree_lookup_node(&mapping->page_tree, index);
-    release(&mapping->host->tree_lock);
+    // release(&mapping->host->tree_lock);
 
     if (page) {
 #ifdef __DEBUG_PAGE_CACHE__
@@ -292,10 +292,10 @@ ssize_t do_generic_file_write(struct address_space *mapping, int user_src, uint6
         // buf_debug+=len;
 
         // set page dirty
-        set_page_flags(page, PG_dirty);
+        // set_page_flags(page, PG_dirty);// NOTE!!!
 
         // acquire(&mapping->host->tree_lock);
-        radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+        // radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);// NOTE!!!
         // release(&mapping->host->tree_lock);
 
         // put and release (don't need it, maybe?)

@@ -425,7 +425,7 @@ static Elf64_Ehdr *load_elf_ehdr(struct binprm *bprm) {
     Elf64_Ehdr *elf_ex = kmalloc(sizeof(Elf64_Ehdr));
 
     if (elf_read(ip, elf_ex, sizeof(Elf64_Ehdr), 0) < 0) {
-        return NULL;
+        goto out;
     }
 
     // CHECK
@@ -646,11 +646,7 @@ int do_execve(char *path, struct binprm *bprm) {
     bprm->path = path;
 
     struct mm_struct *mm, *oldmm = p->mm;
-    mm = alloc_mm();
-    if (mm == NULL) {
-        return -1;
-    }
-    bprm->mm = mm;
+
 #ifdef __DEBUG_LDSO__
     if (strcmp(path, "/busybox/busybox_d") == 0) {
         START = 0x20000000;
@@ -663,6 +659,12 @@ int do_execve(char *path, struct binprm *bprm) {
     if (bprm->ip == 0) {
         return -1;
     }
+
+    mm = alloc_mm();
+    if (mm == NULL) {
+        return -1;
+    }
+    bprm->mm = mm;
 
     /* Loader */
     if (load_elf_binary(bprm) < 0) {

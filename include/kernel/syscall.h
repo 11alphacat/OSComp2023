@@ -16,6 +16,8 @@ int arglist(uint64 argv[], int s, int n); // do not use
 // int arglong(int, uint64 *);
 int fetchstr(uint64, char *, int);
 int fetchaddr(uint64, uint64 *);
+void syscall_count_analysis();
 void syscall();
+
 
 #endif

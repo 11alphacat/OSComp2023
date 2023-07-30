@@ -22,12 +22,14 @@ uint64 sys_munmap(void) {
 
     // print_vma(&p->mm->head_vma);
     // struct vma *v1 = find_vma_for_va(p->mm, t->ustack);
+
     struct vma *v2 = find_vma_for_va(p->mm, addr);
     // TODO: fix
     if ((strcmp(p->name, "entry-dynamic.exe") == 0 || strcmp(p->name, "entry-static.exe") == 0) && t->tidx != 0 && v2->type == VMA_ANON) {
         // Log("ustack hit");
         return 0;
     }
+
     acquire(&p->mm->lock);
     if (vmspace_unmap(p->mm, addr, length) != 0) {
         release(&p->mm->lock);

@@ -67,14 +67,12 @@ struct {
 int consolewrite(int user_src, uint64 src, int n) {
     int i;
 
-    // sema_wait(&cons.sem_w);
     for (i = 0; i < n; i++) {
         char c;
         if (either_copyin(&c, user_src, src + i, 1) == -1)
             break;
         uartputc(c);
     }
-    // sema_signal(&cons.sem_w);
 
     return i;
 }
@@ -189,11 +187,11 @@ void consoleintr(int c) {
 void consoleinit(void) {
     initlock(&cons.lock, "cons");
     sema_init(&cons.sem_r, 0, "cons_sema_r");
-    sema_init(&cons.sem_w, 1, "cons_sema_w");
     uartinit();
 
     // connect read and write system calls
     // to consoleread and consolewrite.
     devsw[CONSOLE].read = consoleread;
     devsw[CONSOLE].write = consolewrite;
+    Info("uart and console init [ok]\n");
 }

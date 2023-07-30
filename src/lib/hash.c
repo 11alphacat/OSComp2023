@@ -214,11 +214,18 @@ void hash_table_entry_init(struct hash_table *table) {
     }
 }
 
+#define MAP_SIZE(map) (sizeof(map) + sizeof(map.hash_head))
 // init all global hash tables
 void hash_tables_init() {
     hash_table_entry_init(&pid_map);
     hash_table_entry_init(&tid_map);
     hash_table_entry_init(&futex_map);
-    printfRed("hash table, size = %d\n", sizeof(struct hash_table));
-    printfRed("hash node, size = %d\n", sizeof(struct hash_node));
+    Info("========= Information of global hash table ==========\n");
+    Info("pid_map size : %d B\n", MAP_SIZE(pid_map));
+    Info("tid_map size : %d B\n", MAP_SIZE(tid_map));
+    Info("futex_map size : %d B\n", MAP_SIZE(futex_map));
+    Info("hash table, size = %d\n", sizeof(struct hash_table));
+    Info("hash node, size = %d\n", sizeof(struct hash_node));
+    Info("global hash table init [ok]\n");
+
 }

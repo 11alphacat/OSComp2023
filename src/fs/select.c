@@ -243,16 +243,17 @@ long do_pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, 
 // int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, const struct timespec *timeout, const sigset_t *sigmask);
 uint64 sys_pselect6(void) {
     int nfds;
-    uint64 readfds_addr, writefds_addr, exceptfds_addr, timeout_addr, sigmask_addr;
+    uint64 readfds_addr, writefds_addr, exceptfds_addr, timeout_addr;
+    // uint64 sigmask_addr;
     fd_set readfds, writefds, exceptfds;
     struct timespec timeout;
-    sigset_t sigmask;
+    // sigset_t sigmask;
     argint(0, &nfds);
     argaddr(1, &readfds_addr);
     argaddr(2, &writefds_addr);
     argaddr(3, &exceptfds_addr);
     argaddr(4, &timeout_addr);
-    argaddr(5, &sigmask_addr);
+    // argaddr(5, &sigmask_addr);
     struct proc *p = proc_current();
 
     if (readfds_addr && (copyin(p->mm->pagetable, (char *)&readfds, readfds_addr, sizeof(readfds))) < 0) return -1;
@@ -267,9 +268,9 @@ uint64 sys_pselect6(void) {
     // printfRed("time_out : %ld\n", time_out);
 
     // size_t sigsetsize = 0;
-    if (sigmask_addr) {
-        if (copyin(p->mm->pagetable, (char *)&sigmask, sigmask_addr, sizeof(sigmask)) < 0) return -1;
-    }
+    // if (sigmask_addr) {
+    //     if (copyin(p->mm->pagetable, (char *)&sigmask, sigmask_addr, sizeof(sigmask)) < 0) return -1;
+    // }
     // int ret = do_pselect(nfds, &readfds, &writefds, &exceptfds, timeout_addr ? &timeout : NULL, &sigmask, sigsetsize);
 
     int ret = 0;

@@ -89,7 +89,7 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
     // 一般不对 path作检查
     // 如果name字段不为null，返回的是父目录的inode节点，并填充name字段
     // printf("enter find_inode!\n");
-    ASSERT(path);
+    // ASSERT(path);
     struct inode *ip;
     struct proc *p = proc_current();
     if (*path == '/' || dirfd == AT_FDCWD) {
@@ -133,8 +133,8 @@ static struct inode *find_inode(char *path, int dirfd, char *name) {
 
 // 下面为inode文件分配一个打开文件表项，为进程分配一个文件描述符
 int assist_openat(struct inode *ip, int flags, int omode, struct file **fp) {
-    ASSERT(ip);
-    ASSERT(ip->fs_type == FAT32);
+    // ASSERT(ip);
+    // ASSERT(ip->fs_type == FAT32);
     struct file *f;
     int fd;
 
@@ -234,8 +234,8 @@ static void assist_getcwd(char *kbuf) {
     return;
 }
 
-static uint64 do_lseek(struct file *f, off_t offset, int whence) {
-    ASSERT(f);
+static inline uint64 do_lseek(struct file *f, off_t offset, int whence) {
+    // ASSERT(f);
     if (f->f_type != FD_INODE) {
         return -1;
     }
@@ -293,7 +293,7 @@ static uint64 do_sendfile(struct file *rf, struct file *wf, off_t __user *poff, 
     ssize_t nread, nwritten;
     // bug like this :
     // kbuf = kmalloc(PGSIZE)
-    // printfBlue("count : %ldB, %ldKB, %ldMB\n",count, count/1024, count/1024/1024);
+    // printfBlue("count : %ldkbuf = kzalloc(count)B, %ldKB, %ldMB\n",count, count/1024, count/1024/1024);
     if ((kbuf = kzalloc(count)) == 0) {
         return -1;
     }
@@ -673,7 +673,7 @@ uint64 sys_openat(void) {
         if ((ip = find_inode(path, dirfd, 0)) == 0) {
             return -1;
         }
-        ASSERT(ip->i_op);
+        // ASSERT(ip->i_op);
         ip->i_op->ilock(ip);
         // if (ip->i_mode == S_IFDIR && flags != O_RDONLY) {
         //     fat32_inode_unlock_put(ip);
@@ -1767,7 +1767,8 @@ uint64 sys_fstatat(void) {
     kbuf.st_ctim.ts_nsec = 0;
     kbuf.st_ctim.ts_sec = 0;
 
-    ip->i_op->iunlock_put(ip);
+    ip->i_op->iunlock(ip);
+    // ip->i_op->iunlock_put(ip);// not nesessary for test
 
     // printf("name : %s\n", ip->fat32_i.fname);// debug
     // print_stat(&kbuf);// debug

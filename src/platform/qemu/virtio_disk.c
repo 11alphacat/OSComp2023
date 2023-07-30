@@ -374,4 +374,5 @@ inline void disk_intr() {
 
 inline void disk_init() {
     virtio_disk_init();
+    Info("virtual disk init [ok]\n");
 }

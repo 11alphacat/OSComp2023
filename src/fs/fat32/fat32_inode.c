@@ -48,13 +48,16 @@ void inode_table_init() {
         memset(entry, 0, sizeof(struct inode));
         sema_init(&entry->i_sem, 1, "inode_entry_sem");
         sema_init(&entry->i_read_lock, 1, "read_lock");
-        sema_init(&entry->i_writeback_lock, 1, "i_writeback_lock");
+        // sema_init(&entry->i_writeback_lock, 1, "i_writeback_lock");
         initlock(&entry->i_lock, "inode_entry_lock");
         initlock(&entry->tree_lock, "inode_radix_tree_lock");
         INIT_LIST_HEAD(&entry->dirty_list);
         INIT_LIST_HEAD(&entry->list); // !!! to speed up inode_get
         list_add_tail(&entry->list, &inode_table.entry);
     }
+    Info("========= Information of inode table ==========\n");
+    Info("number of inode : %d\n", NINODE);
+    Info("inode table init [ok]\n");
 }
 
 // caller must pass a valid pointer !
@@ -92,7 +95,7 @@ struct inode *fat32_root_inode_init(struct _superblock *sb) {
     struct inode *root_ip = (struct inode *)kalloc();
     sema_init(&root_ip->i_sem, 1, "fat_root_inode");
     sema_init(&root_ip->i_read_lock, 1, "read_root_inode");
-    sema_init(&root_ip->i_writeback_lock, 1, "writebakc_root_inode");
+    // sema_init(&root_ip->i_writeback_lock, 1, "writebakc_root_inode");
     root_ip->i_dev = sb->s_dev;
     // root_ip->i_mode = IMODE_NONE;
     // set root inode num to 0 (this is no longer used)
@@ -876,7 +879,8 @@ void fat32_inode_put(struct inode *ip) {
         fat32_inode_hash_destroy(ip);
 
         // write back dirty pages of inode
-        fat32_i_mapping_writeback(ip);
+        // fat32_i_mapping_writeback(ip);
+        list_del_reinit(&ip->dirty_list);// !!!
 
         // destory i_mapping
         fat32_i_mapping_destroy(ip);
@@ -1414,7 +1418,7 @@ int fat32_isdirempty(struct inode *dp) {
 
 // information of fat32 inode
 void fat32_inode_stati(struct inode *ip, struct kstat *st) {
-    ASSERT(ip && st);
+    // ASSERT(ip && st);
     st->st_atime_sec = ip->i_atime;
     st->st_atime_nsec = ip->i_atime * 1000000000;
     st->st_blksize = ip->i_blksize;
@@ -1982,6 +1986,55 @@ void alloc_fail(void) {
 
     release(&inode_table.lock);
 
+
+}
+
+void shutdown_writeback(void) {
+    printfGreen("mm: %d pages before writeback\n", get_free_mem()/4096);
+
+    acquire(&inode_table.lock);
+    struct inode *ip = NULL;
+
+    for (ip = inode_table.inode_entry; ip < &inode_table.inode_entry[NINODE]; ip++) {
+        if (ip->ref) {
+            // printfBlue("file name : %s recycle, ref : %d\n", ip->fat32_i.fname, ip->ref);
+
+            // release(&inode_table.lock);
+            // sema_wait(&ip->i_writeback_lock);
+            // ==== atomic ====
+            // write back dirty pages of inode
+            fat32_i_mapping_writeback(ip);
+
+            // destory i_mapping
+            // if (list_empty_atomic(&ip->dirty_list, &ip->i_lock)) {
+            fat32_i_mapping_destroy(ip);
+            // }
+            // acquire(&inode_table.lock);
+
+            // destory hash table
+            fat32_inode_hash_destroy(ip);
+
+            // // free index table
+            fat32_free_index_table(ip);
+
+            // sema_signal(&ip->i_writeback_lock);
+            // ==== atomic ====
+        }
+    }
+    // if (list_empty_atomic(&fat32_sb.root->dirty_list, &fat32_sb.root->i_lock)) {
+    fat32_i_mapping_writeback(fat32_sb.root);
+
+    fat32_i_mapping_destroy(fat32_sb.root);
+    // }
+    fat32_inode_hash_destroy(fat32_sb.root);
+
+    fat32_free_index_table(fat32_sb.root);
+    // // free index table
+    // fat32_free_index_table(ip);
+
+    printfGreen("mm: %d pages after writeback\n", get_free_mem()/4096);
+    release(&inode_table.lock);
+    fat32_fat_bitmap_writeback(ROOTDEV, &fat32_sb);
 
 }
 

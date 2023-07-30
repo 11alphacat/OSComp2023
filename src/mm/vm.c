@@ -10,6 +10,7 @@
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
 #include "memory/buddy.h"
+#include "kernel/cpu.h"
 #include "platform/hifive/uart_hifive.h"
 #include "platform/hifive/dma_hifive.h"
 
@@ -78,6 +79,7 @@ kvmmake(void) {
 // Initialize the one kernel_pagetable
 void kvminit(void) {
     kernel_pagetable = kvmmake();
+    Info("kernel pagetable init [ok]\n");
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -90,6 +92,7 @@ void kvminithart() {
 
     // flush stale entries from the TLB.
     sfence_vma();
+    Info("cpu %d, paging is enable !!!\n", cpuid());
 }
 
 // Return the address of the PTE in page table pagetable

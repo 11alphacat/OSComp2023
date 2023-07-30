@@ -11,6 +11,8 @@
 #include "debug.h"
 #include "kernel/syscall.h"
 
+extern atomic_t pages_cnt;
+
 // #define __STRACE__
 // Fetch the uint64 at addr from the current process.
 #define INSTACK(addr) ((addr) >= USTACK && (addr) + sizeof(uint64) < USTACK + USTACK_PAGE * PGSIZE)
@@ -129,6 +131,31 @@ int argstr(int n, char *buf, int max) {
 static uint64 (*syscalls[])(void) = {
 #include "syscall_gen/syscall_func.h"
 };
+
+int syscall_cnt[] = {
+#include "syscall_gen/syscall_cnt.h"
+};
+
+uint64 syscall_time[] = {
+#include "syscall_gen/syscall_cnt.h"
+};
+
+int syscall_mm[] = {
+#include "syscall_gen/syscall_cnt.h"
+};
+
+char *syscall_str[] = {
+#include "syscall_gen/syscall_str.h"
+};
+
+void syscall_count_analysis(void) {
+    int len_syscall = NELEM(syscall_cnt);
+    for (int i = 0; i < len_syscall; i++) {
+        if (syscall_str[i] != NULL && syscall_cnt[i] != 0)
+            // printf("%s , cnt : %d, time : %ld ns, time per syscall : %ld, mm : %d pages\n", syscall_str[i], syscall_cnt[i], syscall_time[i], syscall_time[i]/syscall_cnt[i], syscall_mm[i]);
+            printf("time per syscall : %-10ld, total time : %-10ld, total cnt : %-10ld, syscall name : %s, mm : %d pages\n", syscall_time[i]/syscall_cnt[i], syscall_time[i], syscall_cnt[i] ,syscall_str[i], syscall_mm[i]);
+    }
+}
 
 #ifdef __STRACE__
 struct syscall_info {
@@ -289,18 +316,17 @@ static struct syscall_info info[] = {
     //  int getrusage(int who, struct rusage *usage);
     [SYS_getrusage] { "getrusage", 2, "dp" },
     // int socketpair(int domain, int type, int protocol, int sv[2]);
-    [SYS_socketpair] {"socketpair", 4, "dddp"},
+    [SYS_socketpair] { "socketpair", 4, "dddp" },
     // ssize_t readlink(const char *pathname, char *buf, size_t bufsiz);
-    [SYS_readlinkat] {"readlinkat", 3, "spd"},
+    [SYS_readlinkat] { "readlinkat", 3, "spd" },
     // int kill(pid_t pid, int sig);
-    [SYS_kill] {"kill", 2, "dd"},
+    [SYS_kill] { "kill", 2, "dd" },
     // int msync(void *addr, size_t length, int flags);
-    [SYS_msync] {"msync", 3, "pdd"},
+    [SYS_msync] { "msync", 3, "pdd" },
     // int mkdirat(int dirfd, const char *pathname, mode_t mode);
-    [SYS_mkdirat] {"mkdirat", 3, "dsu"},
-    [SYS_pread64] {"pread64", 4, "dpdd"},
-    [SYS_pwrite64] {"pwrite64", 4, "dpdd"}
-};
+    [SYS_mkdirat] { "mkdirat", 3, "dsu" },
+    [SYS_pread64] { "pread64", 4, "dpdd" },
+    [SYS_pwrite64] { "pwrite64", 4, "dpdd" }};
 
 // static int syscall_filter[] = {
 //     [SYS_read] 1,
@@ -383,6 +409,7 @@ int is_strace_target(int num) {
 #endif
 
 void syscall(void) {
+    // static int mm_prev = 0;
     int num;
 #ifdef __STRACE__
     /* a0 use both in argument and return value, so need to preserve it when open STRACE */
@@ -395,6 +422,7 @@ void syscall(void) {
     num = t->trapframe->a7;
     // printfYELLOW("syscall num is %d\n", num);
     if (num >= 0 && num < NELEM(syscalls) && syscalls[num]) {
+        syscall_cnt[num]++;
         // Use num to lookup the system call function for num, call it,
         // and store its return value in p->trapframe->a0
 #ifdef __STRACE__
@@ -430,7 +458,18 @@ void syscall(void) {
             }
         }
 #endif
+        int pages_before = atomic_read(&pages_cnt);
+        uint64 time_before = rdtime();
         t->trapframe->a0 = syscalls[num]();
+        uint64 time_after = rdtime();
+        int pages_after = atomic_read(&pages_cnt);
+        syscall_mm[num] += (pages_after - pages_before);
+        uint64 time = TIME2NS((time_after - time_before));
+        syscall_time[num] += time;
+        // if (pages_after != mm_prev)
+        // printfRed("%s, mm : %d\n", syscall_str[num], pages_after);
+        // mm_prev = pages_after;
+
 #ifdef __STRACE__
         if (is_strace_target(num)) {
             switch (info[num].return_type) {

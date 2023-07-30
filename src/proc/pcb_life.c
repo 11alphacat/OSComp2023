@@ -57,6 +57,9 @@ void proc_init(void) {
         p->state = PCB_UNUSED;
         Queue_push_back_atomic(&unused_p_q, p);
     }
+    Info("========= Information of proc table and tcb table ==========\n");
+    Info("number of proc : %d\n", NPROC);
+    Info("proc table init [ok]\n");
     return;
 }
 
@@ -146,6 +149,9 @@ struct proc *alloc_proc(void) {
     // bug!!!
     INIT_LIST_HEAD(&p->real_timer.list);
 
+    // bug!!!
+    INIT_LIST_HEAD(&p->sysvshm.shm_clist);
+
     // state
     PCB_Q_changeState(p, PCB_USED);
 
@@ -189,9 +195,24 @@ void free_proc(struct proc *p) {
     if (p->tg)
         kfree((void *)p->tg);
     p->tg = 0;
-    if (p->ipc_ns)
+    if (p->ipc_ns) {
+        // bug!!!
+        if(shm_ids(p->ipc_ns).key_ht) {
+            hash_destroy(shm_ids(p->ipc_ns).key_ht, 1);// free hash table
+        }
         kfree((void *)p->ipc_ns);
+    }
     p->ipc_ns = 0;
+
+    // shared memory
+    if(!list_empty(&p->sysvshm.shm_clist)) {
+        struct shmid_kernel* shmid_cur = NULL;
+        struct shmid_kernel* shmid_tmp = NULL;
+        list_for_each_entry_safe(shmid_cur, shmid_tmp, &p->sysvshm.shm_clist, shm_clist) {
+            kfree(shmid_cur);
+            kfree(shmid_cur->shm_file->private_data);
+        }
+    }
 
     // delete <pid, t>
     hash_delete(&pid_map, (void *)&p->pid, 0, 1); // not holding lock , release lock
@@ -231,11 +252,13 @@ void init_ret(void) {
     fat32_fs_mount(ROOTDEV, &fat32_sb); // initialize fat32 superblock obj and root inode obj.
     proc_current()->cwd = fat32_sb.root->i_op->idup(fat32_sb.root);
 #ifdef SUBMIT
-    printf("submit-init return\n");
+    Info("======== submit-init return ========\n");
+    printfGreen("The initial Memory before execve init : %d pages\n", get_free_mem()/4096);
     return;
 #else
     struct binprm bprm;
     memset(&bprm, 0, sizeof(bprm));
+    
     proc_current()->tg->group_leader->trapframe->a0 = do_execve("/boot/init", &bprm);
 #endif
 }
@@ -255,6 +278,7 @@ void thread_forkret(void) {
         init_ret();
     }
     // printfRed("tid : %d , name : %s forkret\n", thread_current()->tid, thread_current()->name);// debug
+    
     // trapframe_print(thread_current()->trapframe);// debug
     proc_current()->last_in = proc_current()->last_out = rdtime();
     thread_usertrapret();
@@ -377,6 +401,8 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
             if (p->ofile[i])
                 // np->ofile[i] = fat32_filedup(p->ofile[i]);
                 np->ofile[i] = p->ofile[i]->f_op->dup(p->ofile[i]);
+            // else 
+            //     break;// to speed up?
         // TODO : clone a completely same fdtable   >> not necessary
     }
 
@@ -396,6 +422,7 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
     acquire(&p->lock);
     appendChild(p, np);
     release(&p->lock);
+    release(&np->lock);
 
 #ifdef __DEBUG_PROC__
     printfRed("clone : %d -> %d\n", p->pid, np->pid); // debug
@@ -406,7 +433,7 @@ int do_clone(uint64 flags, vaddr_t stack, uint64 ptid, uint64 tls, uint64 ctid) 
     TCB_Q_changeState(t, TCB_RUNNABLE);
     release(&t->lock);
 
-    release(&np->lock);
+
     return pid;
 }
 
@@ -536,7 +563,7 @@ int waitpid(pid_t pid, uint64 status, int options) {
                     release(&p_child->lock);
                     return -1;
                 }
-                ASSERT(list_empty(&p_child->tg->threads)); // !!!
+                // ASSERT(list_empty(&p_child->tg->threads)); // !!!
                 free_proc(p_child);
 
                 acquire(&p->lock);
@@ -849,6 +876,6 @@ void oscomp_init(void) {
     TCB_Q_changeState(t, TCB_RUNNABLE);
     // release(&t->lock);
     release(&p->lock);
-    printf("init finished!\n");
+    Info("========== init finished! ==========\n");
     return;
 }

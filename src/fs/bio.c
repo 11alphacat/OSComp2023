@@ -28,6 +28,9 @@ void binit(void) {
         sema_init(&b->sem_disk_done, 0, "buffer_disk_done");
         list_add(&b->lru, &bcache.head);
     }
+    Info("========= Information of block buffer cache ==========\n");
+    Info("number of block buffer cache : %d\n", NBUF);
+    Info("block buffer cache init [ok]\n");
 }
 
 // Look through buffer cache for block on device dev.

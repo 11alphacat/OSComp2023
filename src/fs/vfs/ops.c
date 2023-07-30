@@ -134,10 +134,10 @@ static char *skepelem(char *path, char *name) {
 static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     // printf("enter inode_namex!\n");
     struct inode *ip = NULL, *next = NULL, *cwd = proc_current()->cwd;
-    ASSERT(cwd);
+    // ASSERT(cwd);
     if (*path == '/') {
-        ASSERT(cwd->i_sb);
-        ASSERT(cwd->i_sb->root);
+        // ASSERT(cwd->i_sb);
+        // ASSERT(cwd->i_sb->root);
         struct inode *rip = cwd->i_sb->root;
         ip = rip->i_op->idup(rip);
     } else if (strncmp(path, "..", 2) == 0) {
@@ -194,13 +194,13 @@ static struct inode *inode_namex(char *path, int nameeparent, char *name) {
     }
     // printf("inode_namex got ip!\n");
 
-    ASSERT(ip->i_op);
+    // ASSERT(ip->i_op);
     if (nameeparent) {
         ip->i_op->iput(ip);
         return 0;
     }
 
-    ASSERT(ip->parent->i_op);
+    // ASSERT(ip->parent->i_op);
     return ip;
 }
 

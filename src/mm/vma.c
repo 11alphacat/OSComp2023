@@ -20,6 +20,7 @@ static struct vma *vma_map_range(struct mm_struct *mm, uint64 va, size_t len, ui
 void vmas_init() {
     initlock(&vmas_lock, "vmas_lock");
     memset(vmas, 0, sizeof(vmas));
+    Info("vma init [ok]\n");
 }
 
 static struct vma *alloc_vma(void) {

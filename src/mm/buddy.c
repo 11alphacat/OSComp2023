@@ -45,17 +45,19 @@ struct page *pagemeta_start;
 void mm_init() {
     // readonly! can not modify!
     pagemeta_start = (struct page *)PGROUNDUP((uint64)end);
-    printf("pagemeta_start %x\n", pagemeta_start);
-    printf("NPAGES: %d\n", NPAGES);
+    Info("=========Information of RAM==========\n");
+    Info("pagemeta_start: %x\n", pagemeta_start);
+    Info("NPAGES: %d\n", NPAGES);
     atomic_set(&pages_cnt, NPAGES);
     atomic_set(&recycling, 0);
-    printf("PAGES PER CPU: %d\n", PAGES_PER_CPU);
+    Info("PAGES PER CPU: %d\n", PAGES_PER_CPU);
     for (int i = 0; i < NCPU; i++) {
         init_buddy(&mempools[i],
                    (struct page *)PGROUNDUP((uint64)end) + i * PAGES_PER_CPU,
                    (uint64)START_MEM + i * PAGES_PER_CPU * PGSIZE,
                    PAGES_PER_CPU);
     }
+    Info("buddy system init [ok]\n");
 }
 
 static int cur = 0;
@@ -65,8 +67,9 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
     // Log("%d start_mem: %#x", cur, start_addr);
     // Log("%d end mem: %#x", cur, start_addr + mem_size);
     // Log("%d page_num %d", cur, page_num);
-    printf("%d pagemeta start: %x\n", cur, start_page);
-    printf("%d pagemeta end: %x\n", cur, (uint64)start_page + page_num * sizeof(struct page));
+    Info("=========Information of memory for CPU %d==========\n", cur);
+    Info("%d pagemeta start: %x\n", cur, start_page);
+    Info("%d pagemeta end: %x\n", cur, (uint64)start_page + page_num * sizeof(struct page));
     ASSERT((uint64)start_page + page_num * sizeof(struct page) < START_MEM);
     pool->start_addr = start_addr;
     pool->page_metadata = start_page;
@@ -110,7 +113,7 @@ void init_buddy(struct phys_mem_pool *pool, struct page *start_page, uint64 star
         // Log("%d order chunks num: %d", i, pool->freelists[i].num);
         memsize += pool->freelists[i].num * PGSIZE * (1 << i);
     }
-    printf("memsize: %u\n", memsize / 1024 / 1024);
+    Info("memsize: %u MB\n", memsize / 1024 / 1024);
     ASSERT(memsize == pool->mem_size);
     return;
 }

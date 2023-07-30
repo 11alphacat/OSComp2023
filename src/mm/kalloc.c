@@ -90,7 +90,6 @@ void *kmalloc(size_t size) {
     void *page_ret = (void *)page_to_pa(page);
     // if (page_ret != NULL) {
     atomic_sub_return(&pages_cnt, 1 << page->order);
-
     // if (atomic_read(&pages_cnt) < PAGES_THRESHOLD) {
     //     alloc_fail();
     // }
@@ -99,13 +98,37 @@ void *kmalloc(size_t size) {
         alloc_fail();
         atomic_dec_return(&recycling);
     }
+    // if(atomic_read(&pages_cnt) < 10000) {
+    //     printf("ready\n");
+    // }
     // int cnt = 1<< page->order;
 
     // if(cnt == 4) {
     //     printfBlue("ready\n");
     // }
-
-    // if (cnt > 1)
+    // if(cnt == 1) {
+    //     printfRed("prepare\n");
+    // }
+    // if(cnt == 2) {
+    //     printf("page cnt : 2\n");
+    // }
+    // if(cnt == 4096) {
+    //     printf("page cnt : 4096\n");
+    // }
+    // if(cnt == 8) {
+    //     printf("page cnt : 4096\n");
+    // }
+    // if(cnt == 16) {
+    //     printf("page cnt : 16\n");
+    // }
+    // if(cnt == 64) {
+    //     printf("page cnt : 64\n");
+    // }
+    // if(cnt == 4096) {
+    //     printf("alloc, page cnt : 4096\n");
+    // }
+    
+    // if (cnt > 2)
     //     printfRed("kmalloc, page alloc : %d pages \n", cnt);
     return page_ret;
 }
@@ -129,6 +152,7 @@ void *kalloc(void) {
 
     push_off();
     int id = cpuid();
+    // printf("%d\n", NCPU);
     ASSERT(id >= 0 && id < NCPU);
     struct page *page = buddy_get_pages(&mempools[id], order);
 
@@ -160,8 +184,16 @@ void *kalloc(void) {
     // if(cnt == 4) {
     //     printfBlue("ready\n");
     // }
-
-    // if (cnt > 1)
+    // if(cnt == 2) {
+    //     printf("page cnt : 2\n");
+    // }
+    // if(cnt == 1) {
+    //     printfRed("prepare\n");
+    // }
+    // if(cnt == 16) {
+    //     printf("page cnt : 16\n");
+    // }
+    // if (cnt > 2)
     //     printfRed("kalloc, page alloc : %d pages \n", cnt);
     return page_ret;
 }
@@ -192,6 +224,12 @@ void kfree(void *pa) {
     // if (page != NULL) {
     atomic_add_return(&pages_cnt, 1 << page->order);
     // }
+
+    // int cnt = 1<< page->order;
+    // if(cnt == 4096) {
+    //     printfBlue("free, page cnt : 4096\n");
+    // }
+    
     buddy_free_pages(&mempools[id], page);
 }
 

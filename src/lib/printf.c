@@ -298,6 +298,7 @@ void panic(char *s) {
 void printfinit(void) {
     initlock(&pr.lock, "pr");
     pr.locking = 1;
+    Info("printf init [ok]\n");
 }
 
 void backtrace() {
