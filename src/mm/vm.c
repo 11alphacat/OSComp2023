@@ -10,6 +10,7 @@
 #include "proc/pcb_mm.h"
 #include "lib/list.h"
 #include "memory/buddy.h"
+#include "memory/pagefault.h"
 #include "kernel/cpu.h"
 #include "platform/hifive/uart_hifive.h"
 #include "platform/hifive/dma_hifive.h"
@@ -526,8 +527,6 @@ void uvmclear(pagetable_t pagetable, uint64 va) {
     *pte &= ~PTE_U;
 }
 
-int is_a_cow_page(int flags);
-int cow(pte_t *pte, int level, paddr_t pa, int flags);
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
@@ -536,10 +535,9 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 
     while (len > 0) {
         va0 = PGROUNDDOWN(dstva);
-
         // kernel has the right to write all RAM without PAGE FAULT
         // so need to check if this write is legal(PTE_W == 1 in PTE)
-        // if not, call cow
+        // if not, call pagefault
         pte_t *pte;
         int flags;
         /* since walk will panic if va0 > maxva, so we have to handle this error before walk */
@@ -547,17 +545,14 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
             return -1;
         }
         walk(pagetable, va0, 0, 0, &pte);
-        if (pte == 0) {
-            return -1;
+        if (pte == NULL || (*pte == 0)) {
+            if (pagefault(STORE_PAGEFAULT, pagetable, dstva) < 0) {
+                return -1;
+            }
         }
         flags = PTE_FLAGS(*pte);
-        if ((flags & PTE_W) == 0) {
-            if (is_a_cow_page(flags)) {
-                int ret = cow(pte, COMMONPAGE, PTE2PA(*pte), flags);
-                if (ret < 0) {
-                    return -1;
-                }
-            } else {
+        if ((flags & PTE_W) == 0 && is_a_cow_page(flags)) {
+            if (pagefault(STORE_PAGEFAULT, pagetable, dstva) < 0) {
                 return -1;
             }
         }

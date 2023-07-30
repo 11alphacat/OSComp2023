@@ -20,6 +20,7 @@
 #include "debug.h"
 #include "lib/timer.h"
 #include "kernel/syscall.h"
+#include "memory/pagefault.h"
 
 int print_tf_flag;
 

@@ -8,14 +8,8 @@
 #include "fs/vfs/fs.h"
 #include "debug.h"
 #include "memory/mm.h"
+#include "memory/pagefault.h"
 
-#define PAGEFAULT(format, ...) printf("[PAGEFAULT]: " format "\n", ##__VA_ARGS__);
-#define CHECK_PERM(cause, vma) (((cause) == STORE_PAGEFAULT && (vma->perm & PERM_WRITE))  \
-                                || ((cause) == LOAD_PAGEFAULT && (vma->perm & PERM_READ)) \
-                                || ((cause) == INSTUCTION_PAGEFAULT && (vma->perm & PERM_EXEC)))
-
-/* copy-on write */
-int cow(pte_t *pte, int level, paddr_t pa, int flags);
 
 static uint32 perm_vma2pte(uint32 vma_perm) {
     uint32 pte_perm = 0;

@@ -343,11 +343,11 @@ char *strace_proc_name[STRACE_TARGET_NUM] = {
 int is_strace_target(int num) {
     /* trace all proc except sh and init */
     if (proc_current()->pid > 2) {
-        // if (num == SYS_execve) {
-        //     return 1;
-        // } else {
-        //     return 0;
-        // }
+        if (num == SYS_execve) {
+            return 1;
+        } else {
+            return 0;
+        }
         // if (num == SYS_getuid) {
         //     return 0;
         // }
@@ -458,14 +458,14 @@ void syscall(void) {
             }
         }
 #endif
-        int pages_before = atomic_read(&pages_cnt);
-        uint64 time_before = rdtime();
+        // int pages_before = atomic_read(&pages_cnt);
+        // uint64 time_before = rdtime();
         t->trapframe->a0 = syscalls[num]();
-        uint64 time_after = rdtime();
-        int pages_after = atomic_read(&pages_cnt);
-        syscall_mm[num] += (pages_after - pages_before);
-        uint64 time = TIME2NS((time_after - time_before));
-        syscall_time[num] += time;
+        // uint64 time_after = rdtime();
+        // int pages_after = atomic_read(&pages_cnt);
+        // syscall_mm[num] += (pages_after - pages_before);
+        // uint64 time = TIME2NS((time_after - time_before));
+        // syscall_time[num] += time;
         // if (pages_after != mm_prev)
         // printfRed("%s, mm : %d\n", syscall_str[num], pages_after);
         // mm_prev = pages_after;

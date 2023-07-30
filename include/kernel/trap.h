@@ -4,9 +4,6 @@
 #include "common.h"
 
 #define SYSCALL 8
-#define INSTUCTION_PAGEFAULT 12
-#define LOAD_PAGEFAULT 13
-#define STORE_PAGEFAULT 15
 
 struct context;
 struct file;
