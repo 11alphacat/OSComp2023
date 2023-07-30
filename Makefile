@@ -223,13 +223,13 @@ format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 # for submit
-# all: kernel-qemu
-# 	cp bootloader/opensbi-qemu ./sbi-qemu
-##	$(QEMU) $(QEMUOPTS)
+all: kernel-qemu
+	cp bootloader/opensbi-qemu ./sbi-qemu
+#	$(QEMU) $(QEMUOPTS)
 
 
-all: kernel-qemu image
-	$(QEMU) $(QEMUOPTS)
+# all: kernel-qemu image
+# 	$(QEMU) $(QEMUOPTS)
 
 kernel: kernel-qemu
 	$(QEMU) $(QEMUOPTS)

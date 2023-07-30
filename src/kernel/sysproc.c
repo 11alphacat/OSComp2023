@@ -101,7 +101,7 @@ sys_wait4(void) {
     return waitpid(p, status, options);
 }
 
-int skip = 0;
+// int skip = 0;
 
 /*
 * 功能：执行一个指定的程序；
@@ -161,12 +161,12 @@ uint64 sys_execve(void) {
             if (i == 1 && strcmp((char *)cp, "bw_pipe") == 0) {
                 return -1;
             }
-            if (i == 4 && (strcmp(path, "./cyclictest") == 0) && strcmp((char *)cp, "-t8") == 0) {
-                skip++;
-                if (skip == 2) {
-                    sbi_shutdown();
-                }
-            }
+            // if (i == 4 && (strcmp(path, "./cyclictest") == 0) && strcmp((char *)cp, "-t8") == 0) {
+            //     skip++;
+            //     if (skip == 2) {
+            //         sbi_shutdown();
+            //     }
+            // }
             // if ((strcmp(path, "entry-dynamic.exe") == 0 || strcmp(path, "entry-static.exe") == 0) && strcmp((char *)cp, "pthread_cancel_points") == 0) {
             //     return -1;
             // }
