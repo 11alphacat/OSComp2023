@@ -1,4 +1,5 @@
 整体情况：
+两个核：
 time per syscall : 193536    , total time : 967680    , total cnt : 5         , syscall name : sys_mknod, mm : -12 pages
 time per syscall : 29750     , total time : 238000    , total cnt : 8         , syscall name : sys_getcwd, mm : 0 pages
 time per syscall : 8198      , total time : 974486560 , total cnt : 118859    , syscall name : sys_dup, mm : -52 pages
@@ -91,6 +92,102 @@ time per syscall : 13835     , total time : 3403520   , total cnt : 246       , 
 time per syscall : 388960    , total time : 388960    , total cnt : 1         , syscall name : sys_renameat2, mm : 2 pages
 time per syscall : 862       , total time : 12080     , total cnt : 14        , syscall name : sys_membarrier, mm : 0 pages
 time per syscall : 956720    , total time : 956720    , total cnt : 1         , syscall name : sys_print_vma, mm : 0 pages
+
+1863449661600
+2340926523360
+
+单个核：
+time per syscall : 156912    , total time : 784560    , total cnt : 5         , syscall name : sys_mknod, mm : -12 pages
+time per syscall : 28280     , total time : 226240    , total cnt : 8         , syscall name : sys_getcwd, mm : 0 pages
+time per syscall : 6599      , total time : 869846720 , total cnt : 131808    , syscall name : sys_dup, mm : 0 pages
+time per syscall : 10840     , total time : 29779040  , total cnt : 2747      , syscall name : sys_dup3, mm : 0 pages
+time per syscall : 7464      , total time : 19818880  , total cnt : 2655      , syscall name : sys_fcntl, mm : 0 pages
+time per syscall : 640       , total time : 796320    , total cnt : 1244      , syscall name : sys_ioctl, mm : 0 pages
+time per syscall : 69290932  , total time : 8730657520, total cnt : 126       , syscall name : sys_mkdirat, mm : -617 pages
+time per syscall : 71076     , total time : 254310400 , total cnt : 3578      , syscall name : sys_unlinkat, mm : 32365 pages
+time per syscall : 29480     , total time : 58960     , total cnt : 2         , syscall name : sys_statfs, mm : 0 pages
+time per syscall : 3920      , total time : 3920      , total cnt : 1         , syscall name : sys_ftruncate, mm : 0 pages
+time per syscall : 57462     , total time : 59014400  , total cnt : 1027      , syscall name : sys_faccessat, mm : 991 pages
+time per syscall : 29200     , total time : 58400     , total cnt : 2         , syscall name : sys_chdir, mm : 0 pages
+time per syscall : 135300    , total time : 892441600 , total cnt : 6596      , syscall name : sys_openat, mm : -5856 pages
+time per syscall : 6176      , total time : 1082385280, total cnt : 175245    , syscall name : sys_close, mm : 1609 pages
+time per syscall : 20689     , total time : 28096800  , total cnt : 1358      , syscall name : sys_pipe2, mm : -1358 pages
+time per syscall : 114890    , total time : 919120    , total cnt : 8         , syscall name : sys_getdents64, mm : 0 pages
+time per syscall : 5388      , total time : 189666000 , total cnt : 35198     , syscall name : sys_lseek, mm : 0 pages
+time per syscall : 4293173   , total time : 19405250109920, total cnt : 4520025   , syscall name : sys_read, mm : -299379 pages
+time per syscall : 435913    , total time : 1948186507760, total cnt : 4469203   , syscall name : sys_write, mm : -238331 pages
+time per syscall : 35492     , total time : 445818720 , total cnt : 12561     , syscall name : sys_readv, mm : 435 pages
+time per syscall : 791656    , total time : 21723856960, total cnt : 27441     , syscall name : sys_writev, mm : 76577 pages
+time per syscall : 16461     , total time : 16889600  , total cnt : 1026      , syscall name : sys_pread64, mm : -1 pages
+time per syscall : 200070    , total time : 819488960 , total cnt : 4096      , syscall name : sys_pwrite64, mm : -3635 pages
+time per syscall : 544365040 , total time : 2177460160, total cnt : 4         , syscall name : sys_sendfile, mm : -86 pages
+time per syscall : 11585     , total time : 195239478960, total cnt : 16851474  , syscall name : sys_pselect6, mm : 8790 pages
+time per syscall : 426       , total time : 581680    , total cnt : 1365      , syscall name : sys_ppoll, mm : 0 pages
+time per syscall : 669       , total time : 14720     , total cnt : 22        , syscall name : sys_readlinkat, mm : 0 pages
+time per syscall : 41841     , total time : 169332880 , total cnt : 4047      , syscall name : sys_fstatat, mm : -332 pages
+time per syscall : 9224      , total time : 24287040  , total cnt : 2633      , syscall name : sys_fstat, mm : 0 pages
+time per syscall : 458       , total time : 35760     , total cnt : 78        , syscall name : sys_sync, mm : 0 pages
+time per syscall : 342       , total time : 37360     , total cnt : 109       , syscall name : sys_fsync, mm : 0 pages
+time per syscall : 38454     , total time : 730640    , total cnt : 19        , syscall name : sys_utimensat, mm : 0 pages
+time per syscall : 0         , total time : 0         , total cnt : 15103     , syscall name : sys_exit, mm : 0 pages
+time per syscall : 1332      , total time : 11476880  , total cnt : 8616      , syscall name : sys_exit_group, mm : 0 pages
+time per syscall : 1489      , total time : 5410160   , total cnt : 3631      , syscall name : sys_set_tid_address, mm : 0 pages
+time per syscall : 152678    , total time : 1505865040, total cnt : 9863      , syscall name : sys_futex, mm : 20455 pages
+time per syscall : 960       , total time : 5760      , total cnt : 6         , syscall name : sys_set_robust_list, mm : 0 pages
+time per syscall : 35200     , total time : 70400     , total cnt : 2         , syscall name : sys_get_robust_list, mm : 0 pages
+time per syscall : 224       , total time : 65194640  , total cnt : 291016    , syscall name : sys_nanosleep, mm : -5 pages
+time per syscall : 13547     , total time : 1490240   , total cnt : 110       , syscall name : sys_setitimer, mm : 0 pages
+time per syscall : 3922      , total time : 104279920 , total cnt : 26582     , syscall name : sys_clock_gettime, mm : 0 pages
+time per syscall : 12940     , total time : 51760     , total cnt : 4         , syscall name : sys_clock_getres, mm : 0 pages
+time per syscall : 143230533 , total time : 32943022720, total cnt : 230       , syscall name : sys_clock_nanosleep, mm : -7925 pages
+time per syscall : 5600      , total time : 11200     , total cnt : 2         , syscall name : sys_syslog, mm : 0 pages
+time per syscall : 400       , total time : 17600     , total cnt : 44        , syscall name : sys_sched_setscheduler, mm : 0 pages
+time per syscall : 1260      , total time : 5040      , total cnt : 4         , syscall name : sys_sched_getscheduler, mm : 0 pages
+time per syscall : 1260      , total time : 5040      , total cnt : 4         , syscall name : sys_sched_getparam, mm : 0 pages
+time per syscall : 506       , total time : 9120      , total cnt : 18        , syscall name : sys_sched_setaffinity, mm : 0 pages
+time per syscall : 1440      , total time : 5760      , total cnt : 4         , syscall name : sys_sched_getaffinity, mm : 0 pages
+time per syscall : 3578      , total time : 14136960  , total cnt : 3951      , syscall name : sys_kill, mm : -1179 pages
+time per syscall : 13317     , total time : 167433680 , total cnt : 12572     , syscall name : sys_rt_sigaction, mm : 0 pages
+time per syscall : 8337      , total time : 444399120 , total cnt : 53302     , syscall name : sys_rt_sigprocmask, mm : -532 pages
+time per syscall : 682       , total time : 150080    , total cnt : 220       , syscall name : sys_rt_sigtimedwait, mm : 0 pages
+time per syscall : 10293     , total time : 6927760   , total cnt : 673       , syscall name : sys_rt_sigreturn, mm : 0 pages
+time per syscall : 8459      , total time : 3383600   , total cnt : 400       , syscall name : sys_uname, mm : 0 pages
+time per syscall : 13769     , total time : 331187440 , total cnt : 24052     , syscall name : sys_getrusage, mm : 0 pages
+time per syscall : 122       , total time : 16069520  , total cnt : 130831    , syscall name : sys_umask, mm : 0 pages
+time per syscall : 797       , total time : 106453600 , total cnt : 133442    , syscall name : sys_getpid, mm : 0 pages
+time per syscall : 818       , total time : 13411840  , total cnt : 16389     , syscall name : sys_getppid, mm : 0 pages
+time per syscall : 252       , total time : 33541760  , total cnt : 132877    , syscall name : sys_getuid, mm : 0 pages
+time per syscall : 520       , total time : 1040      , total cnt : 2         , syscall name : sys_getuid, mm : 0 pages
+time per syscall : 2960      , total time : 5920      , total cnt : 2         , syscall name : sys_getegid, mm : 0 pages
+time per syscall : 1268      , total time : 11162880  , total cnt : 8797      , syscall name : sys_gettid, mm : 0 pages
+time per syscall : 375706    , total time : 1127120   , total cnt : 3         , syscall name : sys_sysinfo, mm : 0 pages
+time per syscall : 491822    , total time : 6885520   , total cnt : 14        , syscall name : sys_shmget, mm : -36 pages
+time per syscall : 28142     , total time : 394000    , total cnt : 14        , syscall name : sys_shmctl, mm : 14 pages
+time per syscall : 42011     , total time : 588160    , total cnt : 14        , syscall name : sys_shmat, mm : -14 pages
+time per syscall : 35370     , total time : 282960    , total cnt : 8         , syscall name : sys_socket, mm : -128 pages
+time per syscall : 144506666 , total time : 29190346720, total cnt : 202       , syscall name : sys_socketpair, mm : -1889 pages
+time per syscall : 30940     , total time : 123760    , total cnt : 4         , syscall name : sys_bind, mm : 0 pages
+time per syscall : 12080     , total time : 24160     , total cnt : 2         , syscall name : sys_listen, mm : 0 pages
+time per syscall : 11040     , total time : 22080     , total cnt : 2         , syscall name : sys_accept, mm : 0 pages
+time per syscall : 47280     , total time : 94560     , total cnt : 2         , syscall name : sys_connect, mm : 0 pages
+time per syscall : 15240     , total time : 60960     , total cnt : 4         , syscall name : sys_getsockname, mm : 0 pages
+time per syscall : 96440     , total time : 192880    , total cnt : 2         , syscall name : sys_sendto, mm : 0 pages
+time per syscall : 66840     , total time : 133680    , total cnt : 2         , syscall name : sys_recvfrom, mm : 0 pages
+time per syscall : 2120      , total time : 4240      , total cnt : 2         , syscall name : sys_setsockopt, mm : 0 pages
+time per syscall : 0         , total time : 0         , total cnt : 1         , syscall name : sys_shutdown, mm : 0 pages
+time per syscall : 50934     , total time : 1390162640, total cnt : 27293     , syscall name : sys_brk, mm : -64653 pages
+time per syscall : 36531     , total time : 240195200 , total cnt : 6575      , syscall name : sys_munmap, mm : 19161 pages
+time per syscall : 3345470   , total time : 52279664160, total cnt : 15627     , syscall name : sys_clone, mm : -878863 pages
+time per syscall : 130441134 , total time : 826344588320, total cnt : 6335      , syscall name : sys_execve, mm : -1315258 pages
+time per syscall : 27935     , total time : 254069280 , total cnt : 9095      , syscall name : sys_mmap, mm : 1762 pages
+time per syscall : 13712     , total time : 90760800  , total cnt : 6619      , syscall name : sys_mprotect, mm : 470 pages
+time per syscall : 133       , total time : 164640    , total cnt : 1232      , syscall name : sys_msync, mm : 0 pages
+time per syscall : 141       , total time : 21600     , total cnt : 153       , syscall name : sys_madvise, mm : 0 pages
+time per syscall : 225674975 , total time : 2340926523360, total cnt : 10373     , syscall name : sys_wait4, mm : 954404 pages
+time per syscall : 11802     , total time : 2903520   , total cnt : 246       , syscall name : sys_prlimit64, mm : 0 pages
+time per syscall : 366400    , total time : 366400    , total cnt : 1         , syscall name : sys_renameat2, mm : 2 pages
+time per syscall : 1053      , total time : 12640     , total cnt : 12        , syscall name : sys_membarrier, mm : 0 pages
+time per syscall : 569040    , total time : 569040    , total cnt : 1         , syscall name : sys_print_vma, mm : 0 pages
 
 
 iozone:

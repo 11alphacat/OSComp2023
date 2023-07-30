@@ -352,9 +352,15 @@ int devintr() {
         return 1;
 
     } else if (scause == 0x8000000000000005L) {
+#if defined(SIFIVE_U) || defined(SIFIVE_B)
         if (cpuid() == 1) { // bugs: can't be 0 when based on sifive_u
             clockintr();
         }
+#else
+        if (cpuid() == 0) { // QEMU : cpuid is 0
+            clockintr();
+        }
+#endif
         SET_TIMER();
 
         return 2;

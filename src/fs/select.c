@@ -343,12 +343,12 @@ uint64 sys_pselect6(void) {
             // printfGreen("select , pid : %d exit\n", proc_current()->pid);// debug
             break;
         } else {
-            acquire(&cond_ticks.waiting_queue.lock);
-            struct tcb* t = thread_current();
-            t->time_out = time_out;
-            cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
-            release(&cond_ticks.waiting_queue.lock);
-            break;
+            // acquire(&cond_ticks.waiting_queue.lock);
+            // struct tcb* t = thread_current();
+            // t->time_out = time_out;
+            // cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
+            // release(&cond_ticks.waiting_queue.lock);
+            // break;
         }
     }
 

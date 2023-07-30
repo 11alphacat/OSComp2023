@@ -298,15 +298,16 @@ void do_tkill(struct tcb *t, sig_t signo) {
 }
 
 int do_sleep_ns(struct tcb *t, struct timespec ts) {
-    uint64 interval_ns = TIMESEPC2NS(ts);
+//     uint64 interval_ns = TIMESEPC2NS(ts);
 
-    acquire(&cond_ticks.waiting_queue.lock);
-    t->time_out = interval_ns;
-// printf("from do_sleep_ns: hart = %d\n",cpuid());
-// printf("t-time_out = %d\n",interval_ns);
-    int wait_ret = cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
-    release(&cond_ticks.waiting_queue.lock);
-    return wait_ret;
+//     acquire(&cond_ticks.waiting_queue.lock);
+//     t->time_out = interval_ns;
+// // printf("from do_sleep_ns: hart = %d\n",cpuid());
+// // printf("t-time_out = %d\n",interval_ns);
+//     int wait_ret = cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
+//     release(&cond_ticks.waiting_queue.lock);
+//     return wait_ret;
+    return 0;
 }
 
 // create thread valid inkernel space

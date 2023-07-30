@@ -182,12 +182,14 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 ifeq ($(PLATFORM), qemu_virt)
 QEMUOPTS = -machine virt -bios bootloader/opensbi-qemu -kernel kernel-qemu -m 128M -smp 2 -nographic
+# QEMUOPTS = -machine virt -bios bootloader/opensbi-qemu -kernel kernel-qemu -m 128M -smp 1 -nographic
 ifeq ($(SUBMIT), 1)
 QEMUOPTS += -drive file=sdcard.img,if=none,format=raw,id=x0
 else
 QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 endif
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+# CFLAGS += -DVIRT -DNCPU=1
 CFLAGS += -DVIRT -DNCPU=2
 # QEMUOPTS = -machine virt -kernel kernel-qemu -m 128M -nographic -smp 2 -bios sbi-qemu -drive file=sdcard.img,if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -device virtio-net-device,netdev=net -netdev user,id=net -initrd initrd.img
 endif

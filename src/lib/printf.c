@@ -14,6 +14,7 @@
 
 #include "lib/ctype.h"
 #include "debug.h"
+#include "lib/sbi.h"
 
 volatile int panicked = 0;
 
@@ -291,6 +292,7 @@ void panic(char *s) {
     printf(s);
     printf("\n");
     panicked = 1; // freeze uart output from other CPUs
+    sbi_shutdown();
     for (;;)
         ;
 }

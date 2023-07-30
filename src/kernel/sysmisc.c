@@ -130,24 +130,24 @@ uint64 sys_nanosleep(void) {
 // #if defined (SIFIVE_U) || defined (SIFIVE_B)
 //     return 0;
 // #endif
-    uint64 req;
-    argaddr(0, &req);
+    // uint64 req;
+    // argaddr(0, &req);
 
-    struct timespec ts_buf;
-    if (copyin(proc_current()->mm->pagetable, (char *)&ts_buf, req, sizeof(ts_buf)) == -1) {
-        return -1;
-    }
+    // struct timespec ts_buf;
+    // if (copyin(proc_current()->mm->pagetable, (char *)&ts_buf, req, sizeof(ts_buf)) == -1) {
+    //     return -1;
+    // }
 
-    do_sleep_ns(thread_current(), ts_buf);
+    // do_sleep_ns(thread_current(), ts_buf);
     return 0;
 }
 
 extern void shutdown_writeback(void);
 uint64 sys_shutdown() {
-    syscall_count_analysis();
+    // syscall_count_analysis();
     // shutdown_writeback();
     
-    printfGreen("mm: %d pages when shutdown\n", get_free_mem()/4096);
+    // printfGreen("mm: %d pages when shutdown\n", get_free_mem()/4096);
     sbi_shutdown();
 
     panic("shutdown: can not reach here");
