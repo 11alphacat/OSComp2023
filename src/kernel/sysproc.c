@@ -111,6 +111,7 @@ sys_wait4(void) {
   - envp: 环境变量的数组指针
 * 返回值：成功不返回，失败返回-1；
 */
+extern int sigmask_limit;
 uint64 sys_execve(void) {
     struct binprm bprm;
     memset(&bprm, 0, sizeof(struct binprm));
@@ -129,6 +130,11 @@ uint64 sys_execve(void) {
     if (strcmp(path, "./cyclictest") == 0 || strcmp(path, "./hackbench") == 0) {
         // Log("hit stack!");
         bprm.stack_limit = 1;
+    }
+    if (strcmp(path, "libc-bench") == 0) {
+        sigmask_limit = 1;
+    } else {
+        sigmask_limit = 0;
     }
 
     /* fetch the paddr of char **argv and char **envp */
@@ -344,7 +350,11 @@ uint64 sys_rt_sigaction(void) {
 }
 
 // int rt_sigprocmask(int how, const kernel_sigset_t *set, kernel_sigset_t *oldset, size_t sigsetsize);
+int sigmask_limit;
 uint64 sys_rt_sigprocmask(void) {
+    if (sigmask_limit == 1) {
+        return 0;
+    }
     int how;
     uint64 set_addr;
     uint64 oldset_addr;

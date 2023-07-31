@@ -50,7 +50,7 @@ static uint64 mkperm(int prot, int flags) {
 void *do_mmap(vaddr_t addr, size_t length, int prot, int flags, struct file *fp, off_t offset) {
     struct mm_struct *mm = proc_current()->mm;
     // sema_wait(&mm->mmap_sem);
-    vaddr_t mapva;
+    vaddr_t mapva = 0;
     if (addr == 0) {
         // acquire(&mm->lock);
         mapva = find_mapping_space(mm, addr, length);

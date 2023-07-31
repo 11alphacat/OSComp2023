@@ -8,7 +8,7 @@ void ipc_init_ids(struct ipc_ids *ids) {
     ids->in_use = 0;
     ids->seq = 0;
     sema_init(&ids->rwsem, 1, "ipc_ids_rwsem");
-    init_ipc_id(ids);
+    do { union { volatile typeof((0)) tmp; typeof(((&((ids)->next_ipc_id))->counter)) result; } u = {.tmp = ((0))}; (((&((ids)->next_ipc_id))->counter)) = u.result; } while (0);
     int seq_limit = INT_MAX / SEQ_MULTIPLIER;
     if (seq_limit > USHORT_MAX)
         ids->seq_max = USHORT_MAX;

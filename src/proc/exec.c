@@ -97,7 +97,7 @@ static int load_elf_interp(char *path) {
     struct binprm bprm;
     Elf64_Ehdr *elf_ex;
     Elf64_Phdr *elf_phdata; /* ph poiner */
-    struct inode *ip;
+    struct inode *ip = NULL;
 
     struct mm_struct *mm;
     mm = ldso.mm = bprm.mm = alloc_mm();

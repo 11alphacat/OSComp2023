@@ -28,6 +28,7 @@ typedef unsigned int __kernel_mode_t;
 #define init_ipc_id(ipc_ids) (atomic_set(&((ipc_ids)->next_ipc_id), 0))
 #define alloc_ipc_id(ipc_ids) (atomic_inc_return(&((ipc_ids)->next_ipc_id)))
 
+
 // for seq_max
 #define IPCMNI 32768
 #define SEQ_MULTIPLIER (IPCMNI)
