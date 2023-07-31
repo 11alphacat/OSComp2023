@@ -74,6 +74,9 @@ int signal_send(siginfo_t *info, struct tcb *t) {
     // if (sig_ignored(t, sig) || sig_existed(t, sig)) {
     //     return 0;
     // }
+    if (sig_existed(t, sig)) {
+        return 0;
+    }
 
     // be killed immediately !!!
     if (sig == SIGKILL || sig == SIGSTOP || sig == SIGTERM) {
@@ -127,7 +130,7 @@ int signal_handle(struct tcb *t) {
             signal_DFL(t, sig_no);
             t->sig_pending_cnt--; // !!!
             // delete the signal immediately !!!
-            sig_del_set_mask(t->pending.signal, sig_gen_mask(sig_no));
+            // sig_del_set_mask(t->pending.signal, sig_gen_mask(sig_no));
             list_del_reinit(&sig_cur->list);
             kfree(sig_cur);
         } else if (sig_act.sa_handler == SIG_IGN) {
@@ -137,7 +140,7 @@ int signal_handle(struct tcb *t) {
             t->sig_pending_cnt--; // !!!
             t->sig_ing = sig_no;
             // delete the signal immediately !!!
-            sig_del_set_mask(t->pending.signal, sig_gen_mask(sig_no));
+            // sig_del_set_mask(t->pending.signal, sig_gen_mask(sig_no));
             list_del_reinit(&sig_cur->list);
             kfree(sig_cur);
             break;
@@ -284,7 +287,7 @@ int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct tra
     // struct proc *p = proc_current();
     struct rt_sigframe *frame;
     frame = get_sigframe(sig, tf, sizeof(*frame));
-    signal_frame_setup(set, tf, frame);
+    signal_frame_setup(set, tf, frame, signo);
 
     tf->ra = (uint64)SIGRETURN;
     tf->epc = (uint64)sig->sa_handler;
@@ -295,7 +298,7 @@ int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct tra
     return 0;
 }
 
-int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf) {
+int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf, sig_t signo) {
     // frame->uc.uc_flags = 0;
     // frame->uc.uc_link = NULL;
     // frame->uc.uc_stack.ss_sp = (void *)tf->sp;
@@ -304,6 +307,7 @@ int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *
     struct ucontext uc;
     uc.uc_sigmask = *set;
     uc.uc_mcontext.tf = *tf;
+    uc.sig_ing = signo;
     struct proc *p = proc_current();
     if (copyout(p->mm->pagetable, (uint64)&rtf->uc, (char *)&uc, sizeof(struct ucontext)))
         return -1;

@@ -401,6 +401,7 @@ uint64 sys_rt_sigreturn(void) {
     // signal_trapframe_restore(t);
 
     signal_frame_restore(t, (struct rt_sigframe *)t->trapframe->sp);
+    sig_del_set_mask(t->pending.signal, sig_gen_mask(t->sig_ing));
     // ucontext_t uc_riscv;
     // struct proc* p = proc_current();
     // if (copyin(p->mm->pagetable, (char *)&uc_riscv, (uint64)&uc_riscv, sizeof(ucontext_t)) != 0)

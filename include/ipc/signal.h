@@ -220,7 +220,8 @@ void signal_DFL(struct tcb *t, sig_t signo);
 int do_sigaction(int sig, struct sigaction *act, struct sigaction *oact);
 int do_sigprocmask(int how, sigset_t *set, sigset_t *oldset);
 int setup_rt_frame(struct sigaction *sig, sig_t signo, sigset_t *set, struct trapframe *tf);
-int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf);
+// int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf);
+int signal_frame_setup(sigset_t *set, struct trapframe *tf, struct rt_sigframe *rtf, sig_t signo);
 int signal_frame_restore(struct tcb *t, struct rt_sigframe *rtf);
 // debug
 void print_signal_mask(sigset_t sigmask);
