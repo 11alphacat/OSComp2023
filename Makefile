@@ -5,7 +5,7 @@
 PLATFORM ?= qemu_virt
 # PLATFORM ?= qemu_sifive_u
 # PLATFORM ?= board_sifive_u
-SUBMIT ?= 1
+SUBMIT ?= 0
 ###############################
 
 # debug options
@@ -223,13 +223,13 @@ format:
 	clang-format -i $(filter %.c, $(SRCS)) $(shell find include -name "*.c" -o -name "*.h")
 
 # for submit
-all: kernel-qemu
-	cp bootloader/opensbi-qemu ./sbi-qemu
+# all: kernel-qemu
+# 	cp bootloader/opensbi-qemu ./sbi-qemu
 #	$(QEMU) $(QEMUOPTS)
 
 
-# all: kernel-qemu image
-# 	$(QEMU) $(QEMUOPTS)
+all: kernel-qemu image
+	$(QEMU) $(QEMUOPTS)
 
 kernel: kernel-qemu
 	$(QEMU) $(QEMUOPTS)
