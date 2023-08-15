@@ -181,10 +181,10 @@ SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 ##### PLATFORM ######
 
 ifeq ($(PLATFORM), qemu_virt)
-QEMUOPTS = -machine virt -bios bootloader/opensbi-qemu -kernel kernel-qemu -m 128M -smp 2 -nographic
+QEMUOPTS = -machine virt -bios bootloader/opensbi-qemu -kernel kernel-qemu -m 1G -smp 2 -nographic
 # QEMUOPTS = -machine virt -bios bootloader/opensbi-qemu -kernel kernel-qemu -m 128M -smp 1 -nographic
 ifeq ($(SUBMIT), 1)
-QEMUOPTS += -drive file=sdcard.img,if=none,format=raw,id=x0
+QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 else
 QEMUOPTS += -drive file=fat32.img,if=none,format=raw,id=x0
 endif
@@ -291,7 +291,7 @@ oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
 
 fat32.img: dep
-	@dd if=/dev/zero of=$@ bs=1K count=65536
+	@dd if=/dev/zero of=$@ bs=1M count=1024
 # @sudo mkfs.vfat -F 32 -a $@
 	@sudo mkfs.vfat -F 32 -s 2 -a $@ 
 	@sudo mount -t vfat $@ $(MNT_DIR)
@@ -300,7 +300,7 @@ fat32.img: dep
 
 # for sdcard.img(local test)
 mount:
-	@sudo mount -t vfat sdcard.img mount_sd
+	@sudo mount -t vfat fat32.img mount_sd
 umount:
 	@sudo umount -v mount_sd
 

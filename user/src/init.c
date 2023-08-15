@@ -6,7 +6,7 @@
 #include "string.h"
 
 char *argv[] = {"/busybox/busybox", "sh", 0};
-char *envp[] = {"PATH=/oscomp:/bin:/test:/busybox:/iozone:/lmbench", "LD_LIBRARY_PATH=/", 0};
+char *envp[] = {"PATH=/:/usr/bin:/musl-gcc/include:/bin/", "LD_LIBRARY_PATH=/", 0};
 
 #define CONSOLE 1
 #define DEV_NULL 2

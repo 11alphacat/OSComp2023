@@ -879,8 +879,8 @@ void fat32_inode_put(struct inode *ip) {
         fat32_inode_hash_destroy(ip);
 
         // write back dirty pages of inode
-        // fat32_i_mapping_writeback(ip);
-        list_del_reinit(&ip->dirty_list);// !!!
+        fat32_i_mapping_writeback(ip);
+        // list_del_reinit(&ip->dirty_list);// !!!
 
         // destory i_mapping
         fat32_i_mapping_destroy(ip);

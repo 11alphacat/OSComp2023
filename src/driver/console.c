@@ -27,6 +27,18 @@
 #include "fs/stat.h"
 #include "debug.h"
 
+#include "termios.h"
+///
+
+struct termios term = {
+    .c_iflag = ICRNL,
+    .c_oflag = OPOST,
+    .c_cflag = 0,
+    .c_lflag = ECHO | ICANON,
+    .c_line = 0,
+    .c_cc = {0},
+};
+
 void uartinit(void);
 #define BACKSPACE 0x100
 #define C(x) ((x) - '@') // Control-x
@@ -47,7 +59,7 @@ void consputc(int c) {
     }
 }
 
-struct {
+struct console {
     struct spinlock lock;
 
     // input
@@ -85,8 +97,9 @@ int consolewrite(int user_src, uint64 src, int n) {
 //
 int consoleread(int user_dst, uint64 dst, int n) {
     uint target;
-    int c;
-    char cbuf;
+    char c;
+
+    uint lflag = term.c_lflag;
 
     target = n;
     acquire(&cons.lock);
@@ -94,17 +107,24 @@ int consoleread(int user_dst, uint64 dst, int n) {
         // wait until interrupt handler has put some
         // input into cons.buffer.
         while (cons.r == cons.w) {
-            if (proc_killed(proc_current())) {
+            if (proc_current()->killed) {
                 release(&cons.lock);
                 return -1;
             }
-            // sleep(&cons.r, &cons.lock);
             release(&cons.lock);
             sema_wait(&cons.sem_r);
             acquire(&cons.lock);
         }
 
         c = cons.buf[cons.r++ % INPUT_BUF_SIZE];
+
+        if ((lflag & ICANON) == 0) {
+            if (either_copyout(user_dst, dst, &c, 1) == -1)
+                break;
+            dst++;
+            --n;
+            continue;
+        }
 
         if (c == C('D')) { // end-of-file
             if (n < target) {
@@ -116,8 +136,8 @@ int consoleread(int user_dst, uint64 dst, int n) {
         }
 
         // copy the input byte to the user-space buffer.
-        cbuf = c;
-        if (either_copyout(user_dst, dst, &cbuf, 1) == -1)
+
+        if (either_copyout(user_dst, dst, &c, 1) == -1)
             break;
 
         dst++;
@@ -134,14 +154,25 @@ int consoleread(int user_dst, uint64 dst, int n) {
     return target - n;
 }
 
-//
-// the console input interrupt handler.
-// uartintr() calls this for input character.
-// do erase/kill processing, append to cons.buf,
-// wake up consoleread() if a whole line has arrived.
-//
-void consoleintr(int c) {
+void consoleintr(char c) {
+    uint16 iflag = term.c_iflag;
+    uint16 lflag = term.c_lflag;
     acquire(&cons.lock);
+
+    // not cookmode
+    if ((lflag & ICANON) == 0) {
+        if (c != 0 && cons.e - cons.r < INPUT_BUF_SIZE) {
+            // echo back to the user.
+            if (lflag & ECHO) consputc(c);
+
+            // store for consumption by consoleread().
+            cons.buf[cons.e++ % INPUT_BUF_SIZE] = c;
+            cons.w = cons.e;
+            sema_signal(&cons.sem_r);
+        }
+        release(&cons.lock);
+        return;
+    }
 
     switch (c) {
     case C('T'): // Print thread list.
@@ -154,7 +185,7 @@ void consoleintr(int c) {
         }
         break;
     case C('H'): // Backspace
-    case '\x7f': // Delete key
+    case '\x7f':
         if (cons.e != cons.w) {
             cons.e--;
             consputc(BACKSPACE);
@@ -162,19 +193,19 @@ void consoleintr(int c) {
         break;
     default:
         if (c != 0 && cons.e - cons.r < INPUT_BUF_SIZE) {
-            c = (c == '\r') ? '\n' : c;
+            if (iflag & ICRNL)
+                c = (c == '\r') ? '\n' : c; // 回车转换行
 
             // echo back to the user.
-            consputc(c);
+            if (lflag & ECHO) consputc(c);
 
             // store for consumption by consoleread().
             cons.buf[cons.e++ % INPUT_BUF_SIZE] = c;
 
-            if (c == '\n' || c == C('D') || cons.e - cons.r == INPUT_BUF_SIZE) {
+            if (c == '\n' || c == C('D') || cons.e == cons.r + INPUT_BUF_SIZE) {
                 // wake up consoleread() if a whole line (or end-of-file)
                 // has arrived.
                 cons.w = cons.e;
-                // wakeup(&cons.r);
                 sema_signal(&cons.sem_r);
             }
         }
@@ -187,6 +218,8 @@ void consoleintr(int c) {
 void consoleinit(void) {
     initlock(&cons.lock, "cons");
     sema_init(&cons.sem_r, 0, "cons_sema_r");
+    cons.e = cons.w = cons.r = 0;
+
     uartinit();
 
     // connect read and write system calls
@@ -194,4 +227,11 @@ void consoleinit(void) {
     devsw[CONSOLE].read = consoleread;
     devsw[CONSOLE].write = consolewrite;
     Info("uart and console init [ok]\n");
+}
+
+int consoleready() {
+    acquire(&cons.lock);
+    int ready = cons.w - cons.r;
+    release(&cons.lock);
+    return ready;
 }
