@@ -480,7 +480,7 @@ uint64 sys_tkill() {
 
 // int tgkill(int tgid, int tid, sig_t sig);
 // tgid为目标线程所在进程的进程ID，tid为目标线程的内部线程ID，而不是全局线程ID
-uint64 sys_tgkill() {
+uint64 sys_tgkill () {
     int tgid; // equal to pid
     int tid;  // equal to tidx
     sig_t signo;

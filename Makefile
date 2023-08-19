@@ -2,8 +2,8 @@
 .DEFAULT_GOAL=kernel
 
 # configuration ###############
-PLATFORM ?= qemu_virt
-# PLATFORM ?= qemu_sifive_u
+# PLATFORM ?= qemu_virt
+PLATFORM ?= qemu_sifive_u
 # PLATFORM ?= board_sifive_u
 SUBMIT ?= 0
 ###############################
@@ -286,12 +286,14 @@ user: apps
 	@mv $(BINFILE) $(FSIMG)/bin/
 	@mv $(BOOTFILE) $(FSIMG)/boot/
 	@mv $(TESTFILE) $(FSIMG)/TEST/
+	@cp support/* $(FSIMG)/ -r
 
 oscomp:
 	@make -C $(oscompU) -e all CHAPTER=7
 
 fat32.img: dep
 	@dd if=/dev/zero of=$@ bs=1M count=1024
+# @dd if=/dev/zero of=$@ bs=1K count=131072
 # @sudo mkfs.vfat -F 32 -a $@
 	@sudo mkfs.vfat -F 32 -s 2 -a $@ 
 	@sudo mount -t vfat $@ $(MNT_DIR)

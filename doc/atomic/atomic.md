@@ -93,6 +93,137 @@ while (__sync_lock_test_and_set(&lk->locked, 1) != 0)
 #define cnt_tid_dec (atomic_dec_return(&count_tid))
 ```
 
+4. bcache 的 refcnt 的原子性递增
+
+```c
+atomic_inc_return(&b->refcnt);
+atomic_dec_return(&b->refcnt);
+```
+
+5. socket 端口号递增分配
+
+```c
+#define ASSIGN_PORT atomic_inc_return(&PORT)
+```
+
+6. 原子性增加和减少当前空闲页数量
+
+```c
+atomic_add_return(&pages_cnt, 1 << page->order);
+atomic_sub_return(&pages_cnt, 1 << page->order);
+```
+
+7. ipc的id分配
+
+```c
+#define alloc_ipc_id(ipc_ids) (atomic_inc_return(&((ipc_ids)->next_ipc_id)))
+```
+
+8. page ref 的原子性递增和减少
+
+```c
+atomic_inc_return(&page->refcnt);
+atomic_dec_return(&page->refcnt);
+```
+
+9. 线程组的线程数量的原子性递增和减少
+
+```c
+atomic_inc_return(&tg->thread_cnt);
+if (!(atomic_dec_return(&tg->thread_cnt) - 1)) {
+    exit_process(status);
+    last_thread = 1;
+}
+atomic_dec_return(&tg->thread_cnt);
+```
+
+10. pdflush 的线程数量增加和递增
+
+```c
+atomic_inc_return(&pdflush_control.nr_pdflush_threads);
+atomic_dec_return(&pdflush_control.nr_pdflush_threads);
+```
+
+11. 原子递增ticks
+
+```c
+atomic_inc_return(&ticks);
+```
+
+12. 线程信号handler的引用数的增加和减少
+
+```c
+atomic_inc_return(&t->sig->ref);
+if (t->sig) {
+    // !!! for shared
+    int ref = atomic_dec_return(&t->sig->ref) - 1;
+    if (ref == 0) {
+        kfree((void *)t->sig);
+    }
+    t->sig = NULL;
+}
+```
+
+
+
+我们还需要一些原子的（可以不是原子的）bit 操作来实现基数树，于是我们添加了下面这些指令：
+
+```c
+#define __WORDSIZE 64
+#define BITS_PER_LONG __WORDSIZE
+#define BIT_WORD(nr) ((nr) / BITS_PER_LONG)
+#define BIT_MASK(nr) (1UL << ((nr) % BITS_PER_LONG))
+#if (BITS_PER_LONG == 64)
+#define __AMO(op) "amo" #op ".d"
+#elif (BITS_PER_LONG == 32)
+#define __AMO(op) "amo" #op ".w"
+#else
+#error "Unexpected BITS_PER_LONG"
+#endif
+
+#define __op_bit_ord(op, mod, nr, addr, ord) \的的的的
+    __asm__ __volatile__(                    \
+        __AMO(op) #ord " zero, %1, %0"       \
+        : "+A"(addr[BIT_WORD(nr)])           \
+        : "r"(mod(BIT_MASK(nr)))             \
+        : "memory");
+
+#define __op_bit(op, mod, nr, addr) \
+    __op_bit_ord(op, mod, nr, addr, )
+#define __NOP(x) (x)
+#define __NOT(x) (~(x))
+static inline void set_bit(int nr, volatile uint64 *addr) {
+    __op_bit(or, __NOP, nr, addr);
+}
+
+static inline void clear_bit(int nr, volatile uint64 *addr) {
+    __op_bit(and, __NOT, nr, addr);
+}
+
+static inline int test_bit(int nr, const volatile void *addr) {
+    return (1UL & (((const int *)addr)[nr >> 5] >> (nr & 31))) != 0UL;
+}
+```
+
+基数树中使用的函数接口如下：
+
+```c
+static inline void tag_set(struct radix_tree_node *node, uint32 tag,
+                           int offset) {
+    set_bit(offset, node->tags[tag]);
+}
+
+static inline void tag_clear(struct radix_tree_node *node, uint32 tag,
+                             int offset) {
+    clear_bit(offset, node->tags[tag]);
+}
+
+static inline int tag_get(struct radix_tree_node *node, uint32 tag,
+                          int offset) {
+    return test_bit(offset, node->tags[tag]);
+}
+```
+
 
 
 

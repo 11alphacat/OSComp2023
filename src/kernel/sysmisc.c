@@ -708,6 +708,7 @@ uint64 sys_clock_nanosleep(void) {
 
     return 0;
 }
+
 // int getrusage(int who, struct rusage *usage);
 uint64 sys_getrusage(void) {
     int who;
@@ -755,5 +756,9 @@ uint64 sys_setpgid(void) {
 }
 
 uint64 sys_getpgid(void) {
+    return 0;
+}
+
+uint64 sys_prctl(void) {
     return 0;
 }

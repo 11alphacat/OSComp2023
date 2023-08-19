@@ -34,7 +34,7 @@ b sys_nanosleep
 layout src
 c
 
-`=====开始调试...
+开始调试...
 break main
 c   
 

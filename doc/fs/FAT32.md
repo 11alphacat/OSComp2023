@@ -155,7 +155,7 @@ uint fat32_next_cluster(uint cluster_cur);
 uint fat32_cluster_alloc(uint dev);
 ```
 
-- 首先是获取superblock的互斥信号量，防止data race。
+- 首先是获取superblock的互斥信号量（已经修改为自旋锁），防止data race。
 - 确保还有空闲的簇（可以通过superblock的free_count字段判断）。
 - 读取这个簇的第一个扇区的第一个字节。
 - 如果第一个字节表明后面全空，并且不是最后一个，那么就可以更新nxt_free这个hint。
@@ -504,37 +504,13 @@ void fat32_short_name_parser(dirent_s_t dirent_s, char *name_buf);
 
 - 当long entry出现问题，只能使用short entry的DIR_Name构建一个文件名。
 
-34. **inode dirlookup的hash表映射初始化**
-
-```c
-void fat32_inode_hash_init(struct inode* dp);
-```
-
-35. **inode dirlookup的hash表映射插入key 和 value**
-
-```c
-int fat32_inode_hash_insert(struct inode* dp, const char* name, uint ino, uint off);
-```
-
-36. **inode dirlookup的hash表查找key对应的value**
-
-```c
-struct inode* fat32_inode_hash_lookup(struct inode* dp, const char* name);
-```
-
-37. **摧毁inode dirlookup 的 hash表**
-
-```c
-void fat32_inode_hash_destroy(struct inode* ip);
-```
 
 
 
 
 
 
-
-##### 遇到的问题：
+### 遇到的问题：
 
 1. 如下图，在启动系统并加载init程序后，会发现磁盘中的数据区的第一个长目录项的Attr被修改。起初我们怀疑工具生成错误，但实际上并不是，mkfs.vfat在生成后的磁盘镜像是正确的，但是在生成console.dev文件后发现第一个长目录项被改了，后来发现就是在兼容xv6代码时忘记了根目录没有FCB，当修改根目录下的内容时，不需要更新根目录的FCB（主要就是我们人为将根目录的ino设置为了0，如果更新根目录的FCB，那么第一个32字节的内容必定会被修改，但这种修改是不合理的）
 

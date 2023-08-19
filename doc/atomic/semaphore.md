@@ -33,7 +33,7 @@ sema_signal操作用于通知，其会增加信号量的值供 sema_wait 的线�
 
 使用我们实现的内核信号量可以将内核中的sleeplock和条件变量给统一，使用起来十分方便。
 
-1. buffer_head中一个互斥信号量，一个同步信号量。
+1. buffer_head中一个互斥信号量，一个同步信号量（bio_vec同理）。
 
 ```c
 // buffer_head的互斥信号量
@@ -42,11 +42,11 @@ struct semaphore sem_lock;
 struct semaphore sem_disk_done;
 ```
 
-2. superblock中的互斥信号量
+2. superblock中的互斥信号量（后改为自旋锁）
 
 ```c
 // 实现对superblock这个全局临界资源的互斥访问
-struct semaphore sem
+struct semaphore sem;
 ```
 
 3. inode中的互斥信号量
@@ -95,6 +95,46 @@ struct semaphore uart_tx_r_sem;
 struct semaphore sem_disk;
 ```
 
+9. sbuf中的同步信号量
+
+```c
+struct semaphore slots;
+struct semaphore items;
+```
+
+10. mm_struct 中的互斥信号量
+
+```c
+struct semaphore mmap_sem;
+```
+
+11. socket 中的accept信号量
+
+```c
+struct semaphore do_accept;
+```
+
+12. ipc_ids中的读写信号量
+
+```c
+struct semaphore rwsem;
+```
+
+13. inode 中的读和写回信号量
+
+```c
+struct semaphore i_read_lock; 
+// special for mpage_read
+struct semaphore i_writeback_lock;
+// special for write back and clear cache
+```
+
+14. 线程互斥信号量
+
+```c
+struct semaphore tlock;
+```
+
 
 
 ##### 需要注意的点：
@@ -104,8 +144,4 @@ struct semaphore sem_disk;
 3. 内核信号量只能实现每次唤醒一个等待队列中的线程，如果需要唤醒所有，最好使用条件变量cond。
 
 
-
-##### TODO：
-
-将pipe用传统生产者消费者模型，信号量才起到了不错的效果，且较为规范。
 

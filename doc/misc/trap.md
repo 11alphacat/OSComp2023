@@ -75,10 +75,6 @@ t1的内容加载进入satp寄存器。
 
 利用jr指令跳转到thread_usertrap。
 
-**TODO：决赛我们将修改这段汇编，将sscratch寄存器腾出来保存CPU 的id，tp寄存器保存线程的tidx。**
-
-
-
 
 
 ### **执行完uservec后会跳转到thread_usertrap**
@@ -131,12 +127,6 @@ void thread_usertrap(void);
 6. **store/amo page fault ：scause值为15**
 
 ![pagefault3](../image/trap.assets/pagefault3.png)
-
-**TODO ：决赛我们将会在板卡上运行OS，并添加信号处理，usertrap会进一步完善和优化。**
-
-
-
-
 
 
 

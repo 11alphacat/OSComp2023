@@ -162,7 +162,32 @@ if(ip_search!=NULL) {
 }
 ```
 
-4. TODO futex
+4. get_futex 可以根据hash表，通过uaddr快速得到对应的futex结构体指针 futex*
+
+```c
+struct futex *get_futex(uint64 uaddr, int assert) {
+    struct hash_node *node;
+
+    node = hash_lookup(&futex_map, (void *)uaddr, NULL, 1, 0); // release it, not holding lock
+    if (node) {
+        // find it
+        return (struct futex *)(node->value);
+    } else {
+        if (assert == 1) {
+            return NULL;
+        }
+        // create it
+        struct futex *fp = (struct futex *)kzalloc(sizeof(struct futex));
+        if (fp == NULL) {
+            printf("mm : %d\n", get_free_mem());
+        	panic("get_futex : no free space\n");
+        }
+        futex_init(fp, "futex");
+        hash_insert(&futex_map, (void *)uaddr, (void *)fp, 0); // not holding lock
+        return fp;
+    }
+}
+```
 
 
 

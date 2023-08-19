@@ -96,6 +96,24 @@ if (info->si_signo == SIGKILL || info->si_signo == SIGSTOP) {
 }
 ```
 
+决赛中代码中修改如下：
+
+```c
+if (t_cur->state == TCB_SLEEPING) {
+    thread_wakeup(t_cur);
+}
+// holding lock
+void thread_wakeup(struct tcb *t) {
+    ASSERT(t->wait_chan_entry != NULL);
+    Queue_remove_atomic(t->wait_chan_entry, (void *)t);
+    ASSERT(t->state == TCB_SLEEPING);
+    t->wait_chan_entry = NULL;
+    TCB_Q_changeState(t, TCB_RUNNABLE);
+}
+```
+
+接口更加通用！
+
 在调用线程的休眠的时候，会间这个线程插入等待队列。
 
 ```c
@@ -107,6 +125,47 @@ cond_wait(&cond_ticks, &tickslock);
 ```c
 cond_broadcast(&cond_ticks);
 ```
+
+ppoll 中需要使用这个条件变量实现定时休眠
+
+```c
+if (timeout) {
+    extern struct cond cond_ticks;
+    acquire(&cond_ticks.waiting_queue.lock);
+    cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
+    release(&cond_ticks.waiting_queue.lock);
+    timeout--;
+} else {
+    break;
+}
+```
+
+clock_nanosleep中也需要使用到cond_wait实现定时休眠
+
+```c
+if (flags == 0) {
+    do_sleep_ns(t, request);
+} else if (flags == TIMER_ABSTIME) {
+    uint64 request_ns = TIMESEPC2NS(request);
+    uint64 now_ns = TIME2NS(rdtime());
+    if (now_ns >= request_ns) {
+        return 0;
+    } else {
+        acquire(&cond_ticks.waiting_queue.lock);
+        t->time_out = request_ns - now_ns;
+        cond_wait(&cond_ticks, &cond_ticks.waiting_queue.lock);
+        release(&cond_ticks.waiting_queue.lock);
+    }
+}
+```
+
+pdflush 需要使用这个条件变量实现pdflush内核线程的休眠
+
+```c
+int wait_ret = cond_wait(&pdflush_control.pdflush_cond, &pdflush_control.lock);
+```
+
+
 
 
 

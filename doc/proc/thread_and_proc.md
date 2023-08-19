@@ -8,11 +8,11 @@ PCB_UNUSED、PCB_USED和PCB_ZOMBIE
 
 状态转移图如下：
 
-<img src="../image/thread_and_proc.assets/proc_state.png" style="zoom: 67%;" />
+![image-20230819202900306](thread_and_proc.assets/image-20230819202900306.png)
 
-由于我们的进程仅仅做为资源管理的单位，不作为调度单位，所以不需要PCB_SLEEPING、PCB_RUNNING和PCB_RUNNABLE这三个状态。
+由于我们的进程仅仅作为资源管理的单位，不作为调度单位，所以不需要PCB_SLEEPING、PCB_RUNNING和PCB_RUNNABLE这三个状态。
 
-为了更加方便管理和调试，且考虑到内核很难出现一次性运行大量的进程，我们的进程是用一个全局的数组进行管理，即需要在内核初始化的时候在proc_init将所有进程资源放入UNUSED队列中，然后设置进程的状态。
+为了更加方便管理和调试，且考虑到内核很难出现一次性运行大量的进程，我们的进程是用一个全局的数组进行管理（可以动态调节），即需要在内核初始化的时候在proc_init将所有进程资源放入UNUSED队列中，然后设置进程的状态。
 
 只要一个进程有一个线程还活着，不管是在PCB_SLEEPING、PCB_RUNNING还是PCB_RUNNABLE，我们都定义为PCB_UNUSED，只有当一个进程的线程组中的所有线程都退出时，即调用了exit系统调用，进程在释放完所有的线程资源后，就进入PCB_ZOMBIE状态，等待其父进程收尸。
 
@@ -35,9 +35,7 @@ TCB_UNUSED、TCB_USED、TCB_RUNNING、TCB_RUNNABLE和TCB_SLEEPING。
 
 状态转移图如下：
 
-<img src="../image/thread_and_proc.assets/thread_state.png" style="zoom: 50%;" />
-
-
+![image-20230819202926508](thread_and_proc.assets/image-20230819202926508.png)
 
 由于我们的线程作为调度的最小单元，即可以一个进程的多个线程同时在多个CPU上运行，所以我们线程的状态需要包含TCB_RUNNING、TCB_RUNNABLE和TCB_SLEEPING，这是和进程状态管理最大的不同。
 
@@ -72,8 +70,7 @@ TCB_Q_changeState(struct tcb *t, enum tcbstate state_new);
 
 基于此，我们需要用多叉树的数据结构维护父子进程之间的分层关系，并用一个链表维护进程和其线程之间的扁平结构。即进程需要维护下面这样的家族树的结构，我们采用的是一种孩子兄弟表示法来表示一颗多叉树。具体可以看下面这张图：
 
-
-<img src="../image/thread_and_proc.assets/proc_tree.png" style="zoom: 50%;" />
+<img src="../image/thread_and_proc.assets/proc_tree.png" style="zoom: 80%;" />
 
 我们保留了xv6原始的设计（和Linux一样），每个进程可以通过parent指针快速得到父进程的结构体指针。即上面红色箭头所示。在内核中的多处地方需要用到parent指针：
 
@@ -129,7 +126,7 @@ struct thread_group {
 
 进程的线程组的扁平结构如下所示：
 
-<img src="../image/thread_and_proc.assets/thread_group.png" style="zoom: 50%;" />
+<img src="../image/thread_and_proc.assets/thread_group.png" style="zoom: 80%;" />
 
 通过proc结构体的thread_group和list.h可以十分容易地实现对进程的所有线程进行增加、删除和遍历。进程第一个创建的线程称为主线程，当主线程退出时，其他所有的线程都需要退出。某个非主线程退出时，其可以自己回收资源，不需要进入ZOMBIE状态等待回收。
 
@@ -459,6 +456,14 @@ int do_sleep_ns(struct tcb *t, struct timespec ts);
 
 - 通过rdtime寄存器和cond_ticks这个条件变量实现内核线程的休眠。
 
+18. **创建内核级守护线程**
+
+```c
+void create_thread(struct proc *p, struct tcb *t, char *name, thread_callback callback);
+```
+
+内核级线程被创建后，线程初次被调度的时候会首先调用callback这个回调函数。
+
 
 
 
@@ -478,14 +483,34 @@ int do_sleep_ns(struct tcb *t, struct timespec ts);
 
 - 保留当前CPU的中断打开情况。
 
-
-
-
-
-#### 补充：
-
 在我们系统启动的时候，0号CPU负责执行全局变量的初始化，进程和线程模块主要是执行proc_init和tcb_init对全局的固定大小的进程资源和线程资源初始化。在最后我们需要为init进程创建一个壳子，即创建一个带有主线程的进程，并将其状态切换为TCB_RUNNABLE，等待被调度器调度。
 
 每个线程第一次被调度的时候都跳到thread_forkret，然后释放持有的锁，如果是第一个线程（即init的主线程），那么就会执行init_ret，完成文件系统的初始化，最后通过thread_usertrapret回到用户态。
 
-初赛阶段，我们构建了内核级别的线程的基本框架，将proc中的字段进行了简化，目前是一个进程和一个主线程的形式，在决赛阶段，我们将全面引入内核级别的线程，使一个进程可以又用多个线程，且线程可以同时在多个CPU上运行，并为线程加入信号系统。
+在决赛阶段，我们全面引入内核级别的线程。一个进程可以又有多个线程，且线程可以同时在多个CPU核心上运行，并为线程加入了信号系统。
+
+
+
+
+
+#### 如何更加深刻理解进程和线程的关系？
+
+1. 进程需要维护父子关系，而线程不需要。线程之间的关系是平行的，线程退出时不需要其他线程帮回收资源。但进程的资源需要父进程帮助回收。
+2. 进程之间的关系是树型结构，而线程是扁平结构。由于线程之间的关系是扁平结构，从而使ZOMBIE状态成为进程所特有，让线程组的文件资源和内存资源集中在进程中，而不是线程。线程只需要管理CPU执行流相关的资源即可。
+3. Linux中不区分线程和进程，都是用Task这个结构体进行描述。但是Linux中有进程组的概念，将多个Task组合在一起就是进程组。为了方便管理，我们将线程设置为最小的调度单位，进程是线程的资源管理单位。这样就更加方便地实现资源管理。即我们的线程就类似于Linux的Task，而进程就是Linux的进程组。
+5. 线程设计的最大问题就是如何一个保存进程的多个trapframe在一个页表里，实现用户级多线程。理论上，我们的内核可以实现一个进程的多个线程在多个核上同时运行，而不是限制进程，实现了真正的多线程。
+
+![image-20230819162022715](thread_and_proc.assets/image-20230819162022715.png)
+
+
+
+#### 一个理想的多核多进程多线程的操作系统设计是怎样的？
+
+1. 多个执行流可以在多个CPU核心的kernel space和user space之间切换。
+2. 线程的内核栈和用户栈是私有的，其他的资源和同一个线程组中的其他线程所共享。
+3. 真正的多线程程序可以实现一个进程的多个线程在多个CPU核心上同时运行。
+
+
+
+
+
